@@ -13,6 +13,12 @@ import RegistrarLayout from "./components/registrar/RegistrarLayout.tsx";
 import PatientsList from "./pages/registrar/PatientsList.tsx";
 import PatientDetail from "./pages/registrar/PatientDetail.tsx";
 import RegistrarProfile from "./pages/registrar/RegistrarProfile.tsx";
+import PhysicianLayout from "./components/physician/PhysicianLayout.tsx";
+import MyPatientsList from "./pages/physician/MyPatientsList.tsx";
+import PhysicianPatientDetail from "./pages/physician/PhysicianPatientDetail.tsx";
+import ExamCardDetail from "./pages/physician/ExamCardDetail.tsx";
+import PhysicianProfile from "./pages/physician/PhysicianProfile.tsx";
+import PhysicianSchedule from "./pages/physician/PhysicianSchedule.tsx";
 
 const queryClient = new QueryClient();
 
@@ -27,7 +33,13 @@ const App = () => (
           <Route path="/signup" element={<Signup />} />
           <Route path="/login" element={<Login />} />
           <Route path="/admin" element={<ProtectedRoute allowedRoles={["admin"]}><DashboardPlaceholder expectedRole="admin" /></ProtectedRoute>} />
-          <Route path="/physician" element={<ProtectedRoute allowedRoles={["physician"]}><DashboardPlaceholder expectedRole="physician" /></ProtectedRoute>} />
+          <Route path="/physician" element={<ProtectedRoute allowedRoles={["physician"]}><PhysicianLayout /></ProtectedRoute>}>
+            <Route index element={<MyPatientsList />} />
+            <Route path="patients/:patientId" element={<PhysicianPatientDetail />} />
+            <Route path="patients/:patientId/exam/:examId" element={<ExamCardDetail />} />
+            <Route path="schedule" element={<PhysicianSchedule />} />
+            <Route path="profile" element={<PhysicianProfile />} />
+          </Route>
           <Route path="/registrar" element={<ProtectedRoute allowedRoles={["registrar"]}><RegistrarLayout /></ProtectedRoute>}>
             <Route index element={<PatientsList />} />
             <Route path="patients/:patientId" element={<PatientDetail />} />
