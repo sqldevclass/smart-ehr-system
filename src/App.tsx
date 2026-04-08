@@ -28,7 +28,11 @@ const App = () => (
           <Route path="/login" element={<Login />} />
           <Route path="/admin" element={<ProtectedRoute allowedRoles={["admin"]}><DashboardPlaceholder expectedRole="admin" /></ProtectedRoute>} />
           <Route path="/physician" element={<ProtectedRoute allowedRoles={["physician"]}><DashboardPlaceholder expectedRole="physician" /></ProtectedRoute>} />
-          <Route path="/registrar" element={<ProtectedRoute allowedRoles={["registrar"]}><DashboardPlaceholder expectedRole="registrar" /></ProtectedRoute>} />
+          <Route path="/registrar" element={<ProtectedRoute allowedRoles={["registrar"]}><RegistrarLayout /></ProtectedRoute>}>
+            <Route index element={<PatientsList />} />
+            <Route path="patients/:patientId" element={<PatientDetail />} />
+            <Route path="profile" element={<RegistrarProfile />} />
+          </Route>
           <Route path="/pharmacy" element={<ProtectedRoute allowedRoles={["pharmacy_staff"]}><DashboardPlaceholder expectedRole="pharmacy_staff" /></ProtectedRoute>} />
           <Route path="/warehouse" element={<ProtectedRoute allowedRoles={["warehouse_staff"]}><DashboardPlaceholder expectedRole="warehouse_staff" /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
