@@ -9,6 +9,10 @@ import Signup from "./pages/Signup.tsx";
 import Login from "./pages/Login.tsx";
 import DashboardPlaceholder from "./pages/DashboardPlaceholder.tsx";
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
+import RegistrarLayout from "./components/registrar/RegistrarLayout.tsx";
+import PatientsList from "./pages/registrar/PatientsList.tsx";
+import PatientDetail from "./pages/registrar/PatientDetail.tsx";
+import RegistrarProfile from "./pages/registrar/RegistrarProfile.tsx";
 
 const queryClient = new QueryClient();
 
