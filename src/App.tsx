@@ -13,6 +13,12 @@ import RegistrarLayout from "./components/registrar/RegistrarLayout.tsx";
 import PatientsList from "./pages/registrar/PatientsList.tsx";
 import PatientDetail from "./pages/registrar/PatientDetail.tsx";
 import RegistrarProfile from "./pages/registrar/RegistrarProfile.tsx";
+import PhysicianLayout from "./components/physician/PhysicianLayout.tsx";
+import MyPatientsList from "./pages/physician/MyPatientsList.tsx";
+import PhysicianPatientDetail from "./pages/physician/PhysicianPatientDetail.tsx";
+import ExamCardDetail from "./pages/physician/ExamCardDetail.tsx";
+import PhysicianProfile from "./pages/physician/PhysicianProfile.tsx";
+import PhysicianSchedule from "./pages/physician/PhysicianSchedule.tsx";
 
 const queryClient = new QueryClient();
 
