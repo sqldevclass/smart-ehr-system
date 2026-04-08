@@ -52,54 +52,38 @@ const Signup = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const error = validate();
-    if (error) {
-      toast.error(error);
+    const validationError = validate();
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
 
     setLoading(true);
-    let hospitalId: string | null = null;
-
     try {
-      // Step 1: Insert hospital
-      const { data: hospitalData, error: hospitalError } = await supabase
-        .from("hospitals")
-        .insert({
-          name: form.hospitalName.trim(),
-          address: form.hospitalAddress.trim() || null,
-          phone: form.hospitalPhone.trim() || null,
-          email: form.hospitalEmail.trim(),
-          status: "trial",
-        })
-        .select("id")
-        .single();
-
-      if (hospitalError) throw new Error(hospitalError.message);
-      hospitalId = hospitalData.id;
-
-      // Step 2: Sign up admin
-      const { error: signUpError } = await supabase.auth.signUp({
-        email: form.adminEmail.trim(),
-        password: form.adminPassword,
-        options: {
-          data: {
-            role: "admin",
-            full_name: form.adminFullName.trim(),
-            hospital_id: hospitalId,
+      const { data, error } = await supabase.functions.invoke(
+        'register-hospital',
+        {
+          body: {
+            hospital_name: form.hospitalName.trim(),
+            hospital_address: form.hospitalAddress.trim() || null,
+            hospital_phone: form.hospitalPhone.trim() || null,
+            hospital_email: form.hospitalEmail.trim(),
+            admin_full_name: form.adminFullName.trim(),
+            admin_email: form.adminEmail.trim(),
+            admin_password: form.adminPassword,
           },
-        },
-      });
+        }
+      );
 
-      if (signUpError) throw new Error(signUpError.message);
-
-      // Step 4: Success
-      setSuccess(true);
-    } catch (err: any) {
-      // Step 5: Rollback hospital if auth failed
-      if (hospitalId) {
-        await supabase.from("hospitals").delete().eq("id", hospitalId);
+      if (error || data?.error) {
+        toast.error(data?.error || error?.message || "Something went wrong. Please try again.");
+        return;
       }
+
+      if (data?.success) {
+        setSuccess(true);
+      }
+    } catch (err: any) {
       toast.error(err.message || "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
