@@ -51,12 +51,13 @@ export default function RegisterPatientSheet({ open, onOpenChange, hospitalId, u
   const { data: physicians = [] } = useQuery({
     queryKey: ["physicians", hospitalId],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("physicians")
         .select("id, full_name, specialization")
         .eq("hospital_id", hospitalId)
         .eq("is_active", true)
         .order("full_name");
+      console.log("Physicians query result:", data, "Error:", error, "Hospital ID:", hospitalId);
       return data || [];
     },
     enabled: !!hospitalId,
