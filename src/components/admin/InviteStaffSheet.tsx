@@ -43,7 +43,6 @@ export default function InviteStaffSheet({ open, onOpenChange, onSuccess }: Prop
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const body: Record<string, string> = {
-        access_token: session?.access_token ?? "",
         email,
         full_name: fullName,
         role,
@@ -53,6 +52,7 @@ export default function InviteStaffSheet({ open, onOpenChange, onSuccess }: Prop
 
       const { data, error } = await supabase.functions.invoke("invite-staff-user", {
         body,
+        headers: { Authorization: `Bearer ${session?.access_token}` },
       });
 
       if (error || data?.error) {
