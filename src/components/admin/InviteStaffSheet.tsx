@@ -45,7 +45,11 @@ export default function InviteStaffSheet({ open, onOpenChange, onSuccess }: Prop
       if (role === "physician") body.specialization = specialization;
       if (phone) body.phone = phone;
 
-      const { data, error } = await supabase.functions.invoke("invite-staff-user", { body });
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data, error } = await supabase.functions.invoke("invite-staff-user", {
+        body,
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
 
       if (error || data?.error) {
         toast.error(data?.error || error?.message || "Failed to send invitation.");
