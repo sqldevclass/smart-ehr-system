@@ -27,6 +27,7 @@ import PhysicianSchedule from "./pages/physician/PhysicianSchedule.tsx";
 import AuthCallback from "./pages/auth/AuthCallback.tsx";
 import SetPassword from "./pages/auth/SetPassword.tsx";
 import CallbackError from "./pages/auth/CallbackError.tsx";
+import AcceptInvite from "./pages/AcceptInvite.tsx";
 
 const queryClient = new QueryClient();
 
@@ -40,6 +41,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/invite" element={<AcceptInvite />} />
           <Route path="/admin" element={<ProtectedRoute allowedRoles={["admin"]}><AdminLayout /></ProtectedRoute>}>
             <Route index element={<AdminOverview />} />
             <Route path="users" element={<UserManagement />} />
