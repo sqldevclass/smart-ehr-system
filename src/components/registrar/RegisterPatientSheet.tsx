@@ -236,7 +236,7 @@ export default function RegisterPatientSheet({ open, onOpenChange, hospitalId, u
                 </SelectTrigger>
                 <SelectContent>
                   {physicians.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>
+                    <SelectItem key={p.id} value={p.id}>{p.full_name} — {p.specialization}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
