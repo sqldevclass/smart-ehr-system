@@ -41,16 +41,18 @@ export default function InviteStaffSheet({ open, onOpenChange, onSuccess }: Prop
 
     setSubmitting(true);
     try {
-      const body: Record<string, string> = { email, full_name: fullName, role };
+      const { data: { session } } = await supabase.auth.getSession();
+      const body: Record<string, string> = {
+        access_token: session?.access_token ?? "",
+        email,
+        full_name: fullName,
+        role,
+      };
       if (role === "physician") body.specialization = specialization;
       if (phone) body.phone = phone;
 
-      const { data: { session } } = await supabase.auth.getSession();
-      console.log("Session:", session);
-      console.log("Access token:", session?.access_token);
       const { data, error } = await supabase.functions.invoke("invite-staff-user", {
         body,
-        headers: { Authorization: `Bearer ${session?.access_token}` },
       });
 
       if (error || data?.error) {
