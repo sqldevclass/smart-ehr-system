@@ -12,13 +12,13 @@ export default function AuthCallback() {
       const code = params.get("code");
 
       if (!code) {
-        setError("Invalid or expired link.");
+        setError("Invalid or expired invite link. Please contact your administrator.");
         return;
       }
 
       const { error } = await supabase.auth.exchangeCodeForSession(code);
       if (error) {
-        setError("Invalid or expired link.");
+        setError("Invalid or expired invite link. Please contact your administrator.");
         return;
       }
 
@@ -42,7 +42,7 @@ export default function AuthCallback() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
-      <p className="text-muted-foreground">Verifying link…</p>
+      <p className="text-muted-foreground">Verifying invite link…</p>
     </div>
   );
 }
