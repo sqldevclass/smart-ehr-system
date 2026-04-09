@@ -26,6 +26,7 @@ import PhysicianProfile from "./pages/physician/PhysicianProfile.tsx";
 import PhysicianSchedule from "./pages/physician/PhysicianSchedule.tsx";
 import AuthCallback from "./pages/auth/AuthCallback.tsx";
 import SetPassword from "./pages/auth/SetPassword.tsx";
+import CallbackError from "./pages/auth/CallbackError.tsx";
 
 const queryClient = new QueryClient();
 
@@ -64,6 +65,7 @@ const App = () => (
           <Route path="/warehouse" element={<ProtectedRoute allowedRoles={["warehouse_staff"]}><DashboardPlaceholder expectedRole="warehouse_staff" /></ProtectedRoute>} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/auth/set-password" element={<SetPassword />} />
+          <Route path="/auth/callback-error" element={<CallbackError />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
