@@ -46,6 +46,8 @@ export default function InviteStaffSheet({ open, onOpenChange, onSuccess }: Prop
       if (phone) body.phone = phone;
 
       const { data: { session } } = await supabase.auth.getSession();
+      console.log("Session:", session);
+      console.log("Access token:", session?.access_token);
       const { data, error } = await supabase.functions.invoke("invite-staff-user", {
         body,
         headers: { Authorization: `Bearer ${session?.access_token}` },
