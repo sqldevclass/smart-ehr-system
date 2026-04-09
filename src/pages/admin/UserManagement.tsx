@@ -53,7 +53,7 @@ export default function UserManagement() {
     if (!user) return;
     setLoading(true);
 
-    const [profilesRes, invitationsRes] = await Promise.all([
+    const [allProfilesRes, nonActiveRes, invitationsRes] = await Promise.all([
       supabase
         .from("profiles")
         .select("id, full_name, role, created_at")
@@ -62,13 +62,25 @@ export default function UserManagement() {
         .order("created_at", { ascending: false }),
       supabase
         .from("staff_invitations")
+        .select("auth_user_id, status")
+        .eq("hospital_id", user.hospitalId)
+        .in("status", ["pending", "revoked"]),
+      supabase
+        .from("staff_invitations")
         .select("id, full_name, email, role, invited_at, auth_user_id")
         .eq("hospital_id", user.hospitalId)
         .eq("status", "pending")
         .order("invited_at", { ascending: false }),
     ]);
 
-    setProfiles((profilesRes.data as Profile[]) || []);
+    const nonActiveIds = new Set(
+      nonActiveRes.data?.map((i: { auth_user_id: string }) => i.auth_user_id) ?? []
+    );
+    const activeStaff = (allProfilesRes.data as Profile[])?.filter(
+      (p) => !nonActiveIds.has(p.id)
+    ) ?? [];
+
+    setProfiles(activeStaff);
     setInvitations((invitationsRes.data as Invitation[]) || []);
     setLoading(false);
   }, [user]);
