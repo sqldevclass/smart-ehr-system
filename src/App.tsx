@@ -24,6 +24,8 @@ import PhysicianPatientDetail from "./pages/physician/PhysicianPatientDetail.tsx
 import ExamCardDetail from "./pages/physician/ExamCardDetail.tsx";
 import PhysicianProfile from "./pages/physician/PhysicianProfile.tsx";
 import PhysicianSchedule from "./pages/physician/PhysicianSchedule.tsx";
+import AuthCallback from "./pages/auth/AuthCallback.tsx";
+import SetPassword from "./pages/auth/SetPassword.tsx";
 
 const queryClient = new QueryClient();
 
