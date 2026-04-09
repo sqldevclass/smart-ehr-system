@@ -37,7 +37,15 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/admin" element={<ProtectedRoute allowedRoles={["admin"]}><DashboardPlaceholder expectedRole="admin" /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute allowedRoles={["admin"]}><AdminLayout /></ProtectedRoute>}>
+            <Route index element={<AdminOverview />} />
+            <Route path="users" element={<UserManagement />} />
+            <Route path="departments" element={<AdminPlaceholder title="Departments" />} />
+            <Route path="services" element={<AdminPlaceholder title="Services" />} />
+            <Route path="physicians" element={<AdminPlaceholder title="Physicians" />} />
+            <Route path="audit" element={<AdminPlaceholder title="Audit Log" />} />
+            <Route path="profile" element={<AdminProfile />} />
+          </Route>
           <Route path="/physician" element={<ProtectedRoute allowedRoles={["physician"]}><PhysicianLayout /></ProtectedRoute>}>
             <Route index element={<MyPatientsList />} />
             <Route path="patients/:patientId" element={<PhysicianPatientDetail />} />
