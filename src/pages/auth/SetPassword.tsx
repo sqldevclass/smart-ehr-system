@@ -45,13 +45,6 @@ export default function SetPassword() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { navigate("/login", { replace: true }); return; }
 
-      // Mark invitation as accepted (silently fails for non-invited users)
-      await supabase
-        .from("staff_invitations")
-        .update({ status: "accepted", accepted_at: new Date().toISOString() })
-        .eq("auth_user_id", user.id)
-        .eq("status", "pending");
-
       const { data: profile } = await supabase
         .from("profiles")
         .select("role")
