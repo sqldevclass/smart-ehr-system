@@ -85,8 +85,10 @@ export default function UserManagement() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const { data, error } = await supabase.functions.invoke("remove-staff-user", {
-        body: { target_user_id: removeTarget.id },
-        headers: { Authorization: `Bearer ${session?.access_token}` },
+        body: {
+          access_token: session?.access_token,
+          target_user_id: removeTarget.id,
+        },
       });
       if (error || data?.error) {
         toast.error(data?.error || error?.message || "Failed to remove user.");
@@ -106,8 +108,10 @@ export default function UserManagement() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const { data, error } = await supabase.functions.invoke("remove-staff-user", {
-        body: { target_user_id: revokeTarget.auth_user_id },
-        headers: { Authorization: `Bearer ${session?.access_token}` },
+        body: {
+          access_token: session?.access_token,
+          target_user_id: revokeTarget.auth_user_id,
+        },
       });
       if (error || data?.error) {
         toast.error(data?.error || error?.message || "Failed to revoke invitation.");
