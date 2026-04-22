@@ -7,14 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Building2, Mail, Lock } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-
-const roleRoutes: Record<string, string> = {
-  admin: "/admin",
-  physician: "/physician",
-  registrar: "/registrar",
-  pharmacy_staff: "/pharmacy",
-  warehouse_staff: "/warehouse",
-};
+import { routeForRoles } from "@/lib/roleRouting";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -49,7 +42,7 @@ const Login = () => {
 
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("role, hospital_id")
+        .select("hospital_id")
         .eq("id", userId)
         .single();
 
@@ -58,9 +51,18 @@ const Login = () => {
         return;
       }
 
-      const route = roleRoutes[profile.role];
+      const { data: userRoles } = await supabase
+        .from("user_roles")
+        .select("roles(code)")
+        .eq("user_id", userId);
+
+      const roles = (userRoles ?? [])
+        .map((ur: any) => ur.roles?.code)
+        .filter(Boolean) as string[];
+
+      const route = routeForRoles(roles);
       if (!route) {
-        toast.error(`Unknown role: ${profile.role}`);
+        toast.error(`No role assigned. Please contact your administrator.`);
         return;
       }
 

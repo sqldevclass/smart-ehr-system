@@ -6,14 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-
-const roleRoutes: Record<string, string> = {
-  admin: "/admin",
-  physician: "/physician",
-  registrar: "/registrar",
-  pharmacy_staff: "/pharmacy",
-  warehouse_staff: "/warehouse",
-};
+import { routeForRoles } from "@/lib/roleRouting";
 
 export default function SetPassword() {
   const navigate = useNavigate();
@@ -45,14 +38,17 @@ export default function SetPassword() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { navigate("/login", { replace: true }); return; }
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
+      const { data: userRoles } = await supabase
+        .from("user_roles")
+        .select("roles(code)")
+        .eq("user_id", user.id);
+
+      const roles = (userRoles ?? [])
+        .map((ur: any) => ur.roles?.code)
+        .filter(Boolean) as string[];
 
       toast.success("Password set successfully!");
-      navigate(roleRoutes[profile?.role || ""] || "/login", { replace: true });
+      navigate(routeForRoles(roles) || "/login", { replace: true });
     } finally {
       setSubmitting(false);
     }
