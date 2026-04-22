@@ -9,7 +9,7 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute = ({ allowedRoles, children }: ProtectedRouteProps) => {
   const [status, setStatus] = useState<"loading" | "authenticated" | "unauthenticated">("loading");
-  const [role, setRole] = useState<string | null>(null);
+  const [roles, setRoles] = useState<string[]>([]);
 
   useEffect(() => {
     const check = async () => {
@@ -19,13 +19,16 @@ const ProtectedRoute = ({ allowedRoles, children }: ProtectedRouteProps) => {
         return;
       }
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", session.user.id)
-        .single();
+      const { data: userRoles } = await supabase
+        .from("user_roles")
+        .select("roles(code)")
+        .eq("user_id", session.user.id);
 
-      setRole(profile?.role ?? null);
+      const codes = (userRoles ?? [])
+        .map((ur: any) => ur.roles?.code)
+        .filter(Boolean) as string[];
+
+      setRoles(codes);
       setStatus("authenticated");
     };
 
@@ -50,7 +53,7 @@ const ProtectedRoute = ({ allowedRoles, children }: ProtectedRouteProps) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (role && !allowedRoles.includes(role)) {
+  if (roles.length > 0 && !roles.some((r) => allowedRoles.includes(r))) {
     return <Navigate to="/login" replace />;
   }
 

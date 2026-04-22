@@ -7,14 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
 import { AlertCircle } from "lucide-react";
-
-const roleRoutes: Record<string, string> = {
-  admin: "/admin",
-  physician: "/physician",
-  registrar: "/registrar",
-  pharmacy_staff: "/pharmacy",
-  warehouse_staff: "/warehouse",
-};
+import { roleRoutes, routeForRoles } from "@/lib/roleRouting";
 
 export default function AcceptInvite() {
   const navigate = useNavigate();
@@ -88,7 +81,10 @@ export default function AcceptInvite() {
       }
 
       toast.success("Account created successfully!");
-      navigate(roleRoutes[data.role] || "/login", { replace: true });
+      const target = Array.isArray(data.roles)
+        ? routeForRoles(data.roles)
+        : roleRoutes[data.role];
+      navigate(target || "/login", { replace: true });
     } catch {
       setErrors({ general: "Something went wrong. Please try again." });
     } finally {

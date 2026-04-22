@@ -31,11 +31,20 @@ const DashboardPlaceholder = ({ expectedRole }: { expectedRole: string }) => {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name, role, hospital_id")
+        .select("full_name, hospital_id")
         .eq("id", session.user.id)
         .single();
 
       if (!profile) return;
+
+      const { data: userRoles } = await supabase
+        .from("user_roles")
+        .select("roles(code)")
+        .eq("user_id", session.user.id);
+
+      const roles = (userRoles ?? [])
+        .map((ur: any) => ur.roles?.code)
+        .filter(Boolean) as string[];
 
       const { data: hospital } = await supabase
         .from("hospitals")
@@ -45,7 +54,7 @@ const DashboardPlaceholder = ({ expectedRole }: { expectedRole: string }) => {
 
       setUser({
         fullName: profile.full_name || "Unknown",
-        role: profile.role,
+        role: roles[0] || "",
         hospitalName: hospital?.name || "Unknown Hospital",
       });
     };
