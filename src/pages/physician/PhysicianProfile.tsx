@@ -23,7 +23,7 @@ export default function PhysicianProfile() {
         </div>
         <div>
           <p className="text-muted-foreground">Role</p>
-          <p className="font-medium text-foreground">{roleTitles[user.role] || user.role}</p>
+          <p className="font-medium text-foreground">{user.roles.map((r) => roleTitles[r] || r).join(", ")}</p>
         </div>
         <div>
           <p className="text-muted-foreground">Hospital</p>

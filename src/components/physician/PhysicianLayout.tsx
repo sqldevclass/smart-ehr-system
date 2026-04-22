@@ -91,7 +91,7 @@ export default function PhysicianLayout() {
               <div className="flex items-center gap-3 text-sm text-muted-foreground">
                 <span>{user.fullName}</span>
                 <span className="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                  {roleTitles[user.role] || user.role}
+                  {user.roles.map((r) => roleTitles[r] || r).join(", ")}
                 </span>
               </div>
             )}
