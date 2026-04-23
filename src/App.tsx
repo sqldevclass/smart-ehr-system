@@ -14,6 +14,8 @@ import AdminOverview from "./pages/admin/AdminOverview.tsx";
 import UserManagement from "./pages/admin/UserManagement.tsx";
 import AdminPlaceholder from "./pages/admin/AdminPlaceholder.tsx";
 import AdminProfile from "./pages/admin/AdminProfile.tsx";
+import DepartmentsPage from "./pages/admin/DepartmentsPage.tsx";
+import PhysiciansPage from "./pages/admin/PhysiciansPage.tsx";
 import RegistrarLayout from "./components/registrar/RegistrarLayout.tsx";
 import PatientsList from "./pages/registrar/PatientsList.tsx";
 import PatientDetail from "./pages/registrar/PatientDetail.tsx";
@@ -24,6 +26,11 @@ import PhysicianPatientDetail from "./pages/physician/PhysicianPatientDetail.tsx
 import ExamCardDetail from "./pages/physician/ExamCardDetail.tsx";
 import PhysicianProfile from "./pages/physician/PhysicianProfile.tsx";
 import PhysicianSchedule from "./pages/physician/PhysicianSchedule.tsx";
+import HRLayout from "./components/hr/HRLayout.tsx";
+import HRSchedules from "./pages/hr/HRSchedules.tsx";
+import HREmployees from "./pages/hr/HREmployees.tsx";
+import HRProfile from "./pages/hr/HRProfile.tsx";
+import QueueDisplay from "./pages/QueueDisplay.tsx";
 import AuthCallback from "./pages/auth/AuthCallback.tsx";
 import SetPassword from "./pages/auth/SetPassword.tsx";
 import CallbackError from "./pages/auth/CallbackError.tsx";
@@ -42,12 +49,13 @@ const App = () => (
           <Route path="/signup" element={<Signup />} />
           <Route path="/login" element={<Login />} />
           <Route path="/invite" element={<AcceptInvite />} />
+          <Route path="/queue/:displayToken" element={<QueueDisplay />} />
           <Route path="/admin" element={<ProtectedRoute allowedRoles={["admin"]}><AdminLayout /></ProtectedRoute>}>
             <Route index element={<AdminOverview />} />
             <Route path="users" element={<UserManagement />} />
-            <Route path="departments" element={<AdminPlaceholder title="Departments" />} />
+            <Route path="departments" element={<DepartmentsPage />} />
             <Route path="services" element={<AdminPlaceholder title="Services" />} />
-            <Route path="physicians" element={<AdminPlaceholder title="Physicians" />} />
+            <Route path="physicians" element={<PhysiciansPage />} />
             <Route path="audit" element={<AdminPlaceholder title="Audit Log" />} />
             <Route path="profile" element={<AdminProfile />} />
           </Route>
@@ -58,12 +66,18 @@ const App = () => (
             <Route path="schedule" element={<PhysicianSchedule />} />
             <Route path="profile" element={<PhysicianProfile />} />
           </Route>
-          <Route path="/registrar" element={<ProtectedRoute allowedRoles={["registrar"]}><RegistrarLayout /></ProtectedRoute>}>
+          <Route path="/registrar" element={<ProtectedRoute allowedRoles={["outpatient_registrar"]}><RegistrarLayout /></ProtectedRoute>}>
             <Route index element={<PatientsList />} />
             <Route path="patients/:patientId" element={<PatientDetail />} />
             <Route path="profile" element={<RegistrarProfile />} />
           </Route>
-          <Route path="/pharmacy" element={<ProtectedRoute allowedRoles={["pharmacy_staff"]}><DashboardPlaceholder expectedRole="pharmacy_staff" /></ProtectedRoute>} />
+          <Route path="/hr" element={<ProtectedRoute allowedRoles={["hr"]}><HRLayout /></ProtectedRoute>}>
+            <Route index element={<HRSchedules />} />
+            <Route path="schedules" element={<HRSchedules />} />
+            <Route path="employees" element={<HREmployees />} />
+            <Route path="profile" element={<HRProfile />} />
+          </Route>
+          <Route path="/pharmacy" element={<ProtectedRoute allowedRoles={["pharmacist"]}><DashboardPlaceholder expectedRole="pharmacist" /></ProtectedRoute>} />
           <Route path="/warehouse" element={<ProtectedRoute allowedRoles={["warehouse_staff"]}><DashboardPlaceholder expectedRole="warehouse_staff" /></ProtectedRoute>} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/auth/set-password" element={<SetPassword />} />
