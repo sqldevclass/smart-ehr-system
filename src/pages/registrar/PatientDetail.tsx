@@ -8,42 +8,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ArrowLeft, CalendarIcon, Edit, Save, Plus, Trash2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { ArrowLeft, Plus } from "lucide-react";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-
-interface EmergencyContact {
-  name: string;
-  relationship: string;
-  phone: string;
-}
 
 export default function PatientDetail() {
   const { patientId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  // Form state
-  const [fullName, setFullName] = useState("");
-  const [dob, setDob] = useState<Date>();
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [address, setAddress] = useState("");
-  const [passport, setPassport] = useState("");
-  const [insurancePolicy, setInsurancePolicy] = useState("");
-  const [insuranceCompany, setInsuranceCompany] = useState("");
-  const [insuranceType, setInsuranceType] = useState("");
-  const [primaryPhysicianId, setPrimaryPhysicianId] = useState("");
-  const [primaryDepartmentId, setPrimaryDepartmentId] = useState("");
-  const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContact[]>([]);
+  const [allergyOpen, setAllergyOpen] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
 
   const { data: patient, isLoading } = useQuery({
     queryKey: ["patient", patientId],
@@ -60,278 +41,130 @@ export default function PatientDetail() {
     enabled: !!patientId && !!user,
   });
 
-  const { data: physicians = [] } = useQuery({
-    queryKey: ["physicians", user?.hospitalId],
+  const { data: allergies = [] } = useQuery({
+    queryKey: ["patient-allergies", patientId],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("id, full_name")
-        .eq("hospital_id", user!.hospitalId)
-        .eq("role", "physician");
+      const { data, error } = await supabase
+        .from("patient_allergies")
+        .select("id, allergy_type, description, severity")
+        .eq("patient_id", patientId!);
+      if (error) throw error;
       return data || [];
     },
-    enabled: !!user,
+    enabled: !!patientId,
   });
 
-  const { data: departments = [] } = useQuery({
-    queryKey: ["departments", user?.hospitalId],
+  const { data: contacts = [] } = useQuery({
+    queryKey: ["patient-contacts", patientId],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("departments")
-        .select("id, name")
-        .eq("hospital_id", user!.hospitalId);
+      const { data, error } = await supabase
+        .from("patient_contacts")
+        .select("id, name, relationship, phone, is_primary")
+        .eq("patient_id", patientId!);
+      if (error) throw error;
       return data || [];
     },
-    enabled: !!user,
+    enabled: !!patientId,
   });
-
-  const startEditing = () => {
-    if (!patient) return;
-    setFullName(patient.full_name || "");
-    setDob(patient.date_of_birth ? new Date(patient.date_of_birth) : undefined);
-    setPhone(patient.phone || "");
-    setEmail(patient.email || "");
-    setAddress(patient.address || "");
-    setPassport(patient.passport_number || "");
-    setInsurancePolicy(patient.insurance_policy_number || "");
-    setInsuranceCompany(patient.insurance_company || "");
-    setInsuranceType(patient.insurance_type || "");
-    setPrimaryPhysicianId(patient.primary_physician_id || "");
-    setPrimaryDepartmentId(patient.primary_department_id || "");
-    const contacts = patient.emergency_contacts as EmergencyContact[] | null;
-    setEmergencyContacts(contacts || []);
-    setEditing(true);
-  };
-
-  const handleSave = async () => {
-    if (!fullName.trim()) {
-      toast.error("Full name is required.");
-      return;
-    }
-    if (!dob) {
-      toast.error("Date of birth is required.");
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const { error } = await supabase
-        .from("patients")
-        .update({
-          full_name: fullName.trim(),
-          date_of_birth: format(dob, "yyyy-MM-dd"),
-          phone: phone.trim() || null,
-          email: email.trim() || null,
-          address: address.trim() || null,
-          passport_number: passport.trim() || null,
-          insurance_policy_number: insurancePolicy.trim() || null,
-          insurance_company: insuranceCompany.trim() || null,
-          insurance_type: insuranceType.trim() || null,
-          primary_physician_id: primaryPhysicianId || null,
-          primary_department_id: primaryDepartmentId || null,
-          emergency_contacts: emergencyContacts.length > 0 ? emergencyContacts : null,
-        })
-        .eq("id", patientId!)
-        .eq("hospital_id", user!.hospitalId);
-
-      if (error) {
-        toast.error(error.message);
-        return;
-      }
-
-      toast.success("Patient updated.");
-      setEditing(false);
-      queryClient.invalidateQueries({ queryKey: ["patient", patientId] });
-      queryClient.invalidateQueries({ queryKey: ["patients"] });
-    } catch (err: any) {
-      toast.error(err.message || "Failed to update.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const addContact = () => setEmergencyContacts([...emergencyContacts, { name: "", relationship: "", phone: "" }]);
-  const removeContact = (i: number) => setEmergencyContacts(emergencyContacts.filter((_, idx) => idx !== i));
-  const updateContact = (i: number, field: keyof EmergencyContact, value: string) => {
-    const updated = [...emergencyContacts];
-    updated[i] = { ...updated[i], [field]: value };
-    setEmergencyContacts(updated);
-  };
-
-  const physicianName = physicians.find((p) => p.id === patient?.primary_physician_id)?.full_name || "—";
-  const departmentName = departments.find((d) => d.id === patient?.primary_department_id)?.name || "—";
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
   if (!patient) return <p className="text-sm text-destructive">Patient not found.</p>;
 
-  const contacts = (patient.emergency_contacts as EmergencyContact[] | null) || [];
+  const fullName = [patient.last_name, patient.first_name, patient.middle_name].filter(Boolean).join(" ");
 
   return (
-    <div className="max-w-2xl space-y-6">
-      <div className="flex items-center justify-between">
-        <Button variant="ghost" onClick={() => navigate("/registrar")} className="gap-2">
-          <ArrowLeft className="h-4 w-4" /> Back
-        </Button>
-        {!editing ? (
-          <Button variant="outline" onClick={startEditing} className="gap-2">
-            <Edit className="h-4 w-4" /> Edit
-          </Button>
-        ) : (
-          <Button onClick={handleSave} disabled={saving} className="gap-2">
-            <Save className="h-4 w-4" /> {saving ? "Saving…" : "Save"}
-          </Button>
-        )}
+    <div className="max-w-3xl space-y-6">
+      <Button variant="ghost" onClick={() => navigate("/registrar")} className="gap-2">
+        <ArrowLeft className="h-4 w-4" /> Back
+      </Button>
+
+      <div className="rounded-lg border bg-card p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="font-heading text-xl font-bold text-foreground">{fullName || "—"}</h2>
+          <span className="font-mono text-xs text-muted-foreground">{patient.patient_number || "—"}</span>
+        </div>
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <Field label="Date of Birth" value={patient.date_of_birth ? format(new Date(patient.date_of_birth), "MMM d, yyyy") : "—"} />
+          <Field label="Gender" value={patient.gender || "—"} />
+          <Field label="Blood Type" value={patient.blood_type || "—"} />
+          <Field label="National ID" value={patient.national_id || "—"} />
+          <Field label="Phone" value={patient.phone || "—"} />
+          <Field label="Email" value={patient.email || "—"} />
+          <Field label="Status" value={patient.registration_status || "—"} />
+          <Field label="Address" value={patient.address || "—"} />
+        </div>
       </div>
 
-      {!editing ? (
-        /* READ MODE */
-        <div className="space-y-4 rounded-lg border bg-card p-6">
-          <h2 className="font-heading text-xl font-bold text-foreground">{patient.full_name}</h2>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <Field label="Date of Birth" value={patient.date_of_birth ? format(new Date(patient.date_of_birth), "MMM d, yyyy") : "—"} />
-            <Field label="Phone" value={patient.phone || "—"} />
-            <Field label="Email" value={patient.email || "—"} />
-            <Field label="Passport" value={patient.passport_number || "—"} />
-            <Field label="Address" value={patient.address || "—"} />
-            <Field label="Insurance Policy #" value={patient.insurance_policy_number || "—"} />
-            <Field label="Insurance Company" value={patient.insurance_company || "—"} />
-            <Field label="Insurance Type" value={patient.insurance_type || "—"} />
-            <Field label="Primary Physician" value={physicianName} />
-            <Field label="Primary Department" value={departmentName} />
+      <Section
+        title="Allergies"
+        onAdd={() => setAllergyOpen(true)}
+        empty={allergies.length === 0}
+        emptyText="No allergies recorded."
+      >
+        {allergies.map((a: any) => (
+          <div key={a.id} className="grid grid-cols-3 gap-2 text-sm rounded-md border p-3">
+            <span className="capitalize font-medium">{a.allergy_type}</span>
+            <span className="text-muted-foreground">{a.description}</span>
+            <span className="capitalize text-muted-foreground">{a.severity}</span>
           </div>
+        ))}
+      </Section>
 
-          {contacts.length > 0 && (
-            <div className="space-y-2 pt-2">
-              <p className="text-sm font-medium text-foreground">Emergency Contacts</p>
-              {contacts.map((c, i) => (
-                <div key={i} className="grid grid-cols-3 gap-2 text-sm rounded-md border p-2">
-                  <span>{c.name}</span>
-                  <span className="text-muted-foreground">{c.relationship}</span>
-                  <span className="text-muted-foreground">{c.phone}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+      <Section
+        title="Contacts"
+        onAdd={() => setContactOpen(true)}
+        empty={contacts.length === 0}
+        emptyText="No contacts recorded."
+      >
+        {contacts.map((c: any) => (
+          <div key={c.id} className="grid grid-cols-[2fr_1fr_1fr_auto] gap-2 text-sm rounded-md border p-3 items-center">
+            <span className="font-medium">{c.name}</span>
+            <span className="text-muted-foreground">{c.relationship}</span>
+            <span className="text-muted-foreground">{c.phone}</span>
+            {c.is_primary && (
+              <span className="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Primary</span>
+            )}
+          </div>
+        ))}
+      </Section>
+
+      <AllergyDialog
+        open={allergyOpen}
+        onOpenChange={setAllergyOpen}
+        patientId={patientId!}
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ["patient-allergies", patientId] })}
+      />
+      <ContactDialog
+        open={contactOpen}
+        onOpenChange={setContactOpen}
+        patientId={patientId!}
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ["patient-contacts", patientId] })}
+      />
+    </div>
+  );
+}
+
+function Section({
+  title, onAdd, empty, emptyText, children,
+}: {
+  title: string;
+  onAdd: () => void;
+  empty: boolean;
+  emptyText: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-lg border bg-card p-6 space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold text-foreground">{title}</h3>
+        <Button variant="outline" size="sm" onClick={onAdd} className="gap-1">
+          <Plus className="h-3 w-3" /> Add
+        </Button>
+      </div>
+      {empty ? (
+        <p className="text-sm text-muted-foreground">{emptyText}</p>
       ) : (
-        /* EDIT MODE */
-        <div className="space-y-4 rounded-lg border bg-card p-6">
-          <div className="space-y-1.5">
-            <Label>Full Name *</Label>
-            <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Date of Birth *</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !dob && "text-muted-foreground")}>
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dob ? format(dob, "PPP") : "Pick a date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={dob}
-                  onSelect={setDob}
-                  disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
-                  initialFocus
-                  className="p-3 pointer-events-auto"
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>Phone</Label>
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Email</Label>
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Address</Label>
-            <Textarea value={address} onChange={(e) => setAddress(e.target.value)} rows={2} />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Passport Number</Label>
-            <Input value={passport} onChange={(e) => setPassport(e.target.value)} />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>Insurance Policy #</Label>
-              <Input value={insurancePolicy} onChange={(e) => setInsurancePolicy(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Insurance Company</Label>
-              <Input value={insuranceCompany} onChange={(e) => setInsuranceCompany(e.target.value)} />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Insurance Type</Label>
-            <Input value={insuranceType} onChange={(e) => setInsuranceType(e.target.value)} />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Primary Physician</Label>
-            <Select value={primaryPhysicianId} onValueChange={setPrimaryPhysicianId}>
-              <SelectTrigger><SelectValue placeholder="Select physician" /></SelectTrigger>
-              <SelectContent>
-                {physicians.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Primary Department</Label>
-            <Select value={primaryDepartmentId} onValueChange={setPrimaryDepartmentId}>
-              <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
-              <SelectContent>
-                {departments.map((d) => (
-                  <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>Emergency Contacts</Label>
-              <Button type="button" variant="outline" size="sm" onClick={addContact} className="gap-1">
-                <Plus className="h-3 w-3" /> Add
-              </Button>
-            </div>
-            {emergencyContacts.map((contact, i) => (
-              <div key={i} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end">
-                <div className="space-y-1">
-                  <Label className="text-xs">Name</Label>
-                  <Input value={contact.name} onChange={(e) => updateContact(i, "name", e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Relationship</Label>
-                  <Input value={contact.relationship} onChange={(e) => updateContact(i, "relationship", e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Phone</Label>
-                  <Input value={contact.phone} onChange={(e) => updateContact(i, "phone", e.target.value)} />
-                </div>
-                <Button type="button" variant="ghost" size="icon" onClick={() => removeContact(i)} className="text-destructive">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
-          </div>
-        </div>
+        <div className="space-y-2">{children}</div>
       )}
     </div>
   );
@@ -341,7 +174,160 @@ function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <p className="text-muted-foreground">{label}</p>
-      <p className="font-medium text-foreground">{value}</p>
+      <p className="font-medium text-foreground capitalize">{value}</p>
     </div>
+  );
+}
+
+function AllergyDialog({
+  open, onOpenChange, patientId, onSuccess,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  patientId: string;
+  onSuccess: () => void;
+}) {
+  const [type, setType] = useState("drug");
+  const [description, setDescription] = useState("");
+  const [severity, setSeverity] = useState("mild");
+  const [saving, setSaving] = useState(false);
+
+  const submit = async () => {
+    if (!description.trim()) {
+      toast.error("Description is required.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("patient_allergies").insert({
+        patient_id: patientId,
+        allergy_type: type,
+        description: description.trim(),
+        severity,
+      });
+      if (error) throw error;
+      toast.success("Allergy added.");
+      setDescription(""); setType("drug"); setSeverity("mild");
+      onSuccess();
+      onOpenChange(false);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add Allergy</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Type</Label>
+            <Select value={type} onValueChange={setType}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="drug">Drug</SelectItem>
+                <SelectItem value="environmental">Environmental</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Description</Label>
+            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Severity</Label>
+            <Select value={severity} onValueChange={setSeverity}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="mild">Mild</SelectItem>
+                <SelectItem value="moderate">Moderate</SelectItem>
+                <SelectItem value="severe">Severe</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={submit} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ContactDialog({
+  open, onOpenChange, patientId, onSuccess,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  patientId: string;
+  onSuccess: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [relationship, setRelationship] = useState("");
+  const [phone, setPhone] = useState("");
+  const [isPrimary, setIsPrimary] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const submit = async () => {
+    if (!name.trim()) {
+      toast.error("Name is required.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("patient_contacts").insert({
+        patient_id: patientId,
+        name: name.trim(),
+        relationship: relationship.trim() || null,
+        phone: phone.trim() || null,
+        is_primary: isPrimary,
+      });
+      if (error) throw error;
+      toast.success("Contact added.");
+      setName(""); setRelationship(""); setPhone(""); setIsPrimary(false);
+      onSuccess();
+      onOpenChange(false);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add Contact</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Name</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Relationship</Label>
+            <Input value={relationship} onChange={(e) => setRelationship(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Phone</Label>
+            <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
+          </div>
+          <div className="flex items-center justify-between">
+            <Label>Primary contact</Label>
+            <Switch checked={isPrimary} onCheckedChange={setIsPrimary} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={submit} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
