@@ -10,7 +10,7 @@ import { toast } from "sonner";
 interface Role {
   id: string;
   code: string;
-  name: string | null;
+  name_en: string | null;
 }
 
 interface Props {
@@ -35,7 +35,7 @@ export default function ChangeRoleDialog({ open, onOpenChange, profileId, curren
     setLoading(true);
     supabase
       .from("roles")
-      .select("id, code, name")
+      .select("id, code, name_en")
       .order("code")
       .then(({ data }) => {
         setAllRoles((data as Role[]) ?? []);
@@ -101,7 +101,7 @@ export default function ChangeRoleDialog({ open, onOpenChange, profileId, curren
                   onCheckedChange={() => toggle(r.code)}
                 />
                 <Label htmlFor={`role-${r.id}`} className="cursor-pointer">
-                  {r.name || r.code.replace(/_/g, " ")}
+                  {r.name_en || r.code.replace(/_/g, " ")}
                 </Label>
               </div>
             ))
