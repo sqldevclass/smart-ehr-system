@@ -15,7 +15,7 @@ import { toast } from "sonner";
 interface Profile {
   id: string;
   full_name: string;
-  role: string;
+  roles: string[];
   created_at: string;
 }
 
@@ -23,7 +23,7 @@ interface Invitation {
   id: string;
   full_name: string;
   email: string;
-  role: string;
+  role_codes: string[];
   invited_at: string;
   auth_user_id: string;
 }
@@ -31,10 +31,36 @@ interface Invitation {
 const roleBadge: Record<string, string> = {
   admin: "bg-primary/10 text-primary",
   physician: "bg-chart-2/20 text-chart-2",
-  registrar: "bg-chart-3/20 text-chart-3",
-  pharmacy_staff: "bg-chart-4/20 text-chart-4",
+  functional_diagnostics_physician: "bg-chart-2/20 text-chart-2",
+  lab_physician: "bg-chart-2/20 text-chart-2",
+  outpatient_registrar: "bg-chart-3/20 text-chart-3",
+  call_center_registrar: "bg-chart-3/20 text-chart-3",
+  inpatient_registrar: "bg-chart-3/20 text-chart-3",
+  cashier: "bg-chart-4/20 text-chart-4",
+  blood_draw_nurse: "bg-chart-1/20 text-chart-1",
+  inpatient_nurse: "bg-chart-1/20 text-chart-1",
+  head_nurse: "bg-chart-1/20 text-chart-1",
+  senior_manager: "bg-primary/10 text-primary",
+  hr: "bg-chart-5/20 text-chart-5",
+  finance: "bg-chart-4/20 text-chart-4",
+  pharmacist: "bg-chart-4/20 text-chart-4",
   warehouse_staff: "bg-chart-5/20 text-chart-5",
+  inventory_manager: "bg-chart-5/20 text-chart-5",
+  radiology_technician: "bg-chart-2/20 text-chart-2",
 };
+
+function RoleBadges({ codes }: { codes: string[] }) {
+  if (!codes || codes.length === 0) return <span className="text-muted-foreground">—</span>;
+  return (
+    <div className="flex flex-wrap gap-1">
+      {codes.map((code) => (
+        <Badge key={code} variant="secondary" className={roleBadge[code] || ""}>
+          {code.replace(/_/g, " ")}
+        </Badge>
+      ))}
+    </div>
+  );
+}
 
 export default function UserManagement() {
   const { user } = useAuth();
@@ -56,7 +82,7 @@ export default function UserManagement() {
     const [allProfilesRes, nonActiveRes, invitationsRes] = await Promise.all([
       supabase
         .from("profiles")
-        .select("id, full_name, role, created_at")
+        .select("id, full_name, created_at, user_roles(roles(code))")
         .eq("hospital_id", user.hospitalId)
         .neq("id", user.id)
         .order("created_at", { ascending: false }),
@@ -67,7 +93,7 @@ export default function UserManagement() {
         .in("status", ["pending", "revoked"]),
       supabase
         .from("staff_invitations")
-        .select("id, full_name, email, role, invited_at, auth_user_id")
+        .select("id, full_name, email, role_codes, invited_at, auth_user_id")
         .eq("hospital_id", user.hospitalId)
         .eq("status", "pending")
         .order("invited_at", { ascending: false }),
@@ -76,9 +102,20 @@ export default function UserManagement() {
     const nonActiveIds = new Set(
       nonActiveRes.data?.map((i: { auth_user_id: string }) => i.auth_user_id) ?? []
     );
-    const activeStaff = (allProfilesRes.data as Profile[])?.filter(
-      (p) => !nonActiveIds.has(p.id)
-    ) ?? [];
+
+    const mapped: Profile[] = (allProfilesRes.data ?? []).map((profile: any) => {
+      const roles = profile.user_roles
+        ?.map((ur: any) => ur.roles?.code)
+        .filter(Boolean) ?? [];
+      return {
+        id: profile.id,
+        full_name: profile.full_name,
+        created_at: profile.created_at,
+        roles,
+      };
+    });
+
+    const activeStaff = mapped.filter((p) => !nonActiveIds.has(p.id));
 
     setProfiles(activeStaff);
     setInvitations((invitationsRes.data as Invitation[]) || []);
@@ -170,11 +207,7 @@ export default function UserManagement() {
                   ) : filteredProfiles.map((p) => (
                     <TableRow key={p.id}>
                       <TableCell className="font-medium">{p.full_name || "—"}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary" className={roleBadge[p.role] || ""}>
-                          {p.role?.replace("_", " ")}
-                        </Badge>
-                      </TableCell>
+                      <TableCell><RoleBadges codes={p.roles} /></TableCell>
                       <TableCell className="text-muted-foreground">
                         {p.created_at ? format(new Date(p.created_at), "MMM d, yyyy") : "—"}
                       </TableCell>
@@ -210,11 +243,7 @@ export default function UserManagement() {
                     <TableRow key={inv.id}>
                       <TableCell className="font-medium">{inv.full_name || "—"}</TableCell>
                       <TableCell className="text-muted-foreground">{inv.email}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary" className={roleBadge[inv.role] || ""}>
-                          {inv.role?.replace("_", " ")}
-                        </Badge>
-                      </TableCell>
+                      <TableCell><RoleBadges codes={inv.role_codes ?? []} /></TableCell>
                       <TableCell className="text-muted-foreground">
                         {inv.invited_at ? format(new Date(inv.invited_at), "MMM d, yyyy") : "—"}
                       </TableCell>
@@ -237,7 +266,7 @@ export default function UserManagement() {
           open={!!roleTarget}
           onOpenChange={(o) => { if (!o) setRoleTarget(null); }}
           profileId={roleTarget.id}
-          currentRole={roleTarget.role}
+          currentRoles={roleTarget.roles}
           fullName={roleTarget.full_name}
           onSuccess={() => { setRoleTarget(null); fetchStaff(); }}
         />

@@ -1,19 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-const roles = [
-  { value: "admin", label: "Admin" },
-  { value: "physician", label: "Physician" },
-  { value: "warehouse_staff", label: "Warehouse Staff" },
-  { value: "pharmacy_staff", label: "Pharmacy Staff" },
-  { value: "registrar", label: "Registrar" },
-];
+interface Role {
+  id: string;
+  code: string;
+  name: string | null;
+}
 
 interface Props {
   open: boolean;
@@ -24,17 +22,46 @@ interface Props {
 export default function InviteStaffSheet({ open, onOpenChange, onSuccess }: Props) {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState("");
+  const [roleCodes, setRoleCodes] = useState<Set<string>>(new Set());
   const [specialization, setSpecialization] = useState("");
   const [phone, setPhone] = useState("");
+  const [allRoles, setAllRoles] = useState<Role[]>([]);
+  const [loadingRoles, setLoadingRoles] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const reset = () => { setFullName(""); setEmail(""); setRole(""); setSpecialization(""); setPhone(""); };
+  useEffect(() => {
+    if (!open) return;
+    setLoadingRoles(true);
+    supabase
+      .from("roles")
+      .select("id, code, name")
+      .order("code")
+      .then(({ data }) => {
+        setAllRoles((data as Role[]) ?? []);
+        setLoadingRoles(false);
+      });
+  }, [open]);
+
+  const reset = () => {
+    setFullName(""); setEmail(""); setRoleCodes(new Set()); setSpecialization(""); setPhone("");
+  };
+
+  const toggleRole = (code: string) => {
+    setRoleCodes((prev) => {
+      const next = new Set(prev);
+      if (next.has(code)) next.delete(code);
+      else next.add(code);
+      return next;
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName || !email || !role) return;
-    if (role === "physician" && !specialization) {
+    if (!fullName || !email || roleCodes.size === 0) {
+      toast.error("Name, email and at least one role are required.");
+      return;
+    }
+    if (roleCodes.has("physician") && !specialization) {
       toast.error("Specialization is required for physicians.");
       return;
     }
@@ -42,12 +69,12 @@ export default function InviteStaffSheet({ open, onOpenChange, onSuccess }: Prop
     setSubmitting(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const body: Record<string, string> = {
+      const body: Record<string, unknown> = {
         email,
         full_name: fullName,
-        role,
+        role_codes: Array.from(roleCodes),
       };
-      if (role === "physician") body.specialization = specialization;
+      if (roleCodes.has("physician")) body.specialization = specialization;
       if (phone) body.phone = phone;
 
       const { data, error } = await supabase.functions.invoke("invite-staff-user", {
@@ -83,15 +110,29 @@ export default function InviteStaffSheet({ open, onOpenChange, onSuccess }: Prop
             <Input id="inv-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           </div>
           <div className="space-y-2">
-            <Label>Role *</Label>
-            <Select value={role} onValueChange={setRole}>
-              <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
-              <SelectContent>
-                {roles.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <Label>Roles *</Label>
+            <div className="space-y-2 max-h-64 overflow-y-auto rounded-md border p-3">
+              {loadingRoles ? (
+                <p className="text-sm text-muted-foreground">Loading roles…</p>
+              ) : allRoles.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No roles available.</p>
+              ) : (
+                allRoles.map((r) => (
+                  <div key={r.id} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`inv-role-${r.id}`}
+                      checked={roleCodes.has(r.code)}
+                      onCheckedChange={() => toggleRole(r.code)}
+                    />
+                    <Label htmlFor={`inv-role-${r.id}`} className="cursor-pointer font-normal">
+                      {r.name || r.code.replace(/_/g, " ")}
+                    </Label>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
-          {role === "physician" && (
+          {roleCodes.has("physician") && (
             <div className="space-y-2">
               <Label htmlFor="inv-spec">Specialization *</Label>
               <Input id="inv-spec" value={specialization} onChange={(e) => setSpecialization(e.target.value)} required />
