@@ -68,6 +68,21 @@ export default function PatientDetail() {
     enabled: !!patientId,
   });
 
+  const { data: visits = [] } = useQuery({
+    queryKey: ["patient-visits", patientId, user?.hospitalId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("visits")
+        .select("id, visit_date, status, total_amount, amount_paid, visit_number, visit_services(id, source, services(name), service_statuses(code, name_ru))")
+        .eq("patient_id", patientId!)
+        .eq("hospital_id", user!.hospitalId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!patientId && !!user,
+  });
+
   if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
   if (!patient) return <p className="text-sm text-destructive">Patient not found.</p>;
 
