@@ -64,6 +64,57 @@ export default function VisitPage() {
     enabled: !!visitId,
   });
 
+  const { data: invoiceItems = [] } = useQuery({
+    queryKey: ["invoice-items", invoice?.id],
+    queryFn: async () => {
+      if (!invoice?.id) return [];
+      const { data } = await supabase
+        .from("invoice_items")
+        .select("id, visit_service_id")
+        .eq("invoice_id", invoice.id);
+      return data || [];
+    },
+    enabled: !!invoice?.id,
+  });
+
+  const invoicedServiceIds = new Set(
+    (invoiceItems as any[]).map((i) => i.visit_service_id).filter(Boolean)
+  );
+
+  const handleAddToInvoice = async (vs: any) => {
+    if (!invoice?.id || !visitId) {
+      toast.error("No active invoice for this visit.");
+      return;
+    }
+    const cost = Number(vs.cost_at_time ?? vs.services?.cost_with_vat ?? 0);
+    try {
+      const { error: itemErr } = await supabase.from("invoice_items").insert({
+        invoice_id: invoice.id,
+        visit_service_id: vs.id,
+        service_id: vs.service_id,
+        description: vs.services?.name || null,
+        quantity: 1,
+        unit_price: cost,
+        total_price: cost,
+      });
+      if (itemErr) throw itemErr;
+
+      const newTotal = Number(visit.total_amount || 0) + cost;
+      const { error: visitErr } = await supabase
+        .from("visits")
+        .update({ total_amount: newTotal })
+        .eq("id", visitId);
+      if (visitErr) throw visitErr;
+
+      toast.success("Service added to invoice.");
+      queryClient.invalidateQueries({ queryKey: ["visit", visitId] });
+      queryClient.invalidateQueries({ queryKey: ["visit-invoice", visitId] });
+      queryClient.invalidateQueries({ queryKey: ["invoice-items", invoice.id] });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to add to invoice.");
+    }
+  };
+
   if (isLoading) {
     return <p className="text-sm text-muted-foreground">Loading visit…</p>;
   }
