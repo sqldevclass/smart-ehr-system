@@ -23,6 +23,8 @@ import RegistrarLayout from "./components/registrar/RegistrarLayout.tsx";
 import PatientsList from "./pages/registrar/PatientsList.tsx";
 import PatientDetail from "./pages/registrar/PatientDetail.tsx";
 import RegistrarProfile from "./pages/registrar/RegistrarProfile.tsx";
+import NewVisitPage from "./pages/registrar/NewVisitPage.tsx";
+import VisitPage from "./pages/registrar/VisitPage.tsx";
 import PhysicianLayout from "./components/physician/PhysicianLayout.tsx";
 import MyPatientsList from "./pages/physician/MyPatientsList.tsx";
 import PhysicianPatientDetail from "./pages/physician/PhysicianPatientDetail.tsx";
@@ -74,6 +76,8 @@ const App = () => (
           <Route path="/registrar" element={<ProtectedRoute allowedRoles={["outpatient_registrar"]}><RegistrarLayout /></ProtectedRoute>}>
             <Route index element={<PatientsList />} />
             <Route path="patients/:patientId" element={<PatientDetail />} />
+            <Route path="new-visit" element={<NewVisitPage />} />
+            <Route path="visits/:visitId" element={<VisitPage />} />
             <Route path="profile" element={<RegistrarProfile />} />
           </Route>
           <Route path="/hr" element={<ProtectedRoute allowedRoles={["hr"]}><HRLayout /></ProtectedRoute>}>
