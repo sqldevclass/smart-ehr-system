@@ -1,0 +1,11 @@
+[functions.invite-staff-user]
+verify_jwt = false
+
+[functions.remove-staff-user]
+verify_jwt = false
+
+[functions.register-hospital]
+verify_jwt = false
+
+[functions.create-staff-user]
+verify_jwt = false
