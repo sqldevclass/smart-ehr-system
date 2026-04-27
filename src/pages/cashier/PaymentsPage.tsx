@@ -241,7 +241,6 @@ function PaymentDialog({
         supabase
           .from("payment_methods")
           .select("id, name_en")
-          .eq("hospital_id", user.hospitalId)
           .eq("is_active", true)
           .order("name_en"),
       ]);
