@@ -221,13 +221,19 @@ export default function VisitPage() {
 
       {/* Invoice */}
       {invoice && (
-        <Card className="p-4 space-y-2">
-          <div className="font-semibold">Invoice</div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+        <Card className="p-4 space-y-3">
+          <div className="flex items-baseline justify-between gap-3 flex-wrap">
             <div>
-              <div className="text-xs text-muted-foreground">Number</div>
-              <div className="font-mono">{invoice.invoice_number || invoice.id.slice(0, 8)}</div>
+              <div className="text-xs text-muted-foreground">Invoice</div>
+              <div className="text-2xl font-bold font-mono">
+                {invoice.invoice_number || invoice.id.slice(0, 8)}
+              </div>
             </div>
+            <span className="rounded bg-muted px-2 py-0.5 text-xs font-medium capitalize">
+              {invoice.status || "unpaid"}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
             <div>
               <div className="text-xs text-muted-foreground">Created</div>
               <div>{invoice.created_at ? format(new Date(invoice.created_at), "MMM d, yyyy") : "—"}</div>
@@ -237,8 +243,8 @@ export default function VisitPage() {
               <div>{Number(invoice.total_amount || visit.total_amount || 0).toFixed(2)}</div>
             </div>
             <div>
-              <div className="text-xs text-muted-foreground">Status</div>
-              <div className="capitalize">{invoice.status || "unpaid"}</div>
+              <div className="text-xs text-muted-foreground">Paid</div>
+              <div>{Number(invoice.amount_paid || 0).toFixed(2)}</div>
             </div>
           </div>
         </Card>
