@@ -283,7 +283,7 @@ export default function MyPatientsList() {
         <CardHeader>
           <CardTitle>Preliminary ({grouped.prelim.length})</CardTitle>
         </CardHeader>
-        <CardContent>{renderTable(grouped.prelim, false, true)}</CardContent>
+        <CardContent>{renderTable(grouped.prelim, false, false)}</CardContent>
       </Card>
 
       <Card>
