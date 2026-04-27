@@ -31,6 +31,7 @@ function StatusBadge({ code, label }: { code?: string | null; label?: string | n
 export default function VisitPage() {
   const { visitId } = useParams<{ visitId: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const { data: visit, isLoading } = useQuery({
     queryKey: ["visit", visitId],
