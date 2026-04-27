@@ -10,7 +10,7 @@ import { toast } from "sonner";
 interface Role {
   id: string;
   code: string;
-  name: string | null;
+  name_en: string | null;
 }
 
 interface Props {
@@ -34,7 +34,7 @@ export default function InviteStaffSheet({ open, onOpenChange, onSuccess }: Prop
     setLoadingRoles(true);
     supabase
       .from("roles")
-      .select("id, code, name")
+      .select("id, code, name_en")
       .order("code")
       .then(({ data }) => {
         setAllRoles((data as Role[]) ?? []);
@@ -125,7 +125,7 @@ export default function InviteStaffSheet({ open, onOpenChange, onSuccess }: Prop
                       onCheckedChange={() => toggleRole(r.code)}
                     />
                     <Label htmlFor={`inv-role-${r.id}`} className="cursor-pointer font-normal">
-                      {r.name || r.code.replace(/_/g, " ")}
+                      {r.name_en || r.code.replace(/_/g, " ")}
                     </Label>
                   </div>
                 ))
