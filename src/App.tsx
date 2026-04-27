@@ -25,6 +25,9 @@ import PatientDetail from "./pages/registrar/PatientDetail.tsx";
 import RegistrarProfile from "./pages/registrar/RegistrarProfile.tsx";
 import NewVisitPage from "./pages/registrar/NewVisitPage.tsx";
 import VisitPage from "./pages/registrar/VisitPage.tsx";
+import CashierLayout from "./components/cashier/CashierLayout.tsx";
+import PaymentsPage from "./pages/cashier/PaymentsPage.tsx";
+import CashierProfile from "./pages/cashier/CashierProfile.tsx";
 import PhysicianLayout from "./components/physician/PhysicianLayout.tsx";
 import MyPatientsList from "./pages/physician/MyPatientsList.tsx";
 import PhysicianPatientDetail from "./pages/physician/PhysicianPatientDetail.tsx";
@@ -85,6 +88,10 @@ const App = () => (
             <Route path="schedules" element={<HRSchedules />} />
             <Route path="employees" element={<HREmployees />} />
             <Route path="profile" element={<HRProfile />} />
+          </Route>
+          <Route path="/cashier" element={<ProtectedRoute allowedRoles={["cashier"]}><CashierLayout /></ProtectedRoute>}>
+            <Route index element={<PaymentsPage />} />
+            <Route path="profile" element={<CashierProfile />} />
           </Route>
           <Route path="/pharmacy" element={<ProtectedRoute allowedRoles={["pharmacist"]}><DashboardPlaceholder expectedRole="pharmacist" /></ProtectedRoute>} />
           <Route path="/warehouse" element={<ProtectedRoute allowedRoles={["warehouse_staff"]}><DashboardPlaceholder expectedRole="warehouse_staff" /></ProtectedRoute>} />
