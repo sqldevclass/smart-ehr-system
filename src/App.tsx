@@ -17,6 +17,7 @@ import AdminProfile from "./pages/admin/AdminProfile.tsx";
 import DepartmentsPage from "./pages/admin/DepartmentsPage.tsx";
 import PhysiciansPage from "./pages/admin/PhysiciansPage.tsx";
 import RoomsPage from "./pages/admin/RoomsPage.tsx";
+import ServicesPage from "./pages/admin/ServicesPage.tsx";
 import PhysicianPrivilegesPage from "./pages/admin/PhysicianPrivilegesPage.tsx";
 import RegistrarLayout from "./components/registrar/RegistrarLayout.tsx";
 import PatientsList from "./pages/registrar/PatientsList.tsx";
@@ -56,7 +57,7 @@ const App = () => (
             <Route index element={<AdminOverview />} />
             <Route path="users" element={<UserManagement />} />
             <Route path="departments" element={<DepartmentsPage />} />
-            <Route path="services" element={<AdminPlaceholder title="Services" />} />
+            <Route path="services" element={<ServicesPage />} />
             <Route path="physicians" element={<PhysiciansPage />} />
             <Route path="rooms" element={<RoomsPage />} />
             <Route path="physician-privileges" element={<PhysicianPrivilegesPage />} />
