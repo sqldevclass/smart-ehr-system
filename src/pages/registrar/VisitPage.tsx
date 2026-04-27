@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, Send } from "lucide-react";
+import { ArrowLeft, Send, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -31,6 +31,7 @@ function StatusBadge({ code, label }: { code?: string | null; label?: string | n
 export default function VisitPage() {
   const { visitId } = useParams<{ visitId: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const { data: visit, isLoading } = useQuery({
     queryKey: ["visit", visitId],
@@ -62,6 +63,57 @@ export default function VisitPage() {
     },
     enabled: !!visitId,
   });
+
+  const { data: invoiceItems = [] } = useQuery({
+    queryKey: ["invoice-items", invoice?.id],
+    queryFn: async () => {
+      if (!invoice?.id) return [];
+      const { data } = await supabase
+        .from("invoice_items")
+        .select("id, visit_service_id")
+        .eq("invoice_id", invoice.id);
+      return data || [];
+    },
+    enabled: !!invoice?.id,
+  });
+
+  const invoicedServiceIds = new Set(
+    (invoiceItems as any[]).map((i) => i.visit_service_id).filter(Boolean)
+  );
+
+  const handleAddToInvoice = async (vs: any) => {
+    if (!invoice?.id || !visitId) {
+      toast.error("No active invoice for this visit.");
+      return;
+    }
+    const cost = Number(vs.cost_at_time ?? vs.services?.cost_with_vat ?? 0);
+    try {
+      const { error: itemErr } = await supabase.from("invoice_items").insert({
+        invoice_id: invoice.id,
+        visit_service_id: vs.id,
+        service_id: vs.service_id,
+        description: vs.services?.name || null,
+        quantity: 1,
+        unit_price: cost,
+        total_price: cost,
+      });
+      if (itemErr) throw itemErr;
+
+      const newTotal = Number(visit.total_amount || 0) + cost;
+      const { error: visitErr } = await supabase
+        .from("visits")
+        .update({ total_amount: newTotal })
+        .eq("id", visitId);
+      if (visitErr) throw visitErr;
+
+      toast.success("Service added to invoice.");
+      queryClient.invalidateQueries({ queryKey: ["visit", visitId] });
+      queryClient.invalidateQueries({ queryKey: ["visit-invoice", visitId] });
+      queryClient.invalidateQueries({ queryKey: ["invoice-items", invoice.id] });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to add to invoice.");
+    }
+  };
 
   if (isLoading) {
     return <p className="text-sm text-muted-foreground">Loading visit…</p>;
@@ -126,21 +178,42 @@ export default function VisitPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              services.map((vs: any) => (
-                <TableRow key={vs.id}>
-                  <TableCell className="font-medium">{vs.services?.name || "—"}</TableCell>
-                  <TableCell>{vs.physicians?.profiles?.full_name || "—"}</TableCell>
-                  <TableCell>
-                    <StatusBadge
-                      code={vs.service_statuses?.code}
-                      label={vs.service_statuses?.name_ru}
-                    />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {Number(vs.cost_at_time ?? vs.services?.cost_with_vat ?? 0).toFixed(2)}
-                  </TableCell>
-                </TableRow>
-              ))
+              services.map((vs: any) => {
+                const canAdd =
+                  vs.source === "physician" &&
+                  vs.service_statuses?.code === "preliminary" &&
+                  !invoicedServiceIds.has(vs.id) &&
+                  !!invoice?.id;
+                return (
+                  <TableRow key={vs.id}>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <span>{vs.services?.name || "—"}</span>
+                        {canAdd && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 gap-1"
+                            onClick={() => handleAddToInvoice(vs)}
+                          >
+                            <Plus className="h-3 w-3" /> Add to Invoice
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>{vs.physicians?.profiles?.full_name || "—"}</TableCell>
+                    <TableCell>
+                      <StatusBadge
+                        code={vs.service_statuses?.code}
+                        label={vs.service_statuses?.name_ru}
+                      />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {Number(vs.cost_at_time ?? vs.services?.cost_with_vat ?? 0).toFixed(2)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>
@@ -148,13 +221,19 @@ export default function VisitPage() {
 
       {/* Invoice */}
       {invoice && (
-        <Card className="p-4 space-y-2">
-          <div className="font-semibold">Invoice</div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+        <Card className="p-4 space-y-3">
+          <div className="flex items-baseline justify-between gap-3 flex-wrap">
             <div>
-              <div className="text-xs text-muted-foreground">Number</div>
-              <div className="font-mono">{invoice.invoice_number || invoice.id.slice(0, 8)}</div>
+              <div className="text-xs text-muted-foreground">Invoice</div>
+              <div className="text-2xl font-bold font-mono">
+                {invoice.invoice_number || invoice.id.slice(0, 8)}
+              </div>
             </div>
+            <span className="rounded bg-muted px-2 py-0.5 text-xs font-medium capitalize">
+              {invoice.status || "unpaid"}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
             <div>
               <div className="text-xs text-muted-foreground">Created</div>
               <div>{invoice.created_at ? format(new Date(invoice.created_at), "MMM d, yyyy") : "—"}</div>
@@ -164,8 +243,8 @@ export default function VisitPage() {
               <div>{Number(invoice.total_amount || visit.total_amount || 0).toFixed(2)}</div>
             </div>
             <div>
-              <div className="text-xs text-muted-foreground">Status</div>
-              <div className="capitalize">{invoice.status || "unpaid"}</div>
+              <div className="text-xs text-muted-foreground">Paid</div>
+              <div>{Number(invoice.amount_paid || 0).toFixed(2)}</div>
             </div>
           </div>
         </Card>

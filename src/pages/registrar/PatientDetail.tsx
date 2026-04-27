@@ -68,6 +68,21 @@ export default function PatientDetail() {
     enabled: !!patientId,
   });
 
+  const { data: visits = [] } = useQuery({
+    queryKey: ["patient-visits", patientId, user?.hospitalId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("visits")
+        .select("id, visit_date, status, total_amount, amount_paid, visit_number, visit_services(id, source, services(name), service_statuses(code, name_ru))")
+        .eq("patient_id", patientId!)
+        .eq("hospital_id", user!.hospitalId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!patientId && !!user,
+  });
+
   if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
   if (!patient) return <p className="text-sm text-destructive">Patient not found.</p>;
 
@@ -133,6 +148,58 @@ export default function PatientDetail() {
           </div>
         ))}
       </Section>
+
+      <div className="rounded-lg border bg-card p-6 space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-foreground">Visits</h3>
+        </div>
+        {visits.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No visits yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {visits.map((v: any) => (
+              <div key={v.id} className="rounded-md border p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div>
+                    <div className="text-xs text-muted-foreground font-mono">
+                      Visit #{v.visit_number || v.id.slice(0, 8)}
+                    </div>
+                    <div className="text-sm font-medium">
+                      {v.visit_date ? format(new Date(v.visit_date), "MMM d, yyyy") : "—"}
+                    </div>
+                    <span className="inline-block mt-1 rounded bg-muted px-2 py-0.5 text-xs font-medium capitalize">
+                      {v.status || "—"}
+                    </span>
+                  </div>
+                  <div className="text-right text-sm">
+                    <div className="font-semibold">{Number(v.total_amount || 0).toFixed(2)}</div>
+                    <div className="text-xs text-muted-foreground">
+                      Paid: {Number(v.amount_paid || 0).toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+                {v.visit_services?.length > 0 && (
+                  <div className="space-y-1">
+                    {v.visit_services.map((vs: any) => (
+                      <div key={vs.id} className="flex items-center justify-between text-xs gap-2">
+                        <span className="truncate">{vs.services?.name || "—"}</span>
+                        <span className="rounded bg-muted px-2 py-0.5 text-muted-foreground shrink-0">
+                          {vs.service_statuses?.name_ru || vs.service_statuses?.code || "—"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="flex justify-end">
+                  <Button size="sm" variant="outline" onClick={() => navigate(`/registrar/visits/${v.id}`)}>
+                    Open Visit
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       <AllergyDialog
         open={allergyOpen}
