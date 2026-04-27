@@ -187,6 +187,7 @@ function AllergyDialog({
   patientId: string;
   onSuccess: () => void;
 }) {
+  const { user } = useAuth();
   const [type, setType] = useState("drug");
   const [description, setDescription] = useState("");
   const [severity, setSeverity] = useState("mild");
@@ -204,6 +205,8 @@ function AllergyDialog({
         allergy_type: type,
         description: description.trim(),
         severity,
+        hospital_id: user!.hospitalId,
+        recorded_by: user!.id,
       });
       if (error) throw error;
       toast.success("Allergy added.");
@@ -267,6 +270,7 @@ function ContactDialog({
   patientId: string;
   onSuccess: () => void;
 }) {
+  const { user } = useAuth();
   const [name, setName] = useState("");
   const [relationship, setRelationship] = useState("");
   const [phone, setPhone] = useState("");
@@ -286,6 +290,7 @@ function ContactDialog({
         relationship: relationship.trim() || null,
         phone: phone.trim() || null,
         is_primary: isPrimary,
+        hospital_id: user!.hospitalId,
       });
       if (error) throw error;
       toast.success("Contact added.");
