@@ -47,8 +47,7 @@ interface VisitServiceRow {
 
 interface PaymentMethod {
   id: string;
-  name: string;
-  code: string;
+  name_en: string;
 }
 
 const fmt = (n: number) => Number(n || 0).toFixed(2);
@@ -241,10 +240,10 @@ function PaymentDialog({
           .eq("visit_id", visit.id),
         supabase
           .from("payment_methods")
-          .select("id, name, code")
+          .select("id, name_en")
           .eq("hospital_id", user.hospitalId)
           .eq("is_active", true)
-          .order("name"),
+          .order("name_en"),
       ]);
       if (vsRes.error) toast.error(vsRes.error.message);
       if (pmRes.error) toast.error(pmRes.error.message);
@@ -369,7 +368,7 @@ function PaymentDialog({
                 <SelectContent>
                   {methods.map((m) => (
                     <SelectItem key={m.id} value={m.id}>
-                      {m.name}
+                      {m.name_en}
                     </SelectItem>
                   ))}
                 </SelectContent>
