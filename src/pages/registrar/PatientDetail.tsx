@@ -14,7 +14,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, Plus, Pencil } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -25,6 +25,7 @@ export default function PatientDetail() {
   const queryClient = useQueryClient();
   const [allergyOpen, setAllergyOpen] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   const { data: patient, isLoading } = useQuery({
     queryKey: ["patient", patientId],
@@ -80,7 +81,12 @@ export default function PatientDetail() {
 
       <div className="rounded-lg border bg-card p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="font-heading text-xl font-bold text-foreground">{fullName || "—"}</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="font-heading text-xl font-bold text-foreground">{fullName || "—"}</h2>
+            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-1">
+              <Pencil className="h-3 w-3" /> Edit
+            </Button>
+          </div>
           <span className="font-mono text-xs text-muted-foreground">{patient.patient_number || "—"}</span>
         </div>
         <div className="grid grid-cols-2 gap-4 text-sm">
@@ -140,7 +146,153 @@ export default function PatientDetail() {
         patientId={patientId!}
         onSuccess={() => queryClient.invalidateQueries({ queryKey: ["patient-contacts", patientId] })}
       />
+      <EditPatientDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        patient={patient}
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ["patient", patientId] })}
+      />
     </div>
+  );
+}
+
+function EditPatientDialog({
+  open, onOpenChange, patient, onSuccess,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  patient: any;
+  onSuccess: () => void;
+}) {
+  const [form, setForm] = useState({
+    first_name: patient.first_name || "",
+    last_name: patient.last_name || "",
+    middle_name: patient.middle_name || "",
+    date_of_birth: patient.date_of_birth || "",
+    gender: patient.gender || "",
+    blood_type: patient.blood_type || "",
+    national_id: patient.national_id || "",
+    phone: patient.phone || "",
+    email: patient.email || "",
+    address: patient.address || "",
+    registration_status: patient.registration_status || "minimal",
+  });
+  const [saving, setSaving] = useState(false);
+
+  const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  const submit = async () => {
+    if (!form.first_name.trim() || !form.last_name.trim()) {
+      toast.error("First and last name are required.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("patients")
+        .update({
+          first_name: form.first_name.trim(),
+          last_name: form.last_name.trim(),
+          middle_name: form.middle_name.trim() || null,
+          date_of_birth: form.date_of_birth || null,
+          gender: form.gender || null,
+          blood_type: form.blood_type || null,
+          national_id: form.national_id.trim() || null,
+          phone: form.phone.trim() || null,
+          email: form.email.trim() || null,
+          address: form.address.trim() || null,
+          registration_status: form.registration_status,
+        })
+        .eq("id", patient.id);
+      if (error) throw error;
+      toast.success("Patient updated.");
+      onSuccess();
+      onOpenChange(false);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Edit Patient</DialogTitle>
+        </DialogHeader>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <Label>First name *</Label>
+            <Input value={form.first_name} onChange={(e) => set("first_name", e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Last name *</Label>
+            <Input value={form.last_name} onChange={(e) => set("last_name", e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Middle name</Label>
+            <Input value={form.middle_name} onChange={(e) => set("middle_name", e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Date of birth</Label>
+            <Input type="date" value={form.date_of_birth} onChange={(e) => set("date_of_birth", e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Gender</Label>
+            <Select value={form.gender} onValueChange={(v) => set("gender", v)}>
+              <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="male">Male</SelectItem>
+                <SelectItem value="female">Female</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Blood type</Label>
+            <Select value={form.blood_type} onValueChange={(v) => set("blood_type", v)}>
+              <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+              <SelectContent>
+                {["A+","A-","B+","B-","AB+","AB-","O+","O-"].map((b) => (
+                  <SelectItem key={b} value={b}>{b}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>National ID</Label>
+            <Input value={form.national_id} onChange={(e) => set("national_id", e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Phone</Label>
+            <Input value={form.phone} onChange={(e) => set("phone", e.target.value)} />
+          </div>
+          <div className="space-y-1.5 col-span-2">
+            <Label>Email</Label>
+            <Input value={form.email} onChange={(e) => set("email", e.target.value)} />
+          </div>
+          <div className="space-y-1.5 col-span-2">
+            <Label>Address</Label>
+            <Textarea value={form.address} onChange={(e) => set("address", e.target.value)} rows={2} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Registration status</Label>
+            <Select value={form.registration_status} onValueChange={(v) => set("registration_status", v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="minimal">Minimal</SelectItem>
+                <SelectItem value="full">Full</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={submit} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
