@@ -200,12 +200,6 @@ function AllergyDialog({
     }
     setSaving(true);
     try {
-      console.log('Inserting allergy with:', {
-        patient_id: patientId,
-        hospital_id: user?.hospitalId,
-        user_id: user?.id,
-        type,
-      });
       const { error } = await supabase.from("patient_allergies").insert({
         patient_id: patientId,
         allergy_type: type,
