@@ -178,21 +178,42 @@ export default function VisitPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              services.map((vs: any) => (
-                <TableRow key={vs.id}>
-                  <TableCell className="font-medium">{vs.services?.name || "—"}</TableCell>
-                  <TableCell>{vs.physicians?.profiles?.full_name || "—"}</TableCell>
-                  <TableCell>
-                    <StatusBadge
-                      code={vs.service_statuses?.code}
-                      label={vs.service_statuses?.name_ru}
-                    />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {Number(vs.cost_at_time ?? vs.services?.cost_with_vat ?? 0).toFixed(2)}
-                  </TableCell>
-                </TableRow>
-              ))
+              services.map((vs: any) => {
+                const canAdd =
+                  vs.source === "physician" &&
+                  vs.service_statuses?.code === "preliminary" &&
+                  !invoicedServiceIds.has(vs.id) &&
+                  !!invoice?.id;
+                return (
+                  <TableRow key={vs.id}>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <span>{vs.services?.name || "—"}</span>
+                        {canAdd && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 gap-1"
+                            onClick={() => handleAddToInvoice(vs)}
+                          >
+                            <Plus className="h-3 w-3" /> Add to Invoice
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>{vs.physicians?.profiles?.full_name || "—"}</TableCell>
+                    <TableCell>
+                      <StatusBadge
+                        code={vs.service_statuses?.code}
+                        label={vs.service_statuses?.name_ru}
+                      />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {Number(vs.cost_at_time ?? vs.services?.cost_with_vat ?? 0).toFixed(2)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>
