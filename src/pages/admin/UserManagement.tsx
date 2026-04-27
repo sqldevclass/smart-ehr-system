@@ -99,6 +99,9 @@ export default function UserManagement() {
         .order("invited_at", { ascending: false }),
     ]);
 
+    console.log('allProfilesRes:', JSON.stringify(allProfilesRes.data, null, 2));
+    console.log('allProfilesRes error:', allProfilesRes.error);
+
     const nonActiveIds = new Set(
       nonActiveRes.data?.map((i: { auth_user_id: string }) => i.auth_user_id) ?? []
     );
