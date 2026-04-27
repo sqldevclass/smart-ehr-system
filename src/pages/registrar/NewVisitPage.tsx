@@ -239,7 +239,6 @@ export default function NewVisitPage() {
       const itemRows = (insertedVs || []).map((vs: any) => ({
         invoice_id: invoice.id,
         visit_service_id: vs.id,
-        hospital_id: user.hospitalId,
         amount: vs.cost_at_time,
       }));
       const { error: iiErr } = await supabase.from("invoice_items").insert(itemRows);
