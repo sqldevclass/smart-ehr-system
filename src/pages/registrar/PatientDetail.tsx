@@ -73,7 +73,7 @@ export default function PatientDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("visits")
-        .select("id, visit_date, status, total_amount, amount_paid, visit_number, visit_services(id, source, services(name), service_statuses(code, name_ru))")
+        .select("id, visit_date, status, total_amount, amount_paid, visit_services(id, source, services(name), service_statuses(code, name_ru))")
         .eq("patient_id", patientId!)
         .eq("hospital_id", user!.hospitalId)
         .order("created_at", { ascending: false });
@@ -162,7 +162,7 @@ export default function PatientDetail() {
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   <div>
                     <div className="text-xs text-muted-foreground font-mono">
-                      Visit #{v.visit_number || v.id.slice(0, 8)}
+                      Visit #{v.id.slice(0, 8)}
                     </div>
                     <div className="text-sm font-medium">
                       {v.visit_date ? format(new Date(v.visit_date), "MMM d, yyyy") : "—"}
