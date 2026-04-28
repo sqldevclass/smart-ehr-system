@@ -484,7 +484,7 @@ function AddServiceDialog({
                   <SelectContent>
                     {physicians.map((p: any) => (
                       <SelectItem key={p.id} value={p.id}>
-                        {[p.profiles?.last_name, p.profiles?.first_name].filter(Boolean).join(" ") || p.id.slice(0, 8)}
+                        {p.profiles?.full_name || p.id.slice(0, 8)}
                       </SelectItem>
                     ))}
                   </SelectContent>
