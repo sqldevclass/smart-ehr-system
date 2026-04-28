@@ -533,11 +533,13 @@ function ServiceList({
 
   return (
     <div className="space-y-4">
-      {Object.entries(groups).map(([groupName, items]) => (
+      {Object.entries(groups).map(([groupName, items]) => {
+        const list = items as any[];
+        return (
         <div key={groupName}>
           <p className="text-xs font-semibold uppercase text-muted-foreground mb-1">{groupName}</p>
           <div className="space-y-1">
-            {items.map((s: any) => (
+            {list.map((s: any) => (
               <div
                 key={s.id}
                 className={`flex items-center justify-between rounded-md border p-2 text-sm ${selectedId === s.id ? "border-primary bg-primary/5" : ""}`}
