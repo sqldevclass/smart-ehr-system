@@ -498,7 +498,7 @@ function OrderServiceDialog({
                 ) : (
                   services.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
-                      {s.name} — {Number(s.cost_with_vat ?? s.cost ?? 0).toFixed(2)}
+                      {s.name} — {Number(s.cost_with_vat ?? 0).toFixed(2)}
                     </SelectItem>
                   ))
                 )}
