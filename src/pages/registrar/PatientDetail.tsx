@@ -107,10 +107,12 @@ export default function PatientDetail() {
 
   const handleSendToCashier = () => toast.success("Sent to cashier.");
 
-  const handleInvoiceOrders = async (visitId: string) => {
+  const handleInvoiceOrders = async (uninvoicedOrders: any[]) => {
     const { error } = await supabase.rpc("registrar_invoice_physician_orders", {
-      p_visit_id: visitId,
+      p_patient_id: patientId!,
+      p_hospital_id: user!.hospitalId,
       p_invoiced_by: user!.id,
+      p_visit_service_ids: uninvoicedOrders.map((vs: any) => vs.id),
     });
     if (error) {
       toast.error(error.message || "Failed to invoice orders.");
