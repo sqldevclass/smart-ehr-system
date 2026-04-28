@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,19 +13,31 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, Plus, Pencil } from "lucide-react";
+import {
+  Tabs, TabsContent, TabsList, TabsTrigger,
+} from "@/components/ui/tabs";
+import { ArrowLeft, Pencil, Plus, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+
+const REGISTRATION_SOURCES = [
+  "Facebook",
+  "Instagram",
+  "Google Search",
+  "Friend Recommendation",
+  "Doctor Referral",
+  "Other",
+];
 
 export default function PatientDetail() {
   const { patientId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [allergyOpen, setAllergyOpen] = useState(false);
-  const [contactOpen, setContactOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [showMore, setShowMore] = useState(false);
+  const [showAllergies, setShowAllergies] = useState(false);
+  const [addServiceOpen, setAddServiceOpen] = useState(false);
 
   const { data: patient, isLoading } = useQuery({
     queryKey: ["patient", patientId],
@@ -73,7 +85,7 @@ export default function PatientDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("visits")
-        .select("id, visit_date, status, total_amount, amount_paid, visit_services(id, source, services(name), service_statuses(code, name_ru))")
+        .select("id, visit_date, status, total_amount, amount_paid, visit_services(id, source, services(name), service_statuses(code, name_ru), invoice_items(id))")
         .eq("patient_id", patientId!)
         .eq("hospital_id", user!.hospitalId)
         .order("created_at", { ascending: false });
@@ -83,142 +95,474 @@ export default function PatientDetail() {
     enabled: !!patientId && !!user,
   });
 
+  const hasVisitToday = useMemo(() => {
+    const today = format(new Date(), "yyyy-MM-dd");
+    return visits.some((v: any) => (v.visit_date || "").startsWith(today));
+  }, [visits]);
+
   if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
   if (!patient) return <p className="text-sm text-destructive">Patient not found.</p>;
 
   const fullName = [patient.last_name, patient.first_name, patient.middle_name].filter(Boolean).join(" ");
 
+  const handleSendToCashier = () => toast.success("Sent to cashier.");
+
+  const handleInvoiceOrders = async (visitId: string) => {
+    const { error } = await supabase.rpc("registrar_invoice_physician_orders", {
+      p_visit_id: visitId,
+      p_invoiced_by: user!.id,
+    });
+    if (error) {
+      toast.error(error.message || "Failed to invoice orders.");
+      return;
+    }
+    toast.success("Physician orders invoiced.");
+    queryClient.invalidateQueries({ queryKey: ["patient-visits", patientId] });
+  };
+
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="max-w-4xl space-y-6">
       <Button variant="ghost" onClick={() => navigate("/registrar")} className="gap-2">
         <ArrowLeft className="h-4 w-4" /> Back
       </Button>
 
+      {/* Patient card */}
       <div className="rounded-lg border bg-card p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <h2 className="font-heading text-xl font-bold text-foreground">{fullName || "—"}</h2>
-            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-1">
-              <Pencil className="h-3 w-3" /> Edit
-            </Button>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="font-heading text-2xl font-bold text-foreground">{fullName || "—"}</h2>
+              {allergies.length > 0 && (
+                <button
+                  onClick={() => setShowAllergies((s) => !s)}
+                  className="inline-flex items-center gap-1 rounded bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive hover:bg-destructive/20"
+                >
+                  <AlertTriangle className="h-3 w-3" />
+                  Allergies ({allergies.length})
+                </button>
+              )}
+            </div>
+            <div className="font-mono text-xs text-muted-foreground">#{patient.patient_number || "—"}</div>
           </div>
-          <span className="font-mono text-xs text-muted-foreground">{patient.patient_number || "—"}</span>
+          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-1">
+            <Pencil className="h-3 w-3" /> Edit
+          </Button>
         </div>
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <Field label="Date of Birth" value={patient.date_of_birth ? format(new Date(patient.date_of_birth), "MMM d, yyyy") : "—"} />
-          <Field label="Gender" value={patient.gender || "—"} />
-          <Field label="Blood Type" value={patient.blood_type || "—"} />
-          <Field label="National ID" value={patient.national_id || "—"} />
-          <Field label="Phone" value={patient.phone || "—"} />
-          <Field label="Email" value={patient.email || "—"} />
-          <Field label="Status" value={patient.registration_status || "—"} />
-          <Field label="Address" value={patient.address || "—"} />
-        </div>
-      </div>
 
-      <Section
-        title="Allergies"
-        onAdd={() => setAllergyOpen(true)}
-        empty={allergies.length === 0}
-        emptyText="No allergies recorded."
-      >
-        {allergies.map((a: any) => (
-          <div key={a.id} className="grid grid-cols-3 gap-2 text-sm rounded-md border p-3">
-            <span className="capitalize font-medium">{a.allergy_type}</span>
-            <span className="text-muted-foreground">{a.description}</span>
-            <span className="capitalize text-muted-foreground">{a.severity}</span>
-          </div>
-        ))}
-      </Section>
-
-      <Section
-        title="Contacts"
-        onAdd={() => setContactOpen(true)}
-        empty={contacts.length === 0}
-        emptyText="No contacts recorded."
-      >
-        {contacts.map((c: any) => (
-          <div key={c.id} className="grid grid-cols-[2fr_1fr_1fr_auto] gap-2 text-sm rounded-md border p-3 items-center">
-            <span className="font-medium">{c.name}</span>
-            <span className="text-muted-foreground">{c.relationship}</span>
-            <span className="text-muted-foreground">{c.phone}</span>
-            {c.is_primary && (
-              <span className="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Primary</span>
-            )}
-          </div>
-        ))}
-      </Section>
-
-      <div className="rounded-lg border bg-card p-6 space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-foreground">Visits</h3>
-        </div>
-        {visits.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No visits yet.</p>
-        ) : (
-          <div className="space-y-3">
-            {visits.map((v: any) => (
-              <div key={v.id} className="rounded-md border p-4 space-y-3">
-                <div className="flex items-start justify-between gap-3 flex-wrap">
-                  <div>
-                    <div className="text-xs text-muted-foreground font-mono">
-                      Visit #{v.id.slice(0, 8)}
-                    </div>
-                    <div className="text-sm font-medium">
-                      {v.visit_date ? format(new Date(v.visit_date), "MMM d, yyyy") : "—"}
-                    </div>
-                    <span className="inline-block mt-1 rounded bg-muted px-2 py-0.5 text-xs font-medium capitalize">
-                      {v.status || "—"}
-                    </span>
-                  </div>
-                  <div className="text-right text-sm">
-                    <div className="font-semibold">{Number(v.total_amount || 0).toFixed(2)}</div>
-                    <div className="text-xs text-muted-foreground">
-                      Paid: {Number(v.amount_paid || 0).toFixed(2)}
-                    </div>
-                  </div>
-                </div>
-                {v.visit_services?.length > 0 && (
-                  <div className="space-y-1">
-                    {v.visit_services.map((vs: any) => (
-                      <div key={vs.id} className="flex items-center justify-between text-xs gap-2">
-                        <span className="truncate">{vs.services?.name || "—"}</span>
-                        <span className="rounded bg-muted px-2 py-0.5 text-muted-foreground shrink-0">
-                          {vs.service_statuses?.name_ru || vs.service_statuses?.code || "—"}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <div className="flex justify-end">
-                  <Button size="sm" variant="outline" onClick={() => navigate(`/registrar/visits/${v.id}`)}>
-                    Open Visit
-                  </Button>
-                </div>
+        {showAllergies && allergies.length > 0 && (
+          <div className="space-y-1 rounded-md border border-destructive/30 bg-destructive/5 p-3">
+            {allergies.map((a: any) => (
+              <div key={a.id} className="grid grid-cols-3 gap-2 text-xs">
+                <span className="capitalize font-medium">{a.allergy_type}</span>
+                <span className="text-muted-foreground">{a.description}</span>
+                <span className="capitalize text-muted-foreground">{a.severity}</span>
               </div>
             ))}
           </div>
         )}
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+          <Field label="Date of Birth" value={patient.date_of_birth ? format(new Date(patient.date_of_birth), "MMM d, yyyy") : "—"} />
+          <Field label="Gender" value={patient.gender || "—"} />
+          <Field label="Phone" value={patient.phone || "—"} />
+          <Field label="Status" value={patient.registration_status || "—"} />
+        </div>
+
+        <button
+          onClick={() => setShowMore((s) => !s)}
+          className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+        >
+          {showMore ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          {showMore ? "Show less" : "Show more"}
+        </button>
+
+        {showMore && (
+          <div className="space-y-4 border-t pt-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <Field label="Blood Type" value={patient.blood_type || "—"} />
+              <Field label="National ID" value={patient.national_id || "—"} />
+              <Field label="Email" value={patient.email || "—"} />
+              <Field label="Address" value={patient.address || "—"} />
+            </div>
+            {contacts.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">Contacts</p>
+                <div className="space-y-1">
+                  {contacts.map((c: any) => (
+                    <div key={c.id} className="grid grid-cols-[2fr_1fr_1fr_auto] gap-2 text-sm rounded-md border p-2 items-center">
+                      <span className="font-medium">{c.name}</span>
+                      <span className="text-muted-foreground">{c.relationship}</span>
+                      <span className="text-muted-foreground">{c.phone}</span>
+                      {c.is_primary && (
+                        <span className="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Primary</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      <AllergyDialog
-        open={allergyOpen}
-        onOpenChange={setAllergyOpen}
-        patientId={patientId!}
-        onSuccess={() => queryClient.invalidateQueries({ queryKey: ["patient-allergies", patientId] })}
-      />
-      <ContactDialog
-        open={contactOpen}
-        onOpenChange={setContactOpen}
-        patientId={patientId!}
-        onSuccess={() => queryClient.invalidateQueries({ queryKey: ["patient-contacts", patientId] })}
-      />
+      {/* Add Service */}
+      <div className="rounded-lg border bg-card p-6 flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold text-foreground">Add Service</h3>
+          <p className="text-xs text-muted-foreground">Select a service to add to this patient.</p>
+        </div>
+        <Button onClick={() => setAddServiceOpen(true)} className="gap-2">
+          <Plus className="h-4 w-4" /> Add Service
+        </Button>
+      </div>
+
+      {/* Visits */}
+      <div className="rounded-lg border bg-card p-6 space-y-3">
+        <h3 className="font-semibold text-foreground">Visits</h3>
+        {visits.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No visits yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {visits.map((v: any) => {
+              const total = Number(v.total_amount || 0);
+              const paid = Number(v.amount_paid || 0);
+              const outstanding = Math.max(0, total - paid);
+              const hasUninvoicedPhysicianOrder = (v.visit_services || []).some(
+                (vs: any) =>
+                  vs.source === "physician" &&
+                  vs.service_statuses?.code === "preliminary" &&
+                  (!vs.invoice_items || vs.invoice_items.length === 0),
+              );
+              return (
+                <div key={v.id} className="rounded-md border p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div>
+                      <div className="text-xs text-muted-foreground font-mono">
+                        Visit #{v.id.slice(0, 8)}
+                      </div>
+                      <div className="text-sm font-medium">
+                        {v.visit_date ? format(new Date(v.visit_date), "MMM d, yyyy") : "—"}
+                      </div>
+                      <span className="inline-block mt-1 rounded bg-muted px-2 py-0.5 text-xs font-medium capitalize">
+                        {v.status || "—"}
+                      </span>
+                    </div>
+                    <div className="text-right text-sm">
+                      <div className="font-semibold">Total: {total.toFixed(2)}</div>
+                      <div className="text-xs text-muted-foreground">Paid: {paid.toFixed(2)}</div>
+                      <div className="text-xs text-muted-foreground">Outstanding: {outstanding.toFixed(2)}</div>
+                    </div>
+                  </div>
+
+                  {hasUninvoicedPhysicianOrder && (
+                    <div className="rounded-md border border-amber-300 bg-amber-50 p-3 flex items-center justify-between gap-3 dark:border-amber-700 dark:bg-amber-950/30">
+                      <span className="text-xs text-amber-900 dark:text-amber-200">
+                        This visit has physician-ordered services not yet invoiced.
+                      </span>
+                      <Button size="sm" variant="outline" onClick={() => handleInvoiceOrders(v.id)}>
+                        Invoice
+                      </Button>
+                    </div>
+                  )}
+
+                  {v.visit_services?.length > 0 && (
+                    <div className="space-y-1">
+                      {v.visit_services.map((vs: any) => (
+                        <div key={vs.id} className="flex items-center justify-between text-xs gap-2">
+                          <span className="truncate">
+                            {vs.services?.name || "—"}
+                            {vs.source === "physician" && (
+                              <span className="ml-2 rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-800 dark:bg-blue-900/40 dark:text-blue-200">
+                                physician
+                              </span>
+                            )}
+                          </span>
+                          <span className="rounded bg-muted px-2 py-0.5 text-muted-foreground shrink-0">
+                            {vs.service_statuses?.name_ru || vs.service_statuses?.code || "—"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-2">
+                    {outstanding > 0 && (
+                      <Button size="sm" variant="outline" onClick={handleSendToCashier}>
+                        Send to Cashier
+                      </Button>
+                    )}
+                    <Button size="sm" variant="outline" onClick={() => navigate(`/registrar/visits/${v.id}`)}>
+                      Open Visit
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       <EditPatientDialog
         open={editOpen}
         onOpenChange={setEditOpen}
         patient={patient}
         onSuccess={() => queryClient.invalidateQueries({ queryKey: ["patient", patientId] })}
       />
+
+      <AddServiceDialog
+        open={addServiceOpen}
+        onOpenChange={setAddServiceOpen}
+        patientId={patientId!}
+        showRegistrationSource={!hasVisitToday}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["patient-visits", patientId] });
+          setAddServiceOpen(false);
+        }}
+      />
+    </div>
+  );
+}
+
+function AddServiceDialog({
+  open, onOpenChange, patientId, showRegistrationSource, onSuccess,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  patientId: string;
+  showRegistrationSource: boolean;
+  onSuccess: () => void;
+}) {
+  const { user } = useAuth();
+  const [selectedTypeId, setSelectedTypeId] = useState<string>("");
+  const [selectedServiceId, setSelectedServiceId] = useState<string>("");
+  const [selectedPhysicianId, setSelectedPhysicianId] = useState<string>("");
+  const [registrationSource, setRegistrationSource] = useState<string>("");
+  const [saving, setSaving] = useState(false);
+
+  const { data: serviceTypes = [] } = useQuery({
+    queryKey: ["service-types", user?.hospitalId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("service_types")
+        .select("id, name_ru, name_en")
+        .eq("hospital_id", user!.hospitalId)
+        .order("name_ru");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user && open,
+  });
+
+  const { data: services = [] } = useQuery({
+    queryKey: ["services-by-type", user?.hospitalId, selectedTypeId],
+    queryFn: async () => {
+      if (!selectedTypeId) return [];
+      const { data, error } = await supabase
+        .from("services")
+        .select("id, name, cost_with_vat, service_groups!inner(id, name, service_type_id)")
+        .eq("hospital_id", user!.hospitalId)
+        .eq("is_active", true)
+        .eq("service_groups.service_type_id", selectedTypeId)
+        .order("name");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user && !!selectedTypeId,
+  });
+
+  const selectedService = services.find((s: any) => s.id === selectedServiceId) as any;
+
+  const { data: physicians = [] } = useQuery({
+    queryKey: ["service-physicians", selectedServiceId, user?.hospitalId],
+    queryFn: async () => {
+      if (!selectedServiceId) return [];
+      const { data: priv } = await supabase
+        .from("physician_service_privileges")
+        .select("physician_id, physicians(id, profiles(first_name, last_name))")
+        .eq("service_id", selectedServiceId)
+        .eq("hospital_id", user!.hospitalId);
+      const list = (priv || [])
+        .map((p: any) => p.physicians)
+        .filter(Boolean);
+      if (list.length > 0) return list;
+      // fallback to all active physicians
+      const { data: all } = await supabase
+        .from("physicians")
+        .select("id, profiles(first_name, last_name)")
+        .eq("hospital_id", user!.hospitalId);
+      return all || [];
+    },
+    enabled: !!user && !!selectedServiceId,
+  });
+
+  const reset = () => {
+    setSelectedTypeId(""); setSelectedServiceId("");
+    setSelectedPhysicianId(""); setRegistrationSource("");
+  };
+
+  const submit = async () => {
+    if (!selectedServiceId || !selectedService) {
+      toast.error("Select a service.");
+      return;
+    }
+    if (!selectedPhysicianId) {
+      toast.error("Select a physician.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const { error } = await supabase.rpc("registrar_add_service", {
+        p_patient_id: patientId,
+        p_hospital_id: user!.hospitalId,
+        p_created_by: user!.id,
+        p_service_id: selectedServiceId,
+        p_assigned_physician_id: selectedPhysicianId,
+        p_cost_at_time: selectedService.cost_with_vat,
+        p_registration_source: registrationSource || null,
+      });
+      if (error) throw error;
+      toast.success("Service added.");
+      reset();
+      onSuccess();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to add service.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) reset(); onOpenChange(o); }}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Add Service</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {serviceTypes.length > 0 ? (
+            <Tabs value={selectedTypeId} onValueChange={(v) => { setSelectedTypeId(v); setSelectedServiceId(""); }}>
+              <TabsList className="flex flex-wrap h-auto">
+                {serviceTypes.map((t: any) => (
+                  <TabsTrigger key={t.id} value={t.id}>{t.name_ru || t.name_en}</TabsTrigger>
+                ))}
+              </TabsList>
+              {serviceTypes.map((t: any) => (
+                <TabsContent key={t.id} value={t.id} className="pt-4">
+                  <ServiceList
+                    services={services as any[]}
+                    selectedId={selectedServiceId}
+                    onSelect={setSelectedServiceId}
+                  />
+                </TabsContent>
+              ))}
+            </Tabs>
+          ) : (
+            <p className="text-sm text-muted-foreground">No service types configured.</p>
+          )}
+
+          {selectedService && (
+            <div className="rounded-md border p-4 space-y-3 bg-muted/30">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium">{selectedService.name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    Cost: {Number(selectedService.cost_with_vat || 0).toFixed(2)}
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Physician</Label>
+                <Select value={selectedPhysicianId} onValueChange={setSelectedPhysicianId}>
+                  <SelectTrigger><SelectValue placeholder="Select physician" /></SelectTrigger>
+                  <SelectContent>
+                    {physicians.map((p: any) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {[p.profiles?.last_name, p.profiles?.first_name].filter(Boolean).join(" ") || p.id.slice(0, 8)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+
+          {showRegistrationSource && (
+            <div className="space-y-1.5">
+              <Label>How did you hear about us?</Label>
+              <Select value={registrationSource} onValueChange={setRegistrationSource}>
+                <SelectTrigger><SelectValue placeholder="Select (optional)" /></SelectTrigger>
+                <SelectContent>
+                  {REGISTRATION_SOURCES.map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={submit} disabled={saving || !selectedServiceId || !selectedPhysicianId}>
+            {saving ? "Adding…" : "Add Service"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ServiceList({
+  services, selectedId, onSelect,
+}: {
+  services: any[];
+  selectedId: string;
+  onSelect: (id: string) => void;
+}) {
+  // Group by service_groups.name
+  const groups = services.reduce((acc: Record<string, any[]>, s: any) => {
+    const g = s.service_groups?.name || "Other";
+    if (!acc[g]) acc[g] = [];
+    acc[g].push(s);
+    return acc;
+  }, {});
+
+  if (services.length === 0) {
+    return <p className="text-sm text-muted-foreground">No services in this category.</p>;
+  }
+
+  return (
+    <div className="space-y-4">
+      {Object.entries(groups).map(([groupName, items]) => {
+        const list = items as any[];
+        return (
+        <div key={groupName}>
+          <p className="text-xs font-semibold uppercase text-muted-foreground mb-1">{groupName}</p>
+          <div className="space-y-1">
+            {list.map((s: any) => (
+              <div
+                key={s.id}
+                className={`flex items-center justify-between rounded-md border p-2 text-sm ${selectedId === s.id ? "border-primary bg-primary/5" : ""}`}
+              >
+                <span className="truncate">{s.name}</span>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="text-xs text-muted-foreground">
+                    {Number(s.cost_with_vat || 0).toFixed(2)}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant={selectedId === s.id ? "default" : "outline"}
+                    onClick={() => onSelect(s.id)}
+                  >
+                    {selectedId === s.id ? "Selected" : "Select"}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        );
+      })}
     </div>
   );
 }
@@ -363,195 +707,11 @@ function EditPatientDialog({
   );
 }
 
-function Section({
-  title, onAdd, empty, emptyText, children,
-}: {
-  title: string;
-  onAdd: () => void;
-  empty: boolean;
-  emptyText: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-lg border bg-card p-6 space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-foreground">{title}</h3>
-        <Button variant="outline" size="sm" onClick={onAdd} className="gap-1">
-          <Plus className="h-3 w-3" /> Add
-        </Button>
-      </div>
-      {empty ? (
-        <p className="text-sm text-muted-foreground">{emptyText}</p>
-      ) : (
-        <div className="space-y-2">{children}</div>
-      )}
-    </div>
-  );
-}
-
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-muted-foreground">{label}</p>
+      <p className="text-muted-foreground text-xs">{label}</p>
       <p className="font-medium text-foreground capitalize">{value}</p>
     </div>
-  );
-}
-
-function AllergyDialog({
-  open, onOpenChange, patientId, onSuccess,
-}: {
-  open: boolean;
-  onOpenChange: (o: boolean) => void;
-  patientId: string;
-  onSuccess: () => void;
-}) {
-  const { user } = useAuth();
-  const [type, setType] = useState("drug");
-  const [description, setDescription] = useState("");
-  const [severity, setSeverity] = useState("mild");
-  const [saving, setSaving] = useState(false);
-
-  const submit = async () => {
-    if (!description.trim()) {
-      toast.error("Description is required.");
-      return;
-    }
-    setSaving(true);
-    try {
-      const { error } = await supabase.from("patient_allergies").insert({
-        patient_id: patientId,
-        allergy_type: type,
-        description: description.trim(),
-        severity,
-        hospital_id: user!.hospitalId,
-        recorded_by: user!.id,
-      });
-      if (error) throw error;
-      toast.success("Allergy added.");
-      setDescription(""); setType("drug"); setSeverity("mild");
-      onSuccess();
-      onOpenChange(false);
-    } catch (err: any) {
-      toast.error(err.message || "Failed to save.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add Allergy</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>Type</Label>
-            <Select value={type} onValueChange={setType}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="drug">Drug</SelectItem>
-                <SelectItem value="environmental">Environmental</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Description</Label>
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Severity</Label>
-            <Select value={severity} onValueChange={setSeverity}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="mild">Mild</SelectItem>
-                <SelectItem value="moderate">Moderate</SelectItem>
-                <SelectItem value="severe">Severe</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={submit} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function ContactDialog({
-  open, onOpenChange, patientId, onSuccess,
-}: {
-  open: boolean;
-  onOpenChange: (o: boolean) => void;
-  patientId: string;
-  onSuccess: () => void;
-}) {
-  const { user } = useAuth();
-  const [name, setName] = useState("");
-  const [relationship, setRelationship] = useState("");
-  const [phone, setPhone] = useState("");
-  const [isPrimary, setIsPrimary] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  const submit = async () => {
-    if (!name.trim()) {
-      toast.error("Name is required.");
-      return;
-    }
-    setSaving(true);
-    try {
-      const { error } = await supabase.from("patient_contacts").insert({
-        patient_id: patientId,
-        name: name.trim(),
-        relationship: relationship.trim() || null,
-        phone: phone.trim() || null,
-        is_primary: isPrimary,
-        hospital_id: user!.hospitalId,
-      });
-      if (error) throw error;
-      toast.success("Contact added.");
-      setName(""); setRelationship(""); setPhone(""); setIsPrimary(false);
-      onSuccess();
-      onOpenChange(false);
-    } catch (err: any) {
-      toast.error(err.message || "Failed to save.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add Contact</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>Name</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Relationship</Label>
-            <Input value={relationship} onChange={(e) => setRelationship(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Phone</Label>
-            <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
-          </div>
-          <div className="flex items-center justify-between">
-            <Label>Primary contact</Label>
-            <Switch checked={isPrimary} onCheckedChange={setIsPrimary} />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={submit} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
