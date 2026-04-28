@@ -37,6 +37,7 @@ export default function PatientDetail() {
   const [editOpen, setEditOpen] = useState(false);
   const [showMore, setShowMore] = useState(false);
   const [showAllergies, setShowAllergies] = useState(false);
+  const [showPastVisits, setShowPastVisits] = useState(false);
   const [addServiceOpen, setAddServiceOpen] = useState(false);
 
   const { data: patient, isLoading } = useQuery({
