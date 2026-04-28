@@ -44,7 +44,6 @@ interface VisitServiceRow {
 interface ServiceOption {
   id: string;
   name: string;
-  cost: number;
   cost_with_vat: number | null;
 }
 
@@ -361,7 +360,7 @@ function OrderServiceDialog({
 
       const { data: svcs, error: sErr } = await supabase
         .from("services")
-        .select("id, name, cost, cost_with_vat")
+        .select("id, name, cost_with_vat")
         .eq("hospital_id", user.hospitalId)
         .eq("is_active", true)
         .in("id", ids)
@@ -433,9 +432,9 @@ function OrderServiceDialog({
     }
 
     const svc = services.find((s) => s.id === serviceId);
-    const cost = Number(svc?.cost_with_vat ?? svc?.cost ?? 0);
+    const cost = Number(svc?.cost_with_vat ?? 0);
 
-    // Need patient_id for the visit
+    // Need patient_id for the RPC
     setSubmitting(true);
     const { data: visit, error: vErr } = await supabase
       .from("visits")
@@ -449,25 +448,26 @@ function OrderServiceDialog({
       return;
     }
 
-    const { error } = await supabase.from("visit_services").insert({
-      visit_id: visitId,
-      patient_id: visit.patient_id,
-      hospital_id: user.hospitalId,
-      service_id: serviceId,
-      assigned_physician_id: assignedPhysicianId,
-      status_id: preliminaryStatusId,
-      source: "physician",
-      cost_at_time: cost,
-      created_by: user.id,
+    const { error } = await supabase.rpc("physician_order_services", {
+      p_patient_id: visit.patient_id,
+      p_hospital_id: user.hospitalId,
+      p_ordered_by: user.id,
+      p_services: [
+        {
+          service_id: serviceId,
+          assigned_physician_id: assignedPhysicianId || null,
+          cost_at_time: cost,
+        },
+      ],
     });
     setSubmitting(false);
 
     if (error) {
-      toast.error(error.message);
+      toast.error(error.message || "Failed to order service.");
       return;
     }
 
-    toast.success("Additional service ordered.");
+    toast.success("Service ordered. Patient can now pay at the cashier.");
     onCreated();
   };
 
@@ -497,7 +497,7 @@ function OrderServiceDialog({
                 ) : (
                   services.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
-                      {s.name} — {Number(s.cost_with_vat ?? s.cost ?? 0).toFixed(2)}
+                      {s.name} — {Number(s.cost_with_vat ?? 0).toFixed(2)}
                     </SelectItem>
                   ))
                 )}
