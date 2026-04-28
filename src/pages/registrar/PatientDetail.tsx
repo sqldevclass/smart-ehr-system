@@ -378,21 +378,26 @@ function AddServiceDialog({
     queryKey: ["service-physicians", selectedServiceId, user?.hospitalId],
     queryFn: async () => {
       if (!selectedServiceId) return [];
-      const { data: priv } = await supabase
+      const { data: privs } = await supabase
         .from("physician_service_privileges")
-        .select("physician_id, physicians(id, profiles(first_name, last_name))")
+        .select("physician_id")
         .eq("service_id", selectedServiceId)
         .eq("hospital_id", user!.hospitalId);
-      const list = (priv || [])
-        .map((p: any) => p.physicians)
-        .filter(Boolean);
-      if (list.length > 0) return list;
-      // fallback to all active physicians
-      const { data: all } = await supabase
+      const physicianIds = (privs || []).map((p: any) => p.physician_id);
+
+      let query = supabase
         .from("physicians")
-        .select("id, profiles(first_name, last_name)")
-        .eq("hospital_id", user!.hospitalId);
-      return all || [];
+        .select("id, profiles!inner(full_name)")
+        .eq("hospital_id", user!.hospitalId)
+        .eq("is_active", true);
+
+      if (physicianIds.length > 0) {
+        query = query.in("id", physicianIds);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
     },
     enabled: !!user && !!selectedServiceId,
   });
