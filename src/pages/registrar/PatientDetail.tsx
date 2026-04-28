@@ -561,7 +561,8 @@ function ServiceList({
             ))}
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
