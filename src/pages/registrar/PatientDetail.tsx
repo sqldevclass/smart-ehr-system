@@ -124,17 +124,17 @@ export default function PatientDetail() {
   };
 
   return (
-    <div className="max-w-4xl space-y-6">
+    <div className="max-w-6xl space-y-6">
       <Button variant="ghost" onClick={() => navigate("/registrar")} className="gap-2">
         <ArrowLeft className="h-4 w-4" /> Back
       </Button>
 
       {/* Patient card */}
-      <div className="rounded-lg border bg-card p-6 space-y-4">
+      <div className="rounded-lg border bg-card p-5 space-y-3">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="space-y-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="font-heading text-2xl font-bold text-foreground">{fullName || "—"}</h2>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h2 className="font-heading text-3xl font-bold text-foreground leading-tight">{fullName || "—"}</h2>
               {allergies.length > 0 && (
                 <button
                   onClick={() => setShowAllergies((s) => !s)}
@@ -145,11 +145,28 @@ export default function PatientDetail() {
                 </button>
               )}
             </div>
-            <div className="font-mono text-xs text-muted-foreground">#{patient.patient_number || "—"}</div>
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span>
+                {patient.date_of_birth ? format(new Date(patient.date_of_birth), "MMM d, yyyy") : "—"}
+              </span>
+              <span>•</span>
+              <span className="capitalize">{patient.gender || "—"}</span>
+              <span>•</span>
+              <span className="font-mono">#{patient.patient_number || "—"}</span>
+            </div>
           </div>
-          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-1">
-            <Pencil className="h-3 w-3" /> Edit
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-1">
+              <Pencil className="h-3 w-3" /> Edit
+            </Button>
+            <button
+              onClick={() => setShowMore((s) => !s)}
+              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+            >
+              {showMore ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              {showMore ? "Show less" : "Show more"}
+            </button>
+          </div>
         </div>
 
         {showAllergies && allergies.length > 0 && (
@@ -164,24 +181,11 @@ export default function PatientDetail() {
           </div>
         )}
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-          <Field label="Date of Birth" value={patient.date_of_birth ? format(new Date(patient.date_of_birth), "MMM d, yyyy") : "—"} />
-          <Field label="Gender" value={patient.gender || "—"} />
-          <Field label="Phone" value={patient.phone || "—"} />
-          <Field label="Status" value={patient.registration_status || "—"} />
-        </div>
-
-        <button
-          onClick={() => setShowMore((s) => !s)}
-          className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-        >
-          {showMore ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-          {showMore ? "Show less" : "Show more"}
-        </button>
-
         {showMore && (
           <div className="space-y-4 border-t pt-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <Field label="Phone" value={patient.phone || "—"} />
+              <Field label="Status" value={patient.registration_status || "—"} />
               <Field label="Blood Type" value={patient.blood_type || "—"} />
               <Field label="National ID" value={patient.national_id || "—"} />
               <Field label="Email" value={patient.email || "—"} />
@@ -208,19 +212,21 @@ export default function PatientDetail() {
         )}
       </div>
 
-      {/* Add Service */}
-      <div className="rounded-lg border bg-card p-6 flex items-center justify-between">
-        <div>
-          <h3 className="font-semibold text-foreground">Add Service</h3>
-          <p className="text-xs text-muted-foreground">Select a service to add to this patient.</p>
+      {/* Two-column layout: Add Service (left) + Visits (right) */}
+      <div className="grid grid-cols-2 gap-6 items-start">
+        {/* Add Service - left */}
+        <div className="rounded-lg border bg-card p-6 flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold text-foreground">Add Service</h3>
+            <p className="text-xs text-muted-foreground">Select a service to add to this patient.</p>
+          </div>
+          <Button onClick={() => setAddServiceOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" /> Add Service
+          </Button>
         </div>
-        <Button onClick={() => setAddServiceOpen(true)} className="gap-2">
-          <Plus className="h-4 w-4" /> Add Service
-        </Button>
-      </div>
 
-      {/* Visits */}
-      <div className="rounded-lg border bg-card p-6 space-y-3">
+        {/* Visits - right */}
+        <div className="rounded-lg border bg-card p-6 space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-foreground">Visits</h3>
         </div>
@@ -339,6 +345,7 @@ export default function PatientDetail() {
             </>
           );
         })()}
+        </div>
       </div>
 
       <EditPatientDialog
