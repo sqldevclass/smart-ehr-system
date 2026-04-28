@@ -361,7 +361,7 @@ function OrderServiceDialog({
 
       const { data: svcs, error: sErr } = await supabase
         .from("services")
-        .select("id, name, cost, cost_with_vat")
+        .select("id, name, cost_with_vat")
         .eq("hospital_id", user.hospitalId)
         .eq("is_active", true)
         .in("id", ids)
