@@ -44,7 +44,6 @@ interface VisitServiceRow {
 interface ServiceOption {
   id: string;
   name: string;
-  cost: number;
   cost_with_vat: number | null;
 }
 
