@@ -66,6 +66,29 @@ export default function PatientsList() {
     enabled: !!user,
   });
 
+  // Patients with uninvoiced physician orders (preliminary, source=physician, not in any invoice_item)
+  const { data: pendingOrderPatientIds = new Set<string>() } = useQuery({
+    queryKey: ["patients-pending-physician-orders", user?.hospitalId],
+    queryFn: async () => {
+      if (!user) return new Set<string>();
+      const { data, error } = await supabase
+        .from("visit_services")
+        .select("visit:visits!inner(patient_id, hospital_id), source, service_statuses!inner(code), invoice_items(id)")
+        .eq("source", "physician")
+        .eq("service_statuses.code", "preliminary")
+        .eq("visit.hospital_id", user.hospitalId);
+      if (error) return new Set<string>();
+      const ids = new Set<string>();
+      (data || []).forEach((row: any) => {
+        if ((!row.invoice_items || row.invoice_items.length === 0) && row.visit?.patient_id) {
+          ids.add(row.visit.patient_id);
+        }
+      });
+      return ids;
+    },
+    enabled: !!user,
+  });
+
   const formatName = (p: Patient) =>
     [p.last_name, p.first_name, p.middle_name].filter(Boolean).join(" ") || "—";
 
@@ -111,7 +134,16 @@ export default function PatientsList() {
                   onClick={() => navigate(`/registrar/patients/${p.id}`)}
                 >
                   <TableCell className="font-mono text-xs">{p.patient_number || "—"}</TableCell>
-                  <TableCell className="font-medium">{formatName(p)}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      <span>{formatName(p)}</span>
+                      {pendingOrderPatientIds.has(p.id) && (
+                        <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+                          Pending order
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell>{p.date_of_birth ? format(new Date(p.date_of_birth), "MMM d, yyyy") : "—"}</TableCell>
                   <TableCell>{p.phone || "—"}</TableCell>
                   <TableCell>
@@ -129,9 +161,10 @@ export default function PatientsList() {
       <RegisterPatientDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        onSuccess={() => {
+        onSuccess={(newPatientId) => {
           queryClient.invalidateQueries({ queryKey: ["patients"] });
           setDialogOpen(false);
+          if (newPatientId) navigate(`/registrar/patients/${newPatientId}`);
         }}
       />
     </div>
@@ -143,7 +176,7 @@ function RegisterPatientDialog({
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  onSuccess: () => void;
+  onSuccess: (newPatientId?: string) => void;
 }) {
   const { user } = useAuth();
   const [tab, setTab] = useState("quick");
@@ -198,12 +231,16 @@ function RegisterPatientDialog({
         base.address = fAddress.trim() || null;
       }
 
-      const { error } = await supabase.from("patients").insert(base);
+      const { data: newPatient, error } = await supabase
+        .from("patients")
+        .insert(base)
+        .select("id")
+        .single();
       if (error) throw error;
 
       toast.success("Patient registered.");
       reset();
-      onSuccess();
+      onSuccess(newPatient?.id);
     } catch (err: any) {
       toast.error(err.message || "Failed to register patient.");
     } finally {
