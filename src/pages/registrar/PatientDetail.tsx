@@ -37,6 +37,7 @@ export default function PatientDetail() {
   const [editOpen, setEditOpen] = useState(false);
   const [showMore, setShowMore] = useState(false);
   const [showAllergies, setShowAllergies] = useState(false);
+  const [showPastVisits, setShowPastVisits] = useState(false);
   const [addServiceOpen, setAddServiceOpen] = useState(false);
 
   const { data: patient, isLoading } = useQuery({
@@ -107,10 +108,12 @@ export default function PatientDetail() {
 
   const handleSendToCashier = () => toast.success("Sent to cashier.");
 
-  const handleInvoiceOrders = async (visitId: string) => {
+  const handleInvoiceOrders = async (uninvoicedOrders: any[]) => {
     const { error } = await supabase.rpc("registrar_invoice_physician_orders", {
-      p_visit_id: visitId,
+      p_patient_id: patientId!,
+      p_hospital_id: user!.hospitalId,
       p_invoiced_by: user!.id,
+      p_visit_service_ids: uninvoicedOrders.map((vs: any) => vs.id),
     });
     if (error) {
       toast.error(error.message || "Failed to invoice orders.");
@@ -218,88 +221,124 @@ export default function PatientDetail() {
 
       {/* Visits */}
       <div className="rounded-lg border bg-card p-6 space-y-3">
-        <h3 className="font-semibold text-foreground">Visits</h3>
-        {visits.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No visits yet.</p>
-        ) : (
-          <div className="space-y-3">
-            {visits.map((v: any) => {
-              const total = Number(v.total_amount || 0);
-              const paid = Number(v.amount_paid || 0);
-              const outstanding = Math.max(0, total - paid);
-              const hasUninvoicedPhysicianOrder = (v.visit_services || []).some(
-                (vs: any) =>
-                  vs.source === "physician" &&
-                  vs.service_statuses?.code === "preliminary" &&
-                  (!vs.invoice_items || vs.invoice_items.length === 0),
-              );
-              return (
-                <div key={v.id} className="rounded-md border p-4 space-y-3">
-                  <div className="flex items-start justify-between gap-3 flex-wrap">
-                    <div>
-                      <div className="text-xs text-muted-foreground font-mono">
-                        Visit #{v.id.slice(0, 8)}
-                      </div>
-                      <div className="text-sm font-medium">
-                        {v.visit_date ? format(new Date(v.visit_date), "MMM d, yyyy") : "—"}
-                      </div>
-                      <span className="inline-block mt-1 rounded bg-muted px-2 py-0.5 text-xs font-medium capitalize">
-                        {v.status || "—"}
-                      </span>
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-foreground">Visits</h3>
+        </div>
+        {(() => {
+          const isPast = (v: any) => v.status === "paid" || v.status === "cancelled";
+          const activeVisits = visits.filter((v: any) => !isPast(v));
+          const pastVisits = visits.filter(isPast);
+
+          const renderVisit = (v: any) => {
+            const total = Number(v.total_amount || 0);
+            const paid = Number(v.amount_paid || 0);
+            const outstanding = Math.max(0, total - paid);
+            const uninvoicedOrders = (v.visit_services || []).filter(
+              (vs: any) =>
+                vs.source === "physician" &&
+                vs.service_statuses?.code === "preliminary" &&
+                (!vs.invoice_items || vs.invoice_items.length === 0),
+            );
+            const hasUninvoicedPhysicianOrder = uninvoicedOrders.length > 0;
+            return (
+              <div key={v.id} className="rounded-md border p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div>
+                    <div className="text-xs text-muted-foreground font-mono">
+                      Visit #{v.id.slice(0, 8)}
                     </div>
-                    <div className="text-right text-sm">
-                      <div className="font-semibold">Total: {total.toFixed(2)}</div>
-                      <div className="text-xs text-muted-foreground">Paid: {paid.toFixed(2)}</div>
-                      <div className="text-xs text-muted-foreground">Outstanding: {outstanding.toFixed(2)}</div>
+                    <div className="text-sm font-medium">
+                      {v.visit_date ? format(new Date(v.visit_date), "MMM d, yyyy") : "—"}
                     </div>
+                    <span className="inline-block mt-1 rounded bg-muted px-2 py-0.5 text-xs font-medium capitalize">
+                      {v.status || "—"}
+                    </span>
                   </div>
-
-                  {hasUninvoicedPhysicianOrder && (
-                    <div className="rounded-md border border-amber-300 bg-amber-50 p-3 flex items-center justify-between gap-3 dark:border-amber-700 dark:bg-amber-950/30">
-                      <span className="text-xs text-amber-900 dark:text-amber-200">
-                        This visit has physician-ordered services not yet invoiced.
-                      </span>
-                      <Button size="sm" variant="outline" onClick={() => handleInvoiceOrders(v.id)}>
-                        Invoice
-                      </Button>
-                    </div>
-                  )}
-
-                  {v.visit_services?.length > 0 && (
-                    <div className="space-y-1">
-                      {v.visit_services.map((vs: any) => (
-                        <div key={vs.id} className="flex items-center justify-between text-xs gap-2">
-                          <span className="truncate">
-                            {vs.services?.name || "—"}
-                            {vs.source === "physician" && (
-                              <span className="ml-2 rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-800 dark:bg-blue-900/40 dark:text-blue-200">
-                                physician
-                              </span>
-                            )}
-                          </span>
-                          <span className="rounded bg-muted px-2 py-0.5 text-muted-foreground shrink-0">
-                            {vs.service_statuses?.name_ru || vs.service_statuses?.code || "—"}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="flex justify-end gap-2">
-                    {outstanding > 0 && (
-                      <Button size="sm" variant="outline" onClick={handleSendToCashier}>
-                        Send to Cashier
-                      </Button>
-                    )}
-                    <Button size="sm" variant="outline" onClick={() => navigate(`/registrar/visits/${v.id}`)}>
-                      Open Visit
-                    </Button>
+                  <div className="text-right text-sm">
+                    <div className="font-semibold">Total: {total.toFixed(2)}</div>
+                    <div className="text-xs text-muted-foreground">Paid: {paid.toFixed(2)}</div>
+                    <div className="text-xs text-muted-foreground">Outstanding: {outstanding.toFixed(2)}</div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
+
+                {hasUninvoicedPhysicianOrder && (
+                  <div className="rounded-md border border-amber-300 bg-amber-50 p-3 flex items-center justify-between gap-3 dark:border-amber-700 dark:bg-amber-950/30">
+                    <span className="text-xs text-amber-900 dark:text-amber-200">
+                      This visit has physician-ordered services not yet invoiced.
+                    </span>
+                    <Button size="sm" variant="outline" onClick={() => handleInvoiceOrders(uninvoicedOrders)}>
+                      Invoice
+                    </Button>
+                  </div>
+                )}
+
+                {v.visit_services?.length > 0 && (
+                  <div className="space-y-1">
+                    {v.visit_services.map((vs: any) => (
+                      <div key={vs.id} className="flex items-center justify-between text-xs gap-2">
+                        <span className="truncate">
+                          {vs.services?.name || "—"}
+                          {vs.source === "physician" && (
+                            <span className="ml-2 rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-800 dark:bg-blue-900/40 dark:text-blue-200">
+                              physician
+                            </span>
+                          )}
+                        </span>
+                        <span className="rounded bg-muted px-2 py-0.5 text-muted-foreground shrink-0">
+                          {vs.service_statuses?.name_ru || vs.service_statuses?.code || "—"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-2">
+                  {outstanding > 0 && (
+                    <Button size="sm" variant="outline" onClick={handleSendToCashier}>
+                      Send to Cashier
+                    </Button>
+                  )}
+                  <Button size="sm" variant="outline" onClick={() => navigate(`/registrar/visits/${v.id}`)}>
+                    Open Visit
+                  </Button>
+                </div>
+              </div>
+            );
+          };
+
+          return (
+            <>
+              {activeVisits.length === 0 && pastVisits.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No visits yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {activeVisits.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No active visits.</p>
+                  ) : (
+                    activeVisits.map(renderVisit)
+                  )}
+
+                  {pastVisits.length > 0 && (
+                    <div className="pt-2">
+                      <button
+                        onClick={() => setShowPastVisits((s) => !s)}
+                        className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                      >
+                        {showPastVisits ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                        {showPastVisits ? "Hide past visits" : `Show past visits (${pastVisits.length})`}
+                      </button>
+                      {showPastVisits && (
+                        <div className="mt-3 space-y-3">
+                          {pastVisits.map(renderVisit)}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          );
+        })()}
       </div>
 
       <EditPatientDialog
@@ -376,21 +415,26 @@ function AddServiceDialog({
     queryKey: ["service-physicians", selectedServiceId, user?.hospitalId],
     queryFn: async () => {
       if (!selectedServiceId) return [];
-      const { data: priv } = await supabase
+      const { data: privs } = await supabase
         .from("physician_service_privileges")
-        .select("physician_id, physicians(id, profiles(first_name, last_name))")
+        .select("physician_id")
         .eq("service_id", selectedServiceId)
         .eq("hospital_id", user!.hospitalId);
-      const list = (priv || [])
-        .map((p: any) => p.physicians)
-        .filter(Boolean);
-      if (list.length > 0) return list;
-      // fallback to all active physicians
-      const { data: all } = await supabase
+      const physicianIds = (privs || []).map((p: any) => p.physician_id);
+
+      let query = supabase
         .from("physicians")
-        .select("id, profiles(first_name, last_name)")
-        .eq("hospital_id", user!.hospitalId);
-      return all || [];
+        .select("id, profiles!inner(full_name)")
+        .eq("hospital_id", user!.hospitalId)
+        .eq("is_active", true);
+
+      if (physicianIds.length > 0) {
+        query = query.in("id", physicianIds);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
     },
     enabled: !!user && !!selectedServiceId,
   });
@@ -477,7 +521,7 @@ function AddServiceDialog({
                   <SelectContent>
                     {physicians.map((p: any) => (
                       <SelectItem key={p.id} value={p.id}>
-                        {[p.profiles?.last_name, p.profiles?.first_name].filter(Boolean).join(" ") || p.id.slice(0, 8)}
+                        {p.profiles?.full_name || p.id.slice(0, 8)}
                       </SelectItem>
                     ))}
                   </SelectContent>
