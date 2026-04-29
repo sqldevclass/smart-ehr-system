@@ -401,6 +401,10 @@ function ScheduleDialog({
             .from("physician_schedule_blocks")
             .insert(blockRows);
           if (blockErr) throw blockErr;
+          await supabase.rpc("apply_block_to_existing_slots", {
+            p_physician_id: physicianId,
+            p_hospital_id: user!.hospitalId,
+          });
         }
         queryClient.invalidateQueries({ queryKey: ["physician-blocks", physicianId] });
       }
