@@ -217,15 +217,22 @@ export default function PatientDetail() {
 
       {/* Two-column layout: Add Service (left) + Visits (right) */}
       <div className="grid grid-cols-2 gap-6 items-start">
-        {/* Add Service - left */}
-        <div className="rounded-lg border bg-card p-6 flex items-center justify-between">
+        {/* Search-based booking - left */}
+        <div className="rounded-lg border bg-card p-6 space-y-3">
           <div>
             <h3 className="font-semibold text-foreground">Add Service</h3>
-            <p className="text-xs text-muted-foreground">Select a service to add to this patient.</p>
+            <p className="text-xs text-muted-foreground">Search a physician or service to book.</p>
           </div>
-          <Button onClick={() => setAddServiceOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" /> Add Service
-          </Button>
+          <SearchBooking
+            onSelectPhysician={(id, name) => {
+              setBookingPhysicianId(id);
+              setBookingPhysicianName(name);
+            }}
+            onSelectService={(id, name) => {
+              setBookingServiceId(id);
+              setBookingServiceName(name);
+            }}
+          />
         </div>
 
         {/* Visits - right */}
