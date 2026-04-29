@@ -628,11 +628,12 @@ function BlockDialog({
     if (new Date(to) <= new Date(from)) { toast.error("End must be after start."); return; }
     setSaving(true);
     try {
+      const tz = user!.timezone || "Asia/Tashkent";
       const { error } = await supabase.from("physician_schedule_blocks").insert({
         hospital_id: user!.hospitalId,
         physician_id: physicianId,
-        blocked_from: new Date(from).toISOString(),
-        blocked_to: new Date(to).toISOString(),
+        blocked_from: toUTC(new Date(from), tz).toISOString(),
+        blocked_to: toUTC(new Date(to), tz).toISOString(),
         reason: reason.trim() || null,
         blocked_by: user!.id,
       });
