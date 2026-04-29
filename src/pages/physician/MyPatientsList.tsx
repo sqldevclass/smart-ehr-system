@@ -109,7 +109,7 @@ export default function MyPatientsList() {
     if (vsErr) toast.error(vsErr.message);
     setRows((vs || []) as any);
     setLoading(false);
-  }, [user]);
+  }, [user, selectedDate]);
 
   useEffect(() => {
     load();
