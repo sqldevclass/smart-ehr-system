@@ -119,6 +119,7 @@ export default function HRSchedules() {
 function SchedulesSection({
   physicianId, onAdd, onEdit,
 }: { physicianId: string; onAdd: () => void; onEdit: (s: any) => void }) {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const { data: schedules = [] } = useQuery({
     queryKey: ["physician-schedules", physicianId],
@@ -171,7 +172,7 @@ function SchedulesSection({
                     </span>
                     <span className="inline-flex items-center gap-1 text-sm font-medium">
                       <Clock className="h-3 w-3" />
-                      {(s.work_start || "").slice(0, 5)} – {(s.work_end || "").slice(0, 5)}
+                      {utcTimeToLocal((s.work_start || "").slice(0, 5), user?.timezone || "Asia/Tashkent")} – {utcTimeToLocal((s.work_end || "").slice(0, 5), user?.timezone || "Asia/Tashkent")}
                     </span>
                     {s.schedule_type === "slots" && s.slot_duration_minutes && (
                       <span className="text-xs text-muted-foreground">
@@ -219,6 +220,7 @@ function SchedulesSection({
 function BlocksSection({
   physicianId, onAdd,
 }: { physicianId: string; onAdd: () => void }) {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const { data: blocks = [] } = useQuery({
     queryKey: ["physician-blocks", physicianId],
@@ -263,9 +265,9 @@ function BlocksSection({
               <div className="space-y-0.5">
                 <div className="text-sm font-medium">{b.reason || "Blocked"}</div>
                 <div className="text-xs text-muted-foreground">
-                  {format(new Date(b.blocked_from), "MMM d, yyyy HH:mm")}
+                  {b.blocked_from ? toLocal(b.blocked_from, user?.timezone || "Asia/Tashkent", "MMM d, yyyy HH:mm") : "—"}
                   {" → "}
-                  {format(new Date(b.blocked_to), "MMM d, yyyy HH:mm")}
+                  {b.blocked_to ? toLocal(b.blocked_to, user?.timezone || "Asia/Tashkent", "MMM d, yyyy HH:mm") : "open"}
                 </div>
               </div>
               <Button size="sm" variant="outline" onClick={() => handleDelete(b.id)} className="gap-1 text-destructive">
