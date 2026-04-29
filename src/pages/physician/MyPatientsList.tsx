@@ -185,13 +185,42 @@ export default function MyPatientsList() {
     );
   }
 
+  const isToday = isSameDay(selectedDate, new Date());
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="font-heading text-2xl font-bold text-foreground">My Schedule</h1>
         <p className="text-sm text-muted-foreground">
-          Today's services assigned to you.
+          Services assigned to you.
         </p>
+      </div>
+
+      <div className="flex items-center gap-2 flex-wrap">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setSelectedDate(subDays(selectedDate, 1))}
+          className="gap-1"
+        >
+          <ChevronLeft className="h-4 w-4" /> Yesterday
+        </Button>
+        <div className="px-3 py-1.5 text-sm font-medium rounded-md bg-muted min-w-[180px] text-center">
+          {format(selectedDate, "EEEE, MMM d")}
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setSelectedDate(addDays(selectedDate, 1))}
+          className="gap-1"
+        >
+          Tomorrow <ChevronRight className="h-4 w-4" />
+        </Button>
+        {!isToday && (
+          <Button size="sm" variant="ghost" onClick={() => setSelectedDate(new Date())}>
+            Today
+          </Button>
+        )}
       </div>
 
       <div className="rounded-lg border bg-card">
