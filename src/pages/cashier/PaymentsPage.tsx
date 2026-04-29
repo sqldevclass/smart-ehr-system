@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toLocal } from "@/lib/timezone";
 
 interface Visit {
   id: string;
@@ -105,7 +106,7 @@ export default function PaymentsPage() {
           {v.patients ? `${v.patients.last_name} ${v.patients.first_name}` : "—"}
         </TableCell>
         <TableCell>{v.patients?.patient_number ?? "—"}</TableCell>
-        <TableCell>{v.visit_date}</TableCell>
+        <TableCell>{v.visit_date ? toLocal(`${v.visit_date}T00:00:00Z`, user?.timezone || "Asia/Tashkent", "MMM d, yyyy") : "—"}</TableCell>
         <TableCell>{fmt(v.total_amount)}</TableCell>
         <TableCell>{fmt(v.amount_paid)}</TableCell>
         <TableCell className="font-semibold">{fmt(outstandingAmt)}</TableCell>
