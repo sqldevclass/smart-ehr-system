@@ -610,6 +610,10 @@ function BlockDialog({
         blocked_by: user!.id,
       });
       if (error) throw error;
+      await supabase.rpc("apply_block_to_existing_slots", {
+        p_physician_id: physicianId,
+        p_hospital_id: user!.hospitalId,
+      });
       toast.success("Time blocked.");
       queryClient.invalidateQueries({ queryKey: ["physician-blocks", physicianId] });
       onOpenChange(false);
