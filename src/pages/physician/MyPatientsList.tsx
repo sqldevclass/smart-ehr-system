@@ -93,6 +93,9 @@ export default function MyPatientsList() {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
+    const dayStart = startOfDay(selectedDate).toISOString();
+    const dayEnd = endOfDay(selectedDate).toISOString();
+
     const { data: vs, error: vsErr } = await supabase
       .from("visit_services")
       .select(
@@ -101,7 +104,8 @@ export default function MyPatientsList() {
       .eq("assigned_physician_id", (phys as Physician).id)
       .eq("hospital_id", user.hospitalId)
       .in("status_id", allowedStatusIds)
-      .gte("scheduled_at", todayStart.toISOString())
+      .gte("scheduled_at", dayStart)
+      .lte("scheduled_at", dayEnd)
       .order("scheduled_at", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: true });
 
