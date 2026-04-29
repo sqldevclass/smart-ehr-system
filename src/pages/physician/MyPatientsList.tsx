@@ -8,6 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { format, subDays, addDays, startOfDay, endOfDay, isSameDay } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { toLocal } from "@/lib/timezone";
 
 interface Physician {
   id: string;
@@ -261,7 +262,7 @@ export default function MyPatientsList() {
                           Wait List
                         </span>
                       ) : r.scheduled_at ? (
-                        format(new Date(r.scheduled_at), "MMM d, HH:mm")
+                        toLocal(r.scheduled_at, user?.timezone || "Asia/Tashkent", "MMM d, HH:mm")
                       ) : r.queue_number != null ? (
                         `#${r.queue_number}`
                       ) : (

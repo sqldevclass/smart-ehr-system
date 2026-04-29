@@ -17,6 +17,7 @@ import {
 import { ArrowLeft, Pencil, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { localDayBoundsUTC, toLocal } from "@/lib/timezone";
 
 const REGISTRATION_SOURCES = [
   "Facebook",
@@ -527,12 +528,8 @@ function SearchBooking({
   );
 }
 
-function dateRangeIso(date: Date) {
-  const start = new Date(date);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(date);
-  end.setHours(23, 59, 59, 999);
-  return { start: start.toISOString(), end: end.toISOString() };
+function dateRangeIso(date: Date, timezone: string) {
+  return localDayBoundsUTC(date, timezone);
 }
 
 async function bookOne(opts: {
@@ -594,7 +591,8 @@ function PhysicianBookingDialog({
   const [registrationSource, setRegistrationSource] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
 
-  const { start, end } = dateRangeIso(date);
+  const tz = user?.timezone || "Asia/Tashkent";
+  const { start, end } = dateRangeIso(date, tz);
 
   const { data: slots = [] } = useQuery({
     queryKey: ["phys-slots", physicianId, start],
@@ -731,7 +729,7 @@ function PhysicianBookingDialog({
           ) : (
             <div className="space-y-1 max-h-[50vh] overflow-y-auto">
               {slots.map((s: any) => {
-                const time = format(new Date(s.slot_datetime), "HH:mm");
+                const time = toLocal(s.slot_datetime, tz, "HH:mm");
                 const full = s.booking_count >= 2;
                 const wait = s.booking_count === 1;
                 return (
@@ -805,7 +803,8 @@ function ServiceBookingDialog({
   const [date, setDate] = useState<Date>(new Date());
   const [registrationSource, setRegistrationSource] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
-  const { start, end } = dateRangeIso(date);
+  const tz = user?.timezone || "Asia/Tashkent";
+  const { start, end } = dateRangeIso(date, tz);
 
   const { data: serviceInfo } = useQuery({
     queryKey: ["service-info", serviceId],
@@ -857,7 +856,7 @@ function ServiceBookingDialog({
   const { times, byTime } = useMemo(() => {
     const byTime = new Map<string, Map<string, any>>();
     (slots as any[]).forEach((s) => {
-      const t = format(new Date(s.slot_datetime), "HH:mm");
+      const t = toLocal(s.slot_datetime, tz, "HH:mm");
       if (!byTime.has(t)) byTime.set(t, new Map());
       byTime.get(t)!.set(s.physician_id, s);
     });

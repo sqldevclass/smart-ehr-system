@@ -7,6 +7,7 @@ export interface AuthUser {
   roles: string[];
   hospitalId: string;
   hospitalName: string;
+  timezone: string;
 }
 
 export function useAuth() {
@@ -48,12 +49,19 @@ export function useAuth() {
       .eq("id", profile.hospital_id)
       .single();
 
+    const { data: settings } = await supabase
+      .from("hospital_settings")
+      .select("timezone")
+      .eq("hospital_id", profile.hospital_id)
+      .maybeSingle();
+
     setUser({
       id: session.user.id,
       fullName: profile.full_name || "Unknown",
       roles,
       hospitalId: profile.hospital_id,
       hospitalName: hospital?.name || "Unknown Hospital",
+      timezone: (settings as any)?.timezone || "Asia/Tashkent",
     });
 
     setLoading(false);

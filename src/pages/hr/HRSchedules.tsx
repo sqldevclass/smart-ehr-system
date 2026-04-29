@@ -12,6 +12,7 @@ import {
 import { Plus, Trash2, Pencil, CalendarClock, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { localTimeToUTC, utcTimeToLocal, toUTC, toLocal } from "@/lib/timezone";
 
 const DAYS = [
   { value: 1, short: "Mon", long: "Monday" },
@@ -118,6 +119,7 @@ export default function HRSchedules() {
 function SchedulesSection({
   physicianId, onAdd, onEdit,
 }: { physicianId: string; onAdd: () => void; onEdit: (s: any) => void }) {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const { data: schedules = [] } = useQuery({
     queryKey: ["physician-schedules", physicianId],
@@ -170,7 +172,7 @@ function SchedulesSection({
                     </span>
                     <span className="inline-flex items-center gap-1 text-sm font-medium">
                       <Clock className="h-3 w-3" />
-                      {(s.work_start || "").slice(0, 5)} – {(s.work_end || "").slice(0, 5)}
+                      {utcTimeToLocal((s.work_start || "").slice(0, 5), user?.timezone || "Asia/Tashkent")} – {utcTimeToLocal((s.work_end || "").slice(0, 5), user?.timezone || "Asia/Tashkent")}
                     </span>
                     {s.schedule_type === "slots" && s.slot_duration_minutes && (
                       <span className="text-xs text-muted-foreground">
@@ -218,6 +220,7 @@ function SchedulesSection({
 function BlocksSection({
   physicianId, onAdd,
 }: { physicianId: string; onAdd: () => void }) {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const { data: blocks = [] } = useQuery({
     queryKey: ["physician-blocks", physicianId],
@@ -262,9 +265,9 @@ function BlocksSection({
               <div className="space-y-0.5">
                 <div className="text-sm font-medium">{b.reason || "Blocked"}</div>
                 <div className="text-xs text-muted-foreground">
-                  {format(new Date(b.blocked_from), "MMM d, yyyy HH:mm")}
+                  {b.blocked_from ? toLocal(b.blocked_from, user?.timezone || "Asia/Tashkent", "MMM d, yyyy HH:mm") : "—"}
                   {" → "}
-                  {format(new Date(b.blocked_to), "MMM d, yyyy HH:mm")}
+                  {b.blocked_to ? toLocal(b.blocked_to, user?.timezone || "Asia/Tashkent", "MMM d, yyyy HH:mm") : "open"}
                 </div>
               </div>
               <Button size="sm" variant="outline" onClick={() => handleDelete(b.id)} className="gap-1 text-destructive">
@@ -290,10 +293,15 @@ function ScheduleDialog({
   const queryClient = useQueryClient();
   const today = new Date().toISOString().split("T")[0];
 
+  const tz = user?.timezone || "Asia/Tashkent";
   const [scheduleType, setScheduleType] = useState<"slots" | "queue">(editing?.schedule_type || "slots");
   const [days, setDays] = useState<number[]>(editing?.days_of_week || [1, 2, 3, 4, 5]);
-  const [workStart, setWorkStart] = useState<string>((editing?.work_start || "09:00").slice(0, 5));
-  const [workEnd, setWorkEnd] = useState<string>((editing?.work_end || "17:00").slice(0, 5));
+  const [workStart, setWorkStart] = useState<string>(
+    editing?.work_start ? utcTimeToLocal((editing.work_start || "").slice(0, 5), tz) : "09:00"
+  );
+  const [workEnd, setWorkEnd] = useState<string>(
+    editing?.work_end ? utcTimeToLocal((editing.work_end || "").slice(0, 5), tz) : "17:00"
+  );
   const [slotDuration, setSlotDuration] = useState<string>(editing?.slot_duration_minutes?.toString() || "15");
   const [validFrom, setValidFrom] = useState<string>(editing?.valid_from || today);
   const [validTo, setValidTo] = useState<string>(editing?.valid_to || "");
@@ -342,8 +350,8 @@ function ScheduleDialog({
         physician_id: physicianId,
         schedule_type: scheduleType,
         days_of_week: days,
-        work_start: workStart,
-        work_end: workEnd,
+        work_start: localTimeToUTC(workStart, tz),
+        work_end: localTimeToUTC(workEnd, tz),
         slot_duration_minutes: scheduleType === "slots" ? Number(slotDuration) : null,
         valid_from: validFrom,
         valid_to: validTo || null,
@@ -380,22 +388,41 @@ function ScheduleDialog({
         toast.success(`Queue schedule ${editing ? "updated" : "created"}.`);
       }
 
-      // Insert recurring blocks
+      // Insert recurring blocks (skip duplicates already saved for this physician)
       if (recurringBlocks.length > 0) {
-        const blockRows = recurringBlocks
+        const candidates = recurringBlocks
           .filter((b) => b.days.length > 0 && b.from && b.to)
           .map((b) => ({
-            physician_id: physicianId,
-            hospital_id: user!.hospitalId,
-            is_recurring: true,
             recur_days: b.days,
-            recur_time_from: b.from,
-            recur_time_to: b.to,
+            recur_time_from: localTimeToUTC(b.from, tz),
+            recur_time_to: localTimeToUTC(b.to, tz),
             reason: b.label.trim() || null,
-            blocked_by: user!.id,
-            blocked_from: validFrom,
-            blocked_to: validTo || null,
           }));
+
+        const blockRows: any[] = [];
+        for (const c of candidates) {
+          const { data: existing } = await supabase
+            .from("physician_schedule_blocks")
+            .select("id")
+            .eq("physician_id", physicianId)
+            .eq("is_recurring", true)
+            .eq("recur_time_from", c.recur_time_from)
+            .eq("recur_time_to", c.recur_time_to);
+          if (!existing || existing.length === 0) {
+            blockRows.push({
+              physician_id: physicianId,
+              hospital_id: user!.hospitalId,
+              is_recurring: true,
+              recur_days: c.recur_days,
+              recur_time_from: c.recur_time_from,
+              recur_time_to: c.recur_time_to,
+              reason: c.reason,
+              blocked_by: user!.id,
+              blocked_from: validFrom,
+              blocked_to: validTo || null,
+            });
+          }
+        }
         if (blockRows.length > 0) {
           const { error: blockErr } = await supabase
             .from("physician_schedule_blocks")
@@ -601,11 +628,12 @@ function BlockDialog({
     if (new Date(to) <= new Date(from)) { toast.error("End must be after start."); return; }
     setSaving(true);
     try {
+      const tz = user!.timezone || "Asia/Tashkent";
       const { error } = await supabase.from("physician_schedule_blocks").insert({
         hospital_id: user!.hospitalId,
         physician_id: physicianId,
-        blocked_from: new Date(from).toISOString(),
-        blocked_to: new Date(to).toISOString(),
+        blocked_from: toUTC(new Date(from), tz).toISOString(),
+        blocked_to: toUTC(new Date(to), tz).toISOString(),
         reason: reason.trim() || null,
         blocked_by: user!.id,
       });
