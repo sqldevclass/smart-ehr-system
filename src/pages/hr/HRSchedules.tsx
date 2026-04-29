@@ -501,6 +501,72 @@ function ScheduleDialog({
               <Input type="date" value={validTo} onChange={(e) => setValidTo(e.target.value)} />
             </div>
           </div>
+
+          {/* Recurring Blocks */}
+          <div className="space-y-2 border-t pt-4">
+            <div className="flex items-center justify-between">
+              <Label>Recurring Blocks</Label>
+              <Button type="button" size="sm" variant="outline" onClick={addRecurringBlock} className="gap-1">
+                <Plus className="h-3 w-3" /> Add Recurring Block
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              E.g. lunch breaks or prayer times that repeat on selected days.
+            </p>
+            {recurringBlocks.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No recurring blocks.</p>
+            ) : (
+              <div className="space-y-3">
+                {recurringBlocks.map((b, idx) => (
+                  <div key={idx} className="rounded-md border p-3 space-y-2">
+                    <div className="flex flex-wrap gap-1">
+                      {DAYS.map((d) => (
+                        <button
+                          type="button"
+                          key={d.value}
+                          onClick={() => toggleBlockDay(idx, d.value)}
+                          className={`rounded px-2 py-1 text-[11px] font-medium border ${
+                            b.days.includes(d.value)
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border text-muted-foreground"
+                          }`}
+                        >
+                          {d.short}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-[1fr_1fr_2fr_auto] gap-2 items-end">
+                      <div className="space-y-1">
+                        <Label className="text-xs">From</Label>
+                        <Input type="time" value={b.from} onChange={(e) => updateRecurringBlock(idx, { from: e.target.value })} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">To</Label>
+                        <Input type="time" value={b.to} onChange={(e) => updateRecurringBlock(idx, { to: e.target.value })} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Label</Label>
+                        <Input
+                          value={b.label}
+                          onChange={(e) => updateRecurringBlock(idx, { label: e.target.value })}
+                          placeholder="e.g. Lunch break"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="text-destructive"
+                        onClick={() => removeRecurringBlock(idx)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         <DialogFooter>
