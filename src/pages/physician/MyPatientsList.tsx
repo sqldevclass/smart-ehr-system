@@ -262,7 +262,7 @@ export default function MyPatientsList() {
                           Wait List
                         </span>
                       ) : r.scheduled_at ? (
-                        format(new Date(r.scheduled_at), "MMM d, HH:mm")
+                        toLocal(r.scheduled_at, user?.timezone || "Asia/Tashkent", "MMM d, HH:mm")
                       ) : r.queue_number != null ? (
                         `#${r.queue_number}`
                       ) : (
