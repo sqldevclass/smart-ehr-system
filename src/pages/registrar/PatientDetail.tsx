@@ -14,10 +14,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import {
-  Tabs, TabsContent, TabsList, TabsTrigger,
-} from "@/components/ui/tabs";
-import { ArrowLeft, Pencil, Plus, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Pencil, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
