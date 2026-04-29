@@ -298,6 +298,32 @@ function ScheduleDialog({
   const [validFrom, setValidFrom] = useState<string>(editing?.valid_from || today);
   const [validTo, setValidTo] = useState<string>(editing?.valid_to || "");
   const [saving, setSaving] = useState(false);
+  type RecurringBlock = {
+    days: number[];
+    from: string;
+    to: string;
+    label: string;
+  };
+  const [recurringBlocks, setRecurringBlocks] = useState<RecurringBlock[]>([]);
+
+  const addRecurringBlock = () => {
+    setRecurringBlocks((cur) => [...cur, { days: [...days], from: "12:00", to: "13:00", label: "" }]);
+  };
+  const removeRecurringBlock = (idx: number) => {
+    setRecurringBlocks((cur) => cur.filter((_, i) => i !== idx));
+  };
+  const updateRecurringBlock = (idx: number, patch: Partial<RecurringBlock>) => {
+    setRecurringBlocks((cur) => cur.map((b, i) => (i === idx ? { ...b, ...patch } : b)));
+  };
+  const toggleBlockDay = (idx: number, d: number) => {
+    setRecurringBlocks((cur) =>
+      cur.map((b, i) =>
+        i === idx
+          ? { ...b, days: b.days.includes(d) ? b.days.filter((x) => x !== d) : [...b.days, d].sort() }
+          : b
+      )
+    );
+  };
 
   const toggleDay = (d: number) => {
     setDays((cur) => cur.includes(d) ? cur.filter((x) => x !== d) : [...cur, d].sort());
