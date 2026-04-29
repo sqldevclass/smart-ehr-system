@@ -446,9 +446,53 @@ function AddServiceDialog({
     enabled: !!user && !!selectedServiceId,
   });
 
+  const today = new Date().toISOString().split("T")[0];
+  const todayStart = new Date(today + "T00:00:00").toISOString();
+  const todayEnd = new Date(today + "T23:59:59").toISOString();
+
+  const [selectedSlotId, setSelectedSlotId] = useState<string>("");
+
+  const { data: schedule } = useQuery({
+    queryKey: ["physician-today-schedule", selectedPhysicianId, today],
+    queryFn: async () => {
+      if (!selectedPhysicianId) return null;
+      const { data } = await supabase
+        .from("physician_schedules")
+        .select("id, schedule_type, work_start, work_end, slot_duration_minutes, days_of_week")
+        .eq("physician_id", selectedPhysicianId)
+        .eq("hospital_id", user!.hospitalId)
+        .lte("valid_from", today)
+        .or("valid_to.is.null,valid_to.gte." + today)
+        .order("valid_from", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!user && !!selectedPhysicianId,
+  });
+
+  const { data: slots = [] } = useQuery({
+    queryKey: ["physician-today-slots", selectedPhysicianId, today],
+    queryFn: async () => {
+      if (!selectedPhysicianId) return [];
+      const { data } = await supabase
+        .from("schedule_slots")
+        .select("id, slot_datetime, booking_count")
+        .eq("physician_id", selectedPhysicianId)
+        .eq("hospital_id", user!.hospitalId)
+        .gte("slot_datetime", todayStart)
+        .lte("slot_datetime", todayEnd)
+        .lt("booking_count", 2)
+        .order("slot_datetime");
+      return data || [];
+    },
+    enabled: !!user && !!selectedPhysicianId && schedule?.schedule_type === "slots",
+  });
+
   const reset = () => {
     setSelectedTypeId(""); setSelectedServiceId("");
     setSelectedPhysicianId(""); setRegistrationSource("");
+    setSelectedSlotId("");
   };
 
   const submit = async () => {
@@ -460,9 +504,13 @@ function AddServiceDialog({
       toast.error("Select a physician.");
       return;
     }
+    if (schedule?.schedule_type === "slots" && !selectedSlotId) {
+      toast.error("Select a time slot.");
+      return;
+    }
     setSaving(true);
     try {
-      const { error } = await supabase.rpc("registrar_add_service", {
+      const { data: result, error } = await supabase.rpc("registrar_add_service", {
         p_patient_id: patientId,
         p_hospital_id: user!.hospitalId,
         p_created_by: user!.id,
@@ -472,7 +520,19 @@ function AddServiceDialog({
         p_registration_source: registrationSource || null,
       });
       if (error) throw error;
-      toast.success("Service added.");
+
+      if (schedule?.schedule_type === "slots" && selectedSlotId) {
+        const visitServiceId = (result as any)?.visit_service_id || (Array.isArray(result) ? (result as any)[0]?.visit_service_id : undefined);
+        const { data: bookResult, error: bookErr } = await supabase.rpc("book_slot", {
+          p_slot_id: selectedSlotId,
+          p_visit_service_id: visitServiceId,
+        });
+        if (bookErr) throw bookErr;
+        const isWaitlist = (bookResult as any)?.is_waitlist ?? (Array.isArray(bookResult) ? (bookResult as any)[0]?.is_waitlist : false);
+        toast.success(isWaitlist ? "Service added — patient is on waitlist for this slot" : "Service added");
+      } else {
+        toast.success("Service added.");
+      }
       reset();
       onSuccess();
     } catch (err: any) {
