@@ -583,7 +583,7 @@ function AddServiceDialog({
               </div>
               <div className="space-y-1.5">
                 <Label>Physician</Label>
-                <Select value={selectedPhysicianId} onValueChange={setSelectedPhysicianId}>
+                <Select value={selectedPhysicianId} onValueChange={(v) => { setSelectedPhysicianId(v); setSelectedSlotId(""); }}>
                   <SelectTrigger><SelectValue placeholder="Select physician" /></SelectTrigger>
                   <SelectContent>
                     {physicians.map((p: any) => (
@@ -594,6 +594,59 @@ function AddServiceDialog({
                   </SelectContent>
                 </Select>
               </div>
+
+              {selectedPhysicianId && !schedule && (
+                <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200">
+                  This physician has no schedule for today.
+                </div>
+              )}
+
+              {selectedPhysicianId && schedule?.schedule_type === "queue" && (
+                <div>
+                  <span className="inline-flex items-center rounded bg-purple-100 px-2 py-1 text-xs font-medium text-purple-800 dark:bg-purple-900/40 dark:text-purple-200">
+                    Queue — number assigned at payment
+                  </span>
+                </div>
+              )}
+
+              {selectedPhysicianId && schedule?.schedule_type === "slots" && (
+                <div className="space-y-2">
+                  <Label>Time slot (today)</Label>
+                  {slots.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No available slots for today.</p>
+                  ) : (
+                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                      {slots.map((s: any) => {
+                        const isWaitlist = s.booking_count === 1;
+                        const time = format(new Date(s.slot_datetime), "HH:mm");
+                        const selected = selectedSlotId === s.id;
+                        return (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => setSelectedSlotId(s.id)}
+                            className={`rounded-md border px-2 py-1.5 text-xs font-medium transition-colors ${
+                              selected
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : isWaitlist
+                                  ? "border-orange-400 text-orange-700 hover:bg-orange-50 dark:text-orange-300 dark:hover:bg-orange-950/30"
+                                  : "border-border hover:bg-muted"
+                            }`}
+                          >
+                            {time}
+                            {isWaitlist && <span className="ml-1 text-[10px]">WL</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {selectedSlotId && (
+                    <p className="text-xs text-muted-foreground">
+                      Selected: {format(new Date(slots.find((s: any) => s.id === selectedSlotId)?.slot_datetime), "HH:mm")}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
