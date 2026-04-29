@@ -388,22 +388,41 @@ function ScheduleDialog({
         toast.success(`Queue schedule ${editing ? "updated" : "created"}.`);
       }
 
-      // Insert recurring blocks
+      // Insert recurring blocks (skip duplicates already saved for this physician)
       if (recurringBlocks.length > 0) {
-        const blockRows = recurringBlocks
+        const candidates = recurringBlocks
           .filter((b) => b.days.length > 0 && b.from && b.to)
           .map((b) => ({
-            physician_id: physicianId,
-            hospital_id: user!.hospitalId,
-            is_recurring: true,
             recur_days: b.days,
-            recur_time_from: b.from,
-            recur_time_to: b.to,
+            recur_time_from: localTimeToUTC(b.from, tz),
+            recur_time_to: localTimeToUTC(b.to, tz),
             reason: b.label.trim() || null,
-            blocked_by: user!.id,
-            blocked_from: validFrom,
-            blocked_to: validTo || null,
           }));
+
+        const blockRows: any[] = [];
+        for (const c of candidates) {
+          const { data: existing } = await supabase
+            .from("physician_schedule_blocks")
+            .select("id")
+            .eq("physician_id", physicianId)
+            .eq("is_recurring", true)
+            .eq("recur_time_from", c.recur_time_from)
+            .eq("recur_time_to", c.recur_time_to);
+          if (!existing || existing.length === 0) {
+            blockRows.push({
+              physician_id: physicianId,
+              hospital_id: user!.hospitalId,
+              is_recurring: true,
+              recur_days: c.recur_days,
+              recur_time_from: c.recur_time_from,
+              recur_time_to: c.recur_time_to,
+              reason: c.reason,
+              blocked_by: user!.id,
+              blocked_from: validFrom,
+              blocked_to: validTo || null,
+            });
+          }
+        }
         if (blockRows.length > 0) {
           const { error: blockErr } = await supabase
             .from("physician_schedule_blocks")
