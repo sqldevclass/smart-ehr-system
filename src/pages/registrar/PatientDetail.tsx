@@ -17,6 +17,7 @@ import {
 import { ArrowLeft, Pencil, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { localDayBoundsUTC, toLocal } from "@/lib/timezone";
 
 const REGISTRATION_SOURCES = [
   "Facebook",
@@ -527,12 +528,8 @@ function SearchBooking({
   );
 }
 
-function dateRangeIso(date: Date) {
-  const start = new Date(date);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(date);
-  end.setHours(23, 59, 59, 999);
-  return { start: start.toISOString(), end: end.toISOString() };
+function dateRangeIso(date: Date, timezone: string) {
+  return localDayBoundsUTC(date, timezone);
 }
 
 async function bookOne(opts: {
