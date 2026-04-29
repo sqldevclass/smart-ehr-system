@@ -90,9 +90,6 @@ export default function MyPatientsList() {
       return;
     }
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-
     const dayStart = startOfDay(selectedDate).toISOString();
     const dayEnd = endOfDay(selectedDate).toISOString();
 
