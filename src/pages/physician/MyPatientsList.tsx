@@ -6,7 +6,8 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
+import { format, subDays, addDays, startOfDay, endOfDay, isSameDay } from "date-fns";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface Physician {
   id: string;
