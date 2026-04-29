@@ -6,7 +6,8 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
+import { format, subDays, addDays, startOfDay, endOfDay, isSameDay } from "date-fns";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface Physician {
   id: string;
@@ -56,6 +57,7 @@ export default function MyPatientsList() {
   const [loading, setLoading] = useState(true);
   const [physicianMissing, setPhysicianMissing] = useState(false);
   const [rows, setRows] = useState<VisitServiceRow[]>([]);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -88,8 +90,8 @@ export default function MyPatientsList() {
       return;
     }
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    const dayStart = startOfDay(selectedDate).toISOString();
+    const dayEnd = endOfDay(selectedDate).toISOString();
 
     const { data: vs, error: vsErr } = await supabase
       .from("visit_services")
@@ -99,14 +101,15 @@ export default function MyPatientsList() {
       .eq("assigned_physician_id", (phys as Physician).id)
       .eq("hospital_id", user.hospitalId)
       .in("status_id", allowedStatusIds)
-      .gte("scheduled_at", todayStart.toISOString())
+      .gte("scheduled_at", dayStart)
+      .lte("scheduled_at", dayEnd)
       .order("scheduled_at", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: true });
 
     if (vsErr) toast.error(vsErr.message);
     setRows((vs || []) as any);
     setLoading(false);
-  }, [user]);
+  }, [user, selectedDate]);
 
   useEffect(() => {
     load();
@@ -182,13 +185,42 @@ export default function MyPatientsList() {
     );
   }
 
+  const isToday = isSameDay(selectedDate, new Date());
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="font-heading text-2xl font-bold text-foreground">My Schedule</h1>
         <p className="text-sm text-muted-foreground">
-          Today's services assigned to you.
+          Services assigned to you.
         </p>
+      </div>
+
+      <div className="flex items-center gap-2 flex-wrap">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setSelectedDate(subDays(selectedDate, 1))}
+          className="gap-1"
+        >
+          <ChevronLeft className="h-4 w-4" /> Yesterday
+        </Button>
+        <div className="px-3 py-1.5 text-sm font-medium rounded-md bg-muted min-w-[180px] text-center">
+          {format(selectedDate, "EEEE, MMM d")}
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setSelectedDate(addDays(selectedDate, 1))}
+          className="gap-1"
+        >
+          Tomorrow <ChevronRight className="h-4 w-4" />
+        </Button>
+        {!isToday && (
+          <Button size="sm" variant="ghost" onClick={() => setSelectedDate(new Date())}>
+            Today
+          </Button>
+        )}
       </div>
 
       <div className="rounded-lg border bg-card">
