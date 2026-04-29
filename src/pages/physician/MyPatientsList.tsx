@@ -57,6 +57,7 @@ export default function MyPatientsList() {
   const [loading, setLoading] = useState(true);
   const [physicianMissing, setPhysicianMissing] = useState(false);
   const [rows, setRows] = useState<VisitServiceRow[]>([]);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
   const load = useCallback(async () => {
     if (!user) return;
