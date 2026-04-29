@@ -293,10 +293,15 @@ function ScheduleDialog({
   const queryClient = useQueryClient();
   const today = new Date().toISOString().split("T")[0];
 
+  const tz = user?.timezone || "Asia/Tashkent";
   const [scheduleType, setScheduleType] = useState<"slots" | "queue">(editing?.schedule_type || "slots");
   const [days, setDays] = useState<number[]>(editing?.days_of_week || [1, 2, 3, 4, 5]);
-  const [workStart, setWorkStart] = useState<string>((editing?.work_start || "09:00").slice(0, 5));
-  const [workEnd, setWorkEnd] = useState<string>((editing?.work_end || "17:00").slice(0, 5));
+  const [workStart, setWorkStart] = useState<string>(
+    editing?.work_start ? utcTimeToLocal((editing.work_start || "").slice(0, 5), tz) : "09:00"
+  );
+  const [workEnd, setWorkEnd] = useState<string>(
+    editing?.work_end ? utcTimeToLocal((editing.work_end || "").slice(0, 5), tz) : "17:00"
+  );
   const [slotDuration, setSlotDuration] = useState<string>(editing?.slot_duration_minutes?.toString() || "15");
   const [validFrom, setValidFrom] = useState<string>(editing?.valid_from || today);
   const [validTo, setValidTo] = useState<string>(editing?.valid_to || "");
@@ -345,8 +350,8 @@ function ScheduleDialog({
         physician_id: physicianId,
         schedule_type: scheduleType,
         days_of_week: days,
-        work_start: workStart,
-        work_end: workEnd,
+        work_start: localTimeToUTC(workStart, tz),
+        work_end: localTimeToUTC(workEnd, tz),
         slot_duration_minutes: scheduleType === "slots" ? Number(slotDuration) : null,
         valid_from: validFrom,
         valid_to: validTo || null,
