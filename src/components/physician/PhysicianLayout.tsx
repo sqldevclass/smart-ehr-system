@@ -1,5 +1,5 @@
 import { Outlet, useNavigate } from "react-router-dom";
-import { Users, CalendarDays, UserCircle, LogOut } from "lucide-react";
+import { CalendarDays, UserCircle, LogOut } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -18,8 +18,7 @@ import {
 } from "@/components/ui/sidebar";
 
 const navItems = [
-  { title: "My Patients", url: "/physician", icon: Users },
-  { title: "My Schedule", url: "/physician/schedule", icon: CalendarDays },
+  { title: "My Schedule", url: "/physician", icon: CalendarDays },
   { title: "Profile", url: "/physician/profile", icon: UserCircle },
 ];
 
