@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,16 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import {
-  Tabs, TabsContent, TabsList, TabsTrigger,
-} from "@/components/ui/tabs";
-import { ArrowLeft, Pencil, Plus, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Pencil, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -38,7 +36,10 @@ export default function PatientDetail() {
   const [showMore, setShowMore] = useState(false);
   const [showAllergies, setShowAllergies] = useState(false);
   const [showPastVisits, setShowPastVisits] = useState(false);
-  const [addServiceOpen, setAddServiceOpen] = useState(false);
+  const [bookingPhysicianId, setBookingPhysicianId] = useState<string | null>(null);
+  const [bookingPhysicianName, setBookingPhysicianName] = useState<string>("");
+  const [bookingServiceId, setBookingServiceId] = useState<string | null>(null);
+  const [bookingServiceName, setBookingServiceName] = useState<string>("");
 
   const { data: patient, isLoading } = useQuery({
     queryKey: ["patient", patientId],
@@ -214,15 +215,22 @@ export default function PatientDetail() {
 
       {/* Two-column layout: Add Service (left) + Visits (right) */}
       <div className="grid grid-cols-2 gap-6 items-start">
-        {/* Add Service - left */}
-        <div className="rounded-lg border bg-card p-6 flex items-center justify-between">
+        {/* Search-based booking - left */}
+        <div className="rounded-lg border bg-card p-6 space-y-3">
           <div>
             <h3 className="font-semibold text-foreground">Add Service</h3>
-            <p className="text-xs text-muted-foreground">Select a service to add to this patient.</p>
+            <p className="text-xs text-muted-foreground">Search a physician or service to book.</p>
           </div>
-          <Button onClick={() => setAddServiceOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" /> Add Service
-          </Button>
+          <SearchBooking
+            onSelectPhysician={(id, name) => {
+              setBookingPhysicianId(id);
+              setBookingPhysicianName(name);
+            }}
+            onSelectService={(id, name) => {
+              setBookingServiceId(id);
+              setBookingServiceName(name);
+            }}
+          />
         </div>
 
         {/* Visits - right */}
@@ -355,300 +363,354 @@ export default function PatientDetail() {
         onSuccess={() => queryClient.invalidateQueries({ queryKey: ["patient", patientId] })}
       />
 
-      <AddServiceDialog
-        open={addServiceOpen}
-        onOpenChange={setAddServiceOpen}
-        patientId={patientId!}
-        showRegistrationSource={!hasVisitToday}
-        onSuccess={() => {
-          queryClient.invalidateQueries({ queryKey: ["patient-visits", patientId] });
-          setAddServiceOpen(false);
-        }}
-      />
+      {bookingPhysicianId && (
+        <PhysicianBookingDialog
+          physicianId={bookingPhysicianId}
+          physicianName={bookingPhysicianName}
+          patientId={patientId!}
+          showRegistrationSource={!hasVisitToday}
+          onClose={() => setBookingPhysicianId(null)}
+          onBooked={() => {
+            queryClient.invalidateQueries({ queryKey: ["patient-visits", patientId] });
+            setBookingPhysicianId(null);
+          }}
+        />
+      )}
+
+      {bookingServiceId && (
+        <ServiceBookingDialog
+          serviceId={bookingServiceId}
+          serviceName={bookingServiceName}
+          patientId={patientId!}
+          showRegistrationSource={!hasVisitToday}
+          onClose={() => setBookingServiceId(null)}
+          onBooked={() => {
+            queryClient.invalidateQueries({ queryKey: ["patient-visits", patientId] });
+            setBookingServiceId(null);
+          }}
+        />
+      )}
     </div>
   );
 }
 
-function AddServiceDialog({
-  open, onOpenChange, patientId, showRegistrationSource, onSuccess,
+// ============= Search-based booking =============
+
+function useDebounced<T>(value: T, delay = 300): T {
+  const [v, setV] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setV(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return v;
+}
+
+function SearchBooking({
+  onSelectPhysician,
+  onSelectService,
 }: {
-  open: boolean;
-  onOpenChange: (o: boolean) => void;
-  patientId: string;
-  showRegistrationSource: boolean;
-  onSuccess: () => void;
+  onSelectPhysician: (id: string, name: string) => void;
+  onSelectService: (id: string, name: string) => void;
 }) {
   const { user } = useAuth();
-  const [selectedTypeId, setSelectedTypeId] = useState<string>("");
-  const [selectedServiceId, setSelectedServiceId] = useState<string>("");
-  const [selectedPhysicianId, setSelectedPhysicianId] = useState<string>("");
-  const [registrationSource, setRegistrationSource] = useState<string>("");
-  const [saving, setSaving] = useState(false);
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const debounced = useDebounced(query, 300);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  const { data: serviceTypes = [] } = useQuery({
-    queryKey: ["service-types", user?.hospitalId],
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  const { data: physicians = [] } = useQuery({
+    queryKey: ["search-physicians", user?.hospitalId, debounced],
     queryFn: async () => {
+      if (!debounced.trim()) return [];
       const { data, error } = await supabase
-        .from("service_types")
-        .select("id, name_ru, name_en")
+        .from("physicians")
+        .select("id, specialization, profiles!inner(full_name)")
         .eq("hospital_id", user!.hospitalId)
-        .order("name_ru");
+        .eq("is_active", true)
+        .ilike("profiles.full_name", `%${debounced}%`)
+        .limit(8);
       if (error) throw error;
       return data || [];
     },
-    enabled: !!user && open,
+    enabled: !!user && debounced.trim().length > 0,
   });
 
   const { data: services = [] } = useQuery({
-    queryKey: ["services-by-type", user?.hospitalId, selectedTypeId],
+    queryKey: ["search-services", user?.hospitalId, debounced],
     queryFn: async () => {
-      if (!selectedTypeId) return [];
+      if (!debounced.trim()) return [];
       const { data, error } = await supabase
         .from("services")
-        .select("id, name, cost_with_vat, service_groups!inner(id, name, service_type_id)")
+        .select("id, name, cost_with_vat, service_types(name_en)")
         .eq("hospital_id", user!.hospitalId)
         .eq("is_active", true)
-        .eq("service_groups.service_type_id", selectedTypeId)
-        .order("name");
+        .ilike("name", `%${debounced}%`)
+        .limit(8);
       if (error) throw error;
       return data || [];
     },
-    enabled: !!user && !!selectedTypeId,
+    enabled: !!user && debounced.trim().length > 0,
   });
-
-  const selectedService = services.find((s: any) => s.id === selectedServiceId) as any;
-
-  const { data: physicians = [] } = useQuery({
-    queryKey: ["service-physicians", selectedServiceId, user?.hospitalId],
-    queryFn: async () => {
-      if (!selectedServiceId) return [];
-      const { data: privs } = await supabase
-        .from("physician_service_privileges")
-        .select("physician_id")
-        .eq("service_id", selectedServiceId)
-        .eq("hospital_id", user!.hospitalId);
-      const physicianIds = (privs || []).map((p: any) => p.physician_id);
-
-      let query = supabase
-        .from("physicians")
-        .select("id, profiles!inner(full_name)")
-        .eq("hospital_id", user!.hospitalId)
-        .eq("is_active", true);
-
-      if (physicianIds.length > 0) {
-        query = query.in("id", physicianIds);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user && !!selectedServiceId,
-  });
-
-  const today = new Date().toISOString().split("T")[0];
-  const todayStart = new Date(today + "T00:00:00").toISOString();
-  const todayEnd = new Date(today + "T23:59:59").toISOString();
-
-  const [selectedSlotId, setSelectedSlotId] = useState<string>("");
-
-  const { data: schedule } = useQuery({
-    queryKey: ["physician-today-schedule", selectedPhysicianId, today],
-    queryFn: async () => {
-      if (!selectedPhysicianId) return null;
-      const { data } = await supabase
-        .from("physician_schedules")
-        .select("id, schedule_type, work_start, work_end, slot_duration_minutes, days_of_week")
-        .eq("physician_id", selectedPhysicianId)
-        .eq("hospital_id", user!.hospitalId)
-        .lte("valid_from", today)
-        .or("valid_to.is.null,valid_to.gte." + today)
-        .order("valid_from", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      return data;
-    },
-    enabled: !!user && !!selectedPhysicianId,
-  });
-
-  const { data: slots = [] } = useQuery({
-    queryKey: ["physician-today-slots", selectedPhysicianId, today],
-    queryFn: async () => {
-      if (!selectedPhysicianId) return [];
-      const { data } = await supabase
-        .from("schedule_slots")
-        .select("id, slot_datetime, booking_count")
-        .eq("physician_id", selectedPhysicianId)
-        .eq("hospital_id", user!.hospitalId)
-        .gte("slot_datetime", todayStart)
-        .lte("slot_datetime", todayEnd)
-        .lt("booking_count", 2)
-        .order("slot_datetime");
-      return data || [];
-    },
-    enabled: !!user && !!selectedPhysicianId && schedule?.schedule_type === "slots",
-  });
-
-  const reset = () => {
-    setSelectedTypeId(""); setSelectedServiceId("");
-    setSelectedPhysicianId(""); setRegistrationSource("");
-    setSelectedSlotId("");
-  };
-
-  const submit = async () => {
-    if (!selectedServiceId || !selectedService) {
-      toast.error("Select a service.");
-      return;
-    }
-    if (!selectedPhysicianId) {
-      toast.error("Select a physician.");
-      return;
-    }
-    if (schedule?.schedule_type === "slots" && !selectedSlotId) {
-      toast.error("Select a time slot.");
-      return;
-    }
-    setSaving(true);
-    try {
-      const { data: result, error } = await supabase.rpc("registrar_add_service", {
-        p_patient_id: patientId,
-        p_hospital_id: user!.hospitalId,
-        p_created_by: user!.id,
-        p_service_id: selectedServiceId,
-        p_assigned_physician_id: selectedPhysicianId,
-        p_cost_at_time: selectedService.cost_with_vat,
-        p_registration_source: registrationSource || null,
-      });
-      if (error) throw error;
-
-      if (schedule?.schedule_type === "slots" && selectedSlotId) {
-        const visitServiceId = (result as any)?.visit_service_id || (Array.isArray(result) ? (result as any)[0]?.visit_service_id : undefined);
-        const { data: bookResult, error: bookErr } = await supabase.rpc("book_slot", {
-          p_slot_id: selectedSlotId,
-          p_visit_service_id: visitServiceId,
-        });
-        if (bookErr) throw bookErr;
-        const isWaitlist = (bookResult as any)?.is_waitlist ?? (Array.isArray(bookResult) ? (bookResult as any)[0]?.is_waitlist : false);
-        toast.success(isWaitlist ? "Service added — patient is on waitlist for this slot" : "Service added");
-      } else {
-        toast.success("Service added.");
-      }
-      reset();
-      onSuccess();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to add service.");
-    } finally {
-      setSaving(false);
-    }
-  };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) reset(); onOpenChange(o); }}>
+    <div className="relative" ref={containerRef}>
+      <Input
+        placeholder="Search physician or service..."
+        value={query}
+        onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+      />
+      {open && debounced.trim().length > 0 && (physicians.length > 0 || services.length > 0) && (
+        <div className="absolute left-0 right-0 top-full mt-1 z-30 max-h-96 overflow-y-auto rounded-md border bg-popover shadow-lg">
+          {physicians.length > 0 && (
+            <div>
+              <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase text-muted-foreground">
+                Physicians
+              </div>
+              {physicians.map((p: any) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => {
+                    onSelectPhysician(p.id, p.profiles?.full_name || "Physician");
+                    setOpen(false);
+                    setQuery("");
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
+                >
+                  <div className="font-medium">{p.profiles?.full_name || "—"}</div>
+                  <div className="text-xs text-muted-foreground">{p.specialization || "—"}</div>
+                </button>
+              ))}
+            </div>
+          )}
+          {services.length > 0 && (
+            <div>
+              <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase text-muted-foreground">
+                Services
+              </div>
+              {services.map((s: any) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => {
+                    onSelectService(s.id, s.name);
+                    setOpen(false);
+                    setQuery("");
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex items-center justify-between gap-3"
+                >
+                  <div>
+                    <div className="font-medium">{s.name}</div>
+                    <div className="text-xs text-muted-foreground">{s.service_types?.name_en || "—"}</div>
+                  </div>
+                  <div className="text-xs text-muted-foreground shrink-0">
+                    {Number(s.cost_with_vat || 0).toFixed(2)}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function dateRangeIso(date: Date) {
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(date);
+  end.setHours(23, 59, 59, 999);
+  return { start: start.toISOString(), end: end.toISOString() };
+}
+
+async function bookOne(opts: {
+  patientId: string;
+  hospitalId: string;
+  userId: string;
+  serviceId: string;
+  physicianId: string;
+  cost: number;
+  slotId: string | null;
+  registrationSource?: string | null;
+}) {
+  const { data: result, error } = await supabase.rpc("registrar_add_service", {
+    p_patient_id: opts.patientId,
+    p_hospital_id: opts.hospitalId,
+    p_created_by: opts.userId,
+    p_service_id: opts.serviceId,
+    p_assigned_physician_id: opts.physicianId,
+    p_cost_at_time: opts.cost,
+    p_registration_source: opts.registrationSource || null,
+  });
+  if (error) throw error;
+  let isWaitlist = false;
+  if (opts.slotId) {
+    const visitServiceId =
+      (result as any)?.visit_service_id ||
+      (Array.isArray(result) ? (result as any)[0]?.visit_service_id : undefined);
+    const { data: bookResult, error: bookErr } = await supabase.rpc("book_slot", {
+      p_slot_id: opts.slotId,
+      p_visit_service_id: visitServiceId,
+    });
+    if (bookErr) throw bookErr;
+    isWaitlist =
+      (bookResult as any)?.is_waitlist ??
+      (Array.isArray(bookResult) ? (bookResult as any)[0]?.is_waitlist : false);
+  }
+  return { isWaitlist };
+}
+
+function PhysicianBookingDialog({
+  physicianId,
+  physicianName,
+  patientId,
+  showRegistrationSource,
+  onClose,
+  onBooked,
+}: {
+  physicianId: string;
+  physicianName: string;
+  patientId: string;
+  showRegistrationSource: boolean;
+  onClose: () => void;
+  onBooked: () => void;
+}) {
+  const { user } = useAuth();
+  const [date, setDate] = useState<Date>(new Date());
+  const [pendingSlot, setPendingSlot] = useState<{ id: string; isWaitlist: boolean } | null>(null);
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
+  const [registrationSource, setRegistrationSource] = useState<string>("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const { start, end } = dateRangeIso(date);
+
+  const { data: slots = [] } = useQuery({
+    queryKey: ["phys-slots", physicianId, start],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("schedule_slots")
+        .select("id, slot_datetime, booking_count")
+        .eq("physician_id", physicianId)
+        .eq("hospital_id", user!.hospitalId)
+        .gte("slot_datetime", start)
+        .lte("slot_datetime", end)
+        .order("slot_datetime");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
+  const { data: privServices = [] } = useQuery({
+    queryKey: ["phys-services", physicianId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("physician_service_privileges")
+        .select("service_id, services(id, name, cost_with_vat)")
+        .eq("physician_id", physicianId)
+        .eq("hospital_id", user!.hospitalId);
+      if (error) throw error;
+      return (data || []).map((r: any) => r.services).filter(Boolean);
+    },
+    enabled: !!user && !!pendingSlot,
+  });
+
+  const handleSlotClick = (slot: any) => {
+    if (slot.booking_count >= 2) return;
+    setPendingSlot({ id: slot.id, isWaitlist: slot.booking_count === 1 });
+    setSelectedServiceIds([]);
+  };
+
+  const confirmBooking = async () => {
+    if (!user || !pendingSlot) return;
+    const services = (privServices as any[]).filter((s) => selectedServiceIds.includes(s.id));
+    if (services.length === 0) {
+      toast.error("Select at least one service.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      let anyWaitlist = false;
+      for (const s of services) {
+        const { isWaitlist } = await bookOne({
+          patientId,
+          hospitalId: user.hospitalId,
+          userId: user.id,
+          serviceId: s.id,
+          physicianId,
+          cost: Number(s.cost_with_vat || 0),
+          slotId: pendingSlot.id,
+          registrationSource: registrationSource || null,
+        });
+        if (isWaitlist) anyWaitlist = true;
+      }
+      toast.success(anyWaitlist ? "Added to waitlist" : "Booked");
+      onBooked();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to book.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // If only 1 service & a slot is pending — auto-book on selection
+  useEffect(() => {
+    if (!pendingSlot || privServices.length !== 1 || submitting) return;
+    setSelectedServiceIds([(privServices[0] as any).id]);
+    (async () => {
+      if (!user) return;
+      const s = privServices[0] as any;
+      setSubmitting(true);
+      try {
+        const { isWaitlist } = await bookOne({
+          patientId,
+          hospitalId: user.hospitalId,
+          userId: user.id,
+          serviceId: s.id,
+          physicianId,
+          cost: Number(s.cost_with_vat || 0),
+          slotId: pendingSlot.id,
+          registrationSource: registrationSource || null,
+        });
+        toast.success(isWaitlist ? "Added to waitlist" : "Booked");
+        onBooked();
+      } catch (err: any) {
+        toast.error(err.message || "Failed to book.");
+      } finally {
+        setSubmitting(false);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [privServices, pendingSlot]);
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add Service</DialogTitle>
+          <DialogTitle>{physicianName}'s Schedule</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
-          {serviceTypes.length > 0 ? (
-            <Tabs value={selectedTypeId} onValueChange={(v) => { setSelectedTypeId(v); setSelectedServiceId(""); }}>
-              <TabsList className="flex flex-wrap h-auto">
-                {serviceTypes.map((t: any) => (
-                  <TabsTrigger key={t.id} value={t.id}>{t.name_ru || t.name_en}</TabsTrigger>
-                ))}
-              </TabsList>
-              {serviceTypes.map((t: any) => (
-                <TabsContent key={t.id} value={t.id} className="pt-4">
-                  <ServiceList
-                    services={services as any[]}
-                    selectedId={selectedServiceId}
-                    onSelect={setSelectedServiceId}
-                  />
-                </TabsContent>
-              ))}
-            </Tabs>
-          ) : (
-            <p className="text-sm text-muted-foreground">No service types configured.</p>
-          )}
-
-          {selectedService && (
-            <div className="rounded-md border p-4 space-y-3 bg-muted/30">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-medium">{selectedService.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    Cost: {Number(selectedService.cost_with_vat || 0).toFixed(2)}
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Physician</Label>
-                <Select value={selectedPhysicianId} onValueChange={(v) => { setSelectedPhysicianId(v); setSelectedSlotId(""); }}>
-                  <SelectTrigger><SelectValue placeholder="Select physician" /></SelectTrigger>
-                  <SelectContent>
-                    {physicians.map((p: any) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.profiles?.full_name || p.id.slice(0, 8)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {selectedPhysicianId && !schedule && (
-                <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200">
-                  This physician has no schedule for today.
-                </div>
-              )}
-
-              {selectedPhysicianId && schedule?.schedule_type === "queue" && (
-                <div>
-                  <span className="inline-flex items-center rounded bg-purple-100 px-2 py-1 text-xs font-medium text-purple-800 dark:bg-purple-900/40 dark:text-purple-200">
-                    Queue — number assigned at payment
-                  </span>
-                </div>
-              )}
-
-              {selectedPhysicianId && schedule?.schedule_type === "slots" && (
-                <div className="space-y-2">
-                  <Label>Time slot (today)</Label>
-                  {slots.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">No available slots for today.</p>
-                  ) : (
-                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-                      {slots.map((s: any) => {
-                        const isWaitlist = s.booking_count === 1;
-                        const time = format(new Date(s.slot_datetime), "HH:mm");
-                        const selected = selectedSlotId === s.id;
-                        return (
-                          <button
-                            key={s.id}
-                            type="button"
-                            onClick={() => setSelectedSlotId(s.id)}
-                            className={`rounded-md border px-2 py-1.5 text-xs font-medium transition-colors ${
-                              selected
-                                ? "border-primary bg-primary text-primary-foreground"
-                                : isWaitlist
-                                  ? "border-orange-400 text-orange-700 hover:bg-orange-50 dark:text-orange-300 dark:hover:bg-orange-950/30"
-                                  : "border-border hover:bg-muted"
-                            }`}
-                          >
-                            {time}
-                            {isWaitlist && <span className="ml-1 text-[10px]">WL</span>}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                  {selectedSlotId && (
-                    <p className="text-xs text-muted-foreground">
-                      Selected: {format(new Date(slots.find((s: any) => s.id === selectedSlotId)?.slot_datetime), "HH:mm")}
-                    </p>
-                  )}
-                </div>
-              )}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={() => setDate((d) => { const n = new Date(d); n.setDate(n.getDate() - 1); return n; })}>Prev</Button>
+              <Button size="sm" variant="outline" onClick={() => setDate(new Date())}>Today</Button>
+              <Button size="sm" variant="outline" onClick={() => setDate((d) => { const n = new Date(d); n.setDate(n.getDate() + 1); return n; })}>Next</Button>
             </div>
-          )}
+            <div className="text-sm font-medium">{format(date, "EEE, MMM d, yyyy")}</div>
+          </div>
 
           {showRegistrationSource && (
             <div className="space-y-1.5">
@@ -663,73 +725,261 @@ function AddServiceDialog({
               </Select>
             </div>
           )}
-        </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={submit} disabled={saving || !selectedServiceId || !selectedPhysicianId}>
-            {saving ? "Adding…" : "Add Service"}
-          </Button>
-        </DialogFooter>
+          {slots.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No slots for this day.</p>
+          ) : (
+            <div className="space-y-1 max-h-[50vh] overflow-y-auto">
+              {slots.map((s: any) => {
+                const time = format(new Date(s.slot_datetime), "HH:mm");
+                const full = s.booking_count >= 2;
+                const wait = s.booking_count === 1;
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    disabled={full}
+                    onClick={() => handleSlotClick(s)}
+                    className={`w-full flex items-center justify-between rounded-md border px-3 py-2 text-sm transition-colors ${
+                      full
+                        ? "bg-muted text-muted-foreground cursor-not-allowed"
+                        : wait
+                          ? "bg-blue-50 border-blue-200 hover:bg-blue-100 dark:bg-blue-950/30 dark:border-blue-800"
+                          : "bg-background hover:bg-muted"
+                    }`}
+                  >
+                    <span className="font-medium">{time}</span>
+                    <span className="text-xs">
+                      {full ? "Full" : wait ? "1 patient (+ add waitlist)" : "Available"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {pendingSlot && privServices.length > 1 && (
+            <div className="rounded-md border p-3 space-y-2">
+              <div className="text-sm font-medium">Select services to book</div>
+              {privServices.map((s: any) => (
+                <label key={s.id} className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={selectedServiceIds.includes(s.id)}
+                    onCheckedChange={(c) => setSelectedServiceIds((cur) => c ? [...cur, s.id] : cur.filter((x) => x !== s.id))}
+                  />
+                  <span className="flex-1">{s.name}</span>
+                  <span className="text-xs text-muted-foreground">{Number(s.cost_with_vat || 0).toFixed(2)}</span>
+                </label>
+              ))}
+              <Button onClick={confirmBooking} disabled={submitting} size="sm">
+                {submitting ? "Booking…" : "Book Selected"}
+              </Button>
+            </div>
+          )}
+
+          {pendingSlot && privServices.length === 0 && (
+            <p className="text-xs text-destructive">This physician has no services configured.</p>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
 }
 
-function ServiceList({
-  services, selectedId, onSelect,
+function ServiceBookingDialog({
+  serviceId,
+  serviceName,
+  patientId,
+  showRegistrationSource,
+  onClose,
+  onBooked,
 }: {
-  services: any[];
-  selectedId: string;
-  onSelect: (id: string) => void;
+  serviceId: string;
+  serviceName: string;
+  patientId: string;
+  showRegistrationSource: boolean;
+  onClose: () => void;
+  onBooked: () => void;
 }) {
-  // Group by service_groups.name
-  const groups = services.reduce((acc: Record<string, any[]>, s: any) => {
-    const g = s.service_groups?.name || "Other";
-    if (!acc[g]) acc[g] = [];
-    acc[g].push(s);
-    return acc;
-  }, {});
+  const { user } = useAuth();
+  const [date, setDate] = useState<Date>(new Date());
+  const [registrationSource, setRegistrationSource] = useState<string>("");
+  const [submitting, setSubmitting] = useState(false);
+  const { start, end } = dateRangeIso(date);
 
-  if (services.length === 0) {
-    return <p className="text-sm text-muted-foreground">No services in this category.</p>;
-  }
+  const { data: serviceInfo } = useQuery({
+    queryKey: ["service-info", serviceId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("services")
+        .select("id, cost_with_vat")
+        .eq("id", serviceId)
+        .single();
+      return data;
+    },
+  });
+
+  const { data: physicians = [] } = useQuery({
+    queryKey: ["service-physicians-list", serviceId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("physician_service_privileges")
+        .select("physician_id, physicians(id, specialization, profiles!inner(full_name))")
+        .eq("service_id", serviceId)
+        .eq("hospital_id", user!.hospitalId);
+      if (error) throw error;
+      return (data || []).map((r: any) => r.physicians).filter(Boolean);
+    },
+    enabled: !!user,
+  });
+
+  const physicianIds = physicians.map((p: any) => p.id);
+
+  const { data: slots = [] } = useQuery({
+    queryKey: ["service-slots", serviceId, start, physicianIds.join(",")],
+    queryFn: async () => {
+      if (physicianIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("schedule_slots")
+        .select("id, slot_datetime, booking_count, physician_id")
+        .eq("hospital_id", user!.hospitalId)
+        .in("physician_id", physicianIds)
+        .gte("slot_datetime", start)
+        .lte("slot_datetime", end)
+        .order("slot_datetime");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user && physicianIds.length > 0,
+  });
+
+  // Build time -> physician_id -> slot map
+  const { times, byTime } = useMemo(() => {
+    const byTime = new Map<string, Map<string, any>>();
+    (slots as any[]).forEach((s) => {
+      const t = format(new Date(s.slot_datetime), "HH:mm");
+      if (!byTime.has(t)) byTime.set(t, new Map());
+      byTime.get(t)!.set(s.physician_id, s);
+    });
+    const times = Array.from(byTime.keys()).sort();
+    return { times, byTime };
+  }, [slots]);
+
+  const bookCell = async (slot: any) => {
+    if (!user || submitting) return;
+    if (slot.booking_count >= 2) return;
+    setSubmitting(true);
+    try {
+      const { isWaitlist } = await bookOne({
+        patientId,
+        hospitalId: user.hospitalId,
+        userId: user.id,
+        serviceId,
+        physicianId: slot.physician_id,
+        cost: Number((serviceInfo as any)?.cost_with_vat || 0),
+        slotId: slot.id,
+        registrationSource: registrationSource || null,
+      });
+      toast.success(isWaitlist ? "Added to waitlist" : "Booked");
+      onBooked();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to book.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
-    <div className="space-y-4">
-      {Object.entries(groups).map(([groupName, items]) => {
-        const list = items as any[];
-        return (
-        <div key={groupName}>
-          <p className="text-xs font-semibold uppercase text-muted-foreground mb-1">{groupName}</p>
-          <div className="space-y-1">
-            {list.map((s: any) => (
-              <div
-                key={s.id}
-                className={`flex items-center justify-between rounded-md border p-2 text-sm ${selectedId === s.id ? "border-primary bg-primary/5" : ""}`}
-              >
-                <span className="truncate">{s.name}</span>
-                <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-xs text-muted-foreground">
-                    {Number(s.cost_with_vat || 0).toFixed(2)}
-                  </span>
-                  <Button
-                    size="sm"
-                    variant={selectedId === s.id ? "default" : "outline"}
-                    onClick={() => onSelect(s.id)}
-                  >
-                    {selectedId === s.id ? "Selected" : "Select"}
-                  </Button>
-                </div>
-              </div>
-            ))}
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{serviceName} — Available Physicians</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={() => setDate((d) => { const n = new Date(d); n.setDate(n.getDate() - 1); return n; })}>Prev</Button>
+              <Button size="sm" variant="outline" onClick={() => setDate(new Date())}>Today</Button>
+              <Button size="sm" variant="outline" onClick={() => setDate((d) => { const n = new Date(d); n.setDate(n.getDate() + 1); return n; })}>Next</Button>
+            </div>
+            <div className="text-sm font-medium">{format(date, "EEE, MMM d, yyyy")}</div>
           </div>
+
+          {showRegistrationSource && (
+            <div className="space-y-1.5">
+              <Label>How did you hear about us?</Label>
+              <Select value={registrationSource} onValueChange={setRegistrationSource}>
+                <SelectTrigger><SelectValue placeholder="Select (optional)" /></SelectTrigger>
+                <SelectContent>
+                  {REGISTRATION_SOURCES.map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {physicians.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No physicians authorized for this service.</p>
+          ) : times.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No slots for this day.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left p-2 font-medium">Time</th>
+                    {physicians.map((p: any) => (
+                      <th key={p.id} className="text-left p-2 font-medium">
+                        <div>{p.profiles?.full_name || "—"}</div>
+                        <div className="text-xs text-muted-foreground font-normal">{p.specialization || ""}</div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {times.map((t) => (
+                    <tr key={t} className="border-b">
+                      <td className="p-2 font-mono text-xs">{t}</td>
+                      {physicians.map((p: any) => {
+                        const slot = byTime.get(t)?.get(p.id);
+                        if (!slot) {
+                          return <td key={p.id} className="p-1"><div className="rounded border border-dashed border-muted h-8" /></td>;
+                        }
+                        const full = slot.booking_count >= 2;
+                        const wait = slot.booking_count === 1;
+                        return (
+                          <td key={p.id} className="p-1">
+                            <button
+                              type="button"
+                              disabled={full || submitting}
+                              onClick={() => bookCell(slot)}
+                              className={`w-full rounded border px-2 py-1.5 text-xs font-medium transition-colors ${
+                                full
+                                  ? "bg-muted text-muted-foreground cursor-not-allowed"
+                                  : wait
+                                    ? "bg-blue-50 border-blue-200 hover:bg-blue-100 dark:bg-blue-950/30 dark:border-blue-800"
+                                    : "bg-background hover:bg-muted"
+                              }`}
+                            >
+                              {full ? "Full" : wait ? "Waitlist" : "Available"}
+                            </button>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
-        );
-      })}
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
+
 
 function EditPatientDialog({
   open, onOpenChange, patient, onSuccess,

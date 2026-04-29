@@ -298,6 +298,32 @@ function ScheduleDialog({
   const [validFrom, setValidFrom] = useState<string>(editing?.valid_from || today);
   const [validTo, setValidTo] = useState<string>(editing?.valid_to || "");
   const [saving, setSaving] = useState(false);
+  type RecurringBlock = {
+    days: number[];
+    from: string;
+    to: string;
+    label: string;
+  };
+  const [recurringBlocks, setRecurringBlocks] = useState<RecurringBlock[]>([]);
+
+  const addRecurringBlock = () => {
+    setRecurringBlocks((cur) => [...cur, { days: [...days], from: "12:00", to: "13:00", label: "" }]);
+  };
+  const removeRecurringBlock = (idx: number) => {
+    setRecurringBlocks((cur) => cur.filter((_, i) => i !== idx));
+  };
+  const updateRecurringBlock = (idx: number, patch: Partial<RecurringBlock>) => {
+    setRecurringBlocks((cur) => cur.map((b, i) => (i === idx ? { ...b, ...patch } : b)));
+  };
+  const toggleBlockDay = (idx: number, d: number) => {
+    setRecurringBlocks((cur) =>
+      cur.map((b, i) =>
+        i === idx
+          ? { ...b, days: b.days.includes(d) ? b.days.filter((x) => x !== d) : [...b.days, d].sort() }
+          : b
+      )
+    );
+  };
 
   const toggleDay = (d: number) => {
     setDays((cur) => cur.includes(d) ? cur.filter((x) => x !== d) : [...cur, d].sort());
@@ -352,6 +378,31 @@ function ScheduleDialog({
         toast.success(`Schedule ${editing ? "updated" : "created"}. ${slotsCreated || 0} slots generated.`);
       } else {
         toast.success(`Queue schedule ${editing ? "updated" : "created"}.`);
+      }
+
+      // Insert recurring blocks
+      if (recurringBlocks.length > 0) {
+        const blockRows = recurringBlocks
+          .filter((b) => b.days.length > 0 && b.from && b.to)
+          .map((b) => ({
+            physician_id: physicianId,
+            hospital_id: user!.hospitalId,
+            is_recurring: true,
+            recur_days: b.days,
+            recur_time_from: b.from,
+            recur_time_to: b.to,
+            reason: b.label.trim() || null,
+            blocked_by: user!.id,
+            blocked_from: validFrom,
+            blocked_to: validTo || null,
+          }));
+        if (blockRows.length > 0) {
+          const { error: blockErr } = await supabase
+            .from("physician_schedule_blocks")
+            .insert(blockRows);
+          if (blockErr) throw blockErr;
+        }
+        queryClient.invalidateQueries({ queryKey: ["physician-blocks", physicianId] });
       }
       queryClient.invalidateQueries({ queryKey: ["physician-schedules", physicianId] });
       onOpenChange(false);
@@ -449,6 +500,72 @@ function ScheduleDialog({
               <Label>Valid to (optional)</Label>
               <Input type="date" value={validTo} onChange={(e) => setValidTo(e.target.value)} />
             </div>
+          </div>
+
+          {/* Recurring Blocks */}
+          <div className="space-y-2 border-t pt-4">
+            <div className="flex items-center justify-between">
+              <Label>Recurring Blocks</Label>
+              <Button type="button" size="sm" variant="outline" onClick={addRecurringBlock} className="gap-1">
+                <Plus className="h-3 w-3" /> Add Recurring Block
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              E.g. lunch breaks or prayer times that repeat on selected days.
+            </p>
+            {recurringBlocks.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No recurring blocks.</p>
+            ) : (
+              <div className="space-y-3">
+                {recurringBlocks.map((b, idx) => (
+                  <div key={idx} className="rounded-md border p-3 space-y-2">
+                    <div className="flex flex-wrap gap-1">
+                      {DAYS.map((d) => (
+                        <button
+                          type="button"
+                          key={d.value}
+                          onClick={() => toggleBlockDay(idx, d.value)}
+                          className={`rounded px-2 py-1 text-[11px] font-medium border ${
+                            b.days.includes(d.value)
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border text-muted-foreground"
+                          }`}
+                        >
+                          {d.short}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-[1fr_1fr_2fr_auto] gap-2 items-end">
+                      <div className="space-y-1">
+                        <Label className="text-xs">From</Label>
+                        <Input type="time" value={b.from} onChange={(e) => updateRecurringBlock(idx, { from: e.target.value })} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">To</Label>
+                        <Input type="time" value={b.to} onChange={(e) => updateRecurringBlock(idx, { to: e.target.value })} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Label</Label>
+                        <Input
+                          value={b.label}
+                          onChange={(e) => updateRecurringBlock(idx, { label: e.target.value })}
+                          placeholder="e.g. Lunch break"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="text-destructive"
+                        onClick={() => removeRecurringBlock(idx)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
