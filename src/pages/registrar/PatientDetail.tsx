@@ -38,7 +38,10 @@ export default function PatientDetail() {
   const [showMore, setShowMore] = useState(false);
   const [showAllergies, setShowAllergies] = useState(false);
   const [showPastVisits, setShowPastVisits] = useState(false);
-  const [addServiceOpen, setAddServiceOpen] = useState(false);
+  const [bookingPhysicianId, setBookingPhysicianId] = useState<string | null>(null);
+  const [bookingPhysicianName, setBookingPhysicianName] = useState<string>("");
+  const [bookingServiceId, setBookingServiceId] = useState<string | null>(null);
+  const [bookingServiceName, setBookingServiceName] = useState<string>("");
 
   const { data: patient, isLoading } = useQuery({
     queryKey: ["patient", patientId],
