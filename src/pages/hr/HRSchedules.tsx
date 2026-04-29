@@ -379,6 +379,31 @@ function ScheduleDialog({
       } else {
         toast.success(`Queue schedule ${editing ? "updated" : "created"}.`);
       }
+
+      // Insert recurring blocks
+      if (recurringBlocks.length > 0) {
+        const blockRows = recurringBlocks
+          .filter((b) => b.days.length > 0 && b.from && b.to)
+          .map((b) => ({
+            physician_id: physicianId,
+            hospital_id: user!.hospitalId,
+            is_recurring: true,
+            recur_days: b.days,
+            recur_time_from: b.from,
+            recur_time_to: b.to,
+            reason: b.label.trim() || null,
+            blocked_by: user!.id,
+            blocked_from: validFrom,
+            blocked_to: validTo || null,
+          }));
+        if (blockRows.length > 0) {
+          const { error: blockErr } = await supabase
+            .from("physician_schedule_blocks")
+            .insert(blockRows);
+          if (blockErr) throw blockErr;
+        }
+        queryClient.invalidateQueries({ queryKey: ["physician-blocks", physicianId] });
+      }
       queryClient.invalidateQueries({ queryKey: ["physician-schedules", physicianId] });
       onOpenChange(false);
     } catch (err: any) {
