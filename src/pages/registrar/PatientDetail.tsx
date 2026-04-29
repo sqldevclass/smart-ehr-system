@@ -365,16 +365,33 @@ export default function PatientDetail() {
         onSuccess={() => queryClient.invalidateQueries({ queryKey: ["patient", patientId] })}
       />
 
-      <AddServiceDialog
-        open={addServiceOpen}
-        onOpenChange={setAddServiceOpen}
-        patientId={patientId!}
-        showRegistrationSource={!hasVisitToday}
-        onSuccess={() => {
-          queryClient.invalidateQueries({ queryKey: ["patient-visits", patientId] });
-          setAddServiceOpen(false);
-        }}
-      />
+      {bookingPhysicianId && (
+        <PhysicianBookingDialog
+          physicianId={bookingPhysicianId}
+          physicianName={bookingPhysicianName}
+          patientId={patientId!}
+          showRegistrationSource={!hasVisitToday}
+          onClose={() => setBookingPhysicianId(null)}
+          onBooked={() => {
+            queryClient.invalidateQueries({ queryKey: ["patient-visits", patientId] });
+            setBookingPhysicianId(null);
+          }}
+        />
+      )}
+
+      {bookingServiceId && (
+        <ServiceBookingDialog
+          serviceId={bookingServiceId}
+          serviceName={bookingServiceName}
+          patientId={patientId!}
+          showRegistrationSource={!hasVisitToday}
+          onClose={() => setBookingServiceId(null)}
+          onBooked={() => {
+            queryClient.invalidateQueries({ queryKey: ["patient-visits", patientId] });
+            setBookingServiceId(null);
+          }}
+        />
+      )}
     </div>
   );
 }
