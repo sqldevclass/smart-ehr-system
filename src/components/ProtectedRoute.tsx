@@ -53,7 +53,7 @@ const ProtectedRoute = ({ allowedRoles, children }: ProtectedRouteProps) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (roles.length > 0 && !roles.some((r) => allowedRoles.includes(r))) {
+  if (roles.length > 0 && !roles.includes("admin") && !roles.some((r) => allowedRoles.includes(r))) {
     return <Navigate to="/login" replace />;
   }
 
