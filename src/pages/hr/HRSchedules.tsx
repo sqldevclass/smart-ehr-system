@@ -229,7 +229,7 @@ function BlocksSection({
         .from("physician_schedule_blocks")
         .select("*")
         .eq("physician_id", physicianId)
-        .gte("blocked_to", new Date().toISOString())
+        .or(`blocked_to.gte.${new Date().toISOString()},is_recurring.eq.true`)
         .order("blocked_from");
       if (error) throw error;
       return data || [];
