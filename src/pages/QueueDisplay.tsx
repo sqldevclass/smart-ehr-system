@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
 interface QueueEntry {
+  id: string;
   queue_number: number;
   status: string;
   visit_service_id: string | null;
@@ -39,12 +40,17 @@ export default function QueueDisplay() {
 
   const fetchEntries = useCallback(async () => {
     if (!config) return;
-    const today = new Date().toISOString().split("T")[0];
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
     const { data } = await supabase
       .from("queue_numbers")
-      .select("queue_number, status, visit_service_id, visit_services(status_id, service_statuses(code))")
+      .select("id, queue_number, status, visit_service_id, visit_services(status_id, service_statuses(code))")
       .eq("queue_config_id", config.id)
-      .eq("queue_date", today)
+      .gte("issued_at", todayStart.toISOString())
+      .lte("issued_at", todayEnd.toISOString())
       .order("queue_number", { ascending: true });
     setEntries((data as unknown as QueueEntry[]) || []);
   }, [config]);
@@ -96,7 +102,7 @@ export default function QueueDisplay() {
       const code = getCode(e);
       if (!code) return false;
       if (code !== "preliminary" && code !== "ready_for_execution") return false;
-      if (nowServing && e.queue_number === nowServing.queue_number) return false;
+      if (nowServing && e.id === nowServing.id) return false;
       return true;
     })
     .slice(0, 5);
@@ -109,7 +115,7 @@ export default function QueueDisplay() {
 
       <div className="text-center mb-16">
         <p className="text-lg uppercase tracking-[0.3em] text-slate-400 mb-4">Now Serving</p>
-        <div className="text-[8rem] md:text-[10rem] font-bold leading-none tabular-nums text-emerald-400">
+        <div className="text-9xl font-bold leading-none tabular-nums text-emerald-400">
           {nowServing ? `#${nowServing.queue_number}` : "---"}
         </div>
       </div>
@@ -119,7 +125,7 @@ export default function QueueDisplay() {
           <p className="text-lg uppercase tracking-[0.3em] text-slate-400 mb-6">Waiting</p>
           <div className="flex items-center justify-center gap-6 flex-wrap">
             {waiting.map((w) => (
-              <div key={w.queue_number} className="text-4xl md:text-5xl font-semibold tabular-nums text-slate-300">
+              <div key={w.id} className="text-4xl md:text-5xl font-semibold tabular-nums text-slate-300">
                 #{w.queue_number}
               </div>
             ))}
