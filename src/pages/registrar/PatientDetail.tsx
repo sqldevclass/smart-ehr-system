@@ -12,6 +12,11 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { ArrowLeft, Pencil, ChevronDown, ChevronUp, AlertTriangle, Lock } from "lucide-react";
@@ -88,7 +93,7 @@ export default function PatientDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("visits")
-        .select("id, visit_date, status, total_amount, amount_paid, visit_services(id, source, services(name), service_statuses(code, name_ru), invoice_items(id))")
+        .select("id, visit_date, status, total_amount, amount_paid, visit_services(id, source, cost_at_time, services(name), service_statuses(code, name_ru), invoice_items(id))")
         .eq("patient_id", patientId!)
         .eq("hospital_id", user!.hospitalId)
         .order("created_at", { ascending: false });
@@ -109,6 +114,38 @@ export default function PatientDetail() {
   const fullName = [patient.last_name, patient.first_name, patient.middle_name].filter(Boolean).join(" ");
 
   const handleSendToCashier = () => toast.success("Sent to cashier.");
+
+  const cancelService = async (visitServiceId: string, visitId: string, costAtTime: number, visitTotalAmount: number) => {
+    try {
+      const { data: cancelledStatus, error: statusErr } = await supabase
+        .from("service_statuses")
+        .select("id")
+        .eq("code", "cancelled")
+        .single();
+      if (statusErr) throw statusErr;
+
+      const { error: updateErr } = await supabase
+        .from("visit_services")
+        .update({ status_id: cancelledStatus.id })
+        .eq("id", visitServiceId);
+      if (updateErr) throw updateErr;
+
+      await supabase
+        .from("visits")
+        .update({ total_amount: Math.max(0, visitTotalAmount - costAtTime) })
+        .eq("id", visitId);
+
+      await supabase
+        .from("invoice_items")
+        .delete()
+        .eq("visit_service_id", visitServiceId);
+
+      toast.success("Service cancelled.");
+      queryClient.invalidateQueries({ queryKey: ["patient-visits", patientId] });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to cancel service.");
+    }
+  };
 
   const handleInvoiceOrders = async (uninvoicedOrders: any[]) => {
     const { error } = await supabase.rpc("registrar_invoice_physician_orders", {
@@ -299,9 +336,37 @@ export default function PatientDetail() {
                             </span>
                           )}
                         </span>
-                        <span className="rounded bg-muted px-2 py-0.5 text-muted-foreground shrink-0">
-                          {vs.service_statuses?.name_ru || vs.service_statuses?.code || "—"}
-                        </span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="rounded bg-muted px-2 py-0.5 text-muted-foreground">
+                            {vs.service_statuses?.name_ru || vs.service_statuses?.code || "—"}
+                          </span>
+                          {vs.service_statuses?.code === "preliminary" && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="outline" size="sm" className="h-5 px-1.5 text-[10px] text-destructive border-destructive/30 hover:bg-destructive/10">
+                                  Cancel
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Cancel this service?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This will cancel "{vs.services?.name}" and remove it from the invoice.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>No</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    onClick={() => cancelService(vs.id, v.id, Number(vs.cost_at_time || 0), Number(v.total_amount || 0))}
+                                  >
+                                    Yes, cancel
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -552,11 +617,11 @@ async function bookOne(opts: {
     p_registration_source: opts.registrationSource || null,
   });
   if (error) throw error;
+  const visitServiceId =
+    (result as any)?.visit_service_id ||
+    (Array.isArray(result) ? (result as any)[0]?.visit_service_id : undefined);
   let isWaitlist = false;
   if (opts.slotId) {
-    const visitServiceId =
-      (result as any)?.visit_service_id ||
-      (Array.isArray(result) ? (result as any)[0]?.visit_service_id : undefined);
     const { data: bookResult, error: bookErr } = await supabase.rpc("book_slot", {
       p_slot_id: opts.slotId,
       p_visit_service_id: visitServiceId,
@@ -566,7 +631,42 @@ async function bookOne(opts: {
       (bookResult as any)?.is_waitlist ??
       (Array.isArray(bookResult) ? (bookResult as any)[0]?.is_waitlist : false);
   }
-  return { isWaitlist };
+  return { isWaitlist, visitServiceId };
+}
+
+async function assignQueueNumber(physicianId: string, hospitalId: string, visitServiceId: string): Promise<number | null> {
+  const today = new Date().toISOString().split("T")[0];
+  let { data: queueConfig } = await supabase
+    .from("queue_configs")
+    .select("id, last_number")
+    .eq("physician_id", physicianId)
+    .eq("hospital_id", hospitalId)
+    .eq("queue_date", today)
+    .maybeSingle();
+
+  if (!queueConfig) {
+    const { data: newConfig, error: insertErr } = await supabase
+      .from("queue_configs")
+      .insert({
+        physician_id: physicianId,
+        hospital_id: hospitalId,
+        queue_date: today,
+      })
+      .select("id, last_number")
+      .single();
+    if (insertErr) throw insertErr;
+    queueConfig = newConfig;
+  }
+
+  const { data: queueNumber, error: rpcErr } = await supabase.rpc("assign_queue_number", {
+    p_queue_config_id: queueConfig!.id,
+    p_visit_service_id: visitServiceId,
+    p_hospital_id: hospitalId,
+  });
+  if (rpcErr) throw rpcErr;
+  const num = (queueNumber as any)?.queue_number ||
+    (Array.isArray(queueNumber) ? (queueNumber as any)[0]?.queue_number : null);
+  return num;
 }
 
 function PhysicianBookingDialog({
@@ -588,11 +688,35 @@ function PhysicianBookingDialog({
   const [date, setDate] = useState<Date>(new Date());
   const [pendingSlot, setPendingSlot] = useState<{ id: string; isWaitlist: boolean } | null>(null);
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
+  const [queueServiceIds, setQueueServiceIds] = useState<string[]>([]);
   const [registrationSource, setRegistrationSource] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
 
   const tz = user?.timezone || "Asia/Tashkent";
   const { start, end } = dateRangeIso(date, tz);
+
+  // Detect schedule type for today
+  const { data: scheduleType } = useQuery({
+    queryKey: ["phys-schedule-type", physicianId, user?.hospitalId],
+    queryFn: async () => {
+      const today = new Date().toISOString().split("T")[0];
+      const dayOfWeek = new Date().getDay();
+      const { data } = await supabase
+        .from("physician_schedules")
+        .select("schedule_type")
+        .eq("physician_id", physicianId)
+        .eq("hospital_id", user!.hospitalId)
+        .contains("days_of_week", [dayOfWeek])
+        .lte("valid_from", today)
+        .or(`valid_to.gte.${today},valid_to.is.null`)
+        .limit(1)
+        .maybeSingle();
+      return data?.schedule_type || null;
+    },
+    enabled: !!user,
+  });
+
+  const isQueueMode = scheduleType === "queue";
 
   const { data: slots = [] } = useQuery({
     queryKey: ["phys-slots", physicianId, start],
@@ -608,7 +732,7 @@ function PhysicianBookingDialog({
       if (error) throw error;
       return data || [];
     },
-    enabled: !!user,
+    enabled: !!user && !isQueueMode,
   });
 
   const { data: privServices = [] } = useQuery({
@@ -622,7 +746,7 @@ function PhysicianBookingDialog({
       if (error) throw error;
       return (data || []).map((r: any) => r.services).filter(Boolean);
     },
-    enabled: !!user && !!pendingSlot,
+    enabled: !!user && (!!pendingSlot || isQueueMode),
   });
 
   const handleSlotClick = (slot: any) => {
@@ -655,6 +779,41 @@ function PhysicianBookingDialog({
         if (isWaitlist) anyWaitlist = true;
       }
       toast.success(anyWaitlist ? "Added to waitlist" : "Booked");
+      onBooked();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to book.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const confirmQueueBooking = async () => {
+    if (!user) return;
+    const services = (privServices as any[]).filter((s) => queueServiceIds.includes(s.id));
+    if (services.length === 0) {
+      toast.error("Select at least one service.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      let lastQueueNum: number | null = null;
+      for (const s of services) {
+        const { visitServiceId } = await bookOne({
+          patientId,
+          hospitalId: user.hospitalId,
+          userId: user.id,
+          serviceId: s.id,
+          physicianId,
+          cost: Number(s.cost_with_vat || 0),
+          slotId: null,
+          registrationSource: registrationSource || null,
+        });
+        if (visitServiceId) {
+          const num = await assignQueueNumber(physicianId, user.hospitalId, visitServiceId);
+          if (num) lastQueueNum = num;
+        }
+      }
+      toast.success(lastQueueNum ? `Service added. Queue number: #${lastQueueNum}` : "Service added.");
       onBooked();
     } catch (err: any) {
       toast.error(err.message || "Failed to book.");
@@ -701,14 +860,22 @@ function PhysicianBookingDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={() => setDate((d) => { const n = new Date(d); n.setDate(n.getDate() - 1); return n; })}>Prev</Button>
-              <Button size="sm" variant="outline" onClick={() => setDate(new Date())}>Today</Button>
-              <Button size="sm" variant="outline" onClick={() => setDate((d) => { const n = new Date(d); n.setDate(n.getDate() + 1); return n; })}>Next</Button>
+          {!isQueueMode && (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="outline" onClick={() => setDate((d) => { const n = new Date(d); n.setDate(n.getDate() - 1); return n; })}>Prev</Button>
+                <Button size="sm" variant="outline" onClick={() => setDate(new Date())}>Today</Button>
+                <Button size="sm" variant="outline" onClick={() => setDate((d) => { const n = new Date(d); n.setDate(n.getDate() + 1); return n; })}>Next</Button>
+              </div>
+              <div className="text-sm font-medium">{format(date, "EEE, MMM d, yyyy")}</div>
             </div>
-            <div className="text-sm font-medium">{format(date, "EEE, MMM d, yyyy")}</div>
-          </div>
+          )}
+
+          {isQueueMode && (
+            <div className="inline-flex items-center gap-2 rounded bg-teal-50 border border-teal-200 px-3 py-1.5 text-sm font-medium text-teal-800 dark:bg-teal-950/30 dark:border-teal-800 dark:text-teal-200">
+              Queue Mode
+            </div>
+          )}
 
           {showRegistrationSource && (
             <div className="space-y-1.5">
@@ -724,72 +891,99 @@ function PhysicianBookingDialog({
             </div>
           )}
 
-          {slots.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No slots for this day.</p>
+          {isQueueMode ? (
+            <div className="space-y-3">
+              {privServices.length === 0 ? (
+                <p className="text-xs text-destructive">This physician has no services configured.</p>
+              ) : (
+                <div className="rounded-md border p-3 space-y-2">
+                  <div className="text-sm font-medium">Select services</div>
+                  {privServices.map((s: any) => (
+                    <label key={s.id} className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={queueServiceIds.includes(s.id)}
+                        onCheckedChange={(c) => setQueueServiceIds((cur) => c ? [...cur, s.id] : cur.filter((x) => x !== s.id))}
+                      />
+                      <span className="flex-1">{s.name}</span>
+                      <span className="text-xs text-muted-foreground">{Number(s.cost_with_vat || 0).toFixed(2)}</span>
+                    </label>
+                  ))}
+                  <Button onClick={confirmQueueBooking} disabled={submitting} size="sm">
+                    {submitting ? "Booking…" : "Add to Queue"}
+                  </Button>
+                </div>
+              )}
+            </div>
           ) : (
-            <div className="space-y-1 max-h-[50vh] overflow-y-auto">
-              {slots.map((s: any) => {
-                const time = toLocal(s.slot_datetime, tz, "HH:mm");
-                const blocked = !!s.is_blocked;
-                const full = !blocked && s.booking_count >= 2;
-                const wait = !blocked && s.booking_count === 1;
-                const disabled = blocked || full;
-                return (
-                  <button
-                    key={s.id}
-                    type="button"
-                    disabled={disabled}
-                    onClick={() => handleSlotClick(s)}
-                    className={`w-full flex items-center justify-between rounded-md border px-3 py-2 text-sm transition-colors ${
-                      blocked
-                        ? "bg-muted/60 text-muted-foreground/50 cursor-not-allowed border-dashed"
-                        : full
-                          ? "bg-muted text-muted-foreground cursor-not-allowed"
-                          : wait
-                            ? "bg-amber-50 border-amber-200 hover:bg-amber-100 dark:bg-amber-950/30 dark:border-amber-800"
-                            : "bg-background hover:bg-muted"
-                    }`}
-                  >
-                    <span className={`font-medium flex items-center gap-1.5 ${blocked ? "line-through" : ""}`}>
-                      {blocked && <Lock className="h-3 w-3" />}
-                      {time}
-                    </span>
-                    <span className="text-xs">
-                      {blocked
-                        ? s.block_reason || "Blocked"
-                        : full
-                          ? "Full"
-                          : wait
-                            ? "WL available"
-                            : "Available"}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
+            <>
+              {slots.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No slots for this day.</p>
+              ) : (
+                <div className="space-y-1 max-h-[50vh] overflow-y-auto">
+                  {slots.map((s: any) => {
+                    const time = toLocal(s.slot_datetime, tz, "HH:mm");
+                    const blocked = !!s.is_blocked;
+                    const full = !blocked && s.booking_count >= 2;
+                    const wait = !blocked && s.booking_count === 1;
+                    const disabled = blocked || full;
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => handleSlotClick(s)}
+                        className={`w-full flex items-center justify-between rounded-md border px-3 py-2 text-sm transition-colors ${
+                          blocked
+                            ? "bg-muted/60 text-muted-foreground/50 cursor-not-allowed border-dashed"
+                            : full
+                              ? "bg-muted text-muted-foreground cursor-not-allowed"
+                              : wait
+                                ? "bg-amber-50 border-amber-200 hover:bg-amber-100 dark:bg-amber-950/30 dark:border-amber-800"
+                                : "bg-background hover:bg-muted"
+                        }`}
+                      >
+                        <span className={`font-medium flex items-center gap-1.5 ${blocked ? "line-through" : ""}`}>
+                          {blocked && <Lock className="h-3 w-3" />}
+                          {time}
+                        </span>
+                        <span className="text-xs">
+                          {blocked
+                            ? s.block_reason || "Blocked"
+                            : full
+                              ? "Full"
+                              : wait
+                                ? "WL available"
+                                : "Available"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
-          {pendingSlot && privServices.length > 1 && (
-            <div className="rounded-md border p-3 space-y-2">
-              <div className="text-sm font-medium">Select services to book</div>
-              {privServices.map((s: any) => (
-                <label key={s.id} className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={selectedServiceIds.includes(s.id)}
-                    onCheckedChange={(c) => setSelectedServiceIds((cur) => c ? [...cur, s.id] : cur.filter((x) => x !== s.id))}
-                  />
-                  <span className="flex-1">{s.name}</span>
-                  <span className="text-xs text-muted-foreground">{Number(s.cost_with_vat || 0).toFixed(2)}</span>
-                </label>
-              ))}
-              <Button onClick={confirmBooking} disabled={submitting} size="sm">
-                {submitting ? "Booking…" : "Book Selected"}
-              </Button>
-            </div>
-          )}
+              {pendingSlot && privServices.length > 1 && (
+                <div className="rounded-md border p-3 space-y-2">
+                  <div className="text-sm font-medium">Select services to book</div>
+                  {privServices.map((s: any) => (
+                    <label key={s.id} className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={selectedServiceIds.includes(s.id)}
+                        onCheckedChange={(c) => setSelectedServiceIds((cur) => c ? [...cur, s.id] : cur.filter((x) => x !== s.id))}
+                      />
+                      <span className="flex-1">{s.name}</span>
+                      <span className="text-xs text-muted-foreground">{Number(s.cost_with_vat || 0).toFixed(2)}</span>
+                    </label>
+                  ))}
+                  <Button onClick={confirmBooking} disabled={submitting} size="sm">
+                    {submitting ? "Booking…" : "Book Selected"}
+                  </Button>
+                </div>
+              )}
 
-          {pendingSlot && privServices.length === 0 && (
-            <p className="text-xs text-destructive">This physician has no services configured.</p>
+              {pendingSlot && privServices.length === 0 && (
+                <p className="text-xs text-destructive">This physician has no services configured.</p>
+              )}
+            </>
           )}
         </div>
       </DialogContent>
