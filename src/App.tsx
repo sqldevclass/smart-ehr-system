@@ -43,6 +43,10 @@ import AuthCallback from "./pages/auth/AuthCallback.tsx";
 import SetPassword from "./pages/auth/SetPassword.tsx";
 import CallbackError from "./pages/auth/CallbackError.tsx";
 import AcceptInvite from "./pages/AcceptInvite.tsx";
+import InpatientLayout from "./components/inpatient/InpatientLayout.tsx";
+import AdmissionsPage from "./pages/inpatient/AdmissionsPage.tsx";
+import HospitalizationPage from "./pages/inpatient/HospitalizationPage.tsx";
+import InpatientProfile from "./pages/inpatient/InpatientProfile.tsx";
 
 const queryClient = new QueryClient();
 
@@ -91,6 +95,11 @@ const App = () => (
           <Route path="/cashier" element={<ProtectedRoute allowedRoles={["cashier"]}><CashierLayout /></ProtectedRoute>}>
             <Route index element={<PaymentsPage />} />
             <Route path="profile" element={<CashierProfile />} />
+          </Route>
+          <Route path="/inpatient" element={<ProtectedRoute allowedRoles={["inpatient_registrar"]}><InpatientLayout /></ProtectedRoute>}>
+            <Route index element={<AdmissionsPage />} />
+            <Route path="hospitalizations/:hospId" element={<HospitalizationPage />} />
+            <Route path="profile" element={<InpatientProfile />} />
           </Route>
           <Route path="/pharmacy" element={<ProtectedRoute allowedRoles={["pharmacist"]}><DashboardPlaceholder expectedRole="pharmacist" /></ProtectedRoute>} />
           <Route path="/warehouse" element={<ProtectedRoute allowedRoles={["warehouse_staff"]}><DashboardPlaceholder expectedRole="warehouse_staff" /></ProtectedRoute>} />
