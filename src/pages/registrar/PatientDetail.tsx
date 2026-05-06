@@ -688,11 +688,35 @@ function PhysicianBookingDialog({
   const [date, setDate] = useState<Date>(new Date());
   const [pendingSlot, setPendingSlot] = useState<{ id: string; isWaitlist: boolean } | null>(null);
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
+  const [queueServiceIds, setQueueServiceIds] = useState<string[]>([]);
   const [registrationSource, setRegistrationSource] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
 
   const tz = user?.timezone || "Asia/Tashkent";
   const { start, end } = dateRangeIso(date, tz);
+
+  // Detect schedule type for today
+  const { data: scheduleType } = useQuery({
+    queryKey: ["phys-schedule-type", physicianId, user?.hospitalId],
+    queryFn: async () => {
+      const today = new Date().toISOString().split("T")[0];
+      const dayOfWeek = new Date().getDay();
+      const { data } = await supabase
+        .from("physician_schedules")
+        .select("schedule_type")
+        .eq("physician_id", physicianId)
+        .eq("hospital_id", user!.hospitalId)
+        .contains("days_of_week", [dayOfWeek])
+        .lte("valid_from", today)
+        .or(`valid_to.gte.${today},valid_to.is.null`)
+        .limit(1)
+        .maybeSingle();
+      return data?.schedule_type || null;
+    },
+    enabled: !!user,
+  });
+
+  const isQueueMode = scheduleType === "queue";
 
   const { data: slots = [] } = useQuery({
     queryKey: ["phys-slots", physicianId, start],
@@ -708,7 +732,7 @@ function PhysicianBookingDialog({
       if (error) throw error;
       return data || [];
     },
-    enabled: !!user,
+    enabled: !!user && !isQueueMode,
   });
 
   const { data: privServices = [] } = useQuery({
@@ -722,7 +746,7 @@ function PhysicianBookingDialog({
       if (error) throw error;
       return (data || []).map((r: any) => r.services).filter(Boolean);
     },
-    enabled: !!user && !!pendingSlot,
+    enabled: !!user && (!!pendingSlot || isQueueMode),
   });
 
   const handleSlotClick = (slot: any) => {
