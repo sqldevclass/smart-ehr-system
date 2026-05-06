@@ -140,6 +140,20 @@ export default function PatientDetail() {
         .delete()
         .eq("visit_service_id", visitServiceId);
 
+      // Check if any non-cancelled services remain on this visit
+      const { data: remainingServices } = await supabase
+        .from("visit_services")
+        .select("id")
+        .eq("visit_id", visitId)
+        .not("status_id", "eq", cancelledStatus.id);
+
+      if (!remainingServices || remainingServices.length === 0) {
+        await supabase
+          .from("visits")
+          .update({ status: "cancelled" })
+          .eq("id", visitId);
+      }
+
       toast.success("Service cancelled.");
       queryClient.invalidateQueries({ queryKey: ["patient-visits", patientId] });
     } catch (err: any) {
