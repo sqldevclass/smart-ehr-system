@@ -97,18 +97,27 @@ export default function MyPatientsList() {
     const { data: vs, error: vsErr } = await supabase
       .from("visit_services")
       .select(
-        "id, scheduled_at, queue_number, cost_at_time, visit_id, slot_id, is_waitlist, service_statuses(code, name_ru), services(id, name), visits(patients(first_name, last_name, patient_number, date_of_birth))"
+        "id, scheduled_at, queue_number, cost_at_time, visit_id, slot_id, is_waitlist, created_at, service_statuses(code, name_ru), services(id, name), visits(visit_date, patients(first_name, last_name, patient_number, date_of_birth))"
       )
       .eq("assigned_physician_id", (phys as Physician).id)
       .eq("hospital_id", user.hospitalId)
       .in("status_id", allowedStatusIds)
-      .gte("scheduled_at", dayStart)
-      .lte("scheduled_at", dayEnd)
       .order("scheduled_at", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: true });
 
     if (vsErr) toast.error(vsErr.message);
-    setRows((vs || []) as any);
+
+    const selectedDateStr = format(selectedDate, "yyyy-MM-dd");
+    const filtered = (vs || []).filter((row: any) => {
+      if (row.scheduled_at) {
+        return row.scheduled_at >= dayStart && row.scheduled_at <= dayEnd;
+      }
+      if (row.queue_number != null) {
+        return row.visits?.visit_date === selectedDateStr;
+      }
+      return false;
+    });
+    setRows(filtered as any);
     setLoading(false);
   }, [user, selectedDate]);
 
