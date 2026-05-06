@@ -336,9 +336,37 @@ export default function PatientDetail() {
                             </span>
                           )}
                         </span>
-                        <span className="rounded bg-muted px-2 py-0.5 text-muted-foreground shrink-0">
-                          {vs.service_statuses?.name_ru || vs.service_statuses?.code || "—"}
-                        </span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="rounded bg-muted px-2 py-0.5 text-muted-foreground">
+                            {vs.service_statuses?.name_ru || vs.service_statuses?.code || "—"}
+                          </span>
+                          {vs.service_statuses?.code === "preliminary" && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="outline" size="sm" className="h-5 px-1.5 text-[10px] text-destructive border-destructive/30 hover:bg-destructive/10">
+                                  Cancel
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Cancel this service?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This will cancel "{vs.services?.name}" and remove it from the invoice.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>No</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    onClick={() => cancelService(vs.id, v.id, Number(vs.cost_at_time || 0), Number(v.total_amount || 0))}
+                                  >
+                                    Yes, cancel
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
