@@ -14,7 +14,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Pencil, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Pencil, ChevronDown, ChevronUp, AlertTriangle, Lock } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { localDayBoundsUTC, toLocal } from "@/lib/timezone";
@@ -599,7 +599,7 @@ function PhysicianBookingDialog({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("schedule_slots")
-        .select("id, slot_datetime, booking_count")
+        .select("id, slot_datetime, booking_count, is_blocked, block_reason")
         .eq("physician_id", physicianId)
         .eq("hospital_id", user!.hospitalId)
         .gte("slot_datetime", start)
@@ -626,7 +626,7 @@ function PhysicianBookingDialog({
   });
 
   const handleSlotClick = (slot: any) => {
-    if (slot.booking_count >= 2) return;
+    if (slot.is_blocked || slot.booking_count >= 2) return;
     setPendingSlot({ id: slot.id, isWaitlist: slot.booking_count === 1 });
     setSelectedServiceIds([]);
   };
@@ -730,25 +730,38 @@ function PhysicianBookingDialog({
             <div className="space-y-1 max-h-[50vh] overflow-y-auto">
               {slots.map((s: any) => {
                 const time = toLocal(s.slot_datetime, tz, "HH:mm");
-                const full = s.booking_count >= 2;
-                const wait = s.booking_count === 1;
+                const blocked = !!s.is_blocked;
+                const full = !blocked && s.booking_count >= 2;
+                const wait = !blocked && s.booking_count === 1;
+                const disabled = blocked || full;
                 return (
                   <button
                     key={s.id}
                     type="button"
-                    disabled={full}
+                    disabled={disabled}
                     onClick={() => handleSlotClick(s)}
                     className={`w-full flex items-center justify-between rounded-md border px-3 py-2 text-sm transition-colors ${
-                      full
-                        ? "bg-muted text-muted-foreground cursor-not-allowed"
-                        : wait
-                          ? "bg-blue-50 border-blue-200 hover:bg-blue-100 dark:bg-blue-950/30 dark:border-blue-800"
-                          : "bg-background hover:bg-muted"
+                      blocked
+                        ? "bg-muted/60 text-muted-foreground/50 cursor-not-allowed border-dashed"
+                        : full
+                          ? "bg-muted text-muted-foreground cursor-not-allowed"
+                          : wait
+                            ? "bg-amber-50 border-amber-200 hover:bg-amber-100 dark:bg-amber-950/30 dark:border-amber-800"
+                            : "bg-background hover:bg-muted"
                     }`}
                   >
-                    <span className="font-medium">{time}</span>
+                    <span className={`font-medium flex items-center gap-1.5 ${blocked ? "line-through" : ""}`}>
+                      {blocked && <Lock className="h-3 w-3" />}
+                      {time}
+                    </span>
                     <span className="text-xs">
-                      {full ? "Full" : wait ? "1 patient (+ add waitlist)" : "Available"}
+                      {blocked
+                        ? s.block_reason || "Blocked"
+                        : full
+                          ? "Full"
+                          : wait
+                            ? "WL available"
+                            : "Available"}
                     </span>
                   </button>
                 );

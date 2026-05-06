@@ -229,7 +229,7 @@ function BlocksSection({
         .from("physician_schedule_blocks")
         .select("*")
         .eq("physician_id", physicianId)
-        .gte("blocked_to", new Date().toISOString())
+        .or(`blocked_to.gte.${new Date().toISOString()},is_recurring.eq.true`)
         .order("blocked_from");
       if (error) throw error;
       return data || [];
@@ -263,12 +263,29 @@ function BlocksSection({
           {blocks.map((b: any) => (
             <div key={b.id} className="flex items-center justify-between rounded-md border p-3 gap-3">
               <div className="space-y-0.5">
-                <div className="text-sm font-medium">{b.reason || "Blocked"}</div>
-                <div className="text-xs text-muted-foreground">
-                  {b.blocked_from ? toLocal(b.blocked_from, user?.timezone || "Asia/Tashkent", "MMM d, yyyy HH:mm") : "—"}
-                  {" → "}
-                  {b.blocked_to ? toLocal(b.blocked_to, user?.timezone || "Asia/Tashkent", "MMM d, yyyy HH:mm") : "open"}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">{b.reason || "Blocked"}</span>
+                  {b.is_recurring && (
+                    <span className="rounded bg-purple-100 px-2 py-0.5 text-[10px] font-medium text-purple-800 dark:bg-purple-900/40 dark:text-purple-200">
+                      Recurring
+                    </span>
+                  )}
                 </div>
+                {b.is_recurring ? (
+                  <div className="text-xs text-muted-foreground">
+                    {(b.recur_days || []).map((d: number) => DAYS.find((day) => day.value === d)?.short || d).join(", ")}
+                    {" · "}
+                    {utcTimeToLocal((b.recur_time_from || "").slice(0, 5), user?.timezone || "Asia/Tashkent")}
+                    {" – "}
+                    {utcTimeToLocal((b.recur_time_to || "").slice(0, 5), user?.timezone || "Asia/Tashkent")}
+                  </div>
+                ) : (
+                  <div className="text-xs text-muted-foreground">
+                    {b.blocked_from ? toLocal(b.blocked_from, user?.timezone || "Asia/Tashkent", "MMM d, yyyy HH:mm") : "—"}
+                    {" → "}
+                    {b.blocked_to ? toLocal(b.blocked_to, user?.timezone || "Asia/Tashkent", "MMM d, yyyy HH:mm") : "open"}
+                  </div>
+                )}
               </div>
               <Button size="sm" variant="outline" onClick={() => handleDelete(b.id)} className="gap-1 text-destructive">
                 <Trash2 className="h-3 w-3" /> Delete
