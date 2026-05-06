@@ -787,6 +787,41 @@ function PhysicianBookingDialog({
     }
   };
 
+  const confirmQueueBooking = async () => {
+    if (!user) return;
+    const services = (privServices as any[]).filter((s) => queueServiceIds.includes(s.id));
+    if (services.length === 0) {
+      toast.error("Select at least one service.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      let lastQueueNum: number | null = null;
+      for (const s of services) {
+        const { visitServiceId } = await bookOne({
+          patientId,
+          hospitalId: user.hospitalId,
+          userId: user.id,
+          serviceId: s.id,
+          physicianId,
+          cost: Number(s.cost_with_vat || 0),
+          slotId: null,
+          registrationSource: registrationSource || null,
+        });
+        if (visitServiceId) {
+          const num = await assignQueueNumber(physicianId, user.hospitalId, visitServiceId);
+          if (num) lastQueueNum = num;
+        }
+      }
+      toast.success(lastQueueNum ? `Service added. Queue number: #${lastQueueNum}` : "Service added.");
+      onBooked();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to book.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   // If only 1 service & a slot is pending — auto-book on selection
   useEffect(() => {
     if (!pendingSlot || privServices.length !== 1 || submitting) return;
