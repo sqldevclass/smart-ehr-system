@@ -46,7 +46,7 @@ export default function QueueDisplay() {
       .eq("queue_config_id", config.id)
       .eq("queue_date", today)
       .order("queue_number", { ascending: true });
-    setEntries((data as QueueEntry[]) || []);
+    setEntries((data as unknown as QueueEntry[]) || []);
   }, [config]);
 
   useEffect(() => {
