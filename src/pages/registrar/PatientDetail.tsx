@@ -626,7 +626,7 @@ function PhysicianBookingDialog({
   });
 
   const handleSlotClick = (slot: any) => {
-    if (slot.booking_count >= 2) return;
+    if (slot.is_blocked || slot.booking_count >= 2) return;
     setPendingSlot({ id: slot.id, isWaitlist: slot.booking_count === 1 });
     setSelectedServiceIds([]);
   };
