@@ -77,6 +77,8 @@ export default function HospitalizationPage() {
         room_id: selectedRoomId,
         bed_number: bedNumber,
         assigned_at: new Date().toISOString(),
+        hospital_id: user!.hospitalId,
+        assigned_by: user!.id,
       });
       if (error) throw error;
       toast.success("Room assigned.");
