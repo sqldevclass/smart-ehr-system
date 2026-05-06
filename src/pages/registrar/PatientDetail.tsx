@@ -115,6 +115,38 @@ export default function PatientDetail() {
 
   const handleSendToCashier = () => toast.success("Sent to cashier.");
 
+  const cancelService = async (visitServiceId: string, visitId: string, costAtTime: number, visitTotalAmount: number) => {
+    try {
+      const { data: cancelledStatus, error: statusErr } = await supabase
+        .from("service_statuses")
+        .select("id")
+        .eq("code", "cancelled")
+        .single();
+      if (statusErr) throw statusErr;
+
+      const { error: updateErr } = await supabase
+        .from("visit_services")
+        .update({ status_id: cancelledStatus.id })
+        .eq("id", visitServiceId);
+      if (updateErr) throw updateErr;
+
+      await supabase
+        .from("visits")
+        .update({ total_amount: Math.max(0, visitTotalAmount - costAtTime) })
+        .eq("id", visitId);
+
+      await supabase
+        .from("invoice_items")
+        .delete()
+        .eq("visit_service_id", visitServiceId);
+
+      toast.success("Service cancelled.");
+      queryClient.invalidateQueries({ queryKey: ["patient-visits", patientId] });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to cancel service.");
+    }
+  };
+
   const handleInvoiceOrders = async (uninvoicedOrders: any[]) => {
     const { error } = await supabase.rpc("registrar_invoice_physician_orders", {
       p_patient_id: patientId!,
