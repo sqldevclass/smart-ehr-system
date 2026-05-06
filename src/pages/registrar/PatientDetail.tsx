@@ -652,7 +652,7 @@ async function assignQueueNumber(physicianId: string, hospitalId: string, visitS
         hospital_id: hospitalId,
         queue_date: today,
       })
-      .select("id")
+      .select("id, last_number")
       .single();
     if (insertErr) throw insertErr;
     queueConfig = newConfig;
