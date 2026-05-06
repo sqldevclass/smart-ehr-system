@@ -617,11 +617,11 @@ async function bookOne(opts: {
     p_registration_source: opts.registrationSource || null,
   });
   if (error) throw error;
+  const visitServiceId =
+    (result as any)?.visit_service_id ||
+    (Array.isArray(result) ? (result as any)[0]?.visit_service_id : undefined);
   let isWaitlist = false;
   if (opts.slotId) {
-    const visitServiceId =
-      (result as any)?.visit_service_id ||
-      (Array.isArray(result) ? (result as any)[0]?.visit_service_id : undefined);
     const { data: bookResult, error: bookErr } = await supabase.rpc("book_slot", {
       p_slot_id: opts.slotId,
       p_visit_service_id: visitServiceId,
@@ -631,7 +631,42 @@ async function bookOne(opts: {
       (bookResult as any)?.is_waitlist ??
       (Array.isArray(bookResult) ? (bookResult as any)[0]?.is_waitlist : false);
   }
-  return { isWaitlist };
+  return { isWaitlist, visitServiceId };
+}
+
+async function assignQueueNumber(physicianId: string, hospitalId: string, visitServiceId: string): Promise<number | null> {
+  const today = new Date().toISOString().split("T")[0];
+  let { data: queueConfig } = await supabase
+    .from("queue_configs")
+    .select("id, last_number")
+    .eq("physician_id", physicianId)
+    .eq("hospital_id", hospitalId)
+    .eq("queue_date", today)
+    .maybeSingle();
+
+  if (!queueConfig) {
+    const { data: newConfig, error: insertErr } = await supabase
+      .from("queue_configs")
+      .insert({
+        physician_id: physicianId,
+        hospital_id: hospitalId,
+        queue_date: today,
+      })
+      .select("id")
+      .single();
+    if (insertErr) throw insertErr;
+    queueConfig = newConfig;
+  }
+
+  const { data: queueNumber, error: rpcErr } = await supabase.rpc("assign_queue_number", {
+    p_queue_config_id: queueConfig!.id,
+    p_visit_service_id: visitServiceId,
+    p_hospital_id: hospitalId,
+  });
+  if (rpcErr) throw rpcErr;
+  const num = (queueNumber as any)?.queue_number ||
+    (Array.isArray(queueNumber) ? (queueNumber as any)[0]?.queue_number : null);
+  return num;
 }
 
 function PhysicianBookingDialog({
