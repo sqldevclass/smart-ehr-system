@@ -117,7 +117,7 @@ export default function MyPatientsList() {
       }
       return false;
     });
-    setRows((vs || []) as any);
+    setRows(filtered as any);
     setLoading(false);
   }, [user, selectedDate]);
 
