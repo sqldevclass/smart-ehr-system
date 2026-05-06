@@ -1,21 +1,24 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
-interface QueueNumber {
+interface QueueEntry {
   queue_number: number;
   status: string;
-  patient_id: string | null;
+  visit_service_id: string | null;
+  visit_services: {
+    status_id: string;
+    service_statuses: { code: string } | null;
+  } | null;
 }
 
 export default function QueueDisplay() {
   const { displayToken } = useParams();
   const [config, setConfig] = useState<any>(null);
-  const [numbers, setNumbers] = useState<QueueNumber[]>([]);
+  const [entries, setEntries] = useState<QueueEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch config by display_token
   useEffect(() => {
     if (!displayToken) return;
     (async () => {
@@ -34,43 +37,37 @@ export default function QueueDisplay() {
     })();
   }, [displayToken]);
 
-  // Fetch queue numbers and subscribe to realtime
+  const fetchEntries = useCallback(async () => {
+    if (!config) return;
+    const today = new Date().toISOString().split("T")[0];
+    const { data } = await supabase
+      .from("queue_numbers")
+      .select("queue_number, status, visit_service_id, visit_services(status_id, service_statuses(code))")
+      .eq("queue_config_id", config.id)
+      .eq("queue_date", today)
+      .order("queue_number", { ascending: true });
+    setEntries((data as unknown as QueueEntry[]) || []);
+  }, [config]);
+
   useEffect(() => {
     if (!config) return;
+    fetchEntries();
 
-    const fetchNumbers = async () => {
-      const today = new Date().toISOString().split("T")[0];
-      const { data } = await supabase
-        .from("queue_numbers")
-        .select("queue_number, status, patient_id")
-        .eq("queue_config_id", config.id)
-        .eq("queue_date", today)
-        .order("queue_number");
-      setNumbers(data || []);
-    };
+    const ch1 = supabase
+      .channel(`queue-display-qn-${config.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "queue_numbers", filter: `queue_config_id=eq.${config.id}` }, () => fetchEntries())
+      .subscribe();
 
-    fetchNumbers();
-
-    const channel = supabase
-      .channel(`queue-display-${config.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "queue_numbers",
-          filter: `queue_config_id=eq.${config.id}`,
-        },
-        () => {
-          fetchNumbers();
-        }
-      )
+    const ch2 = supabase
+      .channel(`queue-display-vs-${config.id}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "visit_services" }, () => fetchEntries())
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(ch1);
+      supabase.removeChannel(ch2);
     };
-  }, [config]);
+  }, [config, fetchEntries]);
 
   if (loading) {
     return (
@@ -88,13 +85,20 @@ export default function QueueDisplay() {
     );
   }
 
+  const getCode = (e: QueueEntry) => e.visit_services?.service_statuses?.code;
+
   const physicianName = (config?.physicians as any)?.profiles?.full_name || "Physician";
-  const calledNumbers = numbers.filter((n) => n.status === "called");
-  const nowServing = calledNumbers.length > 0
-    ? calledNumbers[calledNumbers.length - 1].queue_number
-    : null;
-  const waiting = numbers
-    .filter((n) => n.status === "waiting")
+
+  const nowServing = entries.find((e) => getCode(e) === "ready_for_execution");
+
+  const waiting = entries
+    .filter((e) => {
+      const code = getCode(e);
+      if (!code) return false;
+      if (code !== "preliminary" && code !== "ready_for_execution") return false;
+      if (nowServing && e.queue_number === nowServing.queue_number) return false;
+      return true;
+    })
     .slice(0, 5);
 
   return (
@@ -106,7 +110,7 @@ export default function QueueDisplay() {
       <div className="text-center mb-16">
         <p className="text-lg uppercase tracking-[0.3em] text-slate-400 mb-4">Now Serving</p>
         <div className="text-[8rem] md:text-[10rem] font-bold leading-none tabular-nums text-emerald-400">
-          {nowServing != null ? `#${nowServing}` : "---"}
+          {nowServing ? `#${nowServing.queue_number}` : "---"}
         </div>
       </div>
 
@@ -115,10 +119,7 @@ export default function QueueDisplay() {
           <p className="text-lg uppercase tracking-[0.3em] text-slate-400 mb-6">Waiting</p>
           <div className="flex items-center justify-center gap-6 flex-wrap">
             {waiting.map((w) => (
-              <div
-                key={w.queue_number}
-                className="text-4xl md:text-5xl font-semibold tabular-nums text-slate-300"
-              >
+              <div key={w.queue_number} className="text-4xl md:text-5xl font-semibold tabular-nums text-slate-300">
                 #{w.queue_number}
               </div>
             ))}
