@@ -860,14 +860,22 @@ function PhysicianBookingDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={() => setDate((d) => { const n = new Date(d); n.setDate(n.getDate() - 1); return n; })}>Prev</Button>
-              <Button size="sm" variant="outline" onClick={() => setDate(new Date())}>Today</Button>
-              <Button size="sm" variant="outline" onClick={() => setDate((d) => { const n = new Date(d); n.setDate(n.getDate() + 1); return n; })}>Next</Button>
+          {!isQueueMode && (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="outline" onClick={() => setDate((d) => { const n = new Date(d); n.setDate(n.getDate() - 1); return n; })}>Prev</Button>
+                <Button size="sm" variant="outline" onClick={() => setDate(new Date())}>Today</Button>
+                <Button size="sm" variant="outline" onClick={() => setDate((d) => { const n = new Date(d); n.setDate(n.getDate() + 1); return n; })}>Next</Button>
+              </div>
+              <div className="text-sm font-medium">{format(date, "EEE, MMM d, yyyy")}</div>
             </div>
-            <div className="text-sm font-medium">{format(date, "EEE, MMM d, yyyy")}</div>
-          </div>
+          )}
+
+          {isQueueMode && (
+            <div className="inline-flex items-center gap-2 rounded bg-teal-50 border border-teal-200 px-3 py-1.5 text-sm font-medium text-teal-800 dark:bg-teal-950/30 dark:border-teal-800 dark:text-teal-200">
+              Queue Mode
+            </div>
+          )}
 
           {showRegistrationSource && (
             <div className="space-y-1.5">
@@ -883,72 +891,99 @@ function PhysicianBookingDialog({
             </div>
           )}
 
-          {slots.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No slots for this day.</p>
+          {isQueueMode ? (
+            <div className="space-y-3">
+              {privServices.length === 0 ? (
+                <p className="text-xs text-destructive">This physician has no services configured.</p>
+              ) : (
+                <div className="rounded-md border p-3 space-y-2">
+                  <div className="text-sm font-medium">Select services</div>
+                  {privServices.map((s: any) => (
+                    <label key={s.id} className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={queueServiceIds.includes(s.id)}
+                        onCheckedChange={(c) => setQueueServiceIds((cur) => c ? [...cur, s.id] : cur.filter((x) => x !== s.id))}
+                      />
+                      <span className="flex-1">{s.name}</span>
+                      <span className="text-xs text-muted-foreground">{Number(s.cost_with_vat || 0).toFixed(2)}</span>
+                    </label>
+                  ))}
+                  <Button onClick={confirmQueueBooking} disabled={submitting} size="sm">
+                    {submitting ? "Booking…" : "Add to Queue"}
+                  </Button>
+                </div>
+              )}
+            </div>
           ) : (
-            <div className="space-y-1 max-h-[50vh] overflow-y-auto">
-              {slots.map((s: any) => {
-                const time = toLocal(s.slot_datetime, tz, "HH:mm");
-                const blocked = !!s.is_blocked;
-                const full = !blocked && s.booking_count >= 2;
-                const wait = !blocked && s.booking_count === 1;
-                const disabled = blocked || full;
-                return (
-                  <button
-                    key={s.id}
-                    type="button"
-                    disabled={disabled}
-                    onClick={() => handleSlotClick(s)}
-                    className={`w-full flex items-center justify-between rounded-md border px-3 py-2 text-sm transition-colors ${
-                      blocked
-                        ? "bg-muted/60 text-muted-foreground/50 cursor-not-allowed border-dashed"
-                        : full
-                          ? "bg-muted text-muted-foreground cursor-not-allowed"
-                          : wait
-                            ? "bg-amber-50 border-amber-200 hover:bg-amber-100 dark:bg-amber-950/30 dark:border-amber-800"
-                            : "bg-background hover:bg-muted"
-                    }`}
-                  >
-                    <span className={`font-medium flex items-center gap-1.5 ${blocked ? "line-through" : ""}`}>
-                      {blocked && <Lock className="h-3 w-3" />}
-                      {time}
-                    </span>
-                    <span className="text-xs">
-                      {blocked
-                        ? s.block_reason || "Blocked"
-                        : full
-                          ? "Full"
-                          : wait
-                            ? "WL available"
-                            : "Available"}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
+            <>
+              {slots.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No slots for this day.</p>
+              ) : (
+                <div className="space-y-1 max-h-[50vh] overflow-y-auto">
+                  {slots.map((s: any) => {
+                    const time = toLocal(s.slot_datetime, tz, "HH:mm");
+                    const blocked = !!s.is_blocked;
+                    const full = !blocked && s.booking_count >= 2;
+                    const wait = !blocked && s.booking_count === 1;
+                    const disabled = blocked || full;
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => handleSlotClick(s)}
+                        className={`w-full flex items-center justify-between rounded-md border px-3 py-2 text-sm transition-colors ${
+                          blocked
+                            ? "bg-muted/60 text-muted-foreground/50 cursor-not-allowed border-dashed"
+                            : full
+                              ? "bg-muted text-muted-foreground cursor-not-allowed"
+                              : wait
+                                ? "bg-amber-50 border-amber-200 hover:bg-amber-100 dark:bg-amber-950/30 dark:border-amber-800"
+                                : "bg-background hover:bg-muted"
+                        }`}
+                      >
+                        <span className={`font-medium flex items-center gap-1.5 ${blocked ? "line-through" : ""}`}>
+                          {blocked && <Lock className="h-3 w-3" />}
+                          {time}
+                        </span>
+                        <span className="text-xs">
+                          {blocked
+                            ? s.block_reason || "Blocked"
+                            : full
+                              ? "Full"
+                              : wait
+                                ? "WL available"
+                                : "Available"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
-          {pendingSlot && privServices.length > 1 && (
-            <div className="rounded-md border p-3 space-y-2">
-              <div className="text-sm font-medium">Select services to book</div>
-              {privServices.map((s: any) => (
-                <label key={s.id} className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={selectedServiceIds.includes(s.id)}
-                    onCheckedChange={(c) => setSelectedServiceIds((cur) => c ? [...cur, s.id] : cur.filter((x) => x !== s.id))}
-                  />
-                  <span className="flex-1">{s.name}</span>
-                  <span className="text-xs text-muted-foreground">{Number(s.cost_with_vat || 0).toFixed(2)}</span>
-                </label>
-              ))}
-              <Button onClick={confirmBooking} disabled={submitting} size="sm">
-                {submitting ? "Booking…" : "Book Selected"}
-              </Button>
-            </div>
-          )}
+              {pendingSlot && privServices.length > 1 && (
+                <div className="rounded-md border p-3 space-y-2">
+                  <div className="text-sm font-medium">Select services to book</div>
+                  {privServices.map((s: any) => (
+                    <label key={s.id} className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={selectedServiceIds.includes(s.id)}
+                        onCheckedChange={(c) => setSelectedServiceIds((cur) => c ? [...cur, s.id] : cur.filter((x) => x !== s.id))}
+                      />
+                      <span className="flex-1">{s.name}</span>
+                      <span className="text-xs text-muted-foreground">{Number(s.cost_with_vat || 0).toFixed(2)}</span>
+                    </label>
+                  ))}
+                  <Button onClick={confirmBooking} disabled={submitting} size="sm">
+                    {submitting ? "Booking…" : "Book Selected"}
+                  </Button>
+                </div>
+              )}
 
-          {pendingSlot && privServices.length === 0 && (
-            <p className="text-xs text-destructive">This physician has no services configured.</p>
+              {pendingSlot && privServices.length === 0 && (
+                <p className="text-xs text-destructive">This physician has no services configured.</p>
+              )}
+            </>
           )}
         </div>
       </DialogContent>
