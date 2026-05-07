@@ -66,7 +66,6 @@ export default function AdmissionsPage() {
         .from("hospitalizations")
         .select("id, hospitalization_number, admitted_at, discharged_at, departments(name), patients(first_name, last_name, patient_number), hospitalization_types(name_ru), room_assignments(bed_number, rooms(name))")
         .eq("hospital_id", user!.hospitalId)
-        .is("discharged_at", null)
         .order("admitted_at", { ascending: false });
       if (error) throw error;
       return data || [];
@@ -193,7 +192,7 @@ export default function AdmissionsPage() {
                       {vs.patients?.last_name} {vs.patients?.first_name}
                     </TableCell>
                     <TableCell>{vs.patients?.patient_number}</TableCell>
-                    <TableCell>{format(new Date(vs.created_at), "MMM d, yyyy")}</TableCell>
+                    <TableCell>{format(new Date(vs.created_at), "MMM d, yyyy HH:mm")}</TableCell>
                     <TableCell>
                       <Button size="sm" onClick={() => openAdmitDialog(vs)}>
                         Admit
@@ -207,16 +206,16 @@ export default function AdmissionsPage() {
         </CardContent>
       </Card>
 
-      {/* Section 2: Active */}
+      {/* Section 2: Hospitalized Patients */}
       <Card>
         <CardHeader>
-          <CardTitle>Active Hospitalizations</CardTitle>
+          <CardTitle>Hospitalized Patients</CardTitle>
         </CardHeader>
         <CardContent>
           {loadingActive ? (
             <p className="text-muted-foreground text-sm">Loading…</p>
           ) : !active?.length ? (
-            <p className="text-muted-foreground text-sm">No active hospitalizations.</p>
+            <p className="text-muted-foreground text-sm">No hospitalizations found.</p>
           ) : (
             <Table>
               <TableHeader>
@@ -225,8 +224,10 @@ export default function AdmissionsPage() {
                   <TableHead>Patient Name</TableHead>
                   <TableHead>Department</TableHead>
                   <TableHead>Type</TableHead>
+                  <TableHead>Admitted At</TableHead>
                   <TableHead>Room / Bed</TableHead>
                   <TableHead>Days</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -242,10 +243,18 @@ export default function AdmissionsPage() {
                       </TableCell>
                       <TableCell>{h.departments?.name}</TableCell>
                       <TableCell>{h.hospitalization_types?.name_ru}</TableCell>
+                      <TableCell>{format(new Date(h.admitted_at), "MMM d, yyyy HH:mm")}</TableCell>
                       <TableCell>
                         {ra ? `${ra.rooms?.name} / Bed ${ra.bed_number}` : "—"}
                       </TableCell>
                       <TableCell>{days}</TableCell>
+                      <TableCell>
+                        {h.discharged_at ? (
+                          <Badge variant="secondary">Discharged</Badge>
+                        ) : (
+                          <Badge className="bg-green-600 text-white hover:bg-green-700">Active</Badge>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Button
                           size="sm"
