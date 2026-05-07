@@ -37,16 +37,12 @@ export default function HospitalizationPage() {
   const [bedNumber, setBedNumber] = useState("");
   const [roomSubmitting, setRoomSubmitting] = useState(false);
 
-  const [dischargeDialogOpen, setDischargeDialogOpen] = useState(false);
-  const [dischargeType, setDischargeType] = useState("discharged");
-  const [dischargeSubmitting, setDischargeSubmitting] = useState(false);
-
   const { data: hosp, isLoading } = useQuery({
     queryKey: ["hospitalization", hospId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("hospitalizations")
-        .select("*, patients(*), departments(name), hospitalization_types(name_ru), hospitalization_urgency(name_ru), room_assignments(*, rooms(name, room_type))")
+        .select("*, department_id, patients(*), departments(name), hospitalization_types(name_ru), hospitalization_urgency(name_ru), room_assignments(*, rooms(name, room_type))")
         .eq("id", hospId!)
         .single();
       if (error) throw error;
@@ -60,8 +56,10 @@ export default function HospitalizationPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from("rooms")
-        .select("id, name, room_type")
+        .select("id, name, room_type, capacity")
+        .eq("hospital_id", user!.hospitalId)
         .eq("department_id", hosp!.department_id)
+        .eq("is_active", true)
         .order("name");
       return data || [];
     },
@@ -91,29 +89,6 @@ export default function HospitalizationPage() {
     }
   };
 
-  const handleDischarge = async () => {
-    setDischargeSubmitting(true);
-    try {
-      const { error } = await supabase
-        .from("hospitalizations")
-        .update({
-          discharged_at: new Date().toISOString(),
-          discharge_type: dischargeType,
-        })
-        .eq("id", hospId!);
-      if (error) throw error;
-      toast.success("Patient discharged.");
-      setDischargeDialogOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["hospitalization", hospId] });
-      queryClient.invalidateQueries({ queryKey: ["active-hospitalizations"] });
-      navigate("/inpatient");
-    } catch (err: any) {
-      toast.error(err.message || "Failed to discharge");
-    } finally {
-      setDischargeSubmitting(false);
-    }
-  };
-
   if (isLoading) return <p className="text-muted-foreground">Loading…</p>;
   if (!hosp) return <p className="text-destructive">Hospitalization not found.</p>;
 
@@ -133,18 +108,11 @@ export default function HospitalizationPage() {
       {/* Header */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>
-              {patient?.last_name} {patient?.first_name}
-              <span className="ml-2 text-sm font-normal text-muted-foreground">
-                #{patient?.patient_number}
-              </span>
+          <CardTitle>
+            {patient?.last_name} {patient?.first_name}
+            <span className="ml-2 text-sm font-normal text-muted-foreground">
+              #{patient?.patient_number}
             </span>
-            {!hosp.discharged_at && (
-              <Button variant="destructive" size="sm" onClick={() => setDischargeDialogOpen(true)}>
-                Discharge
-              </Button>
-            )}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -247,32 +215,6 @@ export default function HospitalizationPage() {
             <Button variant="outline" onClick={() => setRoomDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleAssignRoom} disabled={!selectedRoomId || !bedNumber || roomSubmitting}>
               {roomSubmitting ? "Assigning…" : "Assign"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Discharge Dialog */}
-      <Dialog open={dischargeDialogOpen} onOpenChange={setDischargeDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Discharge Patient</DialogTitle>
-          </DialogHeader>
-          <div>
-            <Label>Discharge Type</Label>
-            <Select value={dischargeType} onValueChange={setDischargeType}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="discharged">Discharged</SelectItem>
-                <SelectItem value="transferred">Transferred</SelectItem>
-                <SelectItem value="deceased">Deceased</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDischargeDialogOpen(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleDischarge} disabled={dischargeSubmitting}>
-              {dischargeSubmitting ? "Discharging…" : "Confirm Discharge"}
             </Button>
           </DialogFooter>
         </DialogContent>

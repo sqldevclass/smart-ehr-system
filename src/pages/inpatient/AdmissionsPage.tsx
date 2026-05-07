@@ -146,6 +146,12 @@ export default function AdmissionsPage() {
         .single();
       if (error) throw error;
 
+      // Link visit_service to the new hospitalization
+      await supabase
+        .from("visit_services")
+        .update({ hospitalization_id: hosp.id })
+        .eq("id", selectedVs.id);
+
       toast.success(`Patient admitted. Hospitalization #${hosp.hospitalization_number}`);
       setAdmitDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["hospitalization-recommended"] });
