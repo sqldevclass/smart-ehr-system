@@ -51,19 +51,24 @@ export default function HospitalizationPage() {
     enabled: !!hospId,
   });
 
-  const { data: rooms } = useQuery({
-    queryKey: ["department-rooms", hosp?.department_id],
+  const departmentId = (hosp as any)?.department_id;
+
+  const { data: rooms = [] } = useQuery({
+    queryKey: ["department-rooms", departmentId],
     queryFn: async () => {
-      const { data } = await supabase
+      console.log("Fetching rooms for department:", departmentId);
+      if (!departmentId) return [];
+      const { data, error } = await supabase
         .from("rooms")
         .select("id, name, room_type, capacity")
         .eq("hospital_id", user!.hospitalId)
-        .eq("department_id", hosp!.department_id)
+        .eq("department_id", departmentId)
         .eq("is_active", true)
         .order("name");
+      if (error) throw error;
       return data || [];
     },
-    enabled: !!hosp?.department_id,
+    enabled: !!departmentId && !!user,
   });
 
   const handleAssignRoom = async () => {
