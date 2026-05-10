@@ -108,6 +108,10 @@ const App = () => (
             <Route path="hospitalizations/:hospId" element={<HospitalizationPage />} />
             <Route path="profile" element={<InpatientProfile />} />
           </Route>
+          <Route path="/nurse" element={<ProtectedRoute allowedRoles={["inpatient_nurse", "head_nurse"]}><NurseLayout /></ProtectedRoute>}>
+            <Route index element={<NursePatientsList />} />
+            <Route path="profile" element={<NurseProfile />} />
+          </Route>
           <Route path="/pharmacy" element={<ProtectedRoute allowedRoles={["pharmacist"]}><DashboardPlaceholder expectedRole="pharmacist" /></ProtectedRoute>} />
           <Route path="/warehouse" element={<ProtectedRoute allowedRoles={["warehouse_staff"]}><DashboardPlaceholder expectedRole="warehouse_staff" /></ProtectedRoute>} />
           <Route path="/auth/callback" element={<AuthCallback />} />
