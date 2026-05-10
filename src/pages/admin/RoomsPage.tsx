@@ -117,7 +117,7 @@ export default function RoomsPage() {
       if (!user) return [];
       const { data, error } = await supabase
         .from("rooms")
-        .select("id, name, room_type_id, capacity, is_active, department_id, room_types(name)")
+        .select("id, name, room_type_id, capacity, is_active, department_id, room_types(name, is_office_room)")
         .eq("hospital_id", user.hospitalId)
         .order("name");
       if (error) throw error;
