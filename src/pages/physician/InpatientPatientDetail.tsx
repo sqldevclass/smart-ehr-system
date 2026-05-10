@@ -93,30 +93,7 @@ export default function InpatientPatientDetail() {
         {/* Right: tabs */}
         <Card className="lg:col-span-2">
           <CardContent className="pt-6">
-            <Tabs defaultValue="orders">
-              <TabsList className="bg-green-100 dark:bg-green-950">
-                <TabsTrigger value="orders">Orders</TabsTrigger>
-                <TabsTrigger value="lab">Lab</TabsTrigger>
-                <TabsTrigger value="consultation">Consultation</TabsTrigger>
-                <TabsTrigger value="care">Care</TabsTrigger>
-                <TabsTrigger value="diagnoses">Diagnoses</TabsTrigger>
-              </TabsList>
-              <TabsContent value="orders" className="pt-4">
-                <OrdersTab hospId={hospId!} patientId={hosp.patient_id} />
-              </TabsContent>
-              <TabsContent value="lab" className="pt-4">
-                <LabTab hospId={hospId!} patientId={hosp.patient_id} />
-              </TabsContent>
-              <TabsContent value="consultation" className="pt-4">
-                <ConsultationTab hospId={hospId!} patientId={hosp.patient_id} />
-              </TabsContent>
-              <TabsContent value="care" className="pt-4">
-                <CareTab hospId={hospId!} orders={(hosp.hospitalization_orders as any[]) || []} />
-              </TabsContent>
-              <TabsContent value="diagnoses" className="pt-4">
-                <DiagnosesTab hospId={hospId!} patientId={patient?.id} />
-              </TabsContent>
-            </Tabs>
+            <TabsSection hospId={hospId!} hosp={hosp} patient={patient} />
           </CardContent>
         </Card>
       </div>
