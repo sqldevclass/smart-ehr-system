@@ -218,4 +218,18 @@ ALTER TABLE public.patient_files ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "patient_files_select" ON public.patient_files
   FOR SELECT TO authenticated
-  USING (hospital_id = public.get_my_h
+  USING (hospital_id = public.get_my_hospital_id());
+
+CREATE POLICY "patient_files_insert" ON public.patient_files
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    hospital_id = public.get_my_hospital_id()
+    AND public.has_permission('patients.edit')
+  );
+
+CREATE POLICY "patient_files_delete" ON public.patient_files
+  FOR DELETE TO authenticated
+  USING (
+    hospital_id = public.get_my_hospital_id()
+    AND public.has_permission('patients.edit')
+  );

@@ -60,18 +60,15 @@ Deno.serve(async (req) => {
     }
 
     // Check caller has admin role via user_roles junction table
-    const { data: adminRole } = await supabaseAdmin
-      .from("user_roles")
-      .select("role_id, roles(code)")
-      .eq("user_id", userId)
-      .eq("hospital_id", callerProfile.hospital_id)
-      .then(async (res) => {
-        const rows = res.data || [];
-        const isAdmin = rows.some((r: any) => r.roles?.code === "admin");
-        return { data: isAdmin };
-      });
+    const { data: userRoleRows } = await supabaseAdmin
+  .from("user_roles")
+  .select("roles(code)")
+  .eq("user_id", userId)
+  .eq("hospital_id", callerProfile.hospital_id);
 
-    if (!adminRole) {
+const isAdmin = (userRoleRows || []).some((r: any) => r.roles?.code === "admin");
+
+if (!isAdmin) {
       return new Response(
         JSON.stringify({ error: "Only admins can invite staff" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }

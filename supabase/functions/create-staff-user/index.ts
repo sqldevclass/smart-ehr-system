@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
         user_id: newUserId,
         role_id: r.id,
         hospital_id: invitation.hospital_id,
-        granted_by: invitation.hospital_id, // system grant
+        granted_by: null, // system grant
       }));
 
       const { error: rolesError } = await supabaseAdmin
