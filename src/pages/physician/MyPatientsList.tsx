@@ -23,8 +23,10 @@ interface VisitServiceRow {
   cost_at_time: number;
   slot_id: string | null;
   is_waitlist: boolean | null;
+  completed_by?: string | null;
   service_statuses: { code: string | null; name_ru: string | null } | null;
   services: { id?: string; name: string | null } | null;
+  rooms?: { name: string | null } | null;
   visits: {
     patients: {
       first_name: string | null;
