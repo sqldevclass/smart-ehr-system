@@ -11,12 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Plus } from "lucide-react";
 import { format, differenceInDays, differenceInYears } from "date-fns";
 import { usePhysicianId } from "@/hooks/usePhysicianId";
@@ -32,7 +28,9 @@ export default function InpatientPatientDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("hospitalizations")
-        .select("*, patients(*), departments(name), room_assignments(bed_number, rooms(name)), hospitalization_orders(*)")
+        .select(
+          "*, patients(*), departments(name), room_assignments(bed_number, rooms(name)), hospitalization_orders(*)",
+        )
         .eq("id", hospId!)
         .single();
       if (error) throw error;
@@ -61,22 +59,43 @@ export default function InpatientPatientDetail() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-3">
-            <span className="text-2xl">{patient?.last_name} {patient?.first_name}</span>
+            <span className="text-2xl">
+              {patient?.last_name} {patient?.first_name}
+            </span>
             <span className="text-sm font-normal text-muted-foreground">#{patient?.patient_number}</span>
-            {patient?.allergies && (
-              <Badge variant="destructive">Allergies</Badge>
-            )}
+            {patient?.allergies && <Badge variant="destructive">Allergies</Badge>}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div><span className="text-muted-foreground">DOB</span><p>{patient?.date_of_birth ? format(new Date(patient.date_of_birth), "MMM d, yyyy") : "—"}</p></div>
-            <div><span className="text-muted-foreground">Age</span><p>{age ?? "—"}</p></div>
-            <div><span className="text-muted-foreground">Hosp #</span><p className="font-mono">{hosp.hospitalization_number}</p></div>
-            <div><span className="text-muted-foreground">Department</span><p>{(hosp.departments as any)?.name}</p></div>
-            <div><span className="text-muted-foreground">Room/Bed</span><p>{ra ? `${ra.rooms?.name} / ${ra.bed_number}` : "—"}</p></div>
-            <div><span className="text-muted-foreground">Admitted</span><p>{format(new Date(hosp.admitted_at), "MMM d, yyyy HH:mm")}</p></div>
-            <div><span className="text-muted-foreground">Days</span><p>{days}</p></div>
+            <div>
+              <span className="text-muted-foreground">DOB</span>
+              <p>{patient?.date_of_birth ? format(new Date(patient.date_of_birth), "MMM d, yyyy") : "—"}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Age</span>
+              <p>{age ?? "—"}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Hosp #</span>
+              <p className="font-mono">{hosp.hospitalization_number}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Department</span>
+              <p>{(hosp.departments as any)?.name}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Room/Bed</span>
+              <p>{ra ? `${ra.rooms?.name} / ${ra.bed_number}` : "—"}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Admitted</span>
+              <p>{format(new Date(hosp.admitted_at), "MMM d, yyyy HH:mm")}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Days</span>
+              <p>{days}</p>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -84,7 +103,9 @@ export default function InpatientPatientDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Left: documents placeholder */}
         <Card className="lg:col-span-1">
-          <CardHeader><CardTitle>Documents</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle>Documents</CardTitle>
+          </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">Documents will appear here (Phase 7)</p>
           </CardContent>
@@ -109,10 +130,7 @@ function TabsSection({ hospId, hosp, patient }: { hospId: string; hosp: any; pat
   const { data: serviceTypes = [] } = useQuery({
     queryKey: ["service-types", user?.hospitalId],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("service_types")
-        .select("id, code")
-        .eq("hospital_id", user!.hospitalId);
+      const { data } = await supabase.from("service_types").select("id, code").eq("hospital_id", user!.hospitalId);
       return data || [];
     },
     enabled: !!user?.hospitalId,
@@ -126,7 +144,9 @@ function TabsSection({ hospId, hosp, patient }: { hospId: string; hosp: any; pat
     queryFn: async () => {
       const { data, error } = await supabase
         .from("visit_services")
-        .select("id, source, cost_at_time, assigned_physician_id, service_statuses(code, name_ru), services(id, name, service_type_id, cost_with_vat), physicians(profiles(first_name, last_name))")
+        .select(
+          "id, source, cost_at_time, assigned_physician_id, service_statuses(code, name_ru), services(id, name, service_type_id, cost_with_vat), physicians(profiles(first_name, last_name))",
+        )
         .eq("hospitalization_id", hospId)
         .eq("hospital_id", user!.hospitalId);
       if (error) throw error;
@@ -136,7 +156,7 @@ function TabsSection({ hospId, hosp, patient }: { hospId: string; hosp: any; pat
   });
 
   const ordersServices = allServices.filter(
-    (vs: any) => vs.services?.service_type_id !== labTypeId && vs.services?.service_type_id !== consultTypeId
+    (vs: any) => vs.services?.service_type_id !== labTypeId && vs.services?.service_type_id !== consultTypeId,
   );
   const labServices = allServices.filter((vs: any) => vs.services?.service_type_id === labTypeId);
   const consultServices = allServices.filter((vs: any) => vs.services?.service_type_id === consultTypeId);
@@ -293,17 +313,23 @@ function ServiceListBase({
             <div>
               <Label>Service</Label>
               <Select value={serviceId} onValueChange={setServiceId}>
-                <SelectTrigger><SelectValue placeholder="Select service" /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select service" />
+                </SelectTrigger>
                 <SelectContent>
                   {catalog.map((s: any) => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
             <Button onClick={handleAdd} disabled={!serviceId || submitting}>
               {submitting ? "Adding…" : "Add"}
             </Button>
@@ -363,9 +389,7 @@ function ConsultationTab({
     enabled: open && !!physicianId,
   });
 
-  const consultPrivileges = privileges.filter(
-    (p: any) => p.services?.service_type_id === consultTypeId
-  );
+  const consultPrivileges = privileges.filter((p: any) => p.services?.service_type_id === consultTypeId);
 
   const handleAdd = async () => {
     if (!physicianId || !serviceId) return;
@@ -411,7 +435,9 @@ function ConsultationTab({
               <div>
                 <p>{vs.services?.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {vs.physicians?.profiles ? `${vs.physicians.profiles.last_name} ${vs.physicians.profiles.first_name}` : "Unassigned"}
+                  {vs.physicians?.profiles
+                    ? `${vs.physicians.profiles.last_name} ${vs.physicians.profiles.first_name}`
+                    : "Unassigned"}
                 </p>
               </div>
               <Badge variant="outline">{vs.service_statuses?.name_ru || vs.service_statuses?.code || "—"}</Badge>
@@ -428,12 +454,21 @@ function ConsultationTab({
           <div className="space-y-4">
             <div>
               <Label>Physician</Label>
-              <Select value={physicianId} onValueChange={(v) => { setPhysicianId(v); setServiceId(""); }}>
-                <SelectTrigger><SelectValue placeholder="Select physician" /></SelectTrigger>
+              <Select
+                value={physicianId}
+                onValueChange={(v) => {
+                  setPhysicianId(v);
+                  setServiceId("");
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select physician" />
+                </SelectTrigger>
                 <SelectContent>
                   {physicians.map((p: any) => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.profiles?.full_name}{p.specialization ? ` — ${p.specialization}` : ""}
+                      {p.profiles?.full_name}
+                      {p.specialization ? ` — ${p.specialization}` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -442,17 +477,23 @@ function ConsultationTab({
             <div>
               <Label>Service</Label>
               <Select value={serviceId} onValueChange={setServiceId} disabled={!physicianId}>
-                <SelectTrigger><SelectValue placeholder={physicianId ? "Select service" : "Select physician first"} /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue placeholder={physicianId ? "Select service" : "Select physician first"} />
+                </SelectTrigger>
                 <SelectContent>
                   {consultPrivileges.map((p: any) => (
-                    <SelectItem key={p.services.id} value={p.services.id}>{p.services.name}</SelectItem>
+                    <SelectItem key={p.services.id} value={p.services.id}>
+                      {p.services.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
             <Button onClick={handleAdd} disabled={!physicianId || !serviceId || submitting}>
               {submitting ? "Saving…" : "Request"}
             </Button>
@@ -523,17 +564,18 @@ function CareTab({ hospId, orders }: { hospId: string; orders: any[] }) {
         <h4 className="font-medium">Diet</h4>
         <div className="flex gap-2">
           <Select value={dietValue} onValueChange={setDietValue}>
-            <SelectTrigger><SelectValue placeholder="Select diet" /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue placeholder="Select diet" />
+            </SelectTrigger>
             <SelectContent>
               {diets.map((d: any) => (
-                <SelectItem key={d.id} value={d.name_ru}>{d.name_ru || d.code}</SelectItem>
+                <SelectItem key={d.id} value={d.name_ru}>
+                  {d.name_ru || d.code}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <Button
-            disabled={!dietValue || savingType === "diet"}
-            onClick={() => saveOrder("diet", dietValue)}
-          >
+          <Button disabled={!dietValue || savingType === "diet"} onClick={() => saveOrder("diet", dietValue)}>
             {savingType === "diet" ? "Saving…" : "Save"}
           </Button>
         </div>
@@ -550,10 +592,14 @@ function CareTab({ hospId, orders }: { hospId: string; orders: any[] }) {
         <h4 className="font-medium">Activity Mode</h4>
         <div className="flex gap-2">
           <Select value={activityValue} onValueChange={setActivityValue}>
-            <SelectTrigger><SelectValue placeholder="Select mode" /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue placeholder="Select mode" />
+            </SelectTrigger>
             <SelectContent>
               {modes.map((m: any) => (
-                <SelectItem key={m.id} value={m.name_ru}>{m.name_ru || m.code}</SelectItem>
+                <SelectItem key={m.id} value={m.name_ru}>
+                  {m.name_ru || m.code}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -675,7 +721,9 @@ function DiagnosesTab({ hospId, patientId }: { hospId: string; patientId: string
           {diagnoses.map((d: any) => (
             <li key={d.id} className="rounded border p-2 text-sm">
               <div className="flex items-center justify-between">
-                <span className="font-medium">{d.icd10_codes?.code} — {d.icd10_codes?.name_ru}</span>
+                <span className="font-medium">
+                  {d.icd10_codes?.code} — {d.icd10_codes?.name_ru}
+                </span>
                 <div className="flex gap-1">
                   <Badge variant="outline">{d.diagnosis_type}</Badge>
                   <Badge variant="outline">{d.acuity}</Badge>
@@ -688,11 +736,17 @@ function DiagnosesTab({ hospId, patientId }: { hospId: string; patientId: string
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-xl">
-          <DialogHeader><DialogTitle>Add Diagnosis</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Add Diagnosis</DialogTitle>
+          </DialogHeader>
           <div className="space-y-4">
             <div>
               <Label>Search ICD-10</Label>
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Type at least 2 characters…" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Type at least 2 characters…"
+              />
               {searchResults.length > 0 && (
                 <ul className="mt-2 max-h-48 overflow-auto rounded border bg-card text-sm">
                   {searchResults.map((r: any) => (
@@ -707,14 +761,21 @@ function DiagnosesTab({ hospId, patientId }: { hospId: string; patientId: string
                 </ul>
               )}
               {selected && (
-                <p className="mt-2 text-sm">Selected: <span className="font-medium">{selected.code} — {selected.name_ru}</span></p>
+                <p className="mt-2 text-sm">
+                  Selected:{" "}
+                  <span className="font-medium">
+                    {selected.code} — {selected.name_ru}
+                  </span>
+                </p>
               )}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Diagnosis Type</Label>
                 <Select value={diagType} onValueChange={setDiagType}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="main">Main</SelectItem>
                     <SelectItem value="complication">Complication</SelectItem>
@@ -727,7 +788,9 @@ function DiagnosesTab({ hospId, patientId }: { hospId: string; patientId: string
               <div>
                 <Label>Acuity</Label>
                 <Select value={acuity} onValueChange={setAcuity}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="acute">Acute</SelectItem>
                     <SelectItem value="chronic">Chronic</SelectItem>
@@ -737,7 +800,9 @@ function DiagnosesTab({ hospId, patientId }: { hospId: string; patientId: string
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
             <Button onClick={handleSave} disabled={!selected || submitting}>
               {submitting ? "Saving…" : "Save"}
             </Button>
