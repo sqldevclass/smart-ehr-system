@@ -310,7 +310,7 @@ function ConsultationTab({ hospId }: { hospId: string }) {
     queryFn: async () => {
       const { data } = await supabase
         .from("services")
-        .select("id, name, base_price")
+        .select("id, name, cost_with_vat, service_types(name_en)")
         .eq("hospital_id", user!.hospitalId)
         .eq("is_active", true)
         .order("name");
