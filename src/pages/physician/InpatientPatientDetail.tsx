@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { ArrowLeft, Plus } from "lucide-react";
 import { format, differenceInDays, differenceInYears } from "date-fns";
+import { usePhysicianId } from "@/hooks/usePhysicianId";
 
 export default function InpatientPatientDetail() {
   const { hospId } = useParams<{ hospId: string }>();
