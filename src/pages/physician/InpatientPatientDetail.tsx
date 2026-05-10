@@ -599,7 +599,7 @@ function DiagnosesTab({ hospId, patientId }: { hospId: string; patientId: string
         patient_id: patientId,
         hospitalization_id: hospId,
         hospital_id: user!.hospitalId,
-        icd10_code_id: selected.id,
+        icd10_code: selected.code,
         diagnosis_type: diagType,
         acuity,
         recorded_by: user!.id,
@@ -658,7 +658,7 @@ function DiagnosesTab({ hospId, patientId }: { hospId: string; patientId: string
                       className={`cursor-pointer p-2 hover:bg-accent ${selected?.id === r.id ? "bg-accent" : ""}`}
                       onClick={() => setSelected(r)}
                     >
-                      <span className="font-mono mr-2">{r.code}</span>{r.name_ru}
+                      {r.name_ru} ({r.code})
                     </li>
                   ))}
                 </ul>
