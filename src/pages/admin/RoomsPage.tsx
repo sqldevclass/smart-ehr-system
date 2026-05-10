@@ -15,6 +15,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Minus, Plus, Edit, Settings, Layers } from "lucide-react";
 import { toast } from "sonner";
 
@@ -27,6 +28,12 @@ interface RoomType {
   id: string;
   name: string;
   is_active?: boolean;
+  is_office_room?: boolean;
+}
+
+interface ServiceLite {
+  id: string;
+  name: string;
 }
 
 interface Room {
@@ -35,8 +42,8 @@ interface Room {
   room_type_id: string | null;
   capacity: number;
   is_active: boolean;
-  department_id: string;
-  room_types?: { name: string } | null;
+  department_id: string | null;
+  room_types?: { name: string; is_office_room?: boolean } | null;
 }
 
 export default function RoomsPage() {
@@ -51,6 +58,7 @@ export default function RoomsPage() {
   const [addTypeId, setAddTypeId] = useState("");
   const [addBeds, setAddBeds] = useState(1);
   const [addDeptId, setAddDeptId] = useState("");
+  const [addServiceIds, setAddServiceIds] = useState<Set<string>>(new Set());
   const [adding, setAdding] = useState(false);
 
   // Inline editing
@@ -79,7 +87,7 @@ export default function RoomsPage() {
       if (!user) return [];
       const { data, error } = await supabase
         .from("room_types")
-        .select("id, name, is_active")
+        .select("id, name, is_active, is_office_room")
         .eq("hospital_id", user.hospitalId)
         .eq("is_active", true)
         .order("name");
@@ -95,7 +103,7 @@ export default function RoomsPage() {
       if (!user) return [];
       const { data, error } = await supabase
         .from("room_types")
-        .select("id, name, is_active")
+        .select("id, name, is_active, is_office_room")
         .eq("hospital_id", user.hospitalId)
         .order("name");
       if (error) throw error;
@@ -110,7 +118,7 @@ export default function RoomsPage() {
       if (!user) return [];
       const { data, error } = await supabase
         .from("rooms")
-        .select("id, name, room_type_id, capacity, is_active, department_id, room_types(name)")
+        .select("id, name, room_type_id, capacity, is_active, department_id, room_types(name, is_office_room)")
         .eq("hospital_id", user.hospitalId)
         .order("name");
       if (error) throw error;
@@ -119,33 +127,98 @@ export default function RoomsPage() {
     enabled: !!user,
   });
 
+  const { data: services = [] } = useQuery({
+    queryKey: ["services-active-lite", user?.hospitalId],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("services")
+        .select("id, name")
+        .eq("hospital_id", user.hospitalId)
+        .eq("is_active", true)
+        .order("name");
+      if (error) throw error;
+      return (data || []) as ServiceLite[];
+    },
+    enabled: !!user,
+  });
+
+  const { data: officeRoomServiceLinks = [] } = useQuery({
+    queryKey: ["office-room-services", user?.hospitalId],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("office_room_services")
+        .select("room_id, services(name)")
+        .eq("hospital_id", user.hospitalId);
+      if (error) throw error;
+      return (data || []) as unknown as { room_id: string; services: { name: string } | null }[];
+    },
+    enabled: !!user,
+  });
+
+  const officeRoomServiceMap = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const l of officeRoomServiceLinks) {
+      if (!m.has(l.room_id)) m.set(l.room_id, []);
+      if (l.services?.name) m.get(l.room_id)!.push(l.services.name);
+    }
+    return m;
+  }, [officeRoomServiceLinks]);
+
+  const officeRooms = rooms.filter((r) => r.room_types?.is_office_room);
+  const nonOfficeRooms = rooms.filter((r) => !r.room_types?.is_office_room);
+
   const grouped = departments.map((d) => ({
     department: d,
-    rooms: rooms.filter((r) => r.department_id === d.id),
+    rooms: nonOfficeRooms.filter((r) => r.department_id === d.id),
   }));
-  const orphanRooms = rooms.filter((r) => !departments.some((d) => d.id === r.department_id));
+  const orphanRooms = nonOfficeRooms.filter((r) => !r.department_id || !departments.some((d) => d.id === r.department_id));
 
-  const refreshRooms = () => queryClient.invalidateQueries({ queryKey: ["rooms"] });
+  const refreshRooms = () => {
+    queryClient.invalidateQueries({ queryKey: ["rooms"] });
+    queryClient.invalidateQueries({ queryKey: ["office-room-services"] });
+  };
+
+  const selectedAddType = roomTypes.find((rt) => rt.id === addTypeId);
+  const addIsOffice = !!selectedAddType?.is_office_room;
+
+  const toggleAddService = (id: string) => {
+    setAddServiceIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   const handleAddRoom = async () => {
     if (!user) return;
-    if (!addDeptId) return toast.error("Department is required.");
     if (!addName.trim()) return toast.error("Name is required.");
     if (!addTypeId) return toast.error("Room type is required.");
+    if (!addIsOffice && !addDeptId) return toast.error("Department is required.");
     setAdding(true);
     try {
-      const { error } = await supabase.from("rooms").insert({
+      const { data: inserted, error } = await supabase.from("rooms").insert({
         hospital_id: user.hospitalId,
-        department_id: addDeptId,
+        department_id: addIsOffice ? null : addDeptId,
         name: addName.trim(),
         room_type_id: addTypeId,
-        capacity: addBeds,
-      });
+        capacity: addIsOffice ? 0 : addBeds,
+      }).select("id").single();
       if (error) throw error;
+      if (addIsOffice && addServiceIds.size > 0 && inserted?.id) {
+        const rows = Array.from(addServiceIds).map((sid) => ({
+          hospital_id: user.hospitalId,
+          room_id: inserted.id,
+          service_id: sid,
+        }));
+        const { error: linkErr } = await supabase.from("office_room_services").insert(rows);
+        if (linkErr) throw linkErr;
+      }
       toast.success("Room created.");
       setAddName("");
       setAddBeds(1);
-      // keep type/dept for fast successive entries
+      setAddServiceIds(new Set());
       refreshRooms();
     } catch (err: any) {
       toast.error(err.message || "Failed to add room.");
@@ -255,6 +328,75 @@ export default function RoomsPage() {
     </div>
   );
 
+  const renderOfficeTable = (list: Room[]) => (
+    <div className="rounded-lg border bg-card">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead>Services</TableHead>
+            <TableHead>Status</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {list.map((r) => {
+            const svcNames = officeRoomServiceMap.get(r.id) || [];
+            return (
+              <TableRow key={r.id}>
+                <TableCell className="font-medium">
+                  {editingNameId === r.id ? (
+                    <Input
+                      autoFocus
+                      value={editingNameValue}
+                      onChange={(e) => setEditingNameValue(e.target.value)}
+                      onBlur={() => handleSaveName(r)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSaveName(r);
+                        if (e.key === "Escape") setEditingNameId(null);
+                      }}
+                      className="h-8"
+                    />
+                  ) : (
+                    <button
+                      className="text-left hover:underline"
+                      onClick={() => {
+                        setEditingNameId(r.id);
+                        setEditingNameValue(r.name);
+                      }}
+                    >
+                      {r.name}
+                    </button>
+                  )}
+                </TableCell>
+                <TableCell>{r.room_types?.name || "—"}</TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1">
+                    {svcNames.length === 0 ? (
+                      <span className="text-xs text-muted-foreground">No services</span>
+                    ) : (
+                      svcNames.map((n, i) => (
+                        <span key={i} className="rounded border bg-muted px-2 py-0.5 text-xs">
+                          {n}
+                        </span>
+                      ))
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Switch
+                    checked={r.is_active}
+                    onCheckedChange={(v) => updateRoom(r.id, { is_active: v })}
+                  />
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </div>
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -296,13 +438,22 @@ export default function RoomsPage() {
             </div>
           )}
 
+          {officeRooms.length > 0 && (
+            <div className="space-y-2">
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                Office Rooms
+              </h2>
+              {renderOfficeTable(officeRooms)}
+            </div>
+          )}
+
           {/* Add Room row */}
           <div className="space-y-2">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
               Add Room
             </h2>
-            <div className="rounded-lg border bg-card p-3">
-              <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto_1fr_auto] gap-2 items-end">
+            <div className="rounded-lg border bg-card p-3 space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-2 items-end">
                 <div className="space-y-1">
                   <Label className="text-xs">Name</Label>
                   <Input
@@ -323,33 +474,59 @@ export default function RoomsPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Beds</Label>
-                  <div className="inline-flex items-center gap-2">
-                    <Button size="icon" variant="outline" className="h-9 w-9" onClick={() => setAddBeds((b) => Math.max(1, b - 1))} disabled={addBeds <= 1}>
-                      <Minus className="h-3 w-3" />
-                    </Button>
-                    <span className="w-8 text-center tabular-nums">{addBeds}</span>
-                    <Button size="icon" variant="outline" className="h-9 w-9" onClick={() => setAddBeds((b) => Math.min(100, b + 1))} disabled={addBeds >= 100}>
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Department</Label>
-                  <Select value={addDeptId} onValueChange={setAddDeptId}>
-                    <SelectTrigger className="h-9"><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent>
-                      {departments.map((d) => (
-                        <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
                 <Button onClick={handleAddRoom} disabled={adding} className="h-9">
                   {adding ? "Adding…" : "Add"}
                 </Button>
               </div>
+
+              {!addIsOffice ? (
+                <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-2 items-end">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Beds</Label>
+                    <div className="inline-flex items-center gap-2">
+                      <Button size="icon" variant="outline" className="h-9 w-9" onClick={() => setAddBeds((b) => Math.max(1, b - 1))} disabled={addBeds <= 1}>
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                      <span className="w-8 text-center tabular-nums">{addBeds}</span>
+                      <Button size="icon" variant="outline" className="h-9 w-9" onClick={() => setAddBeds((b) => Math.min(100, b + 1))} disabled={addBeds >= 100}>
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Department</Label>
+                    <Select value={addDeptId} onValueChange={setAddDeptId}>
+                      <SelectTrigger className="h-9"><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectContent>
+                        {departments.map((d) => (
+                          <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <Label className="text-xs">Services</Label>
+                  <div className="max-h-48 overflow-y-auto rounded-md border p-2 space-y-1">
+                    {services.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No active services.</p>
+                    ) : services.map((s) => {
+                      const id = `addsvc-${s.id}`;
+                      return (
+                        <label key={s.id} htmlFor={id} className="flex items-center gap-2 text-sm cursor-pointer">
+                          <Checkbox
+                            id={id}
+                            checked={addServiceIds.has(s.id)}
+                            onCheckedChange={() => toggleAddService(s.id)}
+                          />
+                          <span>{s.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

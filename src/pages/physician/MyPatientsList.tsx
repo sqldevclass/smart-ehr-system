@@ -23,8 +23,10 @@ interface VisitServiceRow {
   cost_at_time: number;
   slot_id: string | null;
   is_waitlist: boolean | null;
+  completed_by?: string | null;
   service_statuses: { code: string | null; name_ru: string | null } | null;
   services: { id?: string; name: string | null } | null;
+  rooms?: { name: string | null } | null;
   visits: {
     patients: {
       first_name: string | null;
@@ -58,6 +60,7 @@ export default function MyPatientsList() {
   const [loading, setLoading] = useState(true);
   const [physicianMissing, setPhysicianMissing] = useState(false);
   const [rows, setRows] = useState<VisitServiceRow[]>([]);
+  const [completedByNames, setCompletedByNames] = useState<Record<string, string>>({});
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
   const load = useCallback(async () => {
@@ -97,7 +100,7 @@ export default function MyPatientsList() {
     const { data: vs, error: vsErr } = await supabase
       .from("visit_services")
       .select(
-        "id, scheduled_at, queue_number, cost_at_time, visit_id, slot_id, is_waitlist, created_at, service_statuses(code, name_ru), services(id, name), visits(visit_date, patients(first_name, last_name, patient_number, date_of_birth))"
+        "id, scheduled_at, queue_number, cost_at_time, visit_id, slot_id, is_waitlist, created_at, completed_by, service_statuses(code, name_ru), services(id, name), visits(visit_date, patients(first_name, last_name, patient_number, date_of_birth))"
       )
       .eq("assigned_physician_id", (phys as Physician).id)
       .eq("hospital_id", user.hospitalId)
@@ -107,8 +110,36 @@ export default function MyPatientsList() {
 
     if (vsErr) toast.error(vsErr.message);
 
+    // Office room services: physician is assigned to office room(s) via office_room_physicians
+    const { data: roomLinks } = await supabase
+      .from("office_room_physicians")
+      .select("room_id")
+      .eq("physician_id", (phys as Physician).id)
+      .eq("hospital_id", user.hospitalId);
+
+    const roomIds = (roomLinks || []).map((r: any) => r.room_id);
+    let roomServices: any[] = [];
+    if (roomIds.length > 0) {
+      const { data: rs, error: rsErr } = await supabase
+        .from("visit_services")
+        .select(
+          "id, scheduled_at, queue_number, cost_at_time, visit_id, slot_id, is_waitlist, created_at, completed_by, service_statuses(code, name_ru), services(id, name), rooms(name), visits(visit_date, patients(first_name, last_name, patient_number, date_of_birth))"
+        )
+        .eq("hospital_id", user.hospitalId)
+        .in("assigned_room_id", roomIds)
+        .in("status_id", allowedStatusIds);
+      if (rsErr) toast.error(rsErr.message);
+      roomServices = rs || [];
+    }
+
+    const allRows = [...(vs || []), ...roomServices];
+    // Deduplicate by id (in case of overlap)
+    const dedupMap = new Map<string, any>();
+    for (const r of allRows) dedupMap.set(r.id, r);
+    const merged = Array.from(dedupMap.values());
+
     const selectedDateStr = format(selectedDate, "yyyy-MM-dd");
-    const filtered = (vs || []).filter((row: any) => {
+    const filtered = merged.filter((row: any) => {
       if (row.scheduled_at) {
         return row.scheduled_at >= dayStart && row.scheduled_at <= dayEnd;
       }
@@ -117,6 +148,23 @@ export default function MyPatientsList() {
       }
       return false;
     });
+
+    // Fetch profiles for completed_by uuids
+    const completedIds = Array.from(
+      new Set(filtered.map((r: any) => r.completed_by).filter(Boolean))
+    );
+    if (completedIds.length > 0) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", completedIds);
+      const map: Record<string, string> = {};
+      for (const p of profs || []) map[(p as any).id] = (p as any).full_name || "";
+      setCompletedByNames(map);
+    } else {
+      setCompletedByNames({});
+    }
+
     setRows(filtered as any);
     setLoading(false);
   }, [user, selectedDate]);
@@ -264,7 +312,21 @@ export default function MyPatientsList() {
                     <TableCell className="font-mono text-xs">
                       {patient?.patient_number || "—"}
                     </TableCell>
-                    <TableCell>{r.services?.name || "—"}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-0.5">
+                        <span>{r.services?.name || "—"}</span>
+                        {r.rooms?.name && (
+                          <span className="inline-flex w-fit rounded border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-900">
+                            Office Room: {r.rooms.name}
+                          </span>
+                        )}
+                        {r.service_statuses?.code === "completed" && r.completed_by && completedByNames[r.completed_by] && (
+                          <span className="text-[11px] text-muted-foreground">
+                            Completed by: {completedByNames[r.completed_by]}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       {isWL ? (
                         <span className="rounded border border-orange-300 bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-900">

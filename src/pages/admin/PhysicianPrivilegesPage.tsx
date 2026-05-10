@@ -145,6 +145,81 @@ export default function PhysicianPrivilegesPage() {
     enabled: !!selectedId,
   });
 
+  const { data: officeRooms = [] } = useQuery({
+    queryKey: ["office-rooms-active", user?.hospitalId],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("rooms")
+        .select("id, name, room_types!inner(name, is_office_room)")
+        .eq("hospital_id", user.hospitalId)
+        .eq("is_active", true)
+        .filter("room_types.is_office_room", "eq", true)
+        .order("name");
+      if (error) throw error;
+      return (data || []) as unknown as { id: string; name: string }[];
+    },
+    enabled: !!user,
+  });
+
+  const { data: currentRoomAssignments = [] } = useQuery({
+    queryKey: ["physician-office-rooms", selectedId, user?.hospitalId],
+    queryFn: async () => {
+      if (!selectedId || !user) return [];
+      const { data, error } = await supabase
+        .from("office_room_physicians")
+        .select("room_id")
+        .eq("physician_id", selectedId)
+        .eq("hospital_id", user.hospitalId);
+      if (error) throw error;
+      return (data || []) as { room_id: string }[];
+    },
+    enabled: !!selectedId && !!user,
+  });
+
+  const [checkedRooms, setCheckedRooms] = useState<Set<string>>(new Set());
+  const [savingRooms, setSavingRooms] = useState(false);
+
+  useEffect(() => {
+    setCheckedRooms(new Set(currentRoomAssignments.map((r) => r.room_id)));
+  }, [currentRoomAssignments]);
+
+  const toggleRoom = (id: string) => {
+    setCheckedRooms((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const handleSaveRooms = async () => {
+    if (!selectedId || !user) return;
+    setSavingRooms(true);
+    try {
+      const { error: delErr } = await supabase
+        .from("office_room_physicians")
+        .delete()
+        .eq("physician_id", selectedId)
+        .eq("hospital_id", user.hospitalId);
+      if (delErr) throw delErr;
+      const rows = Array.from(checkedRooms).map((room_id) => ({
+        room_id,
+        physician_id: selectedId,
+        hospital_id: user.hospitalId,
+      }));
+      if (rows.length > 0) {
+        const { error: insErr } = await supabase.from("office_room_physicians").insert(rows);
+        if (insErr) throw insErr;
+      }
+      toast.success("Office room assignments saved");
+      queryClient.invalidateQueries({ queryKey: ["physician-office-rooms", selectedId, user.hospitalId] });
+    } catch (e: any) {
+      toast.error(e.message || "Failed to save assignments");
+    } finally {
+      setSavingRooms(false);
+    }
+  };
+
   const selected = physicians.find((p) => p.id === selectedId);
 
   return (
@@ -200,6 +275,7 @@ export default function PhysicianPrivilegesPage() {
                 <TabsList>
                   <TabsTrigger value="services">Service Privileges</TabsTrigger>
                   <TabsTrigger value="documents">Document Privileges</TabsTrigger>
+                  <TabsTrigger value="rooms">Office Room Assignments</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="services" className="mt-4">
@@ -262,6 +338,45 @@ export default function PhysicianPrivilegesPage() {
                         <li key={dp.id} className="text-sm">{dp.document_type_id}</li>
                       ))}
                     </ul>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="rooms" className="mt-4">
+                  {officeRooms.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      No office rooms configured for this hospital.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      <ul className="space-y-1">
+                        {officeRooms.map((r) => {
+                          const id = `office-${r.id}`;
+                          return (
+                            <li
+                              key={r.id}
+                              className="flex items-center gap-3 rounded-md border px-3 py-2"
+                            >
+                              <label
+                                htmlFor={id}
+                                className="flex items-center gap-3 text-sm cursor-pointer flex-1"
+                              >
+                                <Checkbox
+                                  id={id}
+                                  checked={checkedRooms.has(r.id)}
+                                  onCheckedChange={() => toggleRoom(r.id)}
+                                />
+                                <span>{r.name}</span>
+                              </label>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                      <div className="flex justify-end">
+                        <Button onClick={handleSaveRooms} disabled={savingRooms}>
+                          {savingRooms ? "Saving…" : "Save assignments"}
+                        </Button>
+                      </div>
+                    </div>
                   )}
                 </TabsContent>
               </Tabs>
