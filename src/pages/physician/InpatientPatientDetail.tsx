@@ -101,13 +101,13 @@ export default function InpatientPatientDetail() {
                 <TabsTrigger value="diagnoses">Diagnoses</TabsTrigger>
               </TabsList>
               <TabsContent value="orders" className="pt-4">
-                <OrdersTab hospId={hospId!} />
+                <OrdersTab hospId={hospId!} patientId={hosp.patient_id} />
               </TabsContent>
               <TabsContent value="lab" className="pt-4">
-                <LabTab hospId={hospId!} />
+                <LabTab hospId={hospId!} patientId={hosp.patient_id} />
               </TabsContent>
               <TabsContent value="consultation" className="pt-4">
-                <ConsultationTab hospId={hospId!} />
+                <ConsultationTab hospId={hospId!} patientId={hosp.patient_id} />
               </TabsContent>
               <TabsContent value="care" className="pt-4">
                 <CareTab hospId={hospId!} orders={(hosp.hospitalization_orders as any[]) || []} />
@@ -127,12 +127,14 @@ export default function InpatientPatientDetail() {
 
 function ServiceListBase({
   hospId,
+  patientId,
   filterFn,
   emptyText,
   addLabel,
   serviceTypeFilter,
 }: {
   hospId: string;
+  patientId: string;
   filterFn?: (vs: any) => boolean;
   emptyText: string;
   addLabel: string;
@@ -181,27 +183,24 @@ function ServiceListBase({
     setSubmitting(true);
     try {
       const svc = catalog.find((s: any) => s.id === serviceId);
-      const { data: status } = await supabase
-        .from("service_statuses")
-        .select("id")
-        .eq("code", "ready_for_execution")
-        .maybeSingle();
-
-      const { error } = await supabase.from("visit_services").insert({
-        hospitalization_id: hospId,
-        hospital_id: user!.hospitalId,
-        service_id: serviceId,
-        cost_at_time: (svc as any)?.cost_with_vat ?? 0,
-        source: "physician",
-        status_id: status?.id,
+      const { error } = await supabase.rpc("inpatient_add_service", {
+        p_hospitalization_id: hospId,
+        p_patient_id: patientId,
+        p_hospital_id: user!.hospitalId,
+        p_ordered_by: user!.id,
+        p_service_id: serviceId,
+        p_assigned_physician_id: null,
+        p_cost_at_time: (svc as any)?.cost_with_vat ?? 0,
       });
-      if (error) throw error;
-      toast.success("Service added.");
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      toast.success("Service ordered.");
       setOpen(false);
       setServiceId("");
+      queryClient.invalidateQueries({ queryKey: ["inpatient-services", hospId] });
       queryClient.invalidateQueries({ queryKey: ["hosp-visit-services", hospId] });
-    } catch (err: any) {
-      toast.error(err.message || "Failed to add service");
     } finally {
       setSubmitting(false);
     }
@@ -257,14 +256,15 @@ function ServiceListBase({
   );
 }
 
-function OrdersTab({ hospId }: { hospId: string }) {
-  return <ServiceListBase hospId={hospId} emptyText="No orders yet." addLabel="Add Service" />;
+function OrdersTab({ hospId, patientId }: { hospId: string; patientId: string }) {
+  return <ServiceListBase hospId={hospId} patientId={patientId} emptyText="No orders yet." addLabel="Add Service" />;
 }
 
-function LabTab({ hospId }: { hospId: string }) {
+function LabTab({ hospId, patientId }: { hospId: string; patientId: string }) {
   return (
     <ServiceListBase
       hospId={hospId}
+      patientId={patientId}
       filterFn={(vs) => vs.services?.service_types?.name_en === "lab"}
       emptyText="No lab orders yet."
       addLabel="Order Lab"
@@ -273,7 +273,7 @@ function LabTab({ hospId }: { hospId: string }) {
   );
 }
 
-function ConsultationTab({ hospId }: { hospId: string }) {
+function ConsultationTab({ hospId, patientId }: { hospId: string; patientId: string }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -324,29 +324,25 @@ function ConsultationTab({ hospId }: { hospId: string }) {
     setSubmitting(true);
     try {
       const svc = catalog.find((s: any) => s.id === serviceId);
-      const { data: status } = await supabase
-        .from("service_statuses")
-        .select("id")
-        .eq("code", "ready_for_execution")
-        .maybeSingle();
-
-      const { error } = await supabase.from("visit_services").insert({
-        hospitalization_id: hospId,
-        hospital_id: user!.hospitalId,
-        service_id: serviceId,
-        cost_at_time: (svc as any)?.cost_with_vat ?? 0,
-        source: "physician",
-        assigned_physician_id: physicianId,
-        status_id: status?.id,
+      const { error } = await supabase.rpc("inpatient_add_service", {
+        p_hospitalization_id: hospId,
+        p_patient_id: patientId,
+        p_hospital_id: user!.hospitalId,
+        p_ordered_by: user!.id,
+        p_service_id: serviceId,
+        p_assigned_physician_id: physicianId || null,
+        p_cost_at_time: (svc as any)?.cost_with_vat ?? 0,
       });
-      if (error) throw error;
-      toast.success("Consultation requested.");
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      toast.success("Service ordered.");
       setOpen(false);
       setPhysicianId("");
       setServiceId("");
+      queryClient.invalidateQueries({ queryKey: ["inpatient-services", hospId] });
       queryClient.invalidateQueries({ queryKey: ["hosp-consultations", hospId] });
-    } catch (err: any) {
-      toast.error(err.message || "Failed to request consultation");
     } finally {
       setSubmitting(false);
     }
