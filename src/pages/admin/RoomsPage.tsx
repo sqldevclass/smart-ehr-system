@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -15,10 +15,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Edit, Settings } from "lucide-react";
+import { Minus, Plus, Edit, Settings, Layers } from "lucide-react";
 import { toast } from "sonner";
-
-const NEW_ROOM_TYPE_VALUE = "__new__";
 
 interface Department {
   id: string;
@@ -45,19 +43,19 @@ export default function RoomsPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<Room | null>(null);
-  const [departmentId, setDepartmentId] = useState("");
-  const [name, setName] = useState("");
-  const [roomTypeId, setRoomTypeId] = useState("");
-  const [newRoomTypeName, setNewRoomTypeName] = useState("");
-  const [creatingRoomType, setCreatingRoomType] = useState(false);
-  const [showNewRoomTypeInput, setShowNewRoomTypeInput] = useState(false);
-  const [capacity, setCapacity] = useState<number>(1);
-  const [isActive, setIsActive] = useState(true);
-  const [saving, setSaving] = useState(false);
-
   const [manageOpen, setManageOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
+
+  // Add row state
+  const [addName, setAddName] = useState("");
+  const [addTypeId, setAddTypeId] = useState("");
+  const [addBeds, setAddBeds] = useState(1);
+  const [addDeptId, setAddDeptId] = useState("");
+  const [adding, setAdding] = useState(false);
+
+  // Inline editing
+  const [editingNameId, setEditingNameId] = useState<string | null>(null);
+  const [editingNameValue, setEditingNameValue] = useState("");
 
   const { data: departments = [] } = useQuery({
     queryKey: ["departments-active", user?.hospitalId],
@@ -121,120 +119,62 @@ export default function RoomsPage() {
     enabled: !!user,
   });
 
-  const deptName = (id: string) => departments.find((d) => d.id === id)?.name || "—";
-
   const grouped = departments.map((d) => ({
     department: d,
     rooms: rooms.filter((r) => r.department_id === d.id),
   }));
   const orphanRooms = rooms.filter((r) => !departments.some((d) => d.id === r.department_id));
 
-  const openCreate = () => {
-    setEditing(null);
-    setDepartmentId("");
-    setName("");
-    setRoomTypeId("");
-    setShowNewRoomTypeInput(false);
-    setNewRoomTypeName("");
-    setCapacity(1);
-    setIsActive(true);
-    setDialogOpen(true);
-  };
+  const refreshRooms = () => queryClient.invalidateQueries({ queryKey: ["rooms"] });
 
-  const openEdit = (r: Room) => {
-    setEditing(r);
-    setDepartmentId(r.department_id);
-    setName(r.name);
-    setRoomTypeId(r.room_type_id || "");
-    setShowNewRoomTypeInput(false);
-    setNewRoomTypeName("");
-    setCapacity(r.capacity);
-    setIsActive(r.is_active);
-    setDialogOpen(true);
-  };
-
-  const handleRoomTypeChange = (val: string) => {
-    if (val === NEW_ROOM_TYPE_VALUE) {
-      setShowNewRoomTypeInput(true);
-      setRoomTypeId("");
-    } else {
-      setShowNewRoomTypeInput(false);
-      setRoomTypeId(val);
-    }
-  };
-
-  const handleCreateRoomType = async () => {
-    if (!user || !newRoomTypeName.trim()) {
-      toast.error("Enter a room type name.");
-      return;
-    }
-    setCreatingRoomType(true);
-    try {
-      const { data, error } = await supabase
-        .from("room_types")
-        .insert({ hospital_id: user.hospitalId, name: newRoomTypeName.trim() })
-        .select("id, name")
-        .single();
-      if (error) throw error;
-      toast.success("Room type created.");
-      await queryClient.invalidateQueries({ queryKey: ["room-types"] });
-      await queryClient.invalidateQueries({ queryKey: ["room-types-all"] });
-      setRoomTypeId(data.id);
-      setShowNewRoomTypeInput(false);
-      setNewRoomTypeName("");
-    } catch (err: any) {
-      toast.error(err.message || "Failed to create room type.");
-    } finally {
-      setCreatingRoomType(false);
-    }
-  };
-
-  const handleSave = async () => {
+  const handleAddRoom = async () => {
     if (!user) return;
-    if (!editing && !departmentId) {
-      toast.error("Department is required.");
-      return;
-    }
-    if (!name.trim()) {
-      toast.error("Name is required.");
-      return;
-    }
-    if (!roomTypeId) {
-      toast.error("Room type is required.");
-      return;
-    }
-    setSaving(true);
+    if (!addDeptId) return toast.error("Department is required.");
+    if (!addName.trim()) return toast.error("Name is required.");
+    if (!addTypeId) return toast.error("Room type is required.");
+    setAdding(true);
     try {
-      if (editing) {
-        const { error } = await supabase
-          .from("rooms")
-          .update({
-            name: name.trim(),
-            room_type_id: roomTypeId,
-            capacity,
-            is_active: isActive,
-          })
-          .eq("id", editing.id);
-        if (error) throw error;
-        toast.success("Room updated.");
-      } else {
-        const { error } = await supabase.from("rooms").insert({
-          hospital_id: user.hospitalId,
-          department_id: departmentId,
-          name: name.trim(),
-          room_type_id: roomTypeId,
-          capacity,
-        });
-        if (error) throw error;
-        toast.success("Room created.");
-      }
-      setDialogOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      const { error } = await supabase.from("rooms").insert({
+        hospital_id: user.hospitalId,
+        department_id: addDeptId,
+        name: addName.trim(),
+        room_type_id: addTypeId,
+        capacity: addBeds,
+      });
+      if (error) throw error;
+      toast.success("Room created.");
+      setAddName("");
+      setAddBeds(1);
+      // keep type/dept for fast successive entries
+      refreshRooms();
     } catch (err: any) {
-      toast.error(err.message || "Failed to save.");
+      toast.error(err.message || "Failed to add room.");
     } finally {
-      setSaving(false);
+      setAdding(false);
     }
+  };
+
+  const updateRoom = async (id: string, patch: Partial<Room>) => {
+    try {
+      const { error } = await supabase.from("rooms").update(patch).eq("id", id);
+      if (error) throw error;
+      refreshRooms();
+    } catch (err: any) {
+      toast.error(err.message || "Update failed.");
+    }
+  };
+
+  const handleSaveName = async (r: Room) => {
+    const v = editingNameValue.trim();
+    setEditingNameId(null);
+    if (!v || v === r.name) return;
+    await updateRoom(r.id, { name: v });
+  };
+
+  const handleBeds = async (r: Room, delta: number) => {
+    const next = Math.max(1, Math.min(100, r.capacity + delta));
+    if (next === r.capacity) return;
+    await updateRoom(r.id, { capacity: next });
   };
 
   const renderTable = (list: Room[]) => (
@@ -244,28 +184,69 @@ export default function RoomsPage() {
           <TableRow>
             <TableHead>Name</TableHead>
             <TableHead>Type</TableHead>
-            <TableHead>Capacity</TableHead>
-            <TableHead>Department</TableHead>
+            <TableHead className="w-40">Number of Beds</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead className="w-20"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {list.map((r) => (
             <TableRow key={r.id}>
-              <TableCell className="font-medium">{r.name}</TableCell>
-              <TableCell>{r.room_types?.name || "—"}</TableCell>
-              <TableCell>{r.capacity}</TableCell>
-              <TableCell>{deptName(r.department_id)}</TableCell>
-              <TableCell>
-                <span className={`rounded px-2 py-0.5 text-xs font-medium ${r.is_active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
-                  {r.is_active ? "Active" : "Inactive"}
-                </span>
+              <TableCell className="font-medium">
+                {editingNameId === r.id ? (
+                  <Input
+                    autoFocus
+                    value={editingNameValue}
+                    onChange={(e) => setEditingNameValue(e.target.value)}
+                    onBlur={() => handleSaveName(r)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSaveName(r);
+                      if (e.key === "Escape") setEditingNameId(null);
+                    }}
+                    className="h-8"
+                  />
+                ) : (
+                  <button
+                    className="text-left hover:underline"
+                    onClick={() => {
+                      setEditingNameId(r.id);
+                      setEditingNameValue(r.name);
+                    }}
+                  >
+                    {r.name}
+                  </button>
+                )}
               </TableCell>
               <TableCell>
-                <Button variant="ghost" size="icon" onClick={() => openEdit(r)}>
-                  <Edit className="h-4 w-4" />
-                </Button>
+                <Select
+                  value={r.room_type_id || ""}
+                  onValueChange={(v) => updateRoom(r.id, { room_type_id: v })}
+                >
+                  <SelectTrigger className="h-8 w-44">
+                    <SelectValue placeholder="—" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roomTypes.map((rt) => (
+                      <SelectItem key={rt.id} value={rt.id}>{rt.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </TableCell>
+              <TableCell>
+                <div className="inline-flex items-center gap-2">
+                  <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => handleBeds(r, -1)} disabled={r.capacity <= 1}>
+                    <Minus className="h-3 w-3" />
+                  </Button>
+                  <span className="w-8 text-center tabular-nums">{r.capacity}</span>
+                  <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => handleBeds(r, 1)} disabled={r.capacity >= 100}>
+                    <Plus className="h-3 w-3" />
+                  </Button>
+                </div>
+              </TableCell>
+              <TableCell>
+                <Switch
+                  checked={r.is_active}
+                  onCheckedChange={(v) => updateRoom(r.id, { is_active: v })}
+                />
               </TableCell>
             </TableRow>
           ))}
@@ -282,8 +263,8 @@ export default function RoomsPage() {
           <Button variant="outline" onClick={() => setManageOpen(true)} className="gap-2">
             <Settings className="h-4 w-4" /> Manage Room Types
           </Button>
-          <Button onClick={openCreate} className="gap-2" disabled={departments.length === 0}>
-            <Plus className="h-4 w-4" /> Add Room
+          <Button variant="outline" onClick={() => setBulkOpen(true)} className="gap-2" disabled={departments.length === 0 || roomTypes.length === 0}>
+            <Layers className="h-4 w-4" /> Bulk Create
           </Button>
         </div>
       </div>
@@ -292,8 +273,6 @@ export default function RoomsPage() {
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : departments.length === 0 ? (
         <p className="text-sm text-muted-foreground">Create a department first.</p>
-      ) : rooms.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No rooms yet.</p>
       ) : (
         <div className="space-y-6">
           {grouped.map(({ department, rooms: deptRooms }) => (
@@ -316,78 +295,65 @@ export default function RoomsPage() {
               {renderTable(orphanRooms)}
             </div>
           )}
+
+          {/* Add Room row */}
+          <div className="space-y-2">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              Add Room
+            </h2>
+            <div className="rounded-lg border bg-card p-3">
+              <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto_1fr_auto] gap-2 items-end">
+                <div className="space-y-1">
+                  <Label className="text-xs">Name</Label>
+                  <Input
+                    value={addName}
+                    onChange={(e) => setAddName(e.target.value)}
+                    placeholder="e.g. Room 101"
+                    className="h-9"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Room Type</Label>
+                  <Select value={addTypeId} onValueChange={setAddTypeId}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      {roomTypes.map((rt) => (
+                        <SelectItem key={rt.id} value={rt.id}>{rt.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Beds</Label>
+                  <div className="inline-flex items-center gap-2">
+                    <Button size="icon" variant="outline" className="h-9 w-9" onClick={() => setAddBeds((b) => Math.max(1, b - 1))} disabled={addBeds <= 1}>
+                      <Minus className="h-3 w-3" />
+                    </Button>
+                    <span className="w-8 text-center tabular-nums">{addBeds}</span>
+                    <Button size="icon" variant="outline" className="h-9 w-9" onClick={() => setAddBeds((b) => Math.min(100, b + 1))} disabled={addBeds >= 100}>
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Department</Label>
+                  <Select value={addDeptId} onValueChange={setAddDeptId}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      {departments.map((d) => (
+                        <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button onClick={handleAddRoom} disabled={adding} className="h-9">
+                  {adding ? "Adding…" : "Add"}
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
-
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editing ? "Edit Room" : "Add Room"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>Department *</Label>
-              <Select value={departmentId} onValueChange={setDepartmentId} disabled={!!editing}>
-                <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
-                <SelectContent>
-                  {departments.map((d) => (
-                    <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Name *</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Room 101" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Room Type *</Label>
-              <Select value={roomTypeId} onValueChange={handleRoomTypeChange}>
-                <SelectTrigger><SelectValue placeholder="Select room type" /></SelectTrigger>
-                <SelectContent>
-                  {roomTypes.map((rt) => (
-                    <SelectItem key={rt.id} value={rt.id}>{rt.name}</SelectItem>
-                  ))}
-                  <SelectItem value={NEW_ROOM_TYPE_VALUE}>+ New Room Type</SelectItem>
-                </SelectContent>
-              </Select>
-              {showNewRoomTypeInput && (
-                <div className="flex gap-2 pt-2">
-                  <Input
-                    value={newRoomTypeName}
-                    onChange={(e) => setNewRoomTypeName(e.target.value)}
-                    placeholder="New room type name"
-                  />
-                  <Button onClick={handleCreateRoomType} disabled={creatingRoomType} size="sm">
-                    {creatingRoomType ? "Saving…" : "Add"}
-                  </Button>
-                </div>
-              )}
-            </div>
-            <div className="space-y-1.5">
-              <Label>Capacity</Label>
-              <Input
-                type="number"
-                min={1}
-                value={capacity}
-                onChange={(e) => setCapacity(Math.max(1, parseInt(e.target.value) || 1))}
-              />
-            </div>
-            {editing && (
-              <div className="flex items-center justify-between">
-                <Label>Active</Label>
-                <Switch checked={isActive} onCheckedChange={setIsActive} />
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? "Saving…" : "Save"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <ManageRoomTypesDialog
         open={manageOpen}
@@ -395,7 +361,155 @@ export default function RoomsPage() {
         roomTypes={allRoomTypes}
         hospitalId={user?.hospitalId}
       />
+
+      <BulkCreateDialog
+        open={bulkOpen}
+        onOpenChange={setBulkOpen}
+        departments={departments}
+        roomTypes={roomTypes}
+        rooms={rooms}
+        hospitalId={user?.hospitalId}
+      />
     </div>
+  );
+}
+
+function BulkCreateDialog({
+  open,
+  onOpenChange,
+  departments,
+  roomTypes,
+  rooms,
+  hospitalId,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  departments: Department[];
+  roomTypes: RoomType[];
+  rooms: Room[];
+  hospitalId?: string;
+}) {
+  const queryClient = useQueryClient();
+  const [deptId, setDeptId] = useState("");
+  const [typeId, setTypeId] = useState("");
+  const [beds, setBeds] = useState(1);
+  const [count, setCount] = useState(5);
+  const [busy, setBusy] = useState(false);
+
+  const startNumber = useMemo(() => {
+    const deptRooms = rooms.filter((r) => r.department_id === deptId);
+    let max = 0;
+    for (const r of deptRooms) {
+      const m = r.name.match(/(\d+)/);
+      if (m) {
+        const n = parseInt(m[1], 10);
+        if (n > max) max = n;
+      }
+    }
+    return max + 1;
+  }, [rooms, deptId]);
+
+  const previewNames = useMemo(() => {
+    const n = Math.max(1, Math.min(50, count));
+    return Array.from({ length: n }, (_, i) => `Room ${startNumber + i}`);
+  }, [count, startNumber]);
+
+  const deptName = departments.find((d) => d.id === deptId)?.name || "";
+
+  const handleConfirm = async () => {
+    if (!hospitalId || !deptId || !typeId) return;
+    setBusy(true);
+    try {
+      const rows = previewNames.map((name) => ({
+        hospital_id: hospitalId,
+        department_id: deptId,
+        room_type_id: typeId,
+        name,
+        capacity: beds,
+      }));
+      const { error } = await supabase.from("rooms").insert(rows);
+      if (error) throw error;
+      toast.success(`Created ${rows.length} rooms.`);
+      queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      onOpenChange(false);
+      setDeptId(""); setTypeId(""); setBeds(1); setCount(5);
+    } catch (err: any) {
+      toast.error(err.message || "Failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Bulk Create Rooms</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Department *</Label>
+            <Select value={deptId} onValueChange={setDeptId}>
+              <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
+              <SelectContent>
+                {departments.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Room Type *</Label>
+            <Select value={typeId} onValueChange={setTypeId}>
+              <SelectTrigger><SelectValue placeholder="Select room type" /></SelectTrigger>
+              <SelectContent>
+                {roomTypes.map((rt) => (
+                  <SelectItem key={rt.id} value={rt.id}>{rt.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Number of Beds per Room</Label>
+            <div className="inline-flex items-center gap-2">
+              <Button size="icon" variant="outline" className="h-9 w-9" onClick={() => setBeds((b) => Math.max(1, b - 1))} disabled={beds <= 1}>
+                <Minus className="h-3 w-3" />
+              </Button>
+              <span className="w-10 text-center tabular-nums">{beds}</span>
+              <Button size="icon" variant="outline" className="h-9 w-9" onClick={() => setBeds((b) => Math.min(100, b + 1))} disabled={beds >= 100}>
+                <Plus className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>How many rooms to create</Label>
+            <Input
+              type="number"
+              min={1}
+              max={50}
+              value={count}
+              onChange={(e) => setCount(Math.max(1, Math.min(50, parseInt(e.target.value) || 1)))}
+            />
+          </div>
+          {deptId && (
+            <div className="rounded-md bg-muted/50 p-3 text-sm">
+              <p className="font-medium">Preview</p>
+              <p className="text-muted-foreground">
+                Will create: {previewNames.slice(0, 4).join(", ")}
+                {previewNames.length > 4 ? `, ... ${previewNames[previewNames.length - 1]}` : ""}
+                {" "}in {deptName}
+              </p>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={handleConfirm} disabled={busy || !deptId || !typeId}>
+            {busy ? "Creating…" : `Create ${previewNames.length}`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
