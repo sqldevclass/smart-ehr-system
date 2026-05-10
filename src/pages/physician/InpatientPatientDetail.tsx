@@ -570,7 +570,7 @@ function DiagnosesTab({ hospId, patientId }: { hospId: string; patientId: string
     queryFn: async () => {
       const { data } = await supabase
         .from("patient_diagnoses")
-        .select("id, diagnosis_type, acuity, diagnosed_at, icd10_codes(code, name_ru)")
+        .select("id, diagnosis_type, acuity, recorded_at, icd10_codes(code, name_ru)")
         .eq("hospitalization_id", hospId);
       return data || [];
     },
