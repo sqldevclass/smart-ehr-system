@@ -149,7 +149,7 @@ function ServiceListBase({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("visit_services")
-        .select("id, source, cost_at_time, assigned_physician_id, service_statuses(code, name_ru), services(id, name, service_type)")
+        .select("id, source, cost_at_time, assigned_physician_id, service_statuses(code, name_ru), services(id, name, service_types(name_en))")
         .eq("hospitalization_id", hospId)
         .eq("hospital_id", user!.hospitalId);
       if (error) throw error;
@@ -165,11 +165,11 @@ function ServiceListBase({
     queryFn: async () => {
       let q = supabase
         .from("services")
-        .select("id, name, base_price, service_type")
+        .select("id, name, cost_with_vat, service_types(name_en)")
         .eq("hospital_id", user!.hospitalId)
         .eq("is_active", true)
         .order("name");
-      if (serviceTypeFilter) q = q.eq("service_type", serviceTypeFilter);
+      if (serviceTypeFilter) q = q.eq("service_types.name_en", serviceTypeFilter);
       const { data } = await q;
       return data || [];
     },
@@ -191,7 +191,7 @@ function ServiceListBase({
         hospitalization_id: hospId,
         hospital_id: user!.hospitalId,
         service_id: serviceId,
-        cost_at_time: (svc as any)?.base_price ?? 0,
+        cost_at_time: (svc as any)?.cost_with_vat ?? 0,
         source: "physician",
         status_id: status?.id,
       });
@@ -265,7 +265,7 @@ function LabTab({ hospId }: { hospId: string }) {
   return (
     <ServiceListBase
       hospId={hospId}
-      filterFn={(vs) => vs.services?.service_type === "lab"}
+      filterFn={(vs) => vs.services?.service_types?.name_en === "lab"}
       emptyText="No lab orders yet."
       addLabel="Order Lab"
       serviceTypeFilter="lab"
@@ -310,7 +310,7 @@ function ConsultationTab({ hospId }: { hospId: string }) {
     queryFn: async () => {
       const { data } = await supabase
         .from("services")
-        .select("id, name, base_price")
+        .select("id, name, cost_with_vat, service_types(name_en)")
         .eq("hospital_id", user!.hospitalId)
         .eq("is_active", true)
         .order("name");
@@ -334,7 +334,7 @@ function ConsultationTab({ hospId }: { hospId: string }) {
         hospitalization_id: hospId,
         hospital_id: user!.hospitalId,
         service_id: serviceId,
-        cost_at_time: (svc as any)?.base_price ?? 0,
+        cost_at_time: (svc as any)?.cost_with_vat ?? 0,
         source: "physician",
         assigned_physician_id: physicianId,
         status_id: status?.id,
