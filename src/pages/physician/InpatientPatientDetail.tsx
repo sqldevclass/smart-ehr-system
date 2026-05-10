@@ -479,17 +479,17 @@ function CareTab({ hospId, orders }: { hospId: string; orders: any[] }) {
       <section className="space-y-2">
         <h4 className="font-medium">Diet</h4>
         <div className="flex gap-2">
-          <Select value={dietId} onValueChange={setDietId}>
+          <Select value={dietValue} onValueChange={setDietValue}>
             <SelectTrigger><SelectValue placeholder="Select diet" /></SelectTrigger>
             <SelectContent>
               {diets.map((d: any) => (
-                <SelectItem key={d.id} value={d.id}>{d.name_ru || d.code}</SelectItem>
+                <SelectItem key={d.id} value={d.name_ru}>{d.name_ru || d.code}</SelectItem>
               ))}
             </SelectContent>
           </Select>
           <Button
-            disabled={!dietId || savingType === "diet"}
-            onClick={() => saveOrder("diet", { diet_type_id: dietId })}
+            disabled={!dietValue || savingType === "diet"}
+            onClick={() => saveOrder("diet", dietValue)}
           >
             {savingType === "diet" ? "Saving…" : "Save"}
           </Button>
@@ -497,7 +497,7 @@ function CareTab({ hospId, orders }: { hospId: string; orders: any[] }) {
         <ul className="text-sm space-y-1">
           {dietOrders.map((o) => (
             <li key={o.id} className="text-muted-foreground">
-              {format(new Date(o.ordered_at), "MMM d HH:mm")} — {diets.find((d: any) => d.id === o.diet_type_id)?.name_ru || "Diet"}
+              {format(new Date(o.ordered_at), "MMM d HH:mm")} — {o.order_value}
             </li>
           ))}
         </ul>
@@ -506,25 +506,25 @@ function CareTab({ hospId, orders }: { hospId: string; orders: any[] }) {
       <section className="space-y-2">
         <h4 className="font-medium">Activity Mode</h4>
         <div className="flex gap-2">
-          <Select value={activityId} onValueChange={setActivityId}>
+          <Select value={activityValue} onValueChange={setActivityValue}>
             <SelectTrigger><SelectValue placeholder="Select mode" /></SelectTrigger>
             <SelectContent>
               {modes.map((m: any) => (
-                <SelectItem key={m.id} value={m.id}>{m.name_ru || m.code}</SelectItem>
+                <SelectItem key={m.id} value={m.name_ru}>{m.name_ru || m.code}</SelectItem>
               ))}
             </SelectContent>
           </Select>
           <Button
-            disabled={!activityId || savingType === "activity"}
-            onClick={() => saveOrder("activity", { activity_mode_id: activityId })}
+            disabled={!activityValue || savingType === "activity_mode"}
+            onClick={() => saveOrder("activity_mode", activityValue)}
           >
-            {savingType === "activity" ? "Saving…" : "Save"}
+            {savingType === "activity_mode" ? "Saving…" : "Save"}
           </Button>
         </div>
         <ul className="text-sm space-y-1">
           {activityOrders.map((o) => (
             <li key={o.id} className="text-muted-foreground">
-              {format(new Date(o.ordered_at), "MMM d HH:mm")} — {modes.find((m: any) => m.id === o.activity_mode_id)?.name_ru || "Activity"}
+              {format(new Date(o.ordered_at), "MMM d HH:mm")} — {o.order_value}
             </li>
           ))}
         </ul>
@@ -536,7 +536,7 @@ function CareTab({ hospId, orders }: { hospId: string; orders: any[] }) {
           <Input value={careNote} onChange={(e) => setCareNote(e.target.value)} placeholder="Instruction…" />
           <Button
             disabled={!careNote.trim() || savingType === "care"}
-            onClick={() => saveOrder("care", { instructions: careNote.trim() })}
+            onClick={() => saveOrder("care", careNote.trim())}
           >
             {savingType === "care" ? "Saving…" : "Save"}
           </Button>
@@ -544,7 +544,7 @@ function CareTab({ hospId, orders }: { hospId: string; orders: any[] }) {
         <ul className="text-sm space-y-1">
           {careOrders.map((o) => (
             <li key={o.id} className="text-muted-foreground">
-              {format(new Date(o.ordered_at), "MMM d HH:mm")} — {o.instructions}
+              {format(new Date(o.ordered_at), "MMM d HH:mm")} — {o.order_value}
             </li>
           ))}
         </ul>
