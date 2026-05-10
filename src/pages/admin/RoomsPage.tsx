@@ -27,6 +27,12 @@ interface RoomType {
   id: string;
   name: string;
   is_active?: boolean;
+  is_office_room?: boolean;
+}
+
+interface ServiceLite {
+  id: string;
+  name: string;
 }
 
 interface Room {
@@ -35,8 +41,8 @@ interface Room {
   room_type_id: string | null;
   capacity: number;
   is_active: boolean;
-  department_id: string;
-  room_types?: { name: string } | null;
+  department_id: string | null;
+  room_types?: { name: string; is_office_room?: boolean } | null;
 }
 
 export default function RoomsPage() {
