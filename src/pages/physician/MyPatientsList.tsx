@@ -100,7 +100,7 @@ export default function MyPatientsList() {
     const { data: vs, error: vsErr } = await supabase
       .from("visit_services")
       .select(
-        "id, scheduled_at, queue_number, cost_at_time, visit_id, slot_id, is_waitlist, created_at, service_statuses(code, name_ru), services(id, name), visits(visit_date, patients(first_name, last_name, patient_number, date_of_birth))"
+        "id, scheduled_at, queue_number, cost_at_time, visit_id, slot_id, is_waitlist, created_at, completed_by, service_statuses(code, name_ru), services(id, name), visits(visit_date, patients(first_name, last_name, patient_number, date_of_birth))"
       )
       .eq("assigned_physician_id", (phys as Physician).id)
       .eq("hospital_id", user.hospitalId)
@@ -110,8 +110,36 @@ export default function MyPatientsList() {
 
     if (vsErr) toast.error(vsErr.message);
 
+    // Office room services: physician is assigned to office room(s) via office_room_physicians
+    const { data: roomLinks } = await supabase
+      .from("office_room_physicians")
+      .select("room_id")
+      .eq("physician_id", (phys as Physician).id)
+      .eq("hospital_id", user.hospitalId);
+
+    const roomIds = (roomLinks || []).map((r: any) => r.room_id);
+    let roomServices: any[] = [];
+    if (roomIds.length > 0) {
+      const { data: rs, error: rsErr } = await supabase
+        .from("visit_services")
+        .select(
+          "id, scheduled_at, queue_number, cost_at_time, visit_id, slot_id, is_waitlist, created_at, completed_by, service_statuses(code, name_ru), services(id, name), rooms(name), visits(visit_date, patients(first_name, last_name, patient_number, date_of_birth))"
+        )
+        .eq("hospital_id", user.hospitalId)
+        .in("assigned_room_id", roomIds)
+        .in("status_id", allowedStatusIds);
+      if (rsErr) toast.error(rsErr.message);
+      roomServices = rs || [];
+    }
+
+    const allRows = [...(vs || []), ...roomServices];
+    // Deduplicate by id (in case of overlap)
+    const dedupMap = new Map<string, any>();
+    for (const r of allRows) dedupMap.set(r.id, r);
+    const merged = Array.from(dedupMap.values());
+
     const selectedDateStr = format(selectedDate, "yyyy-MM-dd");
-    const filtered = (vs || []).filter((row: any) => {
+    const filtered = merged.filter((row: any) => {
       if (row.scheduled_at) {
         return row.scheduled_at >= dayStart && row.scheduled_at <= dayEnd;
       }
@@ -120,6 +148,23 @@ export default function MyPatientsList() {
       }
       return false;
     });
+
+    // Fetch profiles for completed_by uuids
+    const completedIds = Array.from(
+      new Set(filtered.map((r: any) => r.completed_by).filter(Boolean))
+    );
+    if (completedIds.length > 0) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", completedIds);
+      const map: Record<string, string> = {};
+      for (const p of profs || []) map[(p as any).id] = (p as any).full_name || "";
+      setCompletedByNames(map);
+    } else {
+      setCompletedByNames({});
+    }
+
     setRows(filtered as any);
     setLoading(false);
   }, [user, selectedDate]);
