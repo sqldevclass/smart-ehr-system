@@ -256,14 +256,15 @@ function ServiceListBase({
   );
 }
 
-function OrdersTab({ hospId }: { hospId: string }) {
-  return <ServiceListBase hospId={hospId} emptyText="No orders yet." addLabel="Add Service" />;
+function OrdersTab({ hospId, patientId }: { hospId: string; patientId: string }) {
+  return <ServiceListBase hospId={hospId} patientId={patientId} emptyText="No orders yet." addLabel="Add Service" />;
 }
 
-function LabTab({ hospId }: { hospId: string }) {
+function LabTab({ hospId, patientId }: { hospId: string; patientId: string }) {
   return (
     <ServiceListBase
       hospId={hospId}
+      patientId={patientId}
       filterFn={(vs) => vs.services?.service_types?.name_en === "lab"}
       emptyText="No lab orders yet."
       addLabel="Order Lab"
@@ -272,7 +273,7 @@ function LabTab({ hospId }: { hospId: string }) {
   );
 }
 
-function ConsultationTab({ hospId }: { hospId: string }) {
+function ConsultationTab({ hospId, patientId }: { hospId: string; patientId: string }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
