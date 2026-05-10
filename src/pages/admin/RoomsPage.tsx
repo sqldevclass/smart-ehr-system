@@ -327,6 +327,75 @@ export default function RoomsPage() {
     </div>
   );
 
+  const renderOfficeTable = (list: Room[]) => (
+    <div className="rounded-lg border bg-card">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead>Services</TableHead>
+            <TableHead>Status</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {list.map((r) => {
+            const svcNames = officeRoomServiceMap.get(r.id) || [];
+            return (
+              <TableRow key={r.id}>
+                <TableCell className="font-medium">
+                  {editingNameId === r.id ? (
+                    <Input
+                      autoFocus
+                      value={editingNameValue}
+                      onChange={(e) => setEditingNameValue(e.target.value)}
+                      onBlur={() => handleSaveName(r)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSaveName(r);
+                        if (e.key === "Escape") setEditingNameId(null);
+                      }}
+                      className="h-8"
+                    />
+                  ) : (
+                    <button
+                      className="text-left hover:underline"
+                      onClick={() => {
+                        setEditingNameId(r.id);
+                        setEditingNameValue(r.name);
+                      }}
+                    >
+                      {r.name}
+                    </button>
+                  )}
+                </TableCell>
+                <TableCell>{r.room_types?.name || "—"}</TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1">
+                    {svcNames.length === 0 ? (
+                      <span className="text-xs text-muted-foreground">No services</span>
+                    ) : (
+                      svcNames.map((n, i) => (
+                        <span key={i} className="rounded border bg-muted px-2 py-0.5 text-xs">
+                          {n}
+                        </span>
+                      ))
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Switch
+                    checked={r.is_active}
+                    onCheckedChange={(v) => updateRoom(r.id, { is_active: v })}
+                  />
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </div>
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
