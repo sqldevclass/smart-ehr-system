@@ -42,7 +42,7 @@ export default function HospitalizationPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("hospitalizations")
-        .select("*, department_id, patients(*), departments(name), hospitalization_types(name_ru), hospitalization_urgency(name_ru), room_assignments(*, rooms(name, room_type))")
+        .select("*, department_id, patients(*), departments(name), hospitalization_types(name_ru), hospitalization_urgency(name_ru), room_assignments(*, rooms(name, room_types(name)))")
         .eq("id", hospId!)
         .single();
       if (error) throw error;
@@ -60,7 +60,7 @@ export default function HospitalizationPage() {
 
       const { data, error } = await supabase
         .from("rooms")
-        .select("id, name, room_type, capacity")
+        .select("id, name, capacity, room_types(name)")
         .eq("hospital_id", user.hospitalId)
         .eq("department_id", deptId)
         .eq("is_active", true)
@@ -183,8 +183,8 @@ export default function HospitalizationPage() {
             <p className="text-sm">
               Room: <span className="font-medium">{currentAssignment.rooms?.name}</span>
               {" · "}Bed: <span className="font-medium">{currentAssignment.bed_number}</span>
-              {currentAssignment.rooms?.room_type && (
-                <> · Type: <span className="font-medium">{currentAssignment.rooms.room_type}</span></>
+              {currentAssignment.rooms?.room_types?.name && (
+                <> · Type: <span className="font-medium">{currentAssignment.rooms.room_types.name}</span></>
               )}
             </p>
           ) : (
@@ -207,7 +207,7 @@ export default function HospitalizationPage() {
                 <SelectContent>
                   {rooms?.map((r: any) => (
                     <SelectItem key={r.id} value={r.id}>
-                      {r.name} {r.room_type ? `(${r.room_type})` : ""}
+                      {r.name} {r.room_types?.name ? `(${r.room_types.name})` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
