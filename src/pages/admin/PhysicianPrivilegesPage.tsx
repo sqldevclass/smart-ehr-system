@@ -340,6 +340,45 @@ export default function PhysicianPrivilegesPage() {
                     </ul>
                   )}
                 </TabsContent>
+
+                <TabsContent value="rooms" className="mt-4">
+                  {officeRooms.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      No office rooms configured for this hospital.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      <ul className="space-y-1">
+                        {officeRooms.map((r) => {
+                          const id = `office-${r.id}`;
+                          return (
+                            <li
+                              key={r.id}
+                              className="flex items-center gap-3 rounded-md border px-3 py-2"
+                            >
+                              <label
+                                htmlFor={id}
+                                className="flex items-center gap-3 text-sm cursor-pointer flex-1"
+                              >
+                                <Checkbox
+                                  id={id}
+                                  checked={checkedRooms.has(r.id)}
+                                  onCheckedChange={() => toggleRoom(r.id)}
+                                />
+                                <span>{r.name}</span>
+                              </label>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                      <div className="flex justify-end">
+                        <Button onClick={handleSaveRooms} disabled={savingRooms}>
+                          {savingRooms ? "Saving…" : "Save assignments"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </TabsContent>
               </Tabs>
             </div>
           )}
