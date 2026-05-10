@@ -6,6 +6,8 @@ export const roleRoutes: Record<string, string> = {
   inpatient_registrar: "/inpatient",
   cashier: "/cashier",
   inpatient_nurse: "/nurse",
+  head_nurse: "/nurse",
+  nurse: "/nurse",
   pharmacist: "/pharmacy",
   pharmacy_staff: "/pharmacy",
   warehouse_staff: "/warehouse",
