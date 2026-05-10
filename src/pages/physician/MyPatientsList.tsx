@@ -312,7 +312,21 @@ export default function MyPatientsList() {
                     <TableCell className="font-mono text-xs">
                       {patient?.patient_number || "—"}
                     </TableCell>
-                    <TableCell>{r.services?.name || "—"}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-0.5">
+                        <span>{r.services?.name || "—"}</span>
+                        {r.rooms?.name && (
+                          <span className="inline-flex w-fit rounded border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-900">
+                            Office Room: {r.rooms.name}
+                          </span>
+                        )}
+                        {r.service_statuses?.code === "completed" && r.completed_by && completedByNames[r.completed_by] && (
+                          <span className="text-[11px] text-muted-foreground">
+                            Completed by: {completedByNames[r.completed_by]}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       {isWL ? (
                         <span className="rounded border border-orange-300 bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-900">
