@@ -355,7 +355,7 @@ function ConsultationTab({
     queryKey: ["physician-privileges", physicianId],
     queryFn: async () => {
       const { data } = await supabase
-        .from("physician_privileges")
+        .from("physician_service_privileges")
         .select("service_id, services(id, name, cost_with_vat, service_type_id)")
         .eq("physician_id", physicianId);
       return data || [];
