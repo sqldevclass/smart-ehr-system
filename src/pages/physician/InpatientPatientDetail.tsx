@@ -165,11 +165,11 @@ function ServiceListBase({
     queryFn: async () => {
       let q = supabase
         .from("services")
-        .select("id, name, base_price, service_type")
+        .select("id, name, cost_with_vat, service_types(name_en)")
         .eq("hospital_id", user!.hospitalId)
         .eq("is_active", true)
         .order("name");
-      if (serviceTypeFilter) q = q.eq("service_type", serviceTypeFilter);
+      if (serviceTypeFilter) q = q.eq("service_types.name_en", serviceTypeFilter);
       const { data } = await q;
       return data || [];
     },
