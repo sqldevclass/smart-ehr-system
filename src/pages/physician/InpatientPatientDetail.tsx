@@ -425,15 +425,15 @@ function ConsultationTab({ hospId }: { hospId: string }) {
 function CareTab({ hospId, orders }: { hospId: string; orders: any[] }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [dietId, setDietId] = useState("");
-  const [activityId, setActivityId] = useState("");
+  const [dietValue, setDietValue] = useState("");
+  const [activityValue, setActivityValue] = useState("");
   const [careNote, setCareNote] = useState("");
   const [savingType, setSavingType] = useState<string | null>(null);
 
   const { data: diets = [] } = useQuery({
     queryKey: ["diet-types"],
     queryFn: async () => {
-      const { data } = await supabase.from("diet_types").select("id, name_ru, code");
+      const { data } = await supabase.from("diet_types").select("id, code, name_ru");
       return data || [];
     },
   });
@@ -441,27 +441,27 @@ function CareTab({ hospId, orders }: { hospId: string; orders: any[] }) {
   const { data: modes = [] } = useQuery({
     queryKey: ["activity-modes"],
     queryFn: async () => {
-      const { data } = await supabase.from("activity_modes").select("id, name_ru, code");
+      const { data } = await supabase.from("activity_modes").select("id, code, name_ru");
       return data || [];
     },
   });
 
-  const saveOrder = async (order_type: string, payload: Record<string, any>) => {
+  const saveOrder = async (order_type: string, order_value: string) => {
     setSavingType(order_type);
     try {
       const { error } = await supabase.from("hospitalization_orders").insert({
         hospitalization_id: hospId,
         hospital_id: user!.hospitalId,
         order_type,
+        order_value,
         ordered_by: user!.id,
         ordered_at: new Date().toISOString(),
-        ...payload,
       });
       if (error) throw error;
       toast.success("Order saved.");
       queryClient.invalidateQueries({ queryKey: ["physician-hosp", hospId] });
-      setDietId("");
-      setActivityId("");
+      setDietValue("");
+      setActivityValue("");
       setCareNote("");
     } catch (err: any) {
       toast.error(err.message || "Failed to save order");
@@ -471,7 +471,7 @@ function CareTab({ hospId, orders }: { hospId: string; orders: any[] }) {
   };
 
   const dietOrders = orders.filter((o) => o.order_type === "diet");
-  const activityOrders = orders.filter((o) => o.order_type === "activity");
+  const activityOrders = orders.filter((o) => o.order_type === "activity_mode");
   const careOrders = orders.filter((o) => o.order_type === "care");
 
   return (
@@ -479,17 +479,17 @@ function CareTab({ hospId, orders }: { hospId: string; orders: any[] }) {
       <section className="space-y-2">
         <h4 className="font-medium">Diet</h4>
         <div className="flex gap-2">
-          <Select value={dietId} onValueChange={setDietId}>
+          <Select value={dietValue} onValueChange={setDietValue}>
             <SelectTrigger><SelectValue placeholder="Select diet" /></SelectTrigger>
             <SelectContent>
               {diets.map((d: any) => (
-                <SelectItem key={d.id} value={d.id}>{d.name_ru || d.code}</SelectItem>
+                <SelectItem key={d.id} value={d.name_ru}>{d.name_ru || d.code}</SelectItem>
               ))}
             </SelectContent>
           </Select>
           <Button
-            disabled={!dietId || savingType === "diet"}
-            onClick={() => saveOrder("diet", { diet_type_id: dietId })}
+            disabled={!dietValue || savingType === "diet"}
+            onClick={() => saveOrder("diet", dietValue)}
           >
             {savingType === "diet" ? "Saving…" : "Save"}
           </Button>
@@ -497,7 +497,7 @@ function CareTab({ hospId, orders }: { hospId: string; orders: any[] }) {
         <ul className="text-sm space-y-1">
           {dietOrders.map((o) => (
             <li key={o.id} className="text-muted-foreground">
-              {format(new Date(o.ordered_at), "MMM d HH:mm")} — {diets.find((d: any) => d.id === o.diet_type_id)?.name_ru || "Diet"}
+              {format(new Date(o.ordered_at), "MMM d HH:mm")} — {o.order_value}
             </li>
           ))}
         </ul>
@@ -506,25 +506,25 @@ function CareTab({ hospId, orders }: { hospId: string; orders: any[] }) {
       <section className="space-y-2">
         <h4 className="font-medium">Activity Mode</h4>
         <div className="flex gap-2">
-          <Select value={activityId} onValueChange={setActivityId}>
+          <Select value={activityValue} onValueChange={setActivityValue}>
             <SelectTrigger><SelectValue placeholder="Select mode" /></SelectTrigger>
             <SelectContent>
               {modes.map((m: any) => (
-                <SelectItem key={m.id} value={m.id}>{m.name_ru || m.code}</SelectItem>
+                <SelectItem key={m.id} value={m.name_ru}>{m.name_ru || m.code}</SelectItem>
               ))}
             </SelectContent>
           </Select>
           <Button
-            disabled={!activityId || savingType === "activity"}
-            onClick={() => saveOrder("activity", { activity_mode_id: activityId })}
+            disabled={!activityValue || savingType === "activity_mode"}
+            onClick={() => saveOrder("activity_mode", activityValue)}
           >
-            {savingType === "activity" ? "Saving…" : "Save"}
+            {savingType === "activity_mode" ? "Saving…" : "Save"}
           </Button>
         </div>
         <ul className="text-sm space-y-1">
           {activityOrders.map((o) => (
             <li key={o.id} className="text-muted-foreground">
-              {format(new Date(o.ordered_at), "MMM d HH:mm")} — {modes.find((m: any) => m.id === o.activity_mode_id)?.name_ru || "Activity"}
+              {format(new Date(o.ordered_at), "MMM d HH:mm")} — {o.order_value}
             </li>
           ))}
         </ul>
@@ -536,7 +536,7 @@ function CareTab({ hospId, orders }: { hospId: string; orders: any[] }) {
           <Input value={careNote} onChange={(e) => setCareNote(e.target.value)} placeholder="Instruction…" />
           <Button
             disabled={!careNote.trim() || savingType === "care"}
-            onClick={() => saveOrder("care", { instructions: careNote.trim() })}
+            onClick={() => saveOrder("care", careNote.trim())}
           >
             {savingType === "care" ? "Saving…" : "Save"}
           </Button>
@@ -544,7 +544,7 @@ function CareTab({ hospId, orders }: { hospId: string; orders: any[] }) {
         <ul className="text-sm space-y-1">
           {careOrders.map((o) => (
             <li key={o.id} className="text-muted-foreground">
-              {format(new Date(o.ordered_at), "MMM d HH:mm")} — {o.instructions}
+              {format(new Date(o.ordered_at), "MMM d HH:mm")} — {o.order_value}
             </li>
           ))}
         </ul>
@@ -570,7 +570,7 @@ function DiagnosesTab({ hospId, patientId }: { hospId: string; patientId: string
     queryFn: async () => {
       const { data } = await supabase
         .from("patient_diagnoses")
-        .select("id, diagnosis_type, acuity, diagnosed_at, icd10_codes(code, name_ru)")
+        .select("id, diagnosis_type, acuity, recorded_at, icd10_codes(code, name_ru)")
         .eq("hospitalization_id", hospId);
       return data || [];
     },
@@ -602,8 +602,8 @@ function DiagnosesTab({ hospId, patientId }: { hospId: string; patientId: string
         icd10_code_id: selected.id,
         diagnosis_type: diagType,
         acuity,
-        diagnosed_by: user!.id,
-        diagnosed_at: new Date().toISOString(),
+        recorded_by: user!.id,
+        recorded_at: new Date().toISOString(),
       });
       if (error) throw error;
       toast.success("Diagnosis added.");
