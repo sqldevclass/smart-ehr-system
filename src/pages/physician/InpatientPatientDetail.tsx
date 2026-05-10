@@ -324,29 +324,25 @@ function ConsultationTab({ hospId, patientId }: { hospId: string; patientId: str
     setSubmitting(true);
     try {
       const svc = catalog.find((s: any) => s.id === serviceId);
-      const { data: status } = await supabase
-        .from("service_statuses")
-        .select("id")
-        .eq("code", "ready_for_execution")
-        .maybeSingle();
-
-      const { error } = await supabase.from("visit_services").insert({
-        hospitalization_id: hospId,
-        hospital_id: user!.hospitalId,
-        service_id: serviceId,
-        cost_at_time: (svc as any)?.cost_with_vat ?? 0,
-        source: "physician",
-        assigned_physician_id: physicianId,
-        status_id: status?.id,
+      const { error } = await supabase.rpc("inpatient_add_service", {
+        p_hospitalization_id: hospId,
+        p_patient_id: patientId,
+        p_hospital_id: user!.hospitalId,
+        p_ordered_by: user!.id,
+        p_service_id: serviceId,
+        p_assigned_physician_id: physicianId || null,
+        p_cost_at_time: (svc as any)?.cost_with_vat ?? 0,
       });
-      if (error) throw error;
-      toast.success("Consultation requested.");
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      toast.success("Service ordered.");
       setOpen(false);
       setPhysicianId("");
       setServiceId("");
+      queryClient.invalidateQueries({ queryKey: ["inpatient-services", hospId] });
       queryClient.invalidateQueries({ queryKey: ["hosp-consultations", hospId] });
-    } catch (err: any) {
-      toast.error(err.message || "Failed to request consultation");
     } finally {
       setSubmitting(false);
     }
