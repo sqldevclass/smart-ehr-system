@@ -440,8 +440,7 @@ function ConsultationTab({
               <div>
                 <p>{vs.services?.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {vs.physicians?.profiles
-                    ? `${vs.physicians.profiles.last_name} ${vs.physicians.profiles.first_name}`
+                  {vs.physicians?.profiles?.full_name || "Unassigned"
                     : "Unassigned"}
                 </p>
               </div>
