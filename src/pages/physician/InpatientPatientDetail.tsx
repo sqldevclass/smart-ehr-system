@@ -101,13 +101,13 @@ export default function InpatientPatientDetail() {
                 <TabsTrigger value="diagnoses">Diagnoses</TabsTrigger>
               </TabsList>
               <TabsContent value="orders" className="pt-4">
-                <OrdersTab hospId={hospId!} />
+                <OrdersTab hospId={hospId!} patientId={hosp.patient_id} />
               </TabsContent>
               <TabsContent value="lab" className="pt-4">
-                <LabTab hospId={hospId!} />
+                <LabTab hospId={hospId!} patientId={hosp.patient_id} />
               </TabsContent>
               <TabsContent value="consultation" className="pt-4">
-                <ConsultationTab hospId={hospId!} />
+                <ConsultationTab hospId={hospId!} patientId={hosp.patient_id} />
               </TabsContent>
               <TabsContent value="care" className="pt-4">
                 <CareTab hospId={hospId!} orders={(hosp.hospitalization_orders as any[]) || []} />
