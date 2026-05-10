@@ -146,7 +146,7 @@ function TabsSection({ hospId, hosp, patient }: { hospId: string; hosp: any; pat
       const { data, error } = await supabase
         .from("visit_services")
         .select(
-          "id, source, cost_at_time, assigned_physician_id, service_statuses(code, name_ru), services(id, name, service_type_id, cost_with_vat), physicians(profiles(first_name, last_name))",
+          "id, source, cost_at_time, assigned_physician_id, service_statuses(code, name_ru), services(id, name, service_type_id, cost_with_vat), physicians!visit_services_assigned_physician_id_fkey(profiles(full_name))",
         )
         .eq("hospitalization_id", hospId)
         .eq("hospital_id", user!.hospitalId);
@@ -160,15 +160,11 @@ function TabsSection({ hospId, hosp, patient }: { hospId: string; hosp: any; pat
     queryClient.invalidateQueries({ queryKey: ["inpatient-visit-services", hospId] });
   };
 
-  console.log("allServices:", allServices.length, "hospId:", hospId, "user:", user?.hospitalId);
-
   const ordersServices = allServices.filter(
     (vs: any) => vs.services?.service_type_id !== labTypeId && vs.services?.service_type_id !== consultTypeId,
   );
   const labServices = allServices.filter((vs: any) => vs.services?.service_type_id === labTypeId);
   const consultServices = allServices.filter((vs: any) => vs.services?.service_type_id === consultTypeId);
-
-  console.log("ordersServices:", ordersServices.length, "labTypeId:", labTypeId, "consultTypeId:", consultTypeId);
 
   return (
     <Tabs defaultValue="orders">
