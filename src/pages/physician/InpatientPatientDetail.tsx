@@ -602,8 +602,8 @@ function DiagnosesTab({ hospId, patientId }: { hospId: string; patientId: string
         icd10_code_id: selected.id,
         diagnosis_type: diagType,
         acuity,
-        diagnosed_by: user!.id,
-        diagnosed_at: new Date().toISOString(),
+        recorded_by: user!.id,
+        recorded_at: new Date().toISOString(),
       });
       if (error) throw error;
       toast.success("Diagnosis added.");
