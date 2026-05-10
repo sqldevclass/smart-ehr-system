@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,8 +8,6 @@ import { format, differenceInDays } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -17,14 +15,9 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { ArrowLeft } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ArrowLeft, BedDouble } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function HospitalizationPage() {
   const { hospId } = useParams<{ hospId: string }>();
@@ -33,8 +26,7 @@ export default function HospitalizationPage() {
   const queryClient = useQueryClient();
 
   const [roomDialogOpen, setRoomDialogOpen] = useState(false);
-  const [selectedRoomId, setSelectedRoomId] = useState("");
-  const [bedNumber, setBedNumber] = useState("");
+  const [selected, setSelected] = useState<{ roomId: string; bed: number } | null>(null);
   const [roomSubmitting, setRoomSubmitting] = useState(false);
 
   const { data: hosp, isLoading } = useQuery({
@@ -51,13 +43,12 @@ export default function HospitalizationPage() {
     enabled: !!hospId,
   });
 
-  const { data: rooms = [] } = useQuery({
-    queryKey: ["department-rooms", (hosp as any)?.department_id, user?.hospitalId],
-    queryFn: async () => {
-      const deptId = (hosp as any)?.department_id;
-      console.log("Fetching rooms, deptId:", deptId, "hospitalId:", user?.hospitalId);
-      if (!deptId || !user?.hospitalId) return [];
+  const deptId = (hosp as any)?.department_id;
 
+  const { data: rooms = [] } = useQuery({
+    queryKey: ["department-rooms", deptId, user?.hospitalId],
+    queryFn: async () => {
+      if (!deptId || !user?.hospitalId) return [];
       const { data, error } = await supabase
         .from("rooms")
         .select("id, name, capacity, room_types(name)")
@@ -65,22 +56,43 @@ export default function HospitalizationPage() {
         .eq("department_id", deptId)
         .eq("is_active", true)
         .order("name");
-
-      console.log("Rooms result:", data, "Error:", error);
       if (error) throw error;
       return data || [];
     },
-    enabled: !!(hosp as any)?.department_id && !!user?.hospitalId,
+    enabled: !!deptId && !!user?.hospitalId,
   });
 
+  const { data: occupiedBeds = [] } = useQuery({
+    queryKey: ["occupied-beds", user?.hospitalId],
+    queryFn: async () => {
+      if (!user?.hospitalId) return [];
+      const { data, error } = await supabase
+        .from("room_assignments")
+        .select("room_id, bed_number")
+        .eq("hospital_id", user.hospitalId)
+        .is("discharged_at", null);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.hospitalId,
+  });
+
+  const occupiedSet = useMemo(() => {
+    const s = new Set<string>();
+    for (const a of occupiedBeds as any[]) {
+      s.add(`${a.room_id}-${a.bed_number}`);
+    }
+    return s;
+  }, [occupiedBeds]);
+
   const handleAssignRoom = async () => {
-    if (!selectedRoomId || !bedNumber) return;
+    if (!selected) return;
     setRoomSubmitting(true);
     try {
       const { error } = await supabase.from("room_assignments").insert({
         hospitalization_id: hospId,
-        room_id: selectedRoomId,
-        bed_number: bedNumber,
+        room_id: selected.roomId,
+        bed_number: String(selected.bed),
         assigned_at: new Date().toISOString(),
         hospital_id: user!.hospitalId,
         assigned_by: user!.id,
@@ -88,7 +100,9 @@ export default function HospitalizationPage() {
       if (error) throw error;
       toast.success("Room assigned.");
       setRoomDialogOpen(false);
+      setSelected(null);
       queryClient.invalidateQueries({ queryKey: ["hospitalization", hospId] });
+      queryClient.invalidateQueries({ queryKey: ["occupied-beds", user!.hospitalId] });
     } catch (err: any) {
       toast.error(err.message || "Failed to assign room");
     } finally {
@@ -172,7 +186,7 @@ export default function HospitalizationPage() {
           <CardTitle className="flex items-center justify-between">
             <span>Room Assignment</span>
             {!hosp.discharged_at && (
-              <Button size="sm" onClick={() => { setSelectedRoomId(""); setBedNumber(""); setRoomDialogOpen(true); }}>
+              <Button size="sm" onClick={() => { setSelected(null); setRoomDialogOpen(true); }}>
                 Assign Room
               </Button>
             )}
@@ -195,33 +209,71 @@ export default function HospitalizationPage() {
 
       {/* Assign Room Dialog */}
       <Dialog open={roomDialogOpen} onOpenChange={setRoomDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Assign Room</DialogTitle>
+            <DialogTitle>Select Room and Bed</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Room</Label>
-              <Select value={selectedRoomId} onValueChange={setSelectedRoomId}>
-                <SelectTrigger><SelectValue placeholder="Select room" /></SelectTrigger>
-                <SelectContent>
-                  {rooms?.map((r: any) => (
-                    <SelectItem key={r.id} value={r.id}>
-                      {r.name} {r.room_types?.name ? `(${r.room_types.name})` : ""}
-                    </SelectItem>
+          <div className="max-h-[60vh] overflow-y-auto space-y-3 pr-1">
+            {rooms.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No rooms available in this department.</p>
+            ) : (
+              <TooltipProvider>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {(rooms as any[]).map((room) => (
+                    <div key={room.id} className="rounded-lg border bg-card p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <BedDouble className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">{room.name}</span>
+                        </div>
+                        {room.room_types?.name && (
+                          <Badge variant="outline" className="text-xs">{room.room_types.name}</Badge>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {Array.from({ length: room.capacity || 0 }, (_, i) => i + 1).map((bed) => {
+                          const occupied = occupiedSet.has(`${room.id}-${bed}`);
+                          const isSelected = selected?.roomId === room.id && selected?.bed === bed;
+                          const circle = (
+                            <button
+                              key={bed}
+                              type="button"
+                              disabled={occupied}
+                              onClick={() => !occupied && setSelected({ roomId: room.id, bed })}
+                              className={cn(
+                                "h-9 w-9 rounded-full text-xs font-medium border transition-colors flex items-center justify-center",
+                                occupied
+                                  ? "bg-muted text-muted-foreground border-muted cursor-not-allowed"
+                                  : isSelected
+                                  ? "bg-primary text-primary-foreground border-primary"
+                                  : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/25"
+                              )}
+                            >
+                              {bed}
+                            </button>
+                          );
+                          return occupied ? (
+                            <Tooltip key={bed}>
+                              <TooltipTrigger asChild>
+                                <span>{circle}</span>
+                              </TooltipTrigger>
+                              <TooltipContent>Occupied</TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            circle
+                          );
+                        })}
+                      </div>
+                    </div>
                   ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Bed Number</Label>
-              <Input value={bedNumber} onChange={(e) => setBedNumber(e.target.value)} placeholder="e.g. 1" />
-            </div>
+                </div>
+              </TooltipProvider>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRoomDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleAssignRoom} disabled={!selectedRoomId || !bedNumber || roomSubmitting}>
-              {roomSubmitting ? "Assigning…" : "Assign"}
+            <Button onClick={handleAssignRoom} disabled={!selected || roomSubmitting}>
+              {roomSubmitting ? "Assigning…" : "Confirm Assignment"}
             </Button>
           </DialogFooter>
         </DialogContent>
