@@ -191,7 +191,7 @@ function ServiceListBase({
         hospitalization_id: hospId,
         hospital_id: user!.hospitalId,
         service_id: serviceId,
-        cost_at_time: (svc as any)?.base_price ?? 0,
+        cost_at_time: (svc as any)?.cost_with_vat ?? 0,
         source: "physician",
         status_id: status?.id,
       });
