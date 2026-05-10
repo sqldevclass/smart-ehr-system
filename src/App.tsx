@@ -47,6 +47,11 @@ import InpatientLayout from "./components/inpatient/InpatientLayout.tsx";
 import AdmissionsPage from "./pages/inpatient/AdmissionsPage.tsx";
 import HospitalizationPage from "./pages/inpatient/HospitalizationPage.tsx";
 import InpatientProfile from "./pages/inpatient/InpatientProfile.tsx";
+import InpatientPatientsList from "./pages/physician/InpatientPatientsList.tsx";
+import InpatientPatientDetail from "./pages/physician/InpatientPatientDetail.tsx";
+import NurseLayout from "./components/nurse/NurseLayout.tsx";
+import NursePatientsList from "./pages/nurse/NursePatientsList.tsx";
+import NurseProfile from "./pages/nurse/NurseProfile.tsx";
 
 const queryClient = new QueryClient();
 
@@ -75,6 +80,8 @@ const App = () => (
           </Route>
           <Route path="/physician" element={<ProtectedRoute allowedRoles={["physician"]}><PhysicianLayout /></ProtectedRoute>}>
             <Route index element={<MyPatientsList />} />
+            <Route path="inpatient" element={<InpatientPatientsList />} />
+            <Route path="inpatient/:hospId" element={<InpatientPatientDetail />} />
             <Route path="patients/:patientId" element={<PhysicianPatientDetail />} />
             <Route path="patients/:patientId/exam/:examId" element={<ExamCardDetail />} />
             <Route path="schedule" element={<PhysicianSchedule />} />
