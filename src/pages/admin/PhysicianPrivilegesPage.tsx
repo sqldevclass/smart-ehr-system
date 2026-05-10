@@ -275,6 +275,7 @@ export default function PhysicianPrivilegesPage() {
                 <TabsList>
                   <TabsTrigger value="services">Service Privileges</TabsTrigger>
                   <TabsTrigger value="documents">Document Privileges</TabsTrigger>
+                  <TabsTrigger value="rooms">Office Room Assignments</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="services" className="mt-4">
