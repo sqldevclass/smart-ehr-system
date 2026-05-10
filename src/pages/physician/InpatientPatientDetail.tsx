@@ -126,6 +126,7 @@ export default function InpatientPatientDetail() {
 
 function TabsSection({ hospId, hosp, patient }: { hospId: string; hosp: any; patient: any }) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const { data: serviceTypes = [] } = useQuery({
     queryKey: ["service-types", user?.hospitalId],
@@ -139,7 +140,7 @@ function TabsSection({ hospId, hosp, patient }: { hospId: string; hosp: any; pat
   const labTypeId = serviceTypes.find((t: any) => t.code === "laboratory")?.id ?? null;
   const consultTypeId = serviceTypes.find((t: any) => t.code === "consultation")?.id ?? null;
 
-  const { data: allServices = [], refetch: refetchServices } = useQuery({
+  const { data: allServices = [] } = useQuery({
     queryKey: ["inpatient-visit-services", hospId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -154,6 +155,10 @@ function TabsSection({ hospId, hosp, patient }: { hospId: string; hosp: any; pat
     },
     enabled: !!hospId && !!user?.hospitalId,
   });
+
+  const refetchServices = () => {
+    queryClient.invalidateQueries({ queryKey: ["inpatient-visit-services", hospId] });
+  };
 
   const ordersServices = allServices.filter(
     (vs: any) => vs.services?.service_type_id !== labTypeId && vs.services?.service_type_id !== consultTypeId,
