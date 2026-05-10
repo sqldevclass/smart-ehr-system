@@ -101,12 +101,13 @@ export default function InpatientPatientDetail() {
   );
 }
 
-/* ============ Orders Tab ============ */
+/* ============ Tabs Section (lifts shared data) ============ */
 
-function useServiceTypeIds() {
+function TabsSection({ hospId, hosp, patient }: { hospId: string; hosp: any; patient: any }) {
   const { user } = useAuth();
-  const { data } = useQuery({
-    queryKey: ["service-types-codes", user?.hospitalId],
+
+  const { data: serviceTypes = [] } = useQuery({
+    queryKey: ["service-types", user?.hospitalId],
     queryFn: async () => {
       const { data } = await supabase
         .from("service_types")
@@ -116,54 +117,108 @@ function useServiceTypeIds() {
     },
     enabled: !!user?.hospitalId,
   });
-  const labTypeId = data?.find((t: any) => t.code === "laboratory")?.id ?? null;
-  const consultTypeId = data?.find((t: any) => t.code === "consultation")?.id ?? null;
-  return { labTypeId, consultTypeId };
-}
 
-function useHospVisitServices(hospId: string) {
-  const { user } = useAuth();
-  return useQuery({
-    queryKey: ["hosp-visit-services", hospId],
+  const labTypeId = serviceTypes.find((t: any) => t.code === "laboratory")?.id ?? null;
+  const consultTypeId = serviceTypes.find((t: any) => t.code === "consultation")?.id ?? null;
+
+  const { data: allServices = [], refetch: refetchServices } = useQuery({
+    queryKey: ["inpatient-visit-services", hospId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("visit_services")
-        .select("id, source, cost_at_time, assigned_physician_id, service_statuses(code, name_ru), services(id, name, service_type_id), physicians(profiles(first_name, last_name))")
+        .select("id, source, cost_at_time, assigned_physician_id, service_statuses(code, name_ru), services(id, name, service_type_id, cost_with_vat), physicians(profiles(first_name, last_name))")
         .eq("hospitalization_id", hospId)
         .eq("hospital_id", user!.hospitalId);
       if (error) throw error;
       return data || [];
     },
-    enabled: !!user?.hospitalId,
+    enabled: !!hospId && !!user?.hospitalId,
   });
+
+  const ordersServices = allServices.filter(
+    (vs: any) => vs.services?.service_type_id !== labTypeId && vs.services?.service_type_id !== consultTypeId
+  );
+  const labServices = allServices.filter((vs: any) => vs.services?.service_type_id === labTypeId);
+  const consultServices = allServices.filter((vs: any) => vs.services?.service_type_id === consultTypeId);
+
+  return (
+    <Tabs defaultValue="orders">
+      <TabsList className="bg-green-100 dark:bg-green-950">
+        <TabsTrigger value="orders">Orders</TabsTrigger>
+        <TabsTrigger value="lab">Lab</TabsTrigger>
+        <TabsTrigger value="consultation">Consultation</TabsTrigger>
+        <TabsTrigger value="care">Care</TabsTrigger>
+        <TabsTrigger value="diagnoses">Diagnoses</TabsTrigger>
+      </TabsList>
+      <TabsContent value="orders" className="pt-4">
+        <ServiceListBase
+          hospId={hospId}
+          patientId={hosp.patient_id}
+          services={ordersServices}
+          onAdded={refetchServices}
+          excludeTypeIds={[labTypeId, consultTypeId].filter(Boolean) as string[]}
+          emptyText="No orders yet."
+          addLabel="Add Service"
+        />
+      </TabsContent>
+      <TabsContent value="lab" className="pt-4">
+        <ServiceListBase
+          hospId={hospId}
+          patientId={hosp.patient_id}
+          services={labServices}
+          onAdded={refetchServices}
+          catalogTypeId={labTypeId}
+          emptyText="No lab orders yet."
+          addLabel="Order Lab"
+        />
+      </TabsContent>
+      <TabsContent value="consultation" className="pt-4">
+        <ConsultationTab
+          hospId={hospId}
+          patientId={hosp.patient_id}
+          services={consultServices}
+          onAdded={refetchServices}
+          consultTypeId={consultTypeId}
+        />
+      </TabsContent>
+      <TabsContent value="care" className="pt-4">
+        <CareTab hospId={hospId} orders={(hosp.hospitalization_orders as any[]) || []} />
+      </TabsContent>
+      <TabsContent value="diagnoses" className="pt-4">
+        <DiagnosesTab hospId={hospId} patientId={patient?.id} />
+      </TabsContent>
+    </Tabs>
+  );
 }
+
+/* ============ Service List ============ */
 
 function ServiceListBase({
   hospId,
   patientId,
-  filterFn,
+  services,
+  onAdded,
   emptyText,
   addLabel,
   catalogTypeId,
+  excludeTypeIds,
 }: {
   hospId: string;
   patientId: string;
-  filterFn?: (vs: any) => boolean;
+  services: any[];
+  onAdded: () => void;
   emptyText: string;
   addLabel: string;
   catalogTypeId?: string | null;
+  excludeTypeIds?: string[];
 }) {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [serviceId, setServiceId] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const { data: services = [] } = useHospVisitServices(hospId);
-  const filtered = filterFn ? services.filter(filterFn) : services;
-
   const { data: catalog = [] } = useQuery({
-    queryKey: ["services-catalog", user?.hospitalId, catalogTypeId ?? "all"],
+    queryKey: ["services-catalog", user?.hospitalId, catalogTypeId ?? "all", (excludeTypeIds || []).join(",")],
     queryFn: async () => {
       let q = supabase
         .from("services")
@@ -173,9 +228,13 @@ function ServiceListBase({
         .order("name");
       if (catalogTypeId) q = q.eq("service_type_id", catalogTypeId);
       const { data } = await q;
-      return data || [];
+      let list = data || [];
+      if (excludeTypeIds && excludeTypeIds.length) {
+        list = list.filter((s: any) => !excludeTypeIds.includes(s.service_type_id));
+      }
+      return list;
     },
-    enabled: !!user && open && catalogTypeId !== null,
+    enabled: !!user && open,
   });
 
   const handleAdd = async () => {
@@ -199,8 +258,7 @@ function ServiceListBase({
       toast.success("Service ordered.");
       setOpen(false);
       setServiceId("");
-      queryClient.invalidateQueries({ queryKey: ["inpatient-services", hospId] });
-      queryClient.invalidateQueries({ queryKey: ["hosp-visit-services", hospId] });
+      onAdded();
     } finally {
       setSubmitting(false);
     }
@@ -213,11 +271,11 @@ function ServiceListBase({
           <Plus className="h-4 w-4" /> {addLabel}
         </Button>
       </div>
-      {filtered.length === 0 ? (
+      {services.length === 0 ? (
         <p className="text-sm text-muted-foreground">{emptyText}</p>
       ) : (
         <ul className="space-y-2">
-          {filtered.map((vs: any) => (
+          {services.map((vs: any) => (
             <li key={vs.id} className="flex items-center justify-between rounded border p-2 text-sm">
               <span>{vs.services?.name}</span>
               <Badge variant="outline">{vs.service_statuses?.name_ru || vs.service_statuses?.code || "—"}</Badge>
@@ -256,50 +314,27 @@ function ServiceListBase({
   );
 }
 
-function OrdersTab({ hospId, patientId }: { hospId: string; patientId: string }) {
-  const { labTypeId, consultTypeId } = useServiceTypeIds();
-  return (
-    <ServiceListBase
-      hospId={hospId}
-      patientId={patientId}
-      filterFn={(vs) =>
-        vs.services?.service_type_id !== labTypeId &&
-        vs.services?.service_type_id !== consultTypeId
-      }
-      emptyText="No orders yet."
-      addLabel="Add Service"
-    />
-  );
-}
+/* ============ Consultation Tab ============ */
 
-function LabTab({ hospId, patientId }: { hospId: string; patientId: string }) {
-  const { labTypeId } = useServiceTypeIds();
-  return (
-    <ServiceListBase
-      hospId={hospId}
-      patientId={patientId}
-      filterFn={(vs) => vs.services?.service_type_id === labTypeId}
-      emptyText="No lab orders yet."
-      addLabel="Order Lab"
-      catalogTypeId={labTypeId}
-    />
-  );
-}
-
-function ConsultationTab({ hospId, patientId }: { hospId: string; patientId: string }) {
+function ConsultationTab({
+  hospId,
+  patientId,
+  services,
+  onAdded,
+  consultTypeId,
+}: {
+  hospId: string;
+  patientId: string;
+  services: any[];
+  onAdded: () => void;
+  consultTypeId: string | null;
+}) {
   const { user } = useAuth();
   const { physicianId: currentPhysicianId } = usePhysicianId();
-  const { consultTypeId } = useServiceTypeIds();
-  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [physicianId, setPhysicianId] = useState("");
   const [serviceId, setServiceId] = useState("");
   const [submitting, setSubmitting] = useState(false);
-
-  const { data: services = [] } = useHospVisitServices(hospId);
-  const consultServices = services.filter(
-    (vs: any) => vs.services?.service_type_id === consultTypeId
-  );
 
   const { data: physicians = [] } = useQuery({
     queryKey: ["physicians-other", user?.hospitalId, currentPhysicianId],
@@ -316,27 +351,27 @@ function ConsultationTab({ hospId, patientId }: { hospId: string; patientId: str
     enabled: !!user?.hospitalId && open,
   });
 
-  const { data: catalog = [] } = useQuery({
-    queryKey: ["services-consult", user?.hospitalId, consultTypeId],
+  const { data: privileges = [] } = useQuery({
+    queryKey: ["physician-privileges", physicianId],
     queryFn: async () => {
-      if (!consultTypeId) return [];
       const { data } = await supabase
-        .from("services")
-        .select("id, name, cost_with_vat, service_type_id")
-        .eq("hospital_id", user!.hospitalId)
-        .eq("is_active", true)
-        .eq("service_type_id", consultTypeId)
-        .order("name");
+        .from("physician_privileges")
+        .select("service_id, services(id, name, cost_with_vat, service_type_id)")
+        .eq("physician_id", physicianId);
       return data || [];
     },
-    enabled: !!user?.hospitalId && open && !!consultTypeId,
+    enabled: open && !!physicianId,
   });
+
+  const consultPrivileges = privileges.filter(
+    (p: any) => p.services?.service_type_id === consultTypeId
+  );
 
   const handleAdd = async () => {
     if (!physicianId || !serviceId) return;
     setSubmitting(true);
     try {
-      const svc = catalog.find((s: any) => s.id === serviceId);
+      const svc = consultPrivileges.find((p: any) => p.services?.id === serviceId)?.services;
       const { error } = await supabase.rpc("inpatient_add_service", {
         p_hospitalization_id: hospId,
         p_patient_id: patientId,
@@ -354,8 +389,7 @@ function ConsultationTab({ hospId, patientId }: { hospId: string; patientId: str
       setOpen(false);
       setPhysicianId("");
       setServiceId("");
-      queryClient.invalidateQueries({ queryKey: ["inpatient-services", hospId] });
-      queryClient.invalidateQueries({ queryKey: ["hosp-visit-services", hospId] });
+      onAdded();
     } finally {
       setSubmitting(false);
     }
@@ -368,11 +402,11 @@ function ConsultationTab({ hospId, patientId }: { hospId: string; patientId: str
           <Plus className="h-4 w-4" /> Request Consultation
         </Button>
       </div>
-      {consultServices.length === 0 ? (
+      {services.length === 0 ? (
         <p className="text-sm text-muted-foreground">No consultations yet.</p>
       ) : (
         <ul className="space-y-2">
-          {consultServices.map((vs: any) => (
+          {services.map((vs: any) => (
             <li key={vs.id} className="flex items-center justify-between rounded border p-2 text-sm">
               <div>
                 <p>{vs.services?.name}</p>
@@ -394,7 +428,7 @@ function ConsultationTab({ hospId, patientId }: { hospId: string; patientId: str
           <div className="space-y-4">
             <div>
               <Label>Physician</Label>
-              <Select value={physicianId} onValueChange={setPhysicianId}>
+              <Select value={physicianId} onValueChange={(v) => { setPhysicianId(v); setServiceId(""); }}>
                 <SelectTrigger><SelectValue placeholder="Select physician" /></SelectTrigger>
                 <SelectContent>
                   {physicians.map((p: any) => (
@@ -407,11 +441,11 @@ function ConsultationTab({ hospId, patientId }: { hospId: string; patientId: str
             </div>
             <div>
               <Label>Service</Label>
-              <Select value={serviceId} onValueChange={setServiceId}>
-                <SelectTrigger><SelectValue placeholder="Select service" /></SelectTrigger>
+              <Select value={serviceId} onValueChange={setServiceId} disabled={!physicianId}>
+                <SelectTrigger><SelectValue placeholder={physicianId ? "Select service" : "Select physician first"} /></SelectTrigger>
                 <SelectContent>
-                  {catalog.map((s: any) => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  {consultPrivileges.map((p: any) => (
+                    <SelectItem key={p.services.id} value={p.services.id}>{p.services.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
