@@ -57,6 +57,7 @@ export default function RoomsPage() {
   const [addTypeId, setAddTypeId] = useState("");
   const [addBeds, setAddBeds] = useState(1);
   const [addDeptId, setAddDeptId] = useState("");
+  const [addServiceIds, setAddServiceIds] = useState<Set<string>>(new Set());
   const [adding, setAdding] = useState(false);
 
   // Inline editing
