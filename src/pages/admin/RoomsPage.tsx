@@ -15,24 +15,30 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Edit } from "lucide-react";
+import { Plus, Edit, Settings } from "lucide-react";
 import { toast } from "sonner";
 
-const ROOM_TYPES = ["ward", "procedure", "lab", "imaging", "icu", "other"] as const;
-type RoomType = typeof ROOM_TYPES[number];
+const NEW_ROOM_TYPE_VALUE = "__new__";
 
 interface Department {
   id: string;
   name: string;
 }
 
+interface RoomType {
+  id: string;
+  name: string;
+  is_active?: boolean;
+}
+
 interface Room {
   id: string;
   name: string;
-  room_type: RoomType;
+  room_type_id: string | null;
   capacity: number;
   is_active: boolean;
   department_id: string;
+  room_types?: { name: string } | null;
 }
 
 export default function RoomsPage() {
@@ -43,10 +49,15 @@ export default function RoomsPage() {
   const [editing, setEditing] = useState<Room | null>(null);
   const [departmentId, setDepartmentId] = useState("");
   const [name, setName] = useState("");
-  const [roomType, setRoomType] = useState<RoomType>("ward");
+  const [roomTypeId, setRoomTypeId] = useState("");
+  const [newRoomTypeName, setNewRoomTypeName] = useState("");
+  const [creatingRoomType, setCreatingRoomType] = useState(false);
+  const [showNewRoomTypeInput, setShowNewRoomTypeInput] = useState(false);
   const [capacity, setCapacity] = useState<number>(1);
   const [isActive, setIsActive] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  const [manageOpen, setManageOpen] = useState(false);
 
   const { data: departments = [] } = useQuery({
     queryKey: ["departments-active", user?.hospitalId],
@@ -64,17 +75,48 @@ export default function RoomsPage() {
     enabled: !!user,
   });
 
+  const { data: roomTypes = [] } = useQuery({
+    queryKey: ["room-types", user?.hospitalId],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("room_types")
+        .select("id, name, is_active")
+        .eq("hospital_id", user.hospitalId)
+        .eq("is_active", true)
+        .order("name");
+      if (error) throw error;
+      return (data || []) as RoomType[];
+    },
+    enabled: !!user,
+  });
+
+  const { data: allRoomTypes = [] } = useQuery({
+    queryKey: ["room-types-all", user?.hospitalId],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("room_types")
+        .select("id, name, is_active")
+        .eq("hospital_id", user.hospitalId)
+        .order("name");
+      if (error) throw error;
+      return (data || []) as RoomType[];
+    },
+    enabled: !!user,
+  });
+
   const { data: rooms = [], isLoading } = useQuery({
     queryKey: ["rooms", user?.hospitalId],
     queryFn: async () => {
       if (!user) return [];
       const { data, error } = await supabase
         .from("rooms")
-        .select("id, name, room_type, capacity, is_active, department_id")
+        .select("id, name, room_type_id, capacity, is_active, department_id, room_types(name)")
         .eq("hospital_id", user.hospitalId)
         .order("name");
       if (error) throw error;
-      return (data || []) as Room[];
+      return (data || []) as unknown as Room[];
     },
     enabled: !!user,
   });
@@ -91,7 +133,9 @@ export default function RoomsPage() {
     setEditing(null);
     setDepartmentId("");
     setName("");
-    setRoomType("ward");
+    setRoomTypeId("");
+    setShowNewRoomTypeInput(false);
+    setNewRoomTypeName("");
     setCapacity(1);
     setIsActive(true);
     setDialogOpen(true);
@@ -101,10 +145,48 @@ export default function RoomsPage() {
     setEditing(r);
     setDepartmentId(r.department_id);
     setName(r.name);
-    setRoomType(r.room_type);
+    setRoomTypeId(r.room_type_id || "");
+    setShowNewRoomTypeInput(false);
+    setNewRoomTypeName("");
     setCapacity(r.capacity);
     setIsActive(r.is_active);
     setDialogOpen(true);
+  };
+
+  const handleRoomTypeChange = (val: string) => {
+    if (val === NEW_ROOM_TYPE_VALUE) {
+      setShowNewRoomTypeInput(true);
+      setRoomTypeId("");
+    } else {
+      setShowNewRoomTypeInput(false);
+      setRoomTypeId(val);
+    }
+  };
+
+  const handleCreateRoomType = async () => {
+    if (!user || !newRoomTypeName.trim()) {
+      toast.error("Enter a room type name.");
+      return;
+    }
+    setCreatingRoomType(true);
+    try {
+      const { data, error } = await supabase
+        .from("room_types")
+        .insert({ hospital_id: user.hospitalId, name: newRoomTypeName.trim() })
+        .select("id, name")
+        .single();
+      if (error) throw error;
+      toast.success("Room type created.");
+      await queryClient.invalidateQueries({ queryKey: ["room-types"] });
+      await queryClient.invalidateQueries({ queryKey: ["room-types-all"] });
+      setRoomTypeId(data.id);
+      setShowNewRoomTypeInput(false);
+      setNewRoomTypeName("");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to create room type.");
+    } finally {
+      setCreatingRoomType(false);
+    }
   };
 
   const handleSave = async () => {
@@ -117,6 +199,10 @@ export default function RoomsPage() {
       toast.error("Name is required.");
       return;
     }
+    if (!roomTypeId) {
+      toast.error("Room type is required.");
+      return;
+    }
     setSaving(true);
     try {
       if (editing) {
@@ -124,7 +210,7 @@ export default function RoomsPage() {
           .from("rooms")
           .update({
             name: name.trim(),
-            room_type: roomType,
+            room_type_id: roomTypeId,
             capacity,
             is_active: isActive,
           })
@@ -136,7 +222,7 @@ export default function RoomsPage() {
           hospital_id: user.hospitalId,
           department_id: departmentId,
           name: name.trim(),
-          room_type: roomType,
+          room_type_id: roomTypeId,
           capacity,
         });
         if (error) throw error;
@@ -168,7 +254,7 @@ export default function RoomsPage() {
           {list.map((r) => (
             <TableRow key={r.id}>
               <TableCell className="font-medium">{r.name}</TableCell>
-              <TableCell className="capitalize">{r.room_type}</TableCell>
+              <TableCell>{r.room_types?.name || "—"}</TableCell>
               <TableCell>{r.capacity}</TableCell>
               <TableCell>{deptName(r.department_id)}</TableCell>
               <TableCell>
@@ -192,9 +278,14 @@ export default function RoomsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-foreground">Rooms</h1>
-        <Button onClick={openCreate} className="gap-2" disabled={departments.length === 0}>
-          <Plus className="h-4 w-4" /> Add Room
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setManageOpen(true)} className="gap-2">
+            <Settings className="h-4 w-4" /> Manage Room Types
+          </Button>
+          <Button onClick={openCreate} className="gap-2" disabled={departments.length === 0}>
+            <Plus className="h-4 w-4" /> Add Room
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -251,14 +342,27 @@ export default function RoomsPage() {
             </div>
             <div className="space-y-1.5">
               <Label>Room Type *</Label>
-              <Select value={roomType} onValueChange={(v) => setRoomType(v as RoomType)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select value={roomTypeId} onValueChange={handleRoomTypeChange}>
+                <SelectTrigger><SelectValue placeholder="Select room type" /></SelectTrigger>
                 <SelectContent>
-                  {ROOM_TYPES.map((t) => (
-                    <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>
+                  {roomTypes.map((rt) => (
+                    <SelectItem key={rt.id} value={rt.id}>{rt.name}</SelectItem>
                   ))}
+                  <SelectItem value={NEW_ROOM_TYPE_VALUE}>+ New Room Type</SelectItem>
                 </SelectContent>
               </Select>
+              {showNewRoomTypeInput && (
+                <div className="flex gap-2 pt-2">
+                  <Input
+                    value={newRoomTypeName}
+                    onChange={(e) => setNewRoomTypeName(e.target.value)}
+                    placeholder="New room type name"
+                  />
+                  <Button onClick={handleCreateRoomType} disabled={creatingRoomType} size="sm">
+                    {creatingRoomType ? "Saving…" : "Add"}
+                  </Button>
+                </div>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label>Capacity</Label>
@@ -284,6 +388,177 @@ export default function RoomsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ManageRoomTypesDialog
+        open={manageOpen}
+        onOpenChange={setManageOpen}
+        roomTypes={allRoomTypes}
+        hospitalId={user?.hospitalId}
+      />
     </div>
+  );
+}
+
+function ManageRoomTypesDialog({
+  open,
+  onOpenChange,
+  roomTypes,
+  hospitalId,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  roomTypes: RoomType[];
+  hospitalId?: string;
+}) {
+  const queryClient = useQueryClient();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
+  const [newName, setNewName] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ["room-types"] });
+    queryClient.invalidateQueries({ queryKey: ["room-types-all"] });
+    queryClient.invalidateQueries({ queryKey: ["rooms"] });
+  };
+
+  const handleAdd = async () => {
+    if (!hospitalId || !newName.trim()) return;
+    setBusy(true);
+    try {
+      const { error } = await supabase
+        .from("room_types")
+        .insert({ hospital_id: hospitalId, name: newName.trim() });
+      if (error) throw error;
+      toast.success("Room type added.");
+      setNewName("");
+      refresh();
+    } catch (err: any) {
+      toast.error(err.message || "Failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleSaveName = async (id: string) => {
+    if (!editingName.trim()) return;
+    setBusy(true);
+    try {
+      const { error } = await supabase
+        .from("room_types")
+        .update({ name: editingName.trim() })
+        .eq("id", id);
+      if (error) throw error;
+      toast.success("Updated.");
+      setEditingId(null);
+      refresh();
+    } catch (err: any) {
+      toast.error(err.message || "Failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleToggle = async (rt: RoomType) => {
+    setBusy(true);
+    try {
+      const { error } = await supabase
+        .from("room_types")
+        .update({ is_active: !rt.is_active })
+        .eq("id", rt.id);
+      if (error) throw error;
+      refresh();
+    } catch (err: any) {
+      toast.error(err.message || "Failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Manage Room Types</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="flex gap-2">
+            <Input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="New room type name"
+            />
+            <Button onClick={handleAdd} disabled={busy || !newName.trim()}>Add</Button>
+          </div>
+          <div className="rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead className="w-24">Active</TableHead>
+                  <TableHead className="w-24"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {roomTypes.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-sm text-muted-foreground">
+                      No room types yet.
+                    </TableCell>
+                  </TableRow>
+                )}
+                {roomTypes.map((rt) => (
+                  <TableRow key={rt.id}>
+                    <TableCell>
+                      {editingId === rt.id ? (
+                        <Input
+                          value={editingName}
+                          onChange={(e) => setEditingName(e.target.value)}
+                        />
+                      ) : (
+                        rt.name
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Switch
+                        checked={!!rt.is_active}
+                        onCheckedChange={() => handleToggle(rt)}
+                        disabled={busy}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      {editingId === rt.id ? (
+                        <div className="flex gap-1">
+                          <Button size="sm" onClick={() => handleSaveName(rt.id)} disabled={busy}>
+                            Save
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
+                            Cancel
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setEditingId(rt.id);
+                            setEditingName(rt.name);
+                          }}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
