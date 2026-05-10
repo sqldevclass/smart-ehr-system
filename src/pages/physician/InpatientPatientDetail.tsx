@@ -126,20 +126,55 @@ export default function InpatientPatientDetail() {
 
 /* ============ Orders Tab ============ */
 
+function useServiceTypeIds() {
+  const { user } = useAuth();
+  const { data } = useQuery({
+    queryKey: ["service-types-codes", user?.hospitalId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("service_types")
+        .select("id, code")
+        .eq("hospital_id", user!.hospitalId);
+      return data || [];
+    },
+    enabled: !!user?.hospitalId,
+  });
+  const labTypeId = data?.find((t: any) => t.code === "laboratory")?.id ?? null;
+  const consultTypeId = data?.find((t: any) => t.code === "consultation")?.id ?? null;
+  return { labTypeId, consultTypeId };
+}
+
+function useHospVisitServices(hospId: string) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["hosp-visit-services", hospId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("visit_services")
+        .select("id, source, cost_at_time, assigned_physician_id, service_statuses(code, name_ru), services(id, name, service_type_id), physicians(profiles(first_name, last_name))")
+        .eq("hospitalization_id", hospId)
+        .eq("hospital_id", user!.hospitalId);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.hospitalId,
+  });
+}
+
 function ServiceListBase({
   hospId,
   patientId,
   filterFn,
   emptyText,
   addLabel,
-  serviceTypeFilter,
+  catalogTypeId,
 }: {
   hospId: string;
   patientId: string;
   filterFn?: (vs: any) => boolean;
   emptyText: string;
   addLabel: string;
-  serviceTypeFilter?: "lab" | null;
+  catalogTypeId?: string | null;
 }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -147,36 +182,23 @@ function ServiceListBase({
   const [serviceId, setServiceId] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const { data: services = [] } = useQuery({
-    queryKey: ["hosp-visit-services", hospId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("visit_services")
-        .select("id, source, cost_at_time, assigned_physician_id, service_statuses(code, name_ru), services(id, name, service_types(name_en))")
-        .eq("hospitalization_id", hospId)
-        .eq("hospital_id", user!.hospitalId);
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user,
-  });
-
+  const { data: services = [] } = useHospVisitServices(hospId);
   const filtered = filterFn ? services.filter(filterFn) : services;
 
   const { data: catalog = [] } = useQuery({
-    queryKey: ["services-catalog", user?.hospitalId, serviceTypeFilter],
+    queryKey: ["services-catalog", user?.hospitalId, catalogTypeId ?? "all"],
     queryFn: async () => {
       let q = supabase
         .from("services")
-        .select("id, name, cost_with_vat, service_types(name_en)")
+        .select("id, name, cost_with_vat, service_type_id")
         .eq("hospital_id", user!.hospitalId)
         .eq("is_active", true)
         .order("name");
-      if (serviceTypeFilter) q = q.eq("service_types.name_en", serviceTypeFilter);
+      if (catalogTypeId) q = q.eq("service_type_id", catalogTypeId);
       const { data } = await q;
       return data || [];
     },
-    enabled: !!user && open,
+    enabled: !!user && open && catalogTypeId !== null,
   });
 
   const handleAdd = async () => {
@@ -258,66 +280,79 @@ function ServiceListBase({
 }
 
 function OrdersTab({ hospId, patientId }: { hospId: string; patientId: string }) {
-  return <ServiceListBase hospId={hospId} patientId={patientId} emptyText="No orders yet." addLabel="Add Service" />;
-}
-
-function LabTab({ hospId, patientId }: { hospId: string; patientId: string }) {
+  const { labTypeId, consultTypeId } = useServiceTypeIds();
   return (
     <ServiceListBase
       hospId={hospId}
       patientId={patientId}
-      filterFn={(vs) => vs.services?.service_types?.name_en === "lab"}
+      filterFn={(vs) =>
+        vs.services?.service_type_id !== labTypeId &&
+        vs.services?.service_type_id !== consultTypeId
+      }
+      emptyText="No orders yet."
+      addLabel="Add Service"
+    />
+  );
+}
+
+function LabTab({ hospId, patientId }: { hospId: string; patientId: string }) {
+  const { labTypeId } = useServiceTypeIds();
+  return (
+    <ServiceListBase
+      hospId={hospId}
+      patientId={patientId}
+      filterFn={(vs) => vs.services?.service_type_id === labTypeId}
       emptyText="No lab orders yet."
       addLabel="Order Lab"
-      serviceTypeFilter="lab"
+      catalogTypeId={labTypeId}
     />
   );
 }
 
 function ConsultationTab({ hospId, patientId }: { hospId: string; patientId: string }) {
   const { user } = useAuth();
+  const { physicianId: currentPhysicianId } = usePhysicianId();
+  const { consultTypeId } = useServiceTypeIds();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [physicianId, setPhysicianId] = useState("");
   const [serviceId, setServiceId] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const { data: services = [] } = useQuery({
-    queryKey: ["hosp-consultations", hospId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("visit_services")
-        .select("id, assigned_physician_id, service_statuses(code, name_ru), services(name), physicians(profiles(first_name, last_name))")
-        .eq("hospitalization_id", hospId)
-        .eq("source", "physician");
-      return data || [];
-    },
-  });
+  const { data: services = [] } = useHospVisitServices(hospId);
+  const consultServices = services.filter(
+    (vs: any) => vs.services?.service_type_id === consultTypeId
+  );
 
   const { data: physicians = [] } = useQuery({
-    queryKey: ["physicians-list", user?.hospitalId],
+    queryKey: ["physicians-other", user?.hospitalId, currentPhysicianId],
     queryFn: async () => {
-      const { data } = await supabase
+      let q = supabase
         .from("physicians")
-        .select("id, profiles(first_name, last_name)")
-        .eq("hospital_id", user!.hospitalId);
+        .select("id, specialization, profiles!inner(full_name)")
+        .eq("hospital_id", user!.hospitalId)
+        .eq("is_active", true);
+      if (currentPhysicianId) q = q.neq("id", currentPhysicianId);
+      const { data } = await q;
       return data || [];
     },
-    enabled: !!user && open,
+    enabled: !!user?.hospitalId && open,
   });
 
   const { data: catalog = [] } = useQuery({
-    queryKey: ["services-consult", user?.hospitalId],
+    queryKey: ["services-consult", user?.hospitalId, consultTypeId],
     queryFn: async () => {
+      if (!consultTypeId) return [];
       const { data } = await supabase
         .from("services")
-        .select("id, name, cost_with_vat, service_types(name_en)")
+        .select("id, name, cost_with_vat, service_type_id")
         .eq("hospital_id", user!.hospitalId)
         .eq("is_active", true)
+        .eq("service_type_id", consultTypeId)
         .order("name");
       return data || [];
     },
-    enabled: !!user && open,
+    enabled: !!user?.hospitalId && open && !!consultTypeId,
   });
 
   const handleAdd = async () => {
@@ -331,19 +366,19 @@ function ConsultationTab({ hospId, patientId }: { hospId: string; patientId: str
         p_hospital_id: user!.hospitalId,
         p_ordered_by: user!.id,
         p_service_id: serviceId,
-        p_assigned_physician_id: physicianId || null,
+        p_assigned_physician_id: physicianId,
         p_cost_at_time: (svc as any)?.cost_with_vat ?? 0,
       });
       if (error) {
         toast.error(error.message);
         return;
       }
-      toast.success("Service ordered.");
+      toast.success("Consultation requested.");
       setOpen(false);
       setPhysicianId("");
       setServiceId("");
       queryClient.invalidateQueries({ queryKey: ["inpatient-services", hospId] });
-      queryClient.invalidateQueries({ queryKey: ["hosp-consultations", hospId] });
+      queryClient.invalidateQueries({ queryKey: ["hosp-visit-services", hospId] });
     } finally {
       setSubmitting(false);
     }
@@ -356,11 +391,11 @@ function ConsultationTab({ hospId, patientId }: { hospId: string; patientId: str
           <Plus className="h-4 w-4" /> Request Consultation
         </Button>
       </div>
-      {services.length === 0 ? (
+      {consultServices.length === 0 ? (
         <p className="text-sm text-muted-foreground">No consultations yet.</p>
       ) : (
         <ul className="space-y-2">
-          {services.map((vs: any) => (
+          {consultServices.map((vs: any) => (
             <li key={vs.id} className="flex items-center justify-between rounded border p-2 text-sm">
               <div>
                 <p>{vs.services?.name}</p>
@@ -387,7 +422,7 @@ function ConsultationTab({ hospId, patientId }: { hospId: string; patientId: str
                 <SelectContent>
                   {physicians.map((p: any) => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.profiles?.last_name} {p.profiles?.first_name}
+                      {p.profiles?.full_name}{p.specialization ? ` — ${p.specialization}` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
