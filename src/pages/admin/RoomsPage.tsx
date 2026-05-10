@@ -437,13 +437,22 @@ export default function RoomsPage() {
             </div>
           )}
 
+          {officeRooms.length > 0 && (
+            <div className="space-y-2">
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                Office Rooms
+              </h2>
+              {renderOfficeTable(officeRooms)}
+            </div>
+          )}
+
           {/* Add Room row */}
           <div className="space-y-2">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
               Add Room
             </h2>
-            <div className="rounded-lg border bg-card p-3">
-              <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto_1fr_auto] gap-2 items-end">
+            <div className="rounded-lg border bg-card p-3 space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-2 items-end">
                 <div className="space-y-1">
                   <Label className="text-xs">Name</Label>
                   <Input
@@ -464,33 +473,59 @@ export default function RoomsPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Beds</Label>
-                  <div className="inline-flex items-center gap-2">
-                    <Button size="icon" variant="outline" className="h-9 w-9" onClick={() => setAddBeds((b) => Math.max(1, b - 1))} disabled={addBeds <= 1}>
-                      <Minus className="h-3 w-3" />
-                    </Button>
-                    <span className="w-8 text-center tabular-nums">{addBeds}</span>
-                    <Button size="icon" variant="outline" className="h-9 w-9" onClick={() => setAddBeds((b) => Math.min(100, b + 1))} disabled={addBeds >= 100}>
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Department</Label>
-                  <Select value={addDeptId} onValueChange={setAddDeptId}>
-                    <SelectTrigger className="h-9"><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent>
-                      {departments.map((d) => (
-                        <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
                 <Button onClick={handleAddRoom} disabled={adding} className="h-9">
                   {adding ? "Adding…" : "Add"}
                 </Button>
               </div>
+
+              {!addIsOffice ? (
+                <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-2 items-end">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Beds</Label>
+                    <div className="inline-flex items-center gap-2">
+                      <Button size="icon" variant="outline" className="h-9 w-9" onClick={() => setAddBeds((b) => Math.max(1, b - 1))} disabled={addBeds <= 1}>
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                      <span className="w-8 text-center tabular-nums">{addBeds}</span>
+                      <Button size="icon" variant="outline" className="h-9 w-9" onClick={() => setAddBeds((b) => Math.min(100, b + 1))} disabled={addBeds >= 100}>
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Department</Label>
+                    <Select value={addDeptId} onValueChange={setAddDeptId}>
+                      <SelectTrigger className="h-9"><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectContent>
+                        {departments.map((d) => (
+                          <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <Label className="text-xs">Services</Label>
+                  <div className="max-h-48 overflow-y-auto rounded-md border p-2 space-y-1">
+                    {services.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No active services.</p>
+                    ) : services.map((s) => {
+                      const id = `addsvc-${s.id}`;
+                      return (
+                        <label key={s.id} htmlFor={id} className="flex items-center gap-2 text-sm cursor-pointer">
+                          <Checkbox
+                            id={id}
+                            checked={addServiceIds.has(s.id)}
+                            onCheckedChange={() => toggleAddService(s.id)}
+                          />
+                          <span>{s.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
