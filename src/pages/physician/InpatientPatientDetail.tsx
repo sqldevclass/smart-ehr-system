@@ -160,11 +160,15 @@ function TabsSection({ hospId, hosp, patient }: { hospId: string; hosp: any; pat
     queryClient.invalidateQueries({ queryKey: ["inpatient-visit-services", hospId] });
   };
 
+  console.log("allServices:", allServices.length, "hospId:", hospId, "user:", user?.hospitalId);
+
   const ordersServices = allServices.filter(
     (vs: any) => vs.services?.service_type_id !== labTypeId && vs.services?.service_type_id !== consultTypeId,
   );
   const labServices = allServices.filter((vs: any) => vs.services?.service_type_id === labTypeId);
   const consultServices = allServices.filter((vs: any) => vs.services?.service_type_id === consultTypeId);
+
+  console.log("ordersServices:", ordersServices.length, "labTypeId:", labTypeId, "consultTypeId:", consultTypeId);
 
   return (
     <Tabs defaultValue="orders">
