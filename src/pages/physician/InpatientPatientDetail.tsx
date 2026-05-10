@@ -425,15 +425,15 @@ function ConsultationTab({ hospId }: { hospId: string }) {
 function CareTab({ hospId, orders }: { hospId: string; orders: any[] }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [dietId, setDietId] = useState("");
-  const [activityId, setActivityId] = useState("");
+  const [dietValue, setDietValue] = useState("");
+  const [activityValue, setActivityValue] = useState("");
   const [careNote, setCareNote] = useState("");
   const [savingType, setSavingType] = useState<string | null>(null);
 
   const { data: diets = [] } = useQuery({
     queryKey: ["diet-types"],
     queryFn: async () => {
-      const { data } = await supabase.from("diet_types").select("id, name_ru, code");
+      const { data } = await supabase.from("diet_types").select("id, code, name_ru");
       return data || [];
     },
   });
@@ -441,27 +441,27 @@ function CareTab({ hospId, orders }: { hospId: string; orders: any[] }) {
   const { data: modes = [] } = useQuery({
     queryKey: ["activity-modes"],
     queryFn: async () => {
-      const { data } = await supabase.from("activity_modes").select("id, name_ru, code");
+      const { data } = await supabase.from("activity_modes").select("id, code, name_ru");
       return data || [];
     },
   });
 
-  const saveOrder = async (order_type: string, payload: Record<string, any>) => {
+  const saveOrder = async (order_type: string, order_value: string) => {
     setSavingType(order_type);
     try {
       const { error } = await supabase.from("hospitalization_orders").insert({
         hospitalization_id: hospId,
         hospital_id: user!.hospitalId,
         order_type,
+        order_value,
         ordered_by: user!.id,
         ordered_at: new Date().toISOString(),
-        ...payload,
       });
       if (error) throw error;
       toast.success("Order saved.");
       queryClient.invalidateQueries({ queryKey: ["physician-hosp", hospId] });
-      setDietId("");
-      setActivityId("");
+      setDietValue("");
+      setActivityValue("");
       setCareNote("");
     } catch (err: any) {
       toast.error(err.message || "Failed to save order");
@@ -471,7 +471,7 @@ function CareTab({ hospId, orders }: { hospId: string; orders: any[] }) {
   };
 
   const dietOrders = orders.filter((o) => o.order_type === "diet");
-  const activityOrders = orders.filter((o) => o.order_type === "activity");
+  const activityOrders = orders.filter((o) => o.order_type === "activity_mode");
   const careOrders = orders.filter((o) => o.order_type === "care");
 
   return (
