@@ -1,8 +1,6 @@
-import { useEffect, useState } from "react";
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
-import { CalendarDays, UserCircle, LogOut } from "lucide-react";
+import { Outlet, useNavigate } from "react-router-dom";
+import { Users, UserCircle, LogOut } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
-import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -20,37 +18,19 @@ import {
 } from "@/components/ui/sidebar";
 
 const navItems = [
-  { title: "My Schedule", url: "/physician", icon: CalendarDays },
-  { title: "Profile", url: "/physician/profile", icon: UserCircle },
+  { title: "Patients", url: "/nurse", icon: Users },
+  { title: "Profile", url: "/nurse/profile", icon: UserCircle },
 ];
 
 const roleTitles: Record<string, string> = {
   admin: "Administrator",
-  physician: "Physician",
-  registrar: "Registrar",
-  pharmacy_staff: "Pharmacy Staff",
-  warehouse_staff: "Warehouse Staff",
+  inpatient_nurse: "Inpatient Nurse",
+  head_nurse: "Head Nurse",
 };
 
-type Mode = "ambulatory" | "inpatient";
-
-export default function PhysicianLayout() {
+export default function NurseLayout() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
-
-  const [mode, setMode] = useState<Mode>(() => {
-    const stored = typeof window !== "undefined" ? localStorage.getItem("physician_mode") : null;
-    return (stored as Mode) || "ambulatory";
-  });
-
-  // Sync mode from URL on initial load
-  useEffect(() => {
-    if (location.pathname.startsWith("/physician/inpatient") && mode !== "inpatient") {
-      setMode("inpatient");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -58,38 +38,11 @@ export default function PhysicianLayout() {
     navigate("/login");
   };
 
-  const switchMode = (m: Mode) => {
-    setMode(m);
-    localStorage.setItem("physician_mode", m);
-    navigate(m === "ambulatory" ? "/physician" : "/physician/inpatient");
-  };
-
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <Sidebar collapsible="icon">
           <SidebarContent>
-            <SidebarGroup>
-              <SidebarGroupLabel>Mode</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <div className="flex flex-col gap-1.5 px-2 py-1">
-                  <Button
-                    size="sm"
-                    variant={mode === "ambulatory" ? "default" : "outline"}
-                    onClick={() => switchMode("ambulatory")}
-                  >
-                    Ambulatory
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={mode === "inpatient" ? "default" : "outline"}
-                    onClick={() => switchMode("inpatient")}
-                  >
-                    Inpatient
-                  </Button>
-                </div>
-              </SidebarGroupContent>
-            </SidebarGroup>
             <SidebarGroup>
               <SidebarGroupLabel>Menu</SidebarGroupLabel>
               <SidebarGroupContent>
