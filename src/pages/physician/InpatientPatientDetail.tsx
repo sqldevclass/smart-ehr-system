@@ -265,7 +265,7 @@ function LabTab({ hospId }: { hospId: string }) {
   return (
     <ServiceListBase
       hospId={hospId}
-      filterFn={(vs) => vs.services?.service_type === "lab"}
+      filterFn={(vs) => vs.services?.service_types?.name_en === "lab"}
       emptyText="No lab orders yet."
       addLabel="Order Lab"
       serviceTypeFilter="lab"
