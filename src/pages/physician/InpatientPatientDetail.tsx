@@ -127,12 +127,14 @@ export default function InpatientPatientDetail() {
 
 function ServiceListBase({
   hospId,
+  patientId,
   filterFn,
   emptyText,
   addLabel,
   serviceTypeFilter,
 }: {
   hospId: string;
+  patientId: string;
   filterFn?: (vs: any) => boolean;
   emptyText: string;
   addLabel: string;
@@ -181,27 +183,24 @@ function ServiceListBase({
     setSubmitting(true);
     try {
       const svc = catalog.find((s: any) => s.id === serviceId);
-      const { data: status } = await supabase
-        .from("service_statuses")
-        .select("id")
-        .eq("code", "ready_for_execution")
-        .maybeSingle();
-
-      const { error } = await supabase.from("visit_services").insert({
-        hospitalization_id: hospId,
-        hospital_id: user!.hospitalId,
-        service_id: serviceId,
-        cost_at_time: (svc as any)?.cost_with_vat ?? 0,
-        source: "physician",
-        status_id: status?.id,
+      const { error } = await supabase.rpc("inpatient_add_service", {
+        p_hospitalization_id: hospId,
+        p_patient_id: patientId,
+        p_hospital_id: user!.hospitalId,
+        p_ordered_by: user!.id,
+        p_service_id: serviceId,
+        p_assigned_physician_id: null,
+        p_cost_at_time: (svc as any)?.cost_with_vat ?? 0,
       });
-      if (error) throw error;
-      toast.success("Service added.");
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      toast.success("Service ordered.");
       setOpen(false);
       setServiceId("");
+      queryClient.invalidateQueries({ queryKey: ["inpatient-services", hospId] });
       queryClient.invalidateQueries({ queryKey: ["hosp-visit-services", hospId] });
-    } catch (err: any) {
-      toast.error(err.message || "Failed to add service");
     } finally {
       setSubmitting(false);
     }
