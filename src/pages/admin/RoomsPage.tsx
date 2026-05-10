@@ -126,33 +126,98 @@ export default function RoomsPage() {
     enabled: !!user,
   });
 
+  const { data: services = [] } = useQuery({
+    queryKey: ["services-active-lite", user?.hospitalId],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("services")
+        .select("id, name")
+        .eq("hospital_id", user.hospitalId)
+        .eq("is_active", true)
+        .order("name");
+      if (error) throw error;
+      return (data || []) as ServiceLite[];
+    },
+    enabled: !!user,
+  });
+
+  const { data: officeRoomServiceLinks = [] } = useQuery({
+    queryKey: ["office-room-services", user?.hospitalId],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("office_room_services")
+        .select("room_id, services(name)")
+        .eq("hospital_id", user.hospitalId);
+      if (error) throw error;
+      return (data || []) as unknown as { room_id: string; services: { name: string } | null }[];
+    },
+    enabled: !!user,
+  });
+
+  const officeRoomServiceMap = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const l of officeRoomServiceLinks) {
+      if (!m.has(l.room_id)) m.set(l.room_id, []);
+      if (l.services?.name) m.get(l.room_id)!.push(l.services.name);
+    }
+    return m;
+  }, [officeRoomServiceLinks]);
+
+  const officeRooms = rooms.filter((r) => r.room_types?.is_office_room);
+  const nonOfficeRooms = rooms.filter((r) => !r.room_types?.is_office_room);
+
   const grouped = departments.map((d) => ({
     department: d,
-    rooms: rooms.filter((r) => r.department_id === d.id),
+    rooms: nonOfficeRooms.filter((r) => r.department_id === d.id),
   }));
-  const orphanRooms = rooms.filter((r) => !departments.some((d) => d.id === r.department_id));
+  const orphanRooms = nonOfficeRooms.filter((r) => !r.department_id || !departments.some((d) => d.id === r.department_id));
 
-  const refreshRooms = () => queryClient.invalidateQueries({ queryKey: ["rooms"] });
+  const refreshRooms = () => {
+    queryClient.invalidateQueries({ queryKey: ["rooms"] });
+    queryClient.invalidateQueries({ queryKey: ["office-room-services"] });
+  };
+
+  const selectedAddType = roomTypes.find((rt) => rt.id === addTypeId);
+  const addIsOffice = !!selectedAddType?.is_office_room;
+
+  const toggleAddService = (id: string) => {
+    setAddServiceIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   const handleAddRoom = async () => {
     if (!user) return;
-    if (!addDeptId) return toast.error("Department is required.");
     if (!addName.trim()) return toast.error("Name is required.");
     if (!addTypeId) return toast.error("Room type is required.");
+    if (!addIsOffice && !addDeptId) return toast.error("Department is required.");
     setAdding(true);
     try {
-      const { error } = await supabase.from("rooms").insert({
+      const { data: inserted, error } = await supabase.from("rooms").insert({
         hospital_id: user.hospitalId,
-        department_id: addDeptId,
+        department_id: addIsOffice ? null : addDeptId,
         name: addName.trim(),
         room_type_id: addTypeId,
-        capacity: addBeds,
-      });
+        capacity: addIsOffice ? 0 : addBeds,
+      }).select("id").single();
       if (error) throw error;
+      if (addIsOffice && addServiceIds.size > 0 && inserted?.id) {
+        const rows = Array.from(addServiceIds).map((sid) => ({
+          hospital_id: user.hospitalId,
+          room_id: inserted.id,
+          service_id: sid,
+        }));
+        const { error: linkErr } = await supabase.from("office_room_services").insert(rows);
+        if (linkErr) throw linkErr;
+      }
       toast.success("Room created.");
       setAddName("");
       setAddBeds(1);
-      // keep type/dept for fast successive entries
+      setAddServiceIds(new Set());
       refreshRooms();
     } catch (err: any) {
       toast.error(err.message || "Failed to add room.");
