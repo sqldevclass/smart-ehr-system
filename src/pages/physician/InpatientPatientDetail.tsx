@@ -440,8 +440,7 @@ function ConsultationTab({
               <div>
                 <p>{vs.services?.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {vs.physicians?.profiles?.full_name || "Unassigned"
-                    : "Unassigned"}
+                  {vs.physicians?.profiles?.full_name || "Unassigned"}
                 </p>
               </div>
               <Badge variant="outline">{vs.service_statuses?.name_ru || vs.service_statuses?.code || "—"}</Badge>
