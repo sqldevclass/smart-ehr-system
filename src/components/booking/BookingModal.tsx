@@ -85,6 +85,7 @@ export function BookingModal(props: BookingModalProps) {
       setPhysician(null);
       setPickedServices(null);
       setShowPicker(false);
+      setShowMultiCalendar(false);
       setSelectedSlot(null);
       setQueueDate(null);
       setRegistrationSource("");
@@ -94,8 +95,8 @@ export function BookingModal(props: BookingModalProps) {
         setPhysician(initialPhysician);
         setShowPicker(true);
       } else if (initialService) {
-        // Service-first flow: MultiCalendar placeholder for now
         setPickedServices([initialService]);
+        setShowMultiCalendar(true);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -106,11 +107,14 @@ export function BookingModal(props: BookingModalProps) {
     setSelectedSlot(null);
     setQueueDate(null);
     setPickedServices(null);
+    setShowMultiCalendar(false);
     setShowPicker(true);
   };
 
-  const handleServiceFromSearch = () => {
-    toast.message("Coming soon — please use physician search to book.");
+  const handleServiceFromSearch = (service: ServiceResult) => {
+    setPickedServices([service]);
+    setPhysician(null);
+    setShowMultiCalendar(true);
   };
 
   const isQueueMode = physician?.scheduleType === "queue";
