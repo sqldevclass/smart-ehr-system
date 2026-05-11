@@ -256,18 +256,27 @@ export default function PatientDetail() {
         )}
       </div>
 
-      {/* Two-column layout: Add Service (left) + Visits (right) */}
+      {/* Persistent search box */}
+      <div className="rounded-lg border bg-card p-4 space-y-2">
+        <h3 className="font-semibold text-foreground text-sm">Add Service</h3>
+        <BookingSearch
+          hospitalId={user!.hospitalId}
+          onPhysicianSelect={(physician) => {
+            setSelectedPhysician(physician);
+            setSelectedService(null);
+            setBookingOpen(true);
+          }}
+          onServiceSelect={(service) => {
+            setSelectedService(service);
+            setSelectedPhysician(null);
+            setBookingOpen(true);
+          }}
+        />
+      </div>
+
+      {/* Two-column layout: (left) + Visits (right) */}
       <div className="grid grid-cols-2 gap-6 items-start">
-        {/* Add Service - left */}
-        <div className="rounded-lg border bg-card p-6 space-y-3">
-          <div>
-            <h3 className="font-semibold text-foreground">Add Service</h3>
-            <p className="text-xs text-muted-foreground">Open booking to search a physician and book.</p>
-          </div>
-          <Button onClick={() => setBookingOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" /> Add Service
-          </Button>
-        </div>
+        <div />
 
         {/* Visits - right */}
         <div className="rounded-lg border bg-card p-6 space-y-3">
