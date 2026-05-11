@@ -28,6 +28,7 @@ interface MultiCalendarProps {
   onBooked: () => void;
   patientId: string;
   hospitalizationId?: string;
+  officeRoomId?: string;
 }
 
 function deriveScheduleType(rows: any[] | null | undefined, date: Date): "slots" | "queue" | null {
