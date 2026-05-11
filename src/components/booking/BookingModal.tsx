@@ -254,7 +254,20 @@ export function BookingModal(props: BookingModalProps) {
           </DialogTitle>
         </DialogHeader>
 
-        {!physician ? (
+        {!physician && pickedServices && pickedServices.length > 0 ? (
+          <div className="space-y-4">
+            <div className="rounded-md border bg-card p-3 text-sm">
+              <div className="text-xs text-muted-foreground">Selected service</div>
+              <div className="mt-1 font-medium">{pickedServices[0].name}</div>
+            </div>
+            <div className="rounded-lg border bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+              Multi-physician calendar for this service — coming soon.
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t pt-4">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+            </div>
+          </div>
+        ) : !physician ? (
           <div className="space-y-4">
             <BookingSearch
               hospitalId={hospitalId}
