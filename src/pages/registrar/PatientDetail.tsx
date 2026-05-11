@@ -23,7 +23,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { BookingModal } from "@/components/booking/BookingModal";
 import { BookingSearch } from "@/components/booking/BookingSearch";
-import type { PhysicianResult, ServiceResult } from "@/components/booking/types";
+import type { OfficeRoomResult, PhysicianResult, ServiceResult } from "@/components/booking/types";
 
 export default function PatientDetail() {
   const { patientId } = useParams();
@@ -37,6 +37,7 @@ export default function PatientDetail() {
   const [bookingOpen, setBookingOpen] = useState(false);
   const [selectedPhysician, setSelectedPhysician] = useState<PhysicianResult | null>(null);
   const [selectedService, setSelectedService] = useState<ServiceResult | null>(null);
+  const [selectedOfficeRoom, setSelectedOfficeRoom] = useState<OfficeRoomResult | null>(null);
 
   const { data: patient, isLoading } = useQuery({
     queryKey: ["patient", patientId],
@@ -264,11 +265,19 @@ export default function PatientDetail() {
           onPhysicianSelect={(physician) => {
             setSelectedPhysician(physician);
             setSelectedService(null);
+            setSelectedOfficeRoom(null);
             setBookingOpen(true);
           }}
           onServiceSelect={(service) => {
             setSelectedService(service);
             setSelectedPhysician(null);
+            setSelectedOfficeRoom(null);
+            setBookingOpen(true);
+          }}
+          onOfficeRoomSelect={(room) => {
+            setSelectedOfficeRoom(room);
+            setSelectedPhysician(null);
+            setSelectedService(null);
             setBookingOpen(true);
           }}
         />
@@ -443,6 +452,7 @@ export default function PatientDetail() {
           if (!o) {
             setSelectedPhysician(null);
             setSelectedService(null);
+            setSelectedOfficeRoom(null);
           }
         }}
         patientId={patientId!}
@@ -450,11 +460,13 @@ export default function PatientDetail() {
         mode="registrar"
         initialPhysician={selectedPhysician}
         initialService={selectedService}
+        initialOfficeRoom={selectedOfficeRoom}
         onBooked={() => {
           queryClient.invalidateQueries({ queryKey: ["patient-visits", patientId] });
           setBookingOpen(false);
           setSelectedPhysician(null);
           setSelectedService(null);
+          setSelectedOfficeRoom(null);
         }}
       />
     </div>

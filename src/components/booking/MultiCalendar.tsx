@@ -28,6 +28,7 @@ interface MultiCalendarProps {
   onBooked: () => void;
   patientId: string;
   hospitalizationId?: string;
+  officeRoomId?: string;
 }
 
 function deriveScheduleType(rows: any[] | null | undefined, date: Date): "slots" | "queue" | null {
@@ -44,7 +45,7 @@ function deriveScheduleType(rows: any[] | null | undefined, date: Date): "slots"
 }
 
 export function MultiCalendar(props: MultiCalendarProps) {
-  const { service, hospitalId, timezone, mode, patientId, hospitalizationId, onBooked } = props;
+  const { service, hospitalId, timezone, mode, patientId, hospitalizationId, officeRoomId, onBooked } = props;
   const { user } = useAuth();
   const [date, setDate] = useState<Date>(new Date());
   const [selected, setSelected] = useState<{ slot: SlotRow; physician: PhysCol } | null>(null);
@@ -54,8 +55,26 @@ export function MultiCalendar(props: MultiCalendarProps) {
   const bounds = useMemo(() => localDayBoundsUTC(date, timezone), [date, timezone]);
 
   const { data: physicians = [] } = useQuery({
-    queryKey: ["multi-cal-physicians", service.id, hospitalId, dateStr],
+    queryKey: ["multi-cal-physicians", service.id, hospitalId, dateStr, officeRoomId || "none"],
     queryFn: async () => {
+      if (officeRoomId) {
+        const { data, error } = await supabase
+          .from("office_room_physicians")
+          .select(
+            "physician_id, physicians!inner(id, specialization, is_active, profiles!inner(full_name), physician_schedules(schedule_type, valid_from, valid_to, days_of_week))"
+          )
+          .eq("room_id", officeRoomId)
+          .eq("hospital_id", hospitalId);
+        if (error) throw error;
+        return (data || [])
+          .filter((r: any) => r.physicians?.is_active !== false)
+          .map((r: any): PhysCol => ({
+            id: r.physician_id,
+            fullName: r.physicians?.profiles?.full_name || "—",
+            specialization: r.physicians?.specialization ?? null,
+            scheduleType: deriveScheduleType(r.physicians?.physician_schedules, date),
+          }));
+      }
       const { data, error } = await supabase
         .from("physician_service_privileges")
         .select(
@@ -119,7 +138,8 @@ export function MultiCalendar(props: MultiCalendarProps) {
           p_assigned_physician_id: selected.physician.id,
           p_cost_at_time: service.costWithVat,
           p_registration_source: null,
-        });
+          ...(officeRoomId ? { p_assigned_room_id: officeRoomId } : {}),
+        } as any);
         if (error) throw error;
         visitServiceId =
           (data as any)?.visit_service_id ||

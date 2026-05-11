@@ -18,7 +18,7 @@ import { PhysicianCalendar } from "./PhysicianCalendar";
 import { ServicePicker } from "./ServicePicker";
 import { MultiCalendar } from "./MultiCalendar";
 import type {
-  BookingModalProps, BookingResult, PhysicianResult, ServiceResult, SlotRow,
+  BookingModalProps, BookingResult, OfficeRoomResult, PhysicianResult, ServiceResult, SlotRow,
 } from "./types";
 
 const REGISTRATION_SOURCES = [
@@ -28,13 +28,14 @@ const REGISTRATION_SOURCES = [
 export function BookingModal(props: BookingModalProps) {
   const {
     open, onOpenChange, patientId, hospitalId, mode, hospitalizationId,
-    preselectedServiceId, initialPhysician, initialService, onBooked,
+    preselectedServiceId, initialPhysician, initialService, initialOfficeRoom, onBooked,
   } = props;
   const { user } = useAuth();
   const tz = user?.timezone || "Asia/Tashkent";
 
   const [physician, setPhysician] = useState<PhysicianResult | null>(null);
   const [pickedServices, setPickedServices] = useState<ServiceResult[] | null>(null);
+  const [officeRoom, setOfficeRoom] = useState<OfficeRoomResult | null>(null);
   const [showPicker, setShowPicker] = useState(false);
   const [showMultiCalendar, setShowMultiCalendar] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<SlotRow | null>(null);
@@ -84,6 +85,7 @@ export function BookingModal(props: BookingModalProps) {
     if (!open) {
       setPhysician(null);
       setPickedServices(null);
+      setOfficeRoom(null);
       setShowPicker(false);
       setShowMultiCalendar(false);
       setSelectedSlot(null);
@@ -91,7 +93,11 @@ export function BookingModal(props: BookingModalProps) {
       setRegistrationSource("");
       setSubmitting(false);
     } else {
-      if (initialPhysician) {
+      if (initialOfficeRoom) {
+        setOfficeRoom(initialOfficeRoom);
+        setPickedServices([initialOfficeRoom.service]);
+        setShowMultiCalendar(true);
+      } else if (initialPhysician) {
         setPhysician(initialPhysician);
         setShowPicker(true);
       } else if (initialService) {
@@ -263,8 +269,12 @@ export function BookingModal(props: BookingModalProps) {
         {!physician && showMultiCalendar && pickedServices && pickedServices.length > 0 ? (
           <div className="space-y-4">
             <div className="rounded-md border bg-card p-3 text-sm">
-              <div className="text-xs text-muted-foreground">Selected service</div>
-              <div className="mt-1 font-medium">{pickedServices[0].name}</div>
+              <div className="text-xs text-muted-foreground">
+                {officeRoom ? "Selected office room & service" : "Selected service"}
+              </div>
+              <div className="mt-1 font-medium">
+                {officeRoom ? `${officeRoom.name} · ${pickedServices[0].name}` : pickedServices[0].name}
+              </div>
             </div>
             <MultiCalendar
               service={pickedServices[0]}
@@ -273,9 +283,11 @@ export function BookingModal(props: BookingModalProps) {
               mode={mode}
               patientId={patientId}
               hospitalizationId={hospitalizationId}
+              officeRoomId={officeRoom?.id}
               onBooked={() => onBooked({
                 visitServiceId: "",
                 serviceId: pickedServices[0].id,
+                officeRoomId: officeRoom?.id,
               })}
             />
             <div className="flex items-center justify-end gap-2 border-t pt-4">
@@ -288,9 +300,15 @@ export function BookingModal(props: BookingModalProps) {
               hospitalId={hospitalId}
               onPhysicianSelect={handlePhysicianSelect}
               onServiceSelect={handleServiceFromSearch}
+              onOfficeRoomSelect={(room) => {
+                setOfficeRoom(room);
+                setPickedServices([room.service]);
+                setPhysician(null);
+                setShowMultiCalendar(true);
+              }}
             />
             <p className="text-xs text-muted-foreground">
-              Search for a physician to view their schedule and book.
+              Search for a physician, service, or office room to book.
             </p>
           </div>
         ) : (
