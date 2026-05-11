@@ -211,7 +211,14 @@ export default function AdmissionsPage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      <SummaryCard>
+        <MetricTile label="Admitted Today" value={summary?.admittedToday ?? "—"} highlight />
+        <MetricTile label="Active" value={summary?.active ?? "—"} />
+        <MetricTile label="Discharged Today" value={summary?.dischargedToday ?? "—"} />
+        <MetricTile label="Emergency Today" value={summary?.emergencyToday ?? "—"} />
+      </SummaryCard>
+
       {/* Section 1: Recommended */}
       <Card>
         <CardHeader>
