@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
@@ -8,9 +9,10 @@ interface Props {
   hospitalId: string;
   selectedDate: Date;
   timezone: string;
+  onQueueSelect?: (date: Date) => void;
 }
 
-export function QueuePanel({ physicianId, hospitalId, selectedDate }: Props) {
+export function QueuePanel({ physicianId, hospitalId, selectedDate, onQueueSelect }: Props) {
   const dateStr = format(selectedDate, "yyyy-MM-dd");
 
   const { data: config } = useQuery({
@@ -26,6 +28,11 @@ export function QueuePanel({ physicianId, hospitalId, selectedDate }: Props) {
       return data;
     },
   });
+
+  useEffect(() => {
+    onQueueSelect?.(selectedDate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate, physicianId]);
 
   const next = (config?.last_number ?? 0) + 1;
 
