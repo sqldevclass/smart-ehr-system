@@ -23,7 +23,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { BookingModal } from "@/components/booking/BookingModal";
 import { BookingSearch } from "@/components/booking/BookingSearch";
-import type { PhysicianResult, ServiceResult } from "@/components/booking/types";
+import type { OfficeRoomResult, PhysicianResult, ServiceResult } from "@/components/booking/types";
 
 export default function PatientDetail() {
   const { patientId } = useParams();
