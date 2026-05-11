@@ -16,6 +16,7 @@ import {
 import { BookingSearch } from "./BookingSearch";
 import { PhysicianCalendar } from "./PhysicianCalendar";
 import { ServicePicker } from "./ServicePicker";
+import { MultiCalendar } from "./MultiCalendar";
 import type {
   BookingModalProps, BookingResult, PhysicianResult, ServiceResult, SlotRow,
 } from "./types";
