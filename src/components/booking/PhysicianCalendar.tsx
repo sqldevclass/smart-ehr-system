@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   addMonths, eachDayOfInterval, endOfMonth, format, isSameDay, isSameMonth,
@@ -83,6 +83,12 @@ export function PhysicianCalendar({
     setSelectedDate(d);
     if (isQueue) onQueueSelect(d);
   };
+
+  // Ensure queueDate is set as soon as a queue physician is opened
+  useEffect(() => {
+    if (isQueue) onQueueSelect(selectedDate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isQueue]);
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

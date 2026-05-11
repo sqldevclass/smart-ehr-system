@@ -108,6 +108,14 @@ export function BookingModal(props: BookingModalProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // Auto-set queueDate when physician switches to queue mode
+  useEffect(() => {
+    if (physician?.scheduleType === "queue" && !queueDate) {
+      setQueueDate(new Date());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [physician]);
+
   const handlePhysicianSelect = (p: PhysicianResult) => {
     setPhysician(p);
     setSelectedSlot(null);
