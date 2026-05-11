@@ -1,37 +1,18 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import { ArrowLeft, Pencil, ChevronDown, ChevronUp, AlertTriangle, Lock } from "lucide-react";
+import { ArrowLeft, Pencil, ChevronDown, ChevronUp, AlertTriangle, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { localDayBoundsUTC, toLocal } from "@/lib/timezone";
-
-const REGISTRATION_SOURCES = [
-  "Facebook",
-  "Instagram",
-  "Google Search",
-  "Friend Recommendation",
-  "Doctor Referral",
-  "Other",
-];
+import { BookingModal } from "@/components/booking/BookingModal";
 
 export default function PatientDetail() {
   const { patientId } = useParams();
