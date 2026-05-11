@@ -37,6 +37,7 @@ export default function PatientDetail() {
   const [bookingOpen, setBookingOpen] = useState(false);
   const [selectedPhysician, setSelectedPhysician] = useState<PhysicianResult | null>(null);
   const [selectedService, setSelectedService] = useState<ServiceResult | null>(null);
+  const [selectedOfficeRoom, setSelectedOfficeRoom] = useState<OfficeRoomResult | null>(null);
 
   const { data: patient, isLoading } = useQuery({
     queryKey: ["patient", patientId],
