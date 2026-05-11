@@ -77,7 +77,7 @@ export function BookingModal(props: BookingModalProps) {
 
   const showRegSource = mode === "registrar" && !hasVisitToday;
 
-  // Reset on open/close
+  // Reset on open/close; seed from initial props when opening
   useEffect(() => {
     if (!open) {
       setPhysician(null);
@@ -87,7 +87,16 @@ export function BookingModal(props: BookingModalProps) {
       setQueueDate(null);
       setRegistrationSource("");
       setSubmitting(false);
+    } else {
+      if (initialPhysician) {
+        setPhysician(initialPhysician);
+        setShowPicker(true);
+      } else if (initialService) {
+        // Service-first flow: MultiCalendar placeholder for now
+        setPickedServices([initialService]);
+      }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const handlePhysicianSelect = (p: PhysicianResult) => {
