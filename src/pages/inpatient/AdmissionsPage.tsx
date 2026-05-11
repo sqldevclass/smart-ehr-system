@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { format, differenceInDays } from "date-fns";
+import { PeriodFilter, PeriodState, getDateBounds, getTodayBounds, SummaryCard, MetricTile } from "@/components/shared/PeriodFilter";
 
 export default function AdmissionsPage() {
   const { user } = useAuth();
@@ -43,6 +44,12 @@ export default function AdmissionsPage() {
   const [departmentId, setDepartmentId] = useState("");
   const [physicianId, setPhysicianId] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [periodState, setPeriodState] = useState<PeriodState>({ period: "today" });
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "discharged">("all");
+  const [deptFilter, setDeptFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | "planned" | "emergency">("all");
+
+  const bounds = getDateBounds(periodState);
 
   const { data: recommended, isLoading: loadingRec } = useQuery({
     queryKey: ["hospitalization-recommended", user?.hospitalId],
@@ -61,15 +68,54 @@ export default function AdmissionsPage() {
   });
 
   const { data: active, isLoading: loadingActive } = useQuery({
-    queryKey: ["active-hospitalizations", user?.hospitalId],
+    queryKey: ["active-hospitalizations", user?.hospitalId, bounds.from, bounds.to, statusFilter, deptFilter, typeFilter],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("hospitalizations")
-        .select("id, hospitalization_number, admitted_at, discharged_at, departments(name), patients(first_name, last_name, patient_number), hospitalization_types(name_ru), room_assignments(bed_number, rooms(name))")
+        .select("id, hospitalization_number, admitted_at, discharged_at, department_id, urgency_id, departments(name), patients(first_name, last_name, patient_number), hospitalization_types(name_ru), hospitalization_urgency(code), room_assignments(bed_number, rooms(name))")
         .eq("hospital_id", user!.hospitalId)
+        .gte("admitted_at", bounds.from)
+        .lte("admitted_at", bounds.to)
         .order("admitted_at", { ascending: false });
+      if (statusFilter === "active") q = q.is("discharged_at", null);
+      if (statusFilter === "discharged") q = q.not("discharged_at", "is", null);
+      if (deptFilter !== "all") q = q.eq("department_id", deptFilter);
+      const { data, error } = await q;
       if (error) throw error;
-      return data || [];
+      let rows = data || [];
+      if (typeFilter !== "all") {
+        rows = rows.filter((h: any) => h.hospitalization_urgency?.code === typeFilter);
+      }
+      return rows;
+    },
+    enabled: !!user?.hospitalId,
+  });
+
+  const { data: summary } = useQuery({
+    queryKey: ["admissions-summary", user?.hospitalId],
+    queryFn: async () => {
+      const today = getTodayBounds();
+      const [admittedTodayRes, activeRes, dischargedTodayRes, emergencyRes] = await Promise.all([
+        supabase.from("hospitalizations").select("id", { count: "exact", head: true })
+          .eq("hospital_id", user!.hospitalId)
+          .gte("admitted_at", today.from).lte("admitted_at", today.to),
+        supabase.from("hospitalizations").select("id", { count: "exact", head: true })
+          .eq("hospital_id", user!.hospitalId).is("discharged_at", null),
+        supabase.from("hospitalizations").select("id", { count: "exact", head: true })
+          .eq("hospital_id", user!.hospitalId)
+          .gte("discharged_at", today.from).lte("discharged_at", today.to),
+        supabase.from("hospitalizations")
+          .select("id, hospitalization_urgency!inner(code)")
+          .eq("hospital_id", user!.hospitalId)
+          .eq("hospitalization_urgency.code", "emergency")
+          .gte("admitted_at", today.from).lte("admitted_at", today.to),
+      ]);
+      return {
+        admittedToday: admittedTodayRes.count || 0,
+        active: activeRes.count || 0,
+        dischargedToday: dischargedTodayRes.count || 0,
+        emergencyToday: (emergencyRes.data || []).length,
+      };
     },
     enabled: !!user?.hospitalId,
   });
@@ -165,7 +211,14 @@ export default function AdmissionsPage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      <SummaryCard>
+        <MetricTile label="Admitted Today" value={summary?.admittedToday ?? "—"} highlight />
+        <MetricTile label="Active" value={summary?.active ?? "—"} />
+        <MetricTile label="Discharged Today" value={summary?.dischargedToday ?? "—"} />
+        <MetricTile label="Emergency Today" value={summary?.emergencyToday ?? "—"} />
+      </SummaryCard>
+
       {/* Section 1: Recommended */}
       <Card>
         <CardHeader>
@@ -212,7 +265,35 @@ export default function AdmissionsPage() {
         <CardHeader>
           <CardTitle>Hospitalized Patients</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <PeriodFilter value={periodState} onChange={setPeriodState} />
+            <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
+              <SelectTrigger className="h-9 w-[140px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="discharged">Discharged</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={deptFilter} onValueChange={setDeptFilter}>
+              <SelectTrigger className="h-9 w-[180px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Departments</SelectItem>
+                {departments?.map((d: any) => (
+                  <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={typeFilter} onValueChange={(v: any) => setTypeFilter(v)}>
+              <SelectTrigger className="h-9 w-[140px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="planned">Planned</SelectItem>
+                <SelectItem value="emergency">Emergency</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           {loadingActive ? (
             <p className="text-muted-foreground text-sm">Loading…</p>
           ) : !active?.length ? (
@@ -221,6 +302,7 @@ export default function AdmissionsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">#</TableHead>
                   <TableHead>Hosp #</TableHead>
                   <TableHead>Patient Name</TableHead>
                   <TableHead>Department</TableHead>
@@ -233,11 +315,12 @@ export default function AdmissionsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {active.map((h: any) => {
+                {active.map((h: any, idx: number) => {
                   const ra = h.room_assignments?.[0];
                   const days = differenceInDays(new Date(), new Date(h.admitted_at));
                   return (
                     <TableRow key={h.id}>
+                      <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
                       <TableCell className="font-mono">{h.hospitalization_number}</TableCell>
                       <TableCell>
                         {h.patients?.last_name} {h.patients?.first_name}

@@ -22,6 +22,7 @@ import { Search, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { PeriodFilter, PeriodState, getDateBounds, getTodayBounds, SummaryCard, MetricTile } from "@/components/shared/PeriodFilter";
 
 interface Patient {
   id: string;
@@ -43,15 +44,20 @@ export default function PatientsList() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [periodState, setPeriodState] = useState<PeriodState>({ period: "today" });
+
+  const bounds = getDateBounds(periodState);
 
   const { data: patients = [], isLoading } = useQuery({
-    queryKey: ["patients", user?.hospitalId, search],
+    queryKey: ["patients", user?.hospitalId, search, bounds.from, bounds.to],
     queryFn: async () => {
       if (!user) return [];
       let q = supabase
         .from("patients")
         .select("id, patient_number, first_name, last_name, middle_name, date_of_birth, gender, phone, registration_status")
         .eq("hospital_id", user.hospitalId)
+        .gte("created_at", bounds.from)
+        .lte("created_at", bounds.to)
         .order("created_at", { ascending: false });
 
       if (search.trim()) {
@@ -62,6 +68,34 @@ export default function PatientsList() {
       const { data, error } = await q;
       if (error) throw error;
       return (data || []) as Patient[];
+    },
+    enabled: !!user,
+  });
+
+  const { data: summary } = useQuery({
+    queryKey: ["patients-summary", user?.hospitalId],
+    queryFn: async () => {
+      if (!user) return null;
+      const today = getTodayBounds();
+      const [todayRes, allRes] = await Promise.all([
+        supabase
+          .from("patients")
+          .select("id, registration_status", { count: "exact" })
+          .eq("hospital_id", user.hospitalId)
+          .gte("created_at", today.from)
+          .lte("created_at", today.to),
+        supabase
+          .from("patients")
+          .select("id", { count: "exact", head: true })
+          .eq("hospital_id", user.hospitalId),
+      ]);
+      const todayRows = todayRes.data || [];
+      return {
+        todayTotal: todayRows.length,
+        todayFull: todayRows.filter((r: any) => r.registration_status === "full").length,
+        todayMinimal: todayRows.filter((r: any) => r.registration_status === "minimal").length,
+        allTime: allRes.count || 0,
+      };
     },
     enabled: !!user,
   });
@@ -94,20 +128,29 @@ export default function PatientsList() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <div className="relative max-w-sm flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search by name or phone…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10"
-          />
-        </div>
+      <SummaryCard>
+        <MetricTile label="Registered Today" value={summary?.todayTotal ?? "—"} highlight />
+        <MetricTile label="Full Today" value={summary?.todayFull ?? "—"} />
+        <MetricTile label="Minimal Today" value={summary?.todayMinimal ?? "—"} />
+        <MetricTile label="Total (All Time)" value={summary?.allTime ?? "—"} />
+      </SummaryCard>
+
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <PeriodFilter value={periodState} onChange={setPeriodState} />
         <Button onClick={() => setDialogOpen(true)} className="gap-2">
           <Plus className="h-4 w-4" />
           Register Patient
         </Button>
+      </div>
+
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Search by name or phone…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-10"
+        />
       </div>
 
       {isLoading ? (
@@ -119,6 +162,7 @@ export default function PatientsList() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">#</TableHead>
                 <TableHead>Patient #</TableHead>
                 <TableHead>Full Name</TableHead>
                 <TableHead>DOB</TableHead>
@@ -127,12 +171,13 @@ export default function PatientsList() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {patients.map((p) => (
+              {patients.map((p, idx) => (
                 <TableRow
                   key={p.id}
                   className="cursor-pointer"
                   onClick={() => navigate(`/registrar/patients/${p.id}`)}
                 >
+                  <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
                   <TableCell className="font-mono text-xs">{p.patient_number || "—"}</TableCell>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
