@@ -155,6 +155,7 @@ export function PhysicianCalendar({
             hospitalId={hospitalId}
             selectedDate={selectedDate}
             timezone={timezone}
+            onQueueSelect={onQueueSelect}
           />
         ) : (
           <SlotPanel
