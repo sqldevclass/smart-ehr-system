@@ -18,10 +18,12 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Pencil, ChevronDown, ChevronUp, AlertTriangle, Plus } from "lucide-react";
+import { ArrowLeft, Pencil, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { BookingModal } from "@/components/booking/BookingModal";
+import { BookingSearch } from "@/components/booking/BookingSearch";
+import type { PhysicianResult, ServiceResult } from "@/components/booking/types";
 
 export default function PatientDetail() {
   const { patientId } = useParams();
