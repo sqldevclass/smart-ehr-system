@@ -18,10 +18,12 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Pencil, ChevronDown, ChevronUp, AlertTriangle, Plus } from "lucide-react";
+import { ArrowLeft, Pencil, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { BookingModal } from "@/components/booking/BookingModal";
+import { BookingSearch } from "@/components/booking/BookingSearch";
+import type { PhysicianResult, ServiceResult } from "@/components/booking/types";
 
 export default function PatientDetail() {
   const { patientId } = useParams();
@@ -33,6 +35,8 @@ export default function PatientDetail() {
   const [showAllergies, setShowAllergies] = useState(false);
   const [showPastVisits, setShowPastVisits] = useState(false);
   const [bookingOpen, setBookingOpen] = useState(false);
+  const [selectedPhysician, setSelectedPhysician] = useState<PhysicianResult | null>(null);
+  const [selectedService, setSelectedService] = useState<ServiceResult | null>(null);
 
   const { data: patient, isLoading } = useQuery({
     queryKey: ["patient", patientId],
@@ -252,18 +256,27 @@ export default function PatientDetail() {
         )}
       </div>
 
-      {/* Two-column layout: Add Service (left) + Visits (right) */}
+      {/* Persistent search box */}
+      <div className="rounded-lg border bg-card p-4 space-y-2">
+        <h3 className="font-semibold text-foreground text-sm">Add Service</h3>
+        <BookingSearch
+          hospitalId={user!.hospitalId}
+          onPhysicianSelect={(physician) => {
+            setSelectedPhysician(physician);
+            setSelectedService(null);
+            setBookingOpen(true);
+          }}
+          onServiceSelect={(service) => {
+            setSelectedService(service);
+            setSelectedPhysician(null);
+            setBookingOpen(true);
+          }}
+        />
+      </div>
+
+      {/* Two-column layout: (left) + Visits (right) */}
       <div className="grid grid-cols-2 gap-6 items-start">
-        {/* Add Service - left */}
-        <div className="rounded-lg border bg-card p-6 space-y-3">
-          <div>
-            <h3 className="font-semibold text-foreground">Add Service</h3>
-            <p className="text-xs text-muted-foreground">Open booking to search a physician and book.</p>
-          </div>
-          <Button onClick={() => setBookingOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" /> Add Service
-          </Button>
-        </div>
+        <div />
 
         {/* Visits - right */}
         <div className="rounded-lg border bg-card p-6 space-y-3">
@@ -425,13 +438,23 @@ export default function PatientDetail() {
 
       <BookingModal
         open={bookingOpen}
-        onOpenChange={setBookingOpen}
+        onOpenChange={(o) => {
+          setBookingOpen(o);
+          if (!o) {
+            setSelectedPhysician(null);
+            setSelectedService(null);
+          }
+        }}
         patientId={patientId!}
         hospitalId={user!.hospitalId}
         mode="registrar"
+        initialPhysician={selectedPhysician}
+        initialService={selectedService}
         onBooked={() => {
           queryClient.invalidateQueries({ queryKey: ["patient-visits", patientId] });
           setBookingOpen(false);
+          setSelectedPhysician(null);
+          setSelectedService(null);
         }}
       />
     </div>
