@@ -58,7 +58,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
   const { service, hospitalId, timezone, mode, patientId, hospitalizationId, officeRoomId, onBooked } = props;
   const { user } = useAuth();
   const [date, setDate] = useState<Date>(new Date());
-  const [selected, setSelected] = useState<{ slot: SlotRow; physician: PhysCol } | null>(null);
+  const [selected, setSelected] = useState<{ slot: SlotRow; col: Col } | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const dateStr = format(date, "yyyy-MM-dd");
@@ -66,7 +66,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
 
   const { data: physicians = [] } = useQuery({
     queryKey: ["multi-cal-physicians", service.id, hospitalId, dateStr, officeRoomId || "none"],
-    queryFn: async () => {
+    queryFn: async (): Promise<PhysCol[]> => {
       if (officeRoomId) {
         const { data, error } = await supabase
           .from("office_room_physicians")
@@ -79,6 +79,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
         return (data || [])
           .filter((r: any) => r.physicians?.is_active !== false)
           .map((r: any): PhysCol => ({
+            kind: "physician",
             id: r.physician_id,
             fullName: r.physicians?.profiles?.full_name || "—",
             specialization: r.physicians?.specialization ?? null,
@@ -96,6 +97,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
       return (data || [])
         .filter((r: any) => r.physicians?.is_active !== false)
         .map((r: any): PhysCol => ({
+          kind: "physician",
           id: r.physician_id,
           fullName: r.physicians?.profiles?.full_name || "—",
           specialization: r.physicians?.specialization ?? null,
@@ -104,7 +106,28 @@ export function MultiCalendar(props: MultiCalendarProps) {
     },
   });
 
+  // Office rooms that can perform this service (only when not already filtered)
+  const { data: rooms = [] } = useQuery({
+    queryKey: ["multi-cal-rooms", service.id, hospitalId, officeRoomId || "none"],
+    queryFn: async (): Promise<RoomCol[]> => {
+      if (officeRoomId) return [];
+      const { data, error } = await supabase
+        .from("office_room_services")
+        .select("room_id, rooms!inner(id, name, room_types(name))")
+        .eq("service_id", service.id)
+        .eq("hospital_id", hospitalId);
+      if (error) throw error;
+      return (data || []).map((r: any): RoomCol => ({
+        kind: "room",
+        id: r.room_id,
+        name: r.rooms?.name || "—",
+        roomType: r.rooms?.room_types?.name ?? null,
+      }));
+    },
+  });
+
   const physicianIds = physicians.map((p) => p.id);
+  const roomIds = rooms.map((r) => r.id);
 
   const { data: slots = [], refetch: refetchSlots } = useQuery({
     queryKey: ["multi-cal-slots", physicianIds.sort().join(","), hospitalId, dateStr],
@@ -124,6 +147,24 @@ export function MultiCalendar(props: MultiCalendarProps) {
     enabled: physicianIds.length > 0,
   });
 
+  const { data: roomSlots = [], refetch: refetchRoomSlots } = useQuery({
+    queryKey: ["multi-cal-room-slots", roomIds.sort().join(","), hospitalId, dateStr],
+    queryFn: async () => {
+      if (roomIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("schedule_slots")
+        .select("id, slot_datetime, booking_count, is_blocked, block_reason, room_id")
+        .eq("hospital_id", hospitalId)
+        .in("room_id", roomIds)
+        .gte("slot_datetime", bounds.start)
+        .lte("slot_datetime", bounds.end)
+        .order("slot_datetime");
+      if (error) throw error;
+      return (data || []) as (SlotRow & { room_id: string })[];
+    },
+    enabled: roomIds.length > 0,
+  });
+
   const slotsByPhysician = useMemo(() => {
     const map = new Map<string, (SlotRow & { physician_id: string })[]>();
     for (const s of slots) {
@@ -134,10 +175,23 @@ export function MultiCalendar(props: MultiCalendarProps) {
     return map;
   }, [slots]);
 
+  const slotsByRoom = useMemo(() => {
+    const map = new Map<string, (SlotRow & { room_id: string })[]>();
+    for (const s of roomSlots) {
+      const arr = map.get(s.room_id) || [];
+      arr.push(s);
+      map.set(s.room_id, arr);
+    }
+    return map;
+  }, [roomSlots]);
+
+  const columns: Col[] = useMemo(() => [...physicians, ...rooms], [physicians, rooms]);
+
   const handleConfirm = async () => {
     if (!selected || !user) return;
     setSubmitting(true);
     try {
+      const isRoom = selected.col.kind === "room";
       let visitServiceId: string;
       if (mode === "registrar") {
         const { data, error } = await supabase.rpc("registrar_add_service", {
@@ -145,7 +199,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
           p_hospital_id: hospitalId,
           p_created_by: user.id,
           p_service_id: service.id,
-          p_assigned_physician_id: selected.physician.id,
+          p_assigned_physician_id: isRoom ? null : (selected.col as PhysCol).id,
           p_cost_at_time: service.costWithVat,
           p_registration_source: null,
           ...(officeRoomId ? { p_assigned_room_id: officeRoomId } : {}),
@@ -162,7 +216,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
           p_hospital_id: hospitalId,
           p_ordered_by: user.id,
           p_service_id: service.id,
-          p_assigned_physician_id: selected.physician.id,
+          p_assigned_physician_id: isRoom ? null : (selected.col as PhysCol).id,
           p_cost_at_time: service.costWithVat,
         });
         if (error) throw error;
@@ -171,6 +225,15 @@ export function MultiCalendar(props: MultiCalendarProps) {
           (Array.isArray(data) ? (data as any)[0]?.visit_service_id : undefined);
       }
       if (!visitServiceId) throw new Error("No visit_service_id returned");
+
+      // For office room booking, attach room to the visit_service
+      if (isRoom) {
+        const { error: updErr } = await supabase
+          .from("visit_services")
+          .update({ assigned_room_id: (selected.col as RoomCol).id })
+          .eq("id", visitServiceId);
+        if (updErr) throw updErr;
+      }
 
       const { data: bookData, error: bookErr } = await supabase.rpc("book_slot", {
         p_slot_id: selected.slot.id,
@@ -182,7 +245,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
         (Array.isArray(bookData) ? (bookData as any)[0]?.is_waitlist : undefined);
       toast.success(isWaitlist ? "Added to waitlist" : "Booked");
       setSelected(null);
-      await refetchSlots();
+      await Promise.all([refetchSlots(), refetchRoomSlots()]);
       onBooked();
     } catch (err: any) {
       toast.error(err.message || "Failed to book");
@@ -190,6 +253,53 @@ export function MultiCalendar(props: MultiCalendarProps) {
       setSubmitting(false);
     }
   };
+
+  const renderSlotButton = (s: SlotRow, col: Col) => {
+    const isSelected = selected?.slot.id === s.id;
+    const full = s.booking_count >= 2;
+    const waitlist = s.booking_count === 1;
+    const blocked = s.is_blocked;
+    const disabled = full || blocked;
+    const button = (
+      <button
+        key={s.id}
+        type="button"
+        disabled={disabled}
+        onClick={() => setSelected({ slot: s, col })}
+        className={cn(
+          "flex w-full items-center justify-between rounded border px-2 py-1.5 text-xs transition",
+          isSelected && "ring-2 ring-primary border-primary",
+          blocked && "bg-muted text-muted-foreground cursor-not-allowed",
+          full && !blocked && "bg-muted text-muted-foreground cursor-not-allowed",
+          waitlist && !disabled && "bg-amber-50 border-amber-200 hover:bg-amber-100 dark:bg-amber-950/30 dark:border-amber-900",
+          !waitlist && !disabled && "bg-card hover:bg-muted"
+        )}
+      >
+        <span>{toLocal(s.slot_datetime, timezone, "HH:mm")}</span>
+        {blocked ? (
+          <Lock className="h-3 w-3" />
+        ) : (
+          <span className="text-[10px] text-muted-foreground">
+            {full ? "full" : waitlist ? "waitlist" : "open"}
+          </span>
+        )}
+      </button>
+    );
+    return blocked && s.block_reason ? (
+      <Tooltip key={s.id}>
+        <TooltipTrigger asChild>{button}</TooltipTrigger>
+        <TooltipContent>{s.block_reason}</TooltipContent>
+      </Tooltip>
+    ) : (
+      button
+    );
+  };
+
+  const selectedLabel = selected
+    ? selected.col.kind === "physician"
+      ? (selected.col as PhysCol).fullName
+      : `${(selected.col as RoomCol).name} (Office Room)`
+    : "";
 
   return (
     <TooltipProvider>
@@ -211,89 +321,74 @@ export function MultiCalendar(props: MultiCalendarProps) {
           </Button>
         </div>
 
-        {physicians.length === 0 ? (
+        {columns.length === 0 ? (
           <div className="rounded-md border bg-muted/30 p-6 text-center text-sm text-muted-foreground">
-            No physicians authorized for this service.
+            No physicians or office rooms available for this service.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <div className="flex gap-3 min-w-full">
-              {physicians.map((p) => {
-                const physSlots = slotsByPhysician.get(p.id) || [];
-                return (
-                  <div
-                    key={p.id}
-                    className="flex w-56 shrink-0 flex-col rounded-md border bg-card"
-                  >
-                    <div className="border-b p-2">
-                      <div className="truncate text-sm font-semibold">{p.fullName}</div>
-                      <div className="flex items-center justify-between gap-1 mt-0.5">
-                        <div className="truncate text-xs text-muted-foreground">
-                          {p.specialization || "—"}
+              {columns.map((col) => {
+                if (col.kind === "physician") {
+                  const physSlots = slotsByPhysician.get(col.id) || [];
+                  return (
+                    <div key={`p-${col.id}`} className="flex w-56 shrink-0 flex-col rounded-md border bg-card">
+                      <div className="border-b p-2">
+                        <div className="truncate text-sm font-semibold">{col.fullName}</div>
+                        <div className="flex items-center justify-between gap-1 mt-0.5">
+                          <div className="truncate text-xs text-muted-foreground">
+                            {col.specialization || "—"}
+                          </div>
+                          {col.scheduleType && (
+                            <Badge
+                              variant={col.scheduleType === "slots" ? "default" : "secondary"}
+                              className="capitalize text-[10px]"
+                            >
+                              {col.scheduleType}
+                            </Badge>
+                          )}
                         </div>
-                        {p.scheduleType && (
-                          <Badge
-                            variant={p.scheduleType === "slots" ? "default" : "secondary"}
-                            className="capitalize text-[10px]"
-                          >
-                            {p.scheduleType}
-                          </Badge>
+                      </div>
+                      <div className="max-h-[420px] overflow-y-auto p-2 space-y-1">
+                        {col.scheduleType === "queue" ? (
+                          <QueuePanel
+                            physicianId={col.id}
+                            hospitalId={hospitalId}
+                            selectedDate={date}
+                            timezone={timezone}
+                          />
+                        ) : physSlots.length === 0 ? (
+                          <div className="py-6 text-center text-xs text-muted-foreground">
+                            No slots
+                          </div>
+                        ) : (
+                          physSlots.map((s) => renderSlotButton(s, col))
                         )}
                       </div>
                     </div>
+                  );
+                }
+                const rSlots = slotsByRoom.get(col.id) || [];
+                return (
+                  <div key={`r-${col.id}`} className="flex w-56 shrink-0 flex-col rounded-md border bg-card">
+                    <div className="border-b p-2">
+                      <div className="truncate text-sm font-semibold">{col.name}</div>
+                      <div className="flex items-center justify-between gap-1 mt-0.5">
+                        <div className="truncate text-xs text-muted-foreground">
+                          {col.roomType || "Room"}
+                        </div>
+                        <Badge variant="outline" className="text-[10px]">
+                          Office Room
+                        </Badge>
+                      </div>
+                    </div>
                     <div className="max-h-[420px] overflow-y-auto p-2 space-y-1">
-                      {p.scheduleType === "queue" ? (
-                        <QueuePanel
-                          physicianId={p.id}
-                          hospitalId={hospitalId}
-                          selectedDate={date}
-                          timezone={timezone}
-                        />
-                      ) : physSlots.length === 0 ? (
+                      {rSlots.length === 0 ? (
                         <div className="py-6 text-center text-xs text-muted-foreground">
                           No slots
                         </div>
                       ) : (
-                        physSlots.map((s) => {
-                          const isSelected = selected?.slot.id === s.id;
-                          const full = s.booking_count >= 2;
-                          const waitlist = s.booking_count === 1;
-                          const blocked = s.is_blocked;
-                          const disabled = full || blocked;
-                          const button = (
-                            <button
-                              key={s.id}
-                              type="button"
-                              disabled={disabled}
-                              onClick={() => setSelected({ slot: s, physician: p })}
-                              className={cn(
-                                "flex w-full items-center justify-between rounded border px-2 py-1.5 text-xs transition",
-                                isSelected && "ring-2 ring-primary border-primary",
-                                blocked && "bg-muted text-muted-foreground cursor-not-allowed",
-                                full && !blocked && "bg-muted text-muted-foreground cursor-not-allowed",
-                                waitlist && !disabled && "bg-amber-50 border-amber-200 hover:bg-amber-100 dark:bg-amber-950/30 dark:border-amber-900",
-                                !waitlist && !disabled && "bg-card hover:bg-muted"
-                              )}
-                            >
-                              <span>{toLocal(s.slot_datetime, timezone, "HH:mm")}</span>
-                              {blocked ? (
-                                <Lock className="h-3 w-3" />
-                              ) : (
-                                <span className="text-[10px] text-muted-foreground">
-                                  {full ? "full" : waitlist ? "waitlist" : "open"}
-                                </span>
-                              )}
-                            </button>
-                          );
-                          return blocked && s.block_reason ? (
-                            <Tooltip key={s.id}>
-                              <TooltipTrigger asChild>{button}</TooltipTrigger>
-                              <TooltipContent>{s.block_reason}</TooltipContent>
-                            </Tooltip>
-                          ) : (
-                            button
-                          );
-                        })
+                        rSlots.map((s) => renderSlotButton(s, col))
                       )}
                     </div>
                   </div>
@@ -308,7 +403,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
             <div className="text-sm">
               <span className="text-muted-foreground">Selected:</span>{" "}
               <span className="font-medium">
-                {selected.physician.fullName} · {toLocal(selected.slot.slot_datetime, timezone, "MMM d, HH:mm")}
+                {selectedLabel} · {toLocal(selected.slot.slot_datetime, timezone, "MMM d, HH:mm")}
               </span>
             </div>
             <div className="flex gap-2">
