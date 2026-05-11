@@ -4,12 +4,13 @@ import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import type { PhysicianResult, ServiceResult } from "./types";
+import type { OfficeRoomResult, PhysicianResult, ServiceResult } from "./types";
 
 interface Props {
   hospitalId: string;
   onPhysicianSelect: (p: PhysicianResult) => void;
   onServiceSelect: (s: ServiceResult) => void;
+  onOfficeRoomSelect?: (room: OfficeRoomResult) => void;
   disabled?: boolean;
 }
 
@@ -35,7 +36,7 @@ function deriveScheduleType(rows: any[] | null | undefined): "slots" | "queue" |
   return (active?.schedule_type as "slots" | "queue" | null) ?? (rows[0].schedule_type ?? null);
 }
 
-export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, disabled }: Props) {
+export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, onOfficeRoomSelect, disabled }: Props) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const debounced = useDebounced(query, 300);
@@ -49,7 +50,7 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
-  const enabled = debounced.trim().length >= 2;
+  const enabled = debounced.trim().length >= 1;
 
   const { data: physicians = [] } = useQuery({
     queryKey: ["booking-search-physicians", hospitalId, debounced],
@@ -93,20 +94,81 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
     enabled,
   });
 
+  const { data: servicePhysicians = [] } = useQuery({
+    queryKey: ["booking-search-service-physicians", hospitalId, debounced],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("physician_service_privileges")
+        .select(
+          "physician_id, services!inner(id, name, cost_with_vat, service_types(name_en)), physicians!inner(id, specialization, is_active, profiles!inner(full_name), physician_schedules(schedule_type, valid_from, valid_to, days_of_week))"
+        )
+        .eq("hospital_id", hospitalId)
+        .ilike("services.name", `%${debounced}%`)
+        .limit(12);
+      if (error) throw error;
+      return (data || [])
+        .filter((r: any) => r.physicians?.is_active !== false)
+        .map((r: any) => ({
+          physician: {
+            id: r.physician_id,
+            fullName: r.physicians?.profiles?.full_name || "—",
+            specialization: r.physicians?.specialization ?? null,
+            scheduleType: deriveScheduleType(r.physicians?.physician_schedules),
+          } as PhysicianResult,
+          service: {
+            id: r.services?.id,
+            name: r.services?.name,
+            costWithVat: Number(r.services?.cost_with_vat || 0),
+            serviceTypeName: r.services?.service_types?.name_en ?? null,
+          } as ServiceResult,
+        }));
+    },
+    enabled,
+  });
+
+  const { data: officeRooms = [] } = useQuery({
+    queryKey: ["booking-search-office-rooms", hospitalId, debounced],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("office_room_services")
+        .select(
+          "room_id, services!inner(id, name, cost_with_vat, service_types(name_en)), rooms!inner(id, name)"
+        )
+        .eq("hospital_id", hospitalId)
+        .ilike("services.name", `%${debounced}%`)
+        .limit(8);
+      if (error) throw error;
+      return (data || []).map((r: any): OfficeRoomResult => ({
+        id: r.rooms?.id,
+        name: r.rooms?.name || "—",
+        service: {
+          id: r.services?.id,
+          name: r.services?.name,
+          costWithVat: Number(r.services?.cost_with_vat || 0),
+          serviceTypeName: r.services?.service_types?.name_en ?? null,
+        },
+      }));
+    },
+    enabled,
+  });
+
+  const hasResults =
+    physicians.length > 0 || services.length > 0 || servicePhysicians.length > 0 || officeRooms.length > 0;
+
   return (
     <div className="relative" ref={ref}>
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           disabled={disabled}
-          placeholder="Search physician or service…"
+          placeholder="Search physician, service, or office room…"
           value={query}
           onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
           className="pl-9"
         />
       </div>
-      {open && enabled && (physicians.length > 0 || services.length > 0) && (
+      {open && enabled && hasResults && (
         <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-96 overflow-y-auto rounded-md border bg-popover shadow-lg">
           {physicians.length > 0 && (
             <div>
@@ -148,6 +210,54 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
                     <div className="text-xs text-muted-foreground truncate">{s.serviceTypeName || "—"}</div>
                   </div>
                   <div className="shrink-0 text-xs text-muted-foreground">{s.costWithVat.toFixed(2)}</div>
+                </button>
+              ))}
+            </div>
+          )}
+          {servicePhysicians.length > 0 && (
+            <div>
+              <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase text-muted-foreground">
+                Physicians for this service
+              </div>
+              {servicePhysicians.map((r, i) => (
+                <button
+                  key={`${r.physician.id}-${r.service.id}-${i}`}
+                  type="button"
+                  onClick={() => { onPhysicianSelect(r.physician); setOpen(false); setQuery(""); }}
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-muted"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">{r.physician.fullName}</div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {r.service.name} · {r.physician.specialization || "—"}
+                      </div>
+                    </div>
+                    {r.physician.scheduleType && (
+                      <Badge variant={r.physician.scheduleType === "slots" ? "default" : "secondary"} className="shrink-0 capitalize">
+                        {r.physician.scheduleType}
+                      </Badge>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+          {officeRooms.length > 0 && (
+            <div>
+              <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase text-muted-foreground">Office Rooms</div>
+              {officeRooms.map((r, i) => (
+                <button
+                  key={`${r.id}-${r.service.id}-${i}`}
+                  type="button"
+                  onClick={() => { onOfficeRoomSelect?.(r); setOpen(false); setQuery(""); }}
+                  className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-muted"
+                >
+                  <div className="min-w-0">
+                    <div className="font-medium truncate">{r.name}</div>
+                    <div className="text-xs text-muted-foreground truncate">{r.service.name}</div>
+                  </div>
+                  <div className="shrink-0 text-xs text-muted-foreground">{r.service.costWithVat.toFixed(2)}</div>
                 </button>
               ))}
             </div>
