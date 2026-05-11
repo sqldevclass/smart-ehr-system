@@ -302,6 +302,7 @@ export default function AdmissionsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">#</TableHead>
                   <TableHead>Hosp #</TableHead>
                   <TableHead>Patient Name</TableHead>
                   <TableHead>Department</TableHead>
@@ -314,11 +315,12 @@ export default function AdmissionsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {active.map((h: any) => {
+                {active.map((h: any, idx: number) => {
                   const ra = h.room_assignments?.[0];
                   const days = differenceInDays(new Date(), new Date(h.admitted_at));
                   return (
                     <TableRow key={h.id}>
+                      <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
                       <TableCell className="font-mono">{h.hospitalization_number}</TableCell>
                       <TableCell>
                         {h.patients?.last_name} {h.patients?.first_name}
