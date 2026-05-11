@@ -18,7 +18,7 @@ import { PhysicianCalendar } from "./PhysicianCalendar";
 import { ServicePicker } from "./ServicePicker";
 import { MultiCalendar } from "./MultiCalendar";
 import type {
-  BookingModalProps, BookingResult, PhysicianResult, ServiceResult, SlotRow,
+  BookingModalProps, BookingResult, OfficeRoomResult, PhysicianResult, ServiceResult, SlotRow,
 } from "./types";
 
 const REGISTRATION_SOURCES = [
