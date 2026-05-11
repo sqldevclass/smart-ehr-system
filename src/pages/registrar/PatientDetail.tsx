@@ -452,6 +452,7 @@ export default function PatientDetail() {
           if (!o) {
             setSelectedPhysician(null);
             setSelectedService(null);
+            setSelectedOfficeRoom(null);
           }
         }}
         patientId={patientId!}
@@ -459,11 +460,13 @@ export default function PatientDetail() {
         mode="registrar"
         initialPhysician={selectedPhysician}
         initialService={selectedService}
+        initialOfficeRoom={selectedOfficeRoom}
         onBooked={() => {
           queryClient.invalidateQueries({ queryKey: ["patient-visits", patientId] });
           setBookingOpen(false);
           setSelectedPhysician(null);
           setSelectedService(null);
+          setSelectedOfficeRoom(null);
         }}
       />
     </div>
