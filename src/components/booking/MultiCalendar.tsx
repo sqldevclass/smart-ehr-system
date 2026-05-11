@@ -14,11 +14,21 @@ import { QueuePanel } from "./QueuePanel";
 import type { ServiceResult, SlotRow } from "./types";
 
 interface PhysCol {
+  kind: "physician";
   id: string;
   fullName: string;
   specialization: string | null;
   scheduleType: "slots" | "queue" | null;
 }
+
+interface RoomCol {
+  kind: "room";
+  id: string;
+  name: string;
+  roomType: string | null;
+}
+
+type Col = PhysCol | RoomCol;
 
 interface MultiCalendarProps {
   service: ServiceResult;
