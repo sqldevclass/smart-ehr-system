@@ -28,13 +28,14 @@ const REGISTRATION_SOURCES = [
 export function BookingModal(props: BookingModalProps) {
   const {
     open, onOpenChange, patientId, hospitalId, mode, hospitalizationId,
-    preselectedServiceId, initialPhysician, initialService, onBooked,
+    preselectedServiceId, initialPhysician, initialService, initialOfficeRoom, onBooked,
   } = props;
   const { user } = useAuth();
   const tz = user?.timezone || "Asia/Tashkent";
 
   const [physician, setPhysician] = useState<PhysicianResult | null>(null);
   const [pickedServices, setPickedServices] = useState<ServiceResult[] | null>(null);
+  const [officeRoom, setOfficeRoom] = useState<OfficeRoomResult | null>(null);
   const [showPicker, setShowPicker] = useState(false);
   const [showMultiCalendar, setShowMultiCalendar] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<SlotRow | null>(null);
