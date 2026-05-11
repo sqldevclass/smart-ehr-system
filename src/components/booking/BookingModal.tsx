@@ -85,6 +85,7 @@ export function BookingModal(props: BookingModalProps) {
     if (!open) {
       setPhysician(null);
       setPickedServices(null);
+      setOfficeRoom(null);
       setShowPicker(false);
       setShowMultiCalendar(false);
       setSelectedSlot(null);
@@ -92,7 +93,11 @@ export function BookingModal(props: BookingModalProps) {
       setRegistrationSource("");
       setSubmitting(false);
     } else {
-      if (initialPhysician) {
+      if (initialOfficeRoom) {
+        setOfficeRoom(initialOfficeRoom);
+        setPickedServices([initialOfficeRoom.service]);
+        setShowMultiCalendar(true);
+      } else if (initialPhysician) {
         setPhysician(initialPhysician);
         setShowPicker(true);
       } else if (initialService) {
