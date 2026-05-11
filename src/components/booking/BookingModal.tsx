@@ -36,6 +36,7 @@ export function BookingModal(props: BookingModalProps) {
   const [physician, setPhysician] = useState<PhysicianResult | null>(null);
   const [pickedServices, setPickedServices] = useState<ServiceResult[] | null>(null);
   const [showPicker, setShowPicker] = useState(false);
+  const [showMultiCalendar, setShowMultiCalendar] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<SlotRow | null>(null);
   const [queueDate, setQueueDate] = useState<Date | null>(null);
   const [registrationSource, setRegistrationSource] = useState<string>("");
