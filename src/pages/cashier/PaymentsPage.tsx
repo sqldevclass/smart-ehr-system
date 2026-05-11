@@ -138,10 +138,15 @@ export default function PaymentsPage() {
     loadData();
   }, [loadData]);
 
-  const renderRow = (v: Visit, withPay: boolean) => {
+  useEffect(() => {
+    loadSummary();
+  }, [loadSummary]);
+
+  const renderRow = (v: Visit, withPay: boolean, idx: number) => {
     const outstandingAmt = Number(v.total_amount || 0) - Number(v.amount_paid || 0);
     return (
       <TableRow key={v.id}>
+        <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
         <TableCell className="font-medium">
           {v.patients ? `${v.patients.last_name} ${v.patients.first_name}` : "—"}
         </TableCell>
@@ -171,6 +176,15 @@ export default function PaymentsPage() {
         <p className="text-sm text-muted-foreground">Process visit payments and view today's collections.</p>
       </div>
 
+      <SummaryCard>
+        <MetricTile label="Collected Today" value={fmt(summary?.collected ?? 0)} highlight />
+        <MetricTile label="Outstanding Today" value={fmt(summary?.outstanding ?? 0)} />
+        <MetricTile label="Paid Visits Today" value={summary?.paidCount ?? "—"} />
+        <MetricTile label="Unpaid Visits Today" value={summary?.unpaidCount ?? "—"} />
+      </SummaryCard>
+
+      <PeriodFilter value={periodState} onChange={setPeriodState} />
+
       <Tabs defaultValue="outstanding">
         <TabsList>
           <TabsTrigger value="outstanding">Outstanding ({outstanding.length})</TabsTrigger>
@@ -191,6 +205,7 @@ export default function PaymentsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-12">#</TableHead>
                       <TableHead>Patient</TableHead>
                       <TableHead>Patient #</TableHead>
                       <TableHead>Visit Date</TableHead>
@@ -201,7 +216,7 @@ export default function PaymentsPage() {
                       <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
-                  <TableBody>{outstanding.map((v) => renderRow(v, true))}</TableBody>
+                  <TableBody>{outstanding.map((v, i) => renderRow(v, true, i))}</TableBody>
                 </Table>
               )}
             </CardContent>
@@ -222,6 +237,7 @@ export default function PaymentsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-12">#</TableHead>
                       <TableHead>Patient</TableHead>
                       <TableHead>Patient #</TableHead>
                       <TableHead>Visit Date</TableHead>
@@ -231,7 +247,7 @@ export default function PaymentsPage() {
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
-                  <TableBody>{paidToday.map((v) => renderRow(v, false))}</TableBody>
+                  <TableBody>{paidToday.map((v, i) => renderRow(v, false, i))}</TableBody>
                 </Table>
               )}
             </CardContent>
