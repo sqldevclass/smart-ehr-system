@@ -265,11 +265,19 @@ export default function PatientDetail() {
           onPhysicianSelect={(physician) => {
             setSelectedPhysician(physician);
             setSelectedService(null);
+            setSelectedOfficeRoom(null);
             setBookingOpen(true);
           }}
           onServiceSelect={(service) => {
             setSelectedService(service);
             setSelectedPhysician(null);
+            setSelectedOfficeRoom(null);
+            setBookingOpen(true);
+          }}
+          onOfficeRoomSelect={(room) => {
+            setSelectedOfficeRoom(room);
+            setSelectedPhysician(null);
+            setSelectedService(null);
             setBookingOpen(true);
           }}
         />
