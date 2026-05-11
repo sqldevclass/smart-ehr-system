@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { format, differenceInDays } from "date-fns";
+import { PeriodFilter, PeriodState, getDateBounds, getTodayBounds, SummaryCard, MetricTile } from "@/components/shared/PeriodFilter";
 
 export default function AdmissionsPage() {
   const { user } = useAuth();
@@ -43,6 +44,12 @@ export default function AdmissionsPage() {
   const [departmentId, setDepartmentId] = useState("");
   const [physicianId, setPhysicianId] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [periodState, setPeriodState] = useState<PeriodState>({ period: "today" });
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "discharged">("all");
+  const [deptFilter, setDeptFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | "planned" | "emergency">("all");
+
+  const bounds = getDateBounds(periodState);
 
   const { data: recommended, isLoading: loadingRec } = useQuery({
     queryKey: ["hospitalization-recommended", user?.hospitalId],
