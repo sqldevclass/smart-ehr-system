@@ -68,15 +68,54 @@ export default function AdmissionsPage() {
   });
 
   const { data: active, isLoading: loadingActive } = useQuery({
-    queryKey: ["active-hospitalizations", user?.hospitalId],
+    queryKey: ["active-hospitalizations", user?.hospitalId, bounds.from, bounds.to, statusFilter, deptFilter, typeFilter],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("hospitalizations")
-        .select("id, hospitalization_number, admitted_at, discharged_at, departments(name), patients(first_name, last_name, patient_number), hospitalization_types(name_ru), room_assignments(bed_number, rooms(name))")
+        .select("id, hospitalization_number, admitted_at, discharged_at, department_id, urgency_id, departments(name), patients(first_name, last_name, patient_number), hospitalization_types(name_ru), hospitalization_urgency(code), room_assignments(bed_number, rooms(name))")
         .eq("hospital_id", user!.hospitalId)
+        .gte("admitted_at", bounds.from)
+        .lte("admitted_at", bounds.to)
         .order("admitted_at", { ascending: false });
+      if (statusFilter === "active") q = q.is("discharged_at", null);
+      if (statusFilter === "discharged") q = q.not("discharged_at", "is", null);
+      if (deptFilter !== "all") q = q.eq("department_id", deptFilter);
+      const { data, error } = await q;
       if (error) throw error;
-      return data || [];
+      let rows = data || [];
+      if (typeFilter !== "all") {
+        rows = rows.filter((h: any) => h.hospitalization_urgency?.code === typeFilter);
+      }
+      return rows;
+    },
+    enabled: !!user?.hospitalId,
+  });
+
+  const { data: summary } = useQuery({
+    queryKey: ["admissions-summary", user?.hospitalId],
+    queryFn: async () => {
+      const today = getTodayBounds();
+      const [admittedTodayRes, activeRes, dischargedTodayRes, emergencyRes] = await Promise.all([
+        supabase.from("hospitalizations").select("id", { count: "exact", head: true })
+          .eq("hospital_id", user!.hospitalId)
+          .gte("admitted_at", today.from).lte("admitted_at", today.to),
+        supabase.from("hospitalizations").select("id", { count: "exact", head: true })
+          .eq("hospital_id", user!.hospitalId).is("discharged_at", null),
+        supabase.from("hospitalizations").select("id", { count: "exact", head: true })
+          .eq("hospital_id", user!.hospitalId)
+          .gte("discharged_at", today.from).lte("discharged_at", today.to),
+        supabase.from("hospitalizations")
+          .select("id, hospitalization_urgency!inner(code)")
+          .eq("hospital_id", user!.hospitalId)
+          .eq("hospitalization_urgency.code", "emergency")
+          .gte("admitted_at", today.from).lte("admitted_at", today.to),
+      ]);
+      return {
+        admittedToday: admittedTodayRes.count || 0,
+        active: activeRes.count || 0,
+        dischargedToday: dischargedTodayRes.count || 0,
+        emergencyToday: (emergencyRes.data || []).length,
+      };
     },
     enabled: !!user?.hospitalId,
   });
