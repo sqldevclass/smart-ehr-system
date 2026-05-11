@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,11 +9,13 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { format, differenceInDays, differenceInYears } from "date-fns";
+import { PeriodFilter, PeriodState, getDateBounds, getTodayBounds, SummaryCard, MetricTile } from "@/components/shared/PeriodFilter";
 
 export default function InpatientPatientsList() {
   const { user } = useAuth();
   const navigate = useNavigate();
-
+  const [periodState, setPeriodState] = useState<PeriodState>({ period: "today" });
+  const bounds = getDateBounds(periodState);
   const { data: physicianId } = useQuery({
     queryKey: ["physician-id", user?.id],
     queryFn: async () => {
