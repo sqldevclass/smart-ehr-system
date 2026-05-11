@@ -23,10 +23,7 @@ export default function PatientDetail() {
   const [showMore, setShowMore] = useState(false);
   const [showAllergies, setShowAllergies] = useState(false);
   const [showPastVisits, setShowPastVisits] = useState(false);
-  const [bookingPhysicianId, setBookingPhysicianId] = useState<string | null>(null);
-  const [bookingPhysicianName, setBookingPhysicianName] = useState<string>("");
-  const [bookingServiceId, setBookingServiceId] = useState<string | null>(null);
-  const [bookingServiceName, setBookingServiceName] = useState<string>("");
+  const [bookingOpen, setBookingOpen] = useState(false);
 
   const { data: patient, isLoading } = useQuery({
     queryKey: ["patient", patientId],
@@ -248,22 +245,15 @@ export default function PatientDetail() {
 
       {/* Two-column layout: Add Service (left) + Visits (right) */}
       <div className="grid grid-cols-2 gap-6 items-start">
-        {/* Search-based booking - left */}
+        {/* Add Service - left */}
         <div className="rounded-lg border bg-card p-6 space-y-3">
           <div>
             <h3 className="font-semibold text-foreground">Add Service</h3>
-            <p className="text-xs text-muted-foreground">Search a physician or service to book.</p>
+            <p className="text-xs text-muted-foreground">Open booking to search a physician and book.</p>
           </div>
-          <SearchBooking
-            onSelectPhysician={(id, name) => {
-              setBookingPhysicianId(id);
-              setBookingPhysicianName(name);
-            }}
-            onSelectService={(id, name) => {
-              setBookingServiceId(id);
-              setBookingServiceName(name);
-            }}
-          />
+          <Button onClick={() => setBookingOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" /> Add Service
+          </Button>
         </div>
 
         {/* Visits - right */}
