@@ -438,13 +438,23 @@ export default function PatientDetail() {
 
       <BookingModal
         open={bookingOpen}
-        onOpenChange={setBookingOpen}
+        onOpenChange={(o) => {
+          setBookingOpen(o);
+          if (!o) {
+            setSelectedPhysician(null);
+            setSelectedService(null);
+          }
+        }}
         patientId={patientId!}
         hospitalId={user!.hospitalId}
         mode="registrar"
+        initialPhysician={selectedPhysician}
+        initialService={selectedService}
         onBooked={() => {
           queryClient.invalidateQueries({ queryKey: ["patient-visits", patientId] });
           setBookingOpen(false);
+          setSelectedPhysician(null);
+          setSelectedService(null);
         }}
       />
     </div>
