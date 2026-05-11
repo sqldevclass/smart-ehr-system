@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toLocal } from "@/lib/timezone";
+import { PeriodFilter, PeriodState, getDateBounds, getTodayBounds, SummaryCard, MetricTile } from "@/components/shared/PeriodFilter";
 
 interface Visit {
   id: string;
@@ -59,8 +60,13 @@ export default function PaymentsPage() {
   const [paidToday, setPaidToday] = useState<Visit[]>([]);
   const [loading, setLoading] = useState(false);
   const [dialogVisit, setDialogVisit] = useState<Visit | null>(null);
+  const [periodState, setPeriodState] = useState<PeriodState>({ period: "today" });
+  const [summary, setSummary] = useState<{
+    collected: number; outstanding: number; paidCount: number; unpaidCount: number;
+  } | null>(null);
 
   const today = new Date().toISOString().split("T")[0];
+  const bounds = getDateBounds(periodState);
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -74,6 +80,8 @@ export default function PaymentsPage() {
         )
         .eq("hospital_id", user.hospitalId)
         .in("status", ["unpaid", "partial"])
+        .gte("created_at", bounds.from)
+        .lte("created_at", bounds.to)
         .order("created_at", { ascending: false }),
       supabase
         .from("visits")
@@ -82,7 +90,8 @@ export default function PaymentsPage() {
         )
         .eq("hospital_id", user.hospitalId)
         .eq("status", "paid")
-        .eq("visit_date", today)
+        .gte("created_at", bounds.from)
+        .lte("created_at", bounds.to)
         .order("created_at", { ascending: false }),
     ]);
 
@@ -92,6 +101,37 @@ export default function PaymentsPage() {
     setOutstanding((outRes.data ?? []) as any);
     setPaidToday((paidRes.data ?? []) as any);
     setLoading(false);
+  }, [user, bounds.from, bounds.to]);
+
+  const loadSummary = useCallback(async () => {
+    if (!user) return;
+    const t = getTodayBounds();
+    const [collectedRes, todayUnpaidRes, todayPaidRes] = await Promise.all([
+      supabase.from("payments")
+        .select("amount")
+        .eq("hospital_id", user.hospitalId)
+        .gte("paid_at", t.from).lte("paid_at", t.to),
+      supabase.from("visits")
+        .select("total_amount, amount_paid")
+        .eq("hospital_id", user.hospitalId)
+        .in("status", ["unpaid", "partial"])
+        .eq("visit_date", today),
+      supabase.from("visits")
+        .select("id", { count: "exact", head: true })
+        .eq("hospital_id", user.hospitalId)
+        .eq("status", "paid")
+        .eq("visit_date", today),
+    ]);
+    const collected = (collectedRes.data || []).reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
+    const outstandingAmt = (todayUnpaidRes.data || []).reduce(
+      (s: number, v: any) => s + (Number(v.total_amount || 0) - Number(v.amount_paid || 0)), 0
+    );
+    setSummary({
+      collected,
+      outstanding: outstandingAmt,
+      paidCount: todayPaidRes.count || 0,
+      unpaidCount: (todayUnpaidRes.data || []).length,
+    });
   }, [user, today]);
 
   useEffect(() => {
