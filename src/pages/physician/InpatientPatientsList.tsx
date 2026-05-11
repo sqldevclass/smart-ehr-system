@@ -30,17 +30,47 @@ export default function InpatientPatientsList() {
   });
 
   const { data: hospitalizations = [], isLoading } = useQuery({
-    queryKey: ["physician-inpatients", physicianId, user?.hospitalId],
+    queryKey: ["physician-inpatients", physicianId, user?.hospitalId, bounds.from, bounds.to],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("hospitalizations")
         .select("id, hospitalization_number, admitted_at, discharged_at, department_id, departments(name), patients(id, first_name, last_name, patient_number, date_of_birth), room_assignments(bed_number, rooms(name))")
         .eq("hospital_id", user!.hospitalId)
         .eq("primary_physician_id", physicianId!)
-        .is("discharged_at", null)
+        .gte("admitted_at", bounds.from)
+        .lte("admitted_at", bounds.to)
         .order("admitted_at", { ascending: false });
       if (error) throw error;
       return data || [];
+    },
+    enabled: !!physicianId && !!user?.hospitalId,
+  });
+
+  const { data: summary } = useQuery({
+    queryKey: ["physician-inpatients-summary", physicianId, user?.hospitalId],
+    queryFn: async () => {
+      const today = getTodayBounds();
+      const [activeRes, todayRes] = await Promise.all([
+        supabase.from("hospitalizations")
+          .select("id, admitted_at")
+          .eq("hospital_id", user!.hospitalId)
+          .eq("primary_physician_id", physicianId!)
+          .is("discharged_at", null),
+        supabase.from("hospitalizations")
+          .select("id", { count: "exact", head: true })
+          .eq("hospital_id", user!.hospitalId)
+          .eq("primary_physician_id", physicianId!)
+          .gte("admitted_at", today.from).lte("admitted_at", today.to),
+      ]);
+      const activeRows = activeRes.data || [];
+      const avgDays = activeRows.length
+        ? Math.round(activeRows.reduce((s, h: any) => s + differenceInDays(new Date(), new Date(h.admitted_at)), 0) / activeRows.length)
+        : 0;
+      return {
+        active: activeRows.length,
+        admittedToday: todayRes.count || 0,
+        avgDays,
+      };
     },
     enabled: !!physicianId && !!user?.hospitalId,
   });
@@ -50,7 +80,13 @@ export default function InpatientPatientsList() {
       <CardHeader>
         <CardTitle>My Inpatients</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
+        <SummaryCard>
+          <MetricTile label="My Active Patients" value={summary?.active ?? "—"} highlight />
+          <MetricTile label="Admitted Today" value={summary?.admittedToday ?? "—"} />
+          <MetricTile label="Avg Days in Hospital" value={summary?.avgDays ?? "—"} />
+        </SummaryCard>
+        <PeriodFilter value={periodState} onChange={setPeriodState} />
         {isLoading ? (
           <p className="text-muted-foreground text-sm">Loading…</p>
         ) : !hospitalizations.length ? (
