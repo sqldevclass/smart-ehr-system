@@ -27,7 +27,7 @@ const REGISTRATION_SOURCES = [
 export function BookingModal(props: BookingModalProps) {
   const {
     open, onOpenChange, patientId, hospitalId, mode, hospitalizationId,
-    preselectedServiceId, onBooked,
+    preselectedServiceId, initialPhysician, initialService, onBooked,
   } = props;
   const { user } = useAuth();
   const tz = user?.timezone || "Asia/Tashkent";
@@ -77,7 +77,7 @@ export function BookingModal(props: BookingModalProps) {
 
   const showRegSource = mode === "registrar" && !hasVisitToday;
 
-  // Reset on open/close
+  // Reset on open/close; seed from initial props when opening
   useEffect(() => {
     if (!open) {
       setPhysician(null);
@@ -87,7 +87,16 @@ export function BookingModal(props: BookingModalProps) {
       setQueueDate(null);
       setRegistrationSource("");
       setSubmitting(false);
+    } else {
+      if (initialPhysician) {
+        setPhysician(initialPhysician);
+        setShowPicker(true);
+      } else if (initialService) {
+        // Service-first flow: MultiCalendar placeholder for now
+        setPickedServices([initialService]);
+      }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const handlePhysicianSelect = (p: PhysicianResult) => {
@@ -245,7 +254,20 @@ export function BookingModal(props: BookingModalProps) {
           </DialogTitle>
         </DialogHeader>
 
-        {!physician ? (
+        {!physician && pickedServices && pickedServices.length > 0 ? (
+          <div className="space-y-4">
+            <div className="rounded-md border bg-card p-3 text-sm">
+              <div className="text-xs text-muted-foreground">Selected service</div>
+              <div className="mt-1 font-medium">{pickedServices[0].name}</div>
+            </div>
+            <div className="rounded-lg border bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+              Multi-physician calendar for this service — coming soon.
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t pt-4">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+            </div>
+          </div>
+        ) : !physician ? (
           <div className="space-y-4">
             <BookingSearch
               hospitalId={hospitalId}

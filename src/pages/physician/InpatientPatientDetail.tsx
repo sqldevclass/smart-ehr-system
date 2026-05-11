@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Plus } from "lucide-react";
 import { format, differenceInDays, differenceInYears } from "date-fns";
-import { BookingModal } from "@/components/booking/BookingModal";
+import { usePhysicianId } from "@/hooks/usePhysicianId";
 
 export default function InpatientPatientDetail() {
   const { hospId } = useParams<{ hospId: string }>();
@@ -224,6 +225,8 @@ function ServiceListBase({
   onAdded,
   emptyText,
   addLabel,
+  catalogTypeId,
+  excludeTypeIds,
 }: {
   hospId: string;
   patientId: string;
@@ -236,6 +239,55 @@ function ServiceListBase({
 }) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
+  const [serviceId, setServiceId] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const { data: catalog = [] } = useQuery({
+    queryKey: ["services-catalog", user?.hospitalId, catalogTypeId ?? "all", (excludeTypeIds || []).join(",")],
+    queryFn: async () => {
+      let q = supabase
+        .from("services")
+        .select("id, name, cost_with_vat, service_type_id")
+        .eq("hospital_id", user!.hospitalId)
+        .eq("is_active", true)
+        .order("name");
+      if (catalogTypeId) q = q.eq("service_type_id", catalogTypeId);
+      const { data } = await q;
+      let list = data || [];
+      if (excludeTypeIds && excludeTypeIds.length) {
+        list = list.filter((s: any) => !excludeTypeIds.includes(s.service_type_id));
+      }
+      return list;
+    },
+    enabled: !!user && open,
+  });
+
+  const handleAdd = async () => {
+    if (!serviceId) return;
+    setSubmitting(true);
+    try {
+      const svc = catalog.find((s: any) => s.id === serviceId);
+      const { error } = await supabase.rpc("inpatient_add_service", {
+        p_hospitalization_id: hospId,
+        p_patient_id: patientId,
+        p_hospital_id: user!.hospitalId,
+        p_ordered_by: user!.id,
+        p_service_id: serviceId,
+        p_assigned_physician_id: null,
+        p_cost_at_time: (svc as any)?.cost_with_vat ?? 0,
+      });
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      toast.success("Service ordered.");
+      setOpen(false);
+      setServiceId("");
+      onAdded();
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="space-y-3">
@@ -257,15 +309,38 @@ function ServiceListBase({
         </ul>
       )}
 
-      <BookingModal
-        open={open}
-        onOpenChange={setOpen}
-        patientId={patientId}
-        hospitalId={user!.hospitalId}
-        mode="inpatient"
-        hospitalizationId={hospId}
-        onBooked={() => { onAdded(); setOpen(false); }}
-      />
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{addLabel}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Service</Label>
+              <Select value={serviceId} onValueChange={setServiceId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select service" />
+                </SelectTrigger>
+                <SelectContent>
+                  {catalog.map((s: any) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAdd} disabled={!serviceId || submitting}>
+              {submitting ? "Adding…" : "Add"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -277,6 +352,7 @@ function ConsultationTab({
   patientId,
   services,
   onAdded,
+  consultTypeId,
 }: {
   hospId: string;
   patientId: string;
@@ -285,7 +361,68 @@ function ConsultationTab({
   consultTypeId: string | null;
 }) {
   const { user } = useAuth();
+  const { physicianId: currentPhysicianId } = usePhysicianId();
   const [open, setOpen] = useState(false);
+  const [physicianId, setPhysicianId] = useState("");
+  const [serviceId, setServiceId] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const { data: physicians = [] } = useQuery({
+    queryKey: ["physicians-other", user?.hospitalId, currentPhysicianId],
+    queryFn: async () => {
+      let q = supabase
+        .from("physicians")
+        .select("id, specialization, profiles!inner(full_name)")
+        .eq("hospital_id", user!.hospitalId)
+        .eq("is_active", true);
+      if (currentPhysicianId) q = q.neq("id", currentPhysicianId);
+      const { data } = await q;
+      return data || [];
+    },
+    enabled: !!user?.hospitalId && open,
+  });
+
+  const { data: privileges = [] } = useQuery({
+    queryKey: ["physician-privileges", physicianId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("physician_service_privileges")
+        .select("service_id, services(id, name, cost_with_vat, service_type_id)")
+        .eq("physician_id", physicianId);
+      return data || [];
+    },
+    enabled: open && !!physicianId,
+  });
+
+  const consultPrivileges = privileges.filter((p: any) => p.services?.service_type_id === consultTypeId);
+
+  const handleAdd = async () => {
+    if (!physicianId || !serviceId) return;
+    setSubmitting(true);
+    try {
+      const svc = consultPrivileges.find((p: any) => p.services?.id === serviceId)?.services;
+      const { error } = await supabase.rpc("inpatient_add_service", {
+        p_hospitalization_id: hospId,
+        p_patient_id: patientId,
+        p_hospital_id: user!.hospitalId,
+        p_ordered_by: user!.id,
+        p_service_id: serviceId,
+        p_assigned_physician_id: physicianId,
+        p_cost_at_time: (svc as any)?.cost_with_vat ?? 0,
+      });
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      toast.success("Consultation requested.");
+      setOpen(false);
+      setPhysicianId("");
+      setServiceId("");
+      onAdded();
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="space-y-3">
@@ -312,15 +449,60 @@ function ConsultationTab({
         </ul>
       )}
 
-      <BookingModal
-        open={open}
-        onOpenChange={setOpen}
-        patientId={patientId}
-        hospitalId={user!.hospitalId}
-        mode="inpatient"
-        hospitalizationId={hospId}
-        onBooked={() => { onAdded(); setOpen(false); }}
-      />
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request Consultation</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Physician</Label>
+              <Select
+                value={physicianId}
+                onValueChange={(v) => {
+                  setPhysicianId(v);
+                  setServiceId("");
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select physician" />
+                </SelectTrigger>
+                <SelectContent>
+                  {physicians.map((p: any) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.profiles?.full_name}
+                      {p.specialization ? ` — ${p.specialization}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Service</Label>
+              <Select value={serviceId} onValueChange={setServiceId} disabled={!physicianId}>
+                <SelectTrigger>
+                  <SelectValue placeholder={physicianId ? "Select service" : "Select physician first"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {consultPrivileges.map((p: any) => (
+                    <SelectItem key={p.services.id} value={p.services.id}>
+                      {p.services.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAdd} disabled={!physicianId || !serviceId || submitting}>
+              {submitting ? "Saving…" : "Request"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
