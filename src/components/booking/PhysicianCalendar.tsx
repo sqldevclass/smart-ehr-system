@@ -84,6 +84,12 @@ export function PhysicianCalendar({
     if (isQueue) onQueueSelect(d);
   };
 
+  // Ensure queueDate is set as soon as a queue physician is opened
+  useEffect(() => {
+    if (isQueue) onQueueSelect(selectedDate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isQueue]);
+
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
       {/* Calendar */}
