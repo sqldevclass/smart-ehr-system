@@ -8,6 +8,7 @@ export interface BookingModalProps {
   preselectedServiceId?: string;
   initialPhysician?: PhysicianResult | null;
   initialService?: ServiceResult | null;
+  initialOfficeRoom?: OfficeRoomResult | null;
   onBooked: (result: BookingResult) => void;
 }
 
@@ -19,6 +20,7 @@ export interface BookingResult {
   isWaitlist?: boolean;
   serviceId: string;
   physicianId?: string;
+  officeRoomId?: string;
 }
 
 export interface PhysicianResult {
@@ -33,6 +35,12 @@ export interface ServiceResult {
   name: string;
   costWithVat: number;
   serviceTypeName: string | null;
+}
+
+export interface OfficeRoomResult {
+  id: string;
+  name: string;
+  service: ServiceResult;
 }
 
 export interface SlotRow {
