@@ -116,6 +116,14 @@ export function BookingModal(props: BookingModalProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [physician]);
 
+  // Auto-set queueDate when pickedServices is confirmed and physician is queue mode
+  useEffect(() => {
+    if (physician?.scheduleType === "queue" && pickedServices && pickedServices.length > 0 && !queueDate) {
+      setQueueDate(new Date());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [physician, pickedServices]);
+
   const handlePhysicianSelect = (p: PhysicianResult) => {
     setPhysician(p);
     setSelectedSlot(null);
@@ -133,10 +141,13 @@ export function BookingModal(props: BookingModalProps) {
 
   const isQueueMode = physician?.scheduleType === "queue";
   const canConfirm = useMemo(() => {
-    if (!physician || !pickedServices || pickedServices.length === 0) return false;
-    if (isQueueMode) return !!queueDate;
-    return !!selectedSlot;
-  }, [physician, pickedServices, isQueueMode, selectedSlot, queueDate]);
+    if (!pickedServices || pickedServices.length === 0) return false;
+    if (physician) {
+      if (isQueueMode) return true; // queue mode: always ready once physician + service selected
+      return !!selectedSlot;
+    }
+    return false;
+  }, [physician, pickedServices, isQueueMode, selectedSlot]);
 
   const ensureQueueConfig = async (physicianId: string): Promise<string> => {
     const today = new Date().toISOString().split("T")[0];
