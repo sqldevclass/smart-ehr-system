@@ -282,11 +282,21 @@ export default function MyPatientsList() {
 
   const renderServiceRow = (r: VisitServiceRow) => {
     const patient = r.visits?.patients;
+    const pid = r.visits?.patient_id;
     const isWL = !!r.is_waitlist;
     return (
       <TableRow key={r.id}>
         <TableCell className={`font-medium ${isWL ? "pl-8" : ""}`}>
-          {formatPatient(patient)}
+          {pid ? (
+            <button
+              className="text-primary hover:underline text-left"
+              onClick={() => navigate(`/physician/patients/${pid}`)}
+            >
+              {formatPatient(patient)}
+            </button>
+          ) : (
+            formatPatient(patient)
+          )}
         </TableCell>
         <TableCell className="font-mono text-xs">
           {patient?.patient_number || "—"}
