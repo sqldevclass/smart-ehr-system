@@ -432,8 +432,12 @@ function OrdersTab({
 
 /* ============ Lab Tab ============ */
 
-function LabTab({ patientId, labTypeId }: { patientId: string; labTypeId: string | null }) {
+function LabTab({ patientId, physicianId, labTypeId, canOrder }: { patientId: string; physicianId: string | null | undefined; labTypeId: string | null; canOrder: boolean }) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [serviceId, setServiceId] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const { data: services = [] } = useQuery({
     queryKey: ["outpatient-lab", patientId, labTypeId],
@@ -449,27 +453,104 @@ function LabTab({ patientId, labTypeId }: { patientId: string; labTypeId: string
     enabled: !!user?.hospitalId && !!labTypeId,
   });
 
-  if (services.length === 0) return <p className="text-sm text-muted-foreground">No lab orders.</p>;
+  const { data: catalog = [] } = useQuery({
+    queryKey: ["services-catalog-lab", user?.hospitalId, labTypeId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("services")
+        .select("id, name, cost_with_vat, service_type_id")
+        .eq("hospital_id", user!.hospitalId)
+        .eq("is_active", true)
+        .order("name");
+      return (data || []).filter((s: any) => s.service_type_id === labTypeId);
+    },
+    enabled: !!user?.hospitalId && !!labTypeId && open,
+  });
+
+  const handleAdd = async () => {
+    if (!serviceId) return;
+    setSubmitting(true);
+    try {
+      const svc = catalog.find((s: any) => s.id === serviceId);
+      const { error } = await supabase.rpc("physician_order_services", {
+        p_patient_id: patientId,
+        p_hospital_id: user!.hospitalId,
+        p_ordered_by: user!.id,
+        p_services: [{
+          service_id: serviceId,
+          assigned_physician_id: physicianId || null,
+          cost_at_time: (svc as any)?.cost_with_vat ?? 0,
+        }],
+      });
+      if (error) { toast.error(error.message); return; }
+      toast.success("Lab order placed. Patient can pay at the registrar.");
+      setOpen(false);
+      setServiceId("");
+      queryClient.invalidateQueries({ queryKey: ["outpatient-lab"] });
+    } finally { setSubmitting(false); }
+  };
 
   return (
-    <ul className="space-y-2">
-      {services.map((vs: any) => (
-        <li key={vs.id} className={cn("flex items-center justify-between rounded border p-2 text-sm",
-          isHistorical(vs.created_at) && "bg-muted/30")}>
-          <div className="flex items-center gap-2">
-            <span className="font-medium">{vs.services?.name}</span>
-            <ContextBadge hospNumber={vs.hospitalizations?.hospitalization_number ?? null} />
-            <span className="text-xs text-muted-foreground">
-              {vs.created_at && format(new Date(vs.created_at), "MMM d, yyyy")}
-            </span>
+    <div className="space-y-3">
+      {canOrder ? (
+        <div className="flex justify-end">
+          <Button size="sm" onClick={() => setOpen(true)} className="gap-1">
+            <Plus className="h-4 w-4" /> Order Lab
+          </Button>
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          Orders can be placed once the patient has paid for their visit.
+        </p>
+      )}
+      {services.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No lab orders.</p>
+      ) : (
+        <ul className="space-y-2">
+          {services.map((vs: any) => (
+            <li key={vs.id} className={cn("flex items-center justify-between rounded border p-2 text-sm",
+              isHistorical(vs.created_at) && "bg-muted/30")}>
+              <div className="flex items-center gap-2">
+                <span className="font-medium">{vs.services?.name}</span>
+                <ContextBadge hospNumber={vs.hospitalizations?.hospitalization_number ?? null} />
+                <span className="text-xs text-muted-foreground">
+                  {vs.created_at && format(new Date(vs.created_at), "MMM d, yyyy")}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                {vs.service_statuses?.code === "completed" && <LabResultsButton visitServiceId={vs.id} />}
+                <Badge variant="outline">{vs.service_statuses?.name_ru || vs.service_statuses?.code}</Badge>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Order Lab</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Lab Service</Label>
+              <Select value={serviceId} onValueChange={setServiceId}>
+                <SelectTrigger><SelectValue placeholder="Select lab service" /></SelectTrigger>
+                <SelectContent>
+                  {catalog.map((s: any) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            {vs.service_statuses?.code === "completed" && <LabResultsButton visitServiceId={vs.id} />}
-            <Badge variant="outline">{vs.service_statuses?.name_ru || vs.service_statuses?.code}</Badge>
-          </div>
-        </li>
-      ))}
-    </ul>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button onClick={handleAdd} disabled={!serviceId || submitting}>
+              {submitting ? "Adding…" : "Order"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
 
