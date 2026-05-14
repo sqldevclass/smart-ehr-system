@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -29,6 +30,7 @@ interface VisitServiceRow {
   services: { id?: string; name: string | null } | null;
   rooms?: { name: string | null } | null;
   visits: {
+    patient_id?: string | null;
     patients: {
       first_name: string | null;
       last_name: string | null;
@@ -58,6 +60,7 @@ const formatPatient = (p: any) => {
 
 export default function MyPatientsList() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [physicianMissing, setPhysicianMissing] = useState(false);
   const [rows, setRows] = useState<VisitServiceRow[]>([]);
