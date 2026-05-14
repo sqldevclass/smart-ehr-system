@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -190,7 +190,7 @@ function ResultsDialog({
   const [saving, setSaving] = useState(false);
 
   // Initialize values from existing on open
-  useMemo(() => {
+  useEffect(() => {
     const init: Record<string, string> = {};
     templates.forEach((t: any) => {
       const ex = existingByTemplate[t.id];
