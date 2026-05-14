@@ -450,7 +450,7 @@ function ScheduleDialog({
         toast.success(`Queue schedule ${editing ? "updated" : "created"}.`);
       }
 
-      // Insert recurring blocks (skip duplicates already saved for this physician)
+      // Insert recurring blocks (skip duplicates already saved for this physician/room)
       if (recurringBlocks.length > 0) {
         const candidates = recurringBlocks
           .filter((b) => b.days.length > 0 && b.from && b.to)
@@ -463,16 +463,19 @@ function ScheduleDialog({
 
         const blockRows: any[] = [];
         for (const c of candidates) {
-          const { data: existing } = await supabase
+          let existQ = supabase
             .from("physician_schedule_blocks")
             .select("id")
-            .eq("physician_id", physicianId)
             .eq("is_recurring", true)
             .eq("recur_time_from", c.recur_time_from)
             .eq("recur_time_to", c.recur_time_to);
+          if (roomId) existQ = existQ.eq("room_id", roomId);
+          else existQ = existQ.eq("physician_id", physicianId!);
+          const { data: existing } = await existQ;
           if (!existing || existing.length === 0) {
             blockRows.push({
-              physician_id: physicianId,
+              physician_id: roomId ? null : physicianId,
+              room_id: roomId || null,
               hospital_id: user!.hospitalId,
               is_recurring: true,
               recur_days: c.recur_days,
@@ -490,14 +493,16 @@ function ScheduleDialog({
             .from("physician_schedule_blocks")
             .insert(blockRows);
           if (blockErr) throw blockErr;
-          await supabase.rpc("apply_block_to_existing_slots", {
-            p_physician_id: physicianId,
-            p_hospital_id: user!.hospitalId,
-          });
+          if (physicianId) {
+            await supabase.rpc("apply_block_to_existing_slots", {
+              p_physician_id: physicianId,
+              p_hospital_id: user!.hospitalId,
+            });
+          }
         }
-        queryClient.invalidateQueries({ queryKey: ["physician-blocks", physicianId] });
+        queryClient.invalidateQueries({ queryKey: ["physician-blocks", roomId ? "room" : "physician", roomId || physicianId] });
       }
-      queryClient.invalidateQueries({ queryKey: ["physician-schedules", physicianId] });
+      queryClient.invalidateQueries({ queryKey: ["physician-schedules", roomId ? "room" : "physician", roomId || physicianId] });
       onOpenChange(false);
     } catch (err: any) {
       toast.error(err.message || "Failed to save schedule.");
