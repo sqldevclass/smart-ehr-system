@@ -165,6 +165,29 @@ export function MultiCalendar(props: MultiCalendarProps) {
     enabled: roomIds.length > 0,
   });
 
+  const { data: queueConfigsData } = useQuery({
+    queryKey: ["multi-cal-queue-configs", physicianIds.join(","), dateStr, hospitalId],
+    queryFn: async () => {
+      const queuePhysIds = physicians
+        .filter((p) => p.scheduleType === "queue")
+        .map((p) => p.id);
+      if (queuePhysIds.length === 0) return {} as Record<string, number>;
+      const { data } = await supabase
+        .from("queue_configs")
+        .select("physician_id, last_number")
+        .eq("hospital_id", hospitalId)
+        .eq("queue_date", dateStr)
+        .in("physician_id", queuePhysIds);
+      const map: Record<string, number> = {};
+      (data || []).forEach((r: any) => {
+        map[r.physician_id] = r.last_number ?? 0;
+      });
+      return map;
+    },
+    enabled: physicians.some((p) => p.scheduleType === "queue"),
+  });
+  const queueConfigs = queueConfigsData ?? {};
+
   const slotsByPhysician = useMemo(() => {
     const map = new Map<string, (SlotRow & { physician_id: string })[]>();
     for (const s of slots) {
