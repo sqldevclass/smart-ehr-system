@@ -300,12 +300,13 @@ function ContextBadge({ hospNumber }: { hospNumber: string | null }) {
 /* ============ Orders Tab ============ */
 
 function OrdersTab({
-  patientId, physicianId, labTypeId, consultTypeId,
+  patientId, physicianId, labTypeId, consultTypeId, canOrder,
 }: {
   patientId: string;
   physicianId: string | null | undefined;
   labTypeId: string | null;
   consultTypeId: string | null;
+  canOrder: boolean;
 }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -314,20 +315,19 @@ function OrdersTab({
   const [submitting, setSubmitting] = useState(false);
 
   const { data: services = [] } = useQuery({
-    queryKey: ["outpatient-orders", patientId, physicianId, labTypeId, consultTypeId],
+    queryKey: ["outpatient-orders", patientId, labTypeId, consultTypeId],
     queryFn: async () => {
       const { data } = await supabase
         .from("visit_services")
         .select("id, created_at, cost_at_time, hospitalization_id, service_statuses(code, name_ru), services(name, service_type_id), hospitalizations(hospitalization_number)")
         .eq("patient_id", patientId)
-        .eq("assigned_physician_id", physicianId!)
         .eq("hospital_id", user!.hospitalId)
         .order("created_at", { ascending: false });
       return (data || []).filter((vs: any) =>
         vs.services?.service_type_id !== labTypeId && vs.services?.service_type_id !== consultTypeId
       );
     },
-    enabled: !!physicianId && !!user?.hospitalId,
+    enabled: !!user?.hospitalId,
   });
 
   const { data: catalog = [] } = useQuery({
