@@ -184,7 +184,7 @@ function SchedulesSection({
       return;
     }
     toast.success("Schedule deleted.");
-    queryClient.invalidateQueries({ queryKey: ["physician-schedules", physicianId] });
+    queryClient.invalidateQueries({ queryKey: ["physician-schedules", selection.kind, selection.id] });
   };
 
   return (
