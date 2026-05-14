@@ -18,6 +18,7 @@ import { Switch } from "@/components/ui/switch";
 import { Plus, Edit, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { LabParametersSection } from "@/components/admin/LabParametersSection";
 
 interface ServiceType {
   id: string;
