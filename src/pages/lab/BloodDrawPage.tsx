@@ -41,12 +41,11 @@ export default function BloodDrawPage() {
       const { data } = await supabase
         .from("service_statuses")
         .select("id, code")
-        .in("code", ["ready_for_execution", "in_progress"]);
+        .eq("code", "ready_for_execution");
       return data || [];
     },
   });
   const readyId = statuses.find((s: any) => s.code === "ready_for_execution")?.id;
-  const inProgressId = statuses.find((s: any) => s.code === "in_progress")?.id;
 
   const { data: rawServices = [], refetch } = useQuery({
     queryKey: ["lab-blood-draw", user?.hospitalId, readyId],
