@@ -260,19 +260,20 @@ export default function OutpatientPatientDetail() {
                 physicianId={physicianId}
                 labTypeId={labTypeId}
                 consultTypeId={consultTypeId}
+                canOrder={canOrder}
               />
             </TabsContent>
             <TabsContent value="lab" className="pt-4">
-              <LabTab patientId={patientId!} labTypeId={labTypeId} />
+              <LabTab patientId={patientId!} physicianId={physicianId} labTypeId={labTypeId} canOrder={canOrder} />
             </TabsContent>
             <TabsContent value="consultation" className="pt-4">
-              <ConsultTab patientId={patientId!} physicianId={physicianId} consultTypeId={consultTypeId} />
+              <ConsultTab patientId={patientId!} physicianId={physicianId} consultTypeId={consultTypeId} canOrder={canOrder} />
             </TabsContent>
             <TabsContent value="care" className="pt-4">
               <CareTab patientId={patientId!} />
             </TabsContent>
             <TabsContent value="diagnoses" className="pt-4">
-              <DiagnosesTab patientId={patientId!} />
+              <DiagnosesTab patientId={patientId!} canOrder={canOrder} />
             </TabsContent>
           </Tabs>
         </CardContent>
