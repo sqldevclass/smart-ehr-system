@@ -453,7 +453,7 @@ function OrdersTab({
 
 /* ============ Lab Tab ============ */
 
-function LabTab({ patientId, physicianId, labTypeId, canOrder }: { patientId: string; physicianId: string | null | undefined; labTypeId: string | null; canOrder: boolean }) {
+function LabTab({ patientId, physicianId, labTypeId, canOrder, hospMap }: { patientId: string; physicianId: string | null | undefined; labTypeId: string | null; canOrder: boolean; hospMap: Record<string, string> }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
