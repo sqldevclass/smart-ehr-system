@@ -24,9 +24,11 @@ const DAYS = [
   { value: 0, short: "Sun", long: "Sunday" },
 ];
 
+type Selection = { kind: "physician"; id: string } | { kind: "room"; id: string };
+
 export default function HRSchedules() {
   const { user } = useAuth();
-  const [selectedPhysicianId, setSelectedPhysicianId] = useState<string>("");
+  const [selection, setSelection] = useState<Selection | null>(null);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [blockOpen, setBlockOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<any>(null);
@@ -45,17 +47,34 @@ export default function HRSchedules() {
     enabled: !!user,
   });
 
+  const { data: officeRooms = [] } = useQuery({
+    queryKey: ["hr-office-rooms", user?.hospitalId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("rooms")
+        .select("id, name, room_types!inner(name, is_office_room)")
+        .eq("hospital_id", user!.hospitalId)
+        .eq("is_active", true)
+        .filter("room_types.is_office_room", "eq", true);
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
   if (!user) return null;
+
+  const isSelected = (s: Selection) =>
+    selection && selection.kind === s.kind && selection.id === s.id;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="font-heading text-2xl font-bold text-foreground">Schedules</h1>
-        <p className="text-sm text-muted-foreground">Manage physician schedules and blocked times.</p>
+        <p className="text-sm text-muted-foreground">Manage physician and office room schedules.</p>
       </div>
 
       <div className="grid grid-cols-[300px_1fr] gap-6 items-start">
-        {/* Left: physician list */}
+        {/* Left: physician + room list */}
         <div className="rounded-lg border bg-card p-3 space-y-1">
           <p className="px-2 py-1 text-xs font-semibold uppercase text-muted-foreground">Physicians</p>
           {physicians.length === 0 && (
@@ -64,32 +83,50 @@ export default function HRSchedules() {
           {physicians.map((p: any) => (
             <button
               key={p.id}
-              onClick={() => setSelectedPhysicianId(p.id)}
+              onClick={() => setSelection({ kind: "physician", id: p.id })}
               className={`w-full text-left rounded-md p-2 text-sm transition-colors ${
-                selectedPhysicianId === p.id ? "bg-primary/10 text-primary" : "hover:bg-muted"
+                isSelected({ kind: "physician", id: p.id }) ? "bg-primary/10 text-primary" : "hover:bg-muted"
               }`}
             >
               <div className="font-medium">{p.profiles?.full_name || "—"}</div>
               <div className="text-xs text-muted-foreground">{p.specialization || "—"}</div>
             </button>
           ))}
+
+          <div className="my-2 border-t" />
+          <p className="px-2 py-1 text-xs font-semibold uppercase text-muted-foreground">Office Rooms</p>
+          {officeRooms.length === 0 && (
+            <p className="px-2 py-2 text-sm text-muted-foreground">No office rooms.</p>
+          )}
+          {officeRooms.map((r: any) => (
+            <button
+              key={r.id}
+              onClick={() => setSelection({ kind: "room", id: r.id })}
+              className={`w-full text-left rounded-md p-2 text-sm transition-colors ${
+                isSelected({ kind: "room", id: r.id }) ? "bg-primary/10 text-primary" : "hover:bg-muted"
+              }`}
+            >
+              <div className="font-medium">{r.name}</div>
+              <div className="text-xs text-muted-foreground">Office Room</div>
+            </button>
+          ))}
         </div>
 
         {/* Right */}
         <div className="space-y-6">
-          {!selectedPhysicianId ? (
+          {!selection ? (
             <div className="rounded-lg border bg-card p-10 text-center text-sm text-muted-foreground">
-              Select a physician to view schedules.
+              Select a physician or office room to view schedules.
             </div>
           ) : (
             <>
               <SchedulesSection
-                physicianId={selectedPhysicianId}
+                selection={selection}
                 onAdd={() => { setEditingSchedule(null); setScheduleOpen(true); }}
                 onEdit={(s) => { setEditingSchedule(s); setScheduleOpen(true); }}
               />
               <BlocksSection
-                physicianId={selectedPhysicianId}
+                selection={selection}
                 onAdd={() => setBlockOpen(true)}
               />
             </>
@@ -97,42 +134,46 @@ export default function HRSchedules() {
         </div>
       </div>
 
-      {scheduleOpen && (
+      {scheduleOpen && selection && (
         <ScheduleDialog
           open={scheduleOpen}
           onOpenChange={setScheduleOpen}
-          physicianId={selectedPhysicianId}
+          physicianId={selection.kind === "physician" ? selection.id : undefined}
+          roomId={selection.kind === "room" ? selection.id : undefined}
           editing={editingSchedule}
         />
       )}
-      {blockOpen && (
+      {blockOpen && selection && (
         <BlockDialog
           open={blockOpen}
           onOpenChange={setBlockOpen}
-          physicianId={selectedPhysicianId}
+          physicianId={selection.kind === "physician" ? selection.id : undefined}
+          roomId={selection.kind === "room" ? selection.id : undefined}
         />
       )}
     </div>
   );
 }
 
+
 function SchedulesSection({
-  physicianId, onAdd, onEdit,
-}: { physicianId: string; onAdd: () => void; onEdit: (s: any) => void }) {
+  selection, onAdd, onEdit,
+}: { selection: Selection; onAdd: () => void; onEdit: (s: any) => void }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const physicianId = selection.kind === "physician" ? selection.id : null;
+  const roomId = selection.kind === "room" ? selection.id : null;
   const { data: schedules = [] } = useQuery({
-    queryKey: ["physician-schedules", physicianId],
+    queryKey: ["physician-schedules", selection.kind, selection.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("physician_schedules")
-        .select("*")
-        .eq("physician_id", physicianId)
-        .order("valid_from", { ascending: false });
+      let q = supabase.from("physician_schedules").select("*");
+      if (physicianId) q = q.eq("physician_id", physicianId);
+      else if (roomId) q = q.eq("room_id", roomId);
+      const { data, error } = await q.order("valid_from", { ascending: false });
       if (error) throw error;
       return data || [];
     },
-    enabled: !!physicianId,
+    enabled: !!selection.id,
   });
 
   const handleDelete = async (id: string) => {
@@ -143,7 +184,7 @@ function SchedulesSection({
       return;
     }
     toast.success("Schedule deleted.");
-    queryClient.invalidateQueries({ queryKey: ["physician-schedules", physicianId] });
+    queryClient.invalidateQueries({ queryKey: ["physician-schedules", selection.kind, selection.id] });
   };
 
   return (
@@ -218,23 +259,25 @@ function SchedulesSection({
 }
 
 function BlocksSection({
-  physicianId, onAdd,
-}: { physicianId: string; onAdd: () => void }) {
+  selection, onAdd,
+}: { selection: Selection; onAdd: () => void }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const physicianId = selection.kind === "physician" ? selection.id : null;
+  const roomId = selection.kind === "room" ? selection.id : null;
   const { data: blocks = [] } = useQuery({
-    queryKey: ["physician-blocks", physicianId],
+    queryKey: ["physician-blocks", selection.kind, selection.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("physician_schedule_blocks")
-        .select("*")
-        .eq("physician_id", physicianId)
+      let q = supabase.from("physician_schedule_blocks").select("*");
+      if (physicianId) q = q.eq("physician_id", physicianId);
+      else if (roomId) q = q.eq("room_id", roomId);
+      const { data, error } = await q
         .or(`blocked_to.gte.${new Date().toISOString()},is_recurring.eq.true`)
         .order("blocked_from");
       if (error) throw error;
       return data || [];
     },
-    enabled: !!physicianId,
+    enabled: !!selection.id,
   });
 
   const handleDelete = async (id: string) => {
@@ -245,7 +288,7 @@ function BlocksSection({
       return;
     }
     toast.success("Block removed.");
-    queryClient.invalidateQueries({ queryKey: ["physician-blocks", physicianId] });
+    queryClient.invalidateQueries({ queryKey: ["physician-blocks", selection.kind, selection.id] });
   };
 
   return (
@@ -299,11 +342,12 @@ function BlocksSection({
 }
 
 function ScheduleDialog({
-  open, onOpenChange, physicianId, editing,
+  open, onOpenChange, physicianId, roomId, editing,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  physicianId: string;
+  physicianId?: string;
+  roomId?: string;
   editing: any | null;
 }) {
   const { user } = useAuth();
@@ -364,7 +408,8 @@ function ScheduleDialog({
     try {
       const payload: any = {
         hospital_id: user!.hospitalId,
-        physician_id: physicianId,
+        physician_id: roomId ? null : physicianId,
+        room_id: roomId || null,
         schedule_type: scheduleType,
         days_of_week: days,
         work_start: localTimeToUTC(workStart, tz),
@@ -405,7 +450,7 @@ function ScheduleDialog({
         toast.success(`Queue schedule ${editing ? "updated" : "created"}.`);
       }
 
-      // Insert recurring blocks (skip duplicates already saved for this physician)
+      // Insert recurring blocks (skip duplicates already saved for this physician/room)
       if (recurringBlocks.length > 0) {
         const candidates = recurringBlocks
           .filter((b) => b.days.length > 0 && b.from && b.to)
@@ -418,16 +463,19 @@ function ScheduleDialog({
 
         const blockRows: any[] = [];
         for (const c of candidates) {
-          const { data: existing } = await supabase
+          let existQ = supabase
             .from("physician_schedule_blocks")
             .select("id")
-            .eq("physician_id", physicianId)
             .eq("is_recurring", true)
             .eq("recur_time_from", c.recur_time_from)
             .eq("recur_time_to", c.recur_time_to);
+          if (roomId) existQ = existQ.eq("room_id", roomId);
+          else existQ = existQ.eq("physician_id", physicianId!);
+          const { data: existing } = await existQ;
           if (!existing || existing.length === 0) {
             blockRows.push({
-              physician_id: physicianId,
+              physician_id: roomId ? null : physicianId,
+              room_id: roomId || null,
               hospital_id: user!.hospitalId,
               is_recurring: true,
               recur_days: c.recur_days,
@@ -445,14 +493,16 @@ function ScheduleDialog({
             .from("physician_schedule_blocks")
             .insert(blockRows);
           if (blockErr) throw blockErr;
-          await supabase.rpc("apply_block_to_existing_slots", {
-            p_physician_id: physicianId,
-            p_hospital_id: user!.hospitalId,
-          });
+          if (physicianId) {
+            await supabase.rpc("apply_block_to_existing_slots", {
+              p_physician_id: physicianId,
+              p_hospital_id: user!.hospitalId,
+            });
+          }
         }
-        queryClient.invalidateQueries({ queryKey: ["physician-blocks", physicianId] });
+        queryClient.invalidateQueries({ queryKey: ["physician-blocks", roomId ? "room" : "physician", roomId || physicianId] });
       }
-      queryClient.invalidateQueries({ queryKey: ["physician-schedules", physicianId] });
+      queryClient.invalidateQueries({ queryKey: ["physician-schedules", roomId ? "room" : "physician", roomId || physicianId] });
       onOpenChange(false);
     } catch (err: any) {
       toast.error(err.message || "Failed to save schedule.");
@@ -465,7 +515,7 @@ function ScheduleDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{editing ? "Edit Schedule" : "Add Schedule"}</DialogTitle>
+          <DialogTitle>{editing ? "Edit Schedule" : roomId ? "Add Room Schedule" : "Add Schedule"}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-5">
@@ -627,11 +677,12 @@ function ScheduleDialog({
 }
 
 function BlockDialog({
-  open, onOpenChange, physicianId,
+  open, onOpenChange, physicianId, roomId,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  physicianId: string;
+  physicianId?: string;
+  roomId?: string;
 }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -648,19 +699,22 @@ function BlockDialog({
       const tz = user!.timezone || "Asia/Tashkent";
       const { error } = await supabase.from("physician_schedule_blocks").insert({
         hospital_id: user!.hospitalId,
-        physician_id: physicianId,
+        physician_id: roomId ? null : physicianId,
+        room_id: roomId || null,
         blocked_from: toUTC(new Date(from), tz).toISOString(),
         blocked_to: toUTC(new Date(to), tz).toISOString(),
         reason: reason.trim() || null,
         blocked_by: user!.id,
       });
       if (error) throw error;
-      await supabase.rpc("apply_block_to_existing_slots", {
-        p_physician_id: physicianId,
-        p_hospital_id: user!.hospitalId,
-      });
+      if (physicianId) {
+        await supabase.rpc("apply_block_to_existing_slots", {
+          p_physician_id: physicianId,
+          p_hospital_id: user!.hospitalId,
+        });
+      }
       toast.success("Time blocked.");
-      queryClient.invalidateQueries({ queryKey: ["physician-blocks", physicianId] });
+      queryClient.invalidateQueries({ queryKey: ["physician-blocks", roomId ? "room" : "physician", roomId || physicianId] });
       onOpenChange(false);
     } catch (err: any) {
       toast.error(err.message || "Failed to block time.");
