@@ -685,7 +685,7 @@ function ConsultTab({
                     {vs.physicians?.profiles?.full_name || "Unassigned"}
                   </span>
                 </div>
-                <ContextBadge hospNumber={vs.hospitalizations?.hospitalization_number ?? null} />
+                <ContextBadge hospNumber={hospMap[vs.hospitalization_id] ?? null} />
               </div>
               <Badge variant="outline">{vs.service_statuses?.name_ru || vs.service_statuses?.code}</Badge>
             </li>
