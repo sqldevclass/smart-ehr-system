@@ -340,7 +340,7 @@ function OrdersTab({
     queryFn: async () => {
       const { data } = await supabase
         .from("visit_services")
-        .select("id, created_at, cost_at_time, hospitalization_id, service_statuses(code, name_ru), services(name, service_type_id), hospitalizations(hospitalization_number)")
+        .select("id, created_at, cost_at_time, hospitalization_id, service_statuses(code, name_ru), services(name, service_type_id)")
         .eq("patient_id", patientId)
         .eq("hospital_id", user!.hospitalId)
         .order("created_at", { ascending: false });
