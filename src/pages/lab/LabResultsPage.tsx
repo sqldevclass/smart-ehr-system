@@ -53,7 +53,7 @@ export default function LabResultsPage() {
         .from("lab_samples")
         .select("id, barcode, status, drawn_at, notes, visit_service_id, patients(first_name, last_name, patient_number, date_of_birth, gender), visit_services(services(id, name, service_type_id))")
         .eq("hospital_id", user!.hospitalId)
-        .in("status", ["in_progress", "completed"])
+        .in("status", ["drawn", "in_progress", "completed"])
         .gte("drawn_at", today.toISOString())
         .order("drawn_at", { ascending: false });
       if (error) throw error;
@@ -62,7 +62,7 @@ export default function LabResultsPage() {
     enabled: !!user,
   });
 
-  const pending = useMemo(() => samples.filter((s: any) => s.status === "in_progress"), [samples]);
+  const pending = useMemo(() => samples.filter((s: any) => s.status === "drawn" || s.status === "in_progress"), [samples]);
   const completed = useMemo(() => samples.filter((s: any) => s.status === "completed"), [samples]);
 
   const [resultsOpen, setResultsOpen] = useState(false);
