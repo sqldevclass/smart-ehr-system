@@ -157,22 +157,23 @@ export default function HRSchedules() {
 
 
 function SchedulesSection({
-  physicianId, onAdd, onEdit,
-}: { physicianId: string; onAdd: () => void; onEdit: (s: any) => void }) {
+  selection, onAdd, onEdit,
+}: { selection: Selection; onAdd: () => void; onEdit: (s: any) => void }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const physicianId = selection.kind === "physician" ? selection.id : null;
+  const roomId = selection.kind === "room" ? selection.id : null;
   const { data: schedules = [] } = useQuery({
-    queryKey: ["physician-schedules", physicianId],
+    queryKey: ["physician-schedules", selection.kind, selection.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("physician_schedules")
-        .select("*")
-        .eq("physician_id", physicianId)
-        .order("valid_from", { ascending: false });
+      let q = supabase.from("physician_schedules").select("*");
+      if (physicianId) q = q.eq("physician_id", physicianId);
+      else if (roomId) q = q.eq("room_id", roomId);
+      const { data, error } = await q.order("valid_from", { ascending: false });
       if (error) throw error;
       return data || [];
     },
-    enabled: !!physicianId,
+    enabled: !!selection.id,
   });
 
   const handleDelete = async (id: string) => {
