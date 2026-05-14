@@ -41,7 +41,7 @@ export default function OutpatientPatientDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("patients")
-        .select("*, patient_allergies(allergen, severity), patient_contacts(*)")
+        .select("*, patient_allergies(id, allergy_type, description, severity), patient_contacts(*)")
         .eq("id", patientId!)
         .eq("hospital_id", user!.hospitalId)
         .single();
@@ -165,8 +165,14 @@ export default function OutpatientPatientDetail() {
               <p className="font-medium text-destructive mb-1">Allergies</p>
               <ul className="space-y-1">
                 {allergies.map((a: any, i: number) => (
-                  <li key={i}>
-                    {a.allergen} {a.severity && <Badge variant="outline" className="ml-1">{a.severity}</Badge>}
+                  <li key={a.id || i}>
+                    <span className="font-medium">{a.allergy_type}</span>
+                    {a.description && (
+                      <span className="text-muted-foreground ml-1">— {a.description}</span>
+                    )}
+                    {a.severity && (
+                      <Badge variant="outline" className="ml-1">{a.severity}</Badge>
+                    )}
                   </li>
                 ))}
               </ul>
