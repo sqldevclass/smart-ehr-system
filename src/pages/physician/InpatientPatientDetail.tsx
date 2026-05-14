@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Plus } from "lucide-react";
 import { format, differenceInDays, differenceInYears } from "date-fns";
 import { usePhysicianId } from "@/hooks/usePhysicianId";
+import { LabResultsButton } from "@/components/lab/LabResultsButton";
 
 export default function InpatientPatientDetail() {
   const { hospId } = useParams<{ hospId: string }>();
@@ -195,6 +196,7 @@ function TabsSection({ hospId, hosp, patient }: { hospId: string; hosp: any; pat
           catalogTypeId={labTypeId}
           emptyText="No lab orders yet."
           addLabel="Order Lab"
+          showLabResults
         />
       </TabsContent>
       <TabsContent value="consultation" className="pt-4">
@@ -227,6 +229,7 @@ function ServiceListBase({
   addLabel,
   catalogTypeId,
   excludeTypeIds,
+  showLabResults,
 }: {
   hospId: string;
   patientId: string;
@@ -236,6 +239,7 @@ function ServiceListBase({
   addLabel: string;
   catalogTypeId?: string | null;
   excludeTypeIds?: string[];
+  showLabResults?: boolean;
 }) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
@@ -303,7 +307,12 @@ function ServiceListBase({
           {services.map((vs: any) => (
             <li key={vs.id} className="flex items-center justify-between rounded border p-2 text-sm">
               <span>{vs.services?.name}</span>
-              <Badge variant="outline">{vs.service_statuses?.name_ru || vs.service_statuses?.code || "—"}</Badge>
+              <div className="flex items-center gap-2">
+                {showLabResults && vs.service_statuses?.code === "completed" && (
+                  <LabResultsButton visitServiceId={vs.id} />
+                )}
+                <Badge variant="outline">{vs.service_statuses?.name_ru || vs.service_statuses?.code || "—"}</Badge>
+              </div>
             </li>
           ))}
         </ul>
