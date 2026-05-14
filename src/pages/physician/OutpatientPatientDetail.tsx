@@ -63,6 +63,25 @@ export default function OutpatientPatientDetail() {
   const labTypeId = serviceTypes.find((t: any) => t.code === "laboratory")?.id ?? null;
   const consultTypeId = serviceTypes.find((t: any) => t.code === "consultation")?.id ?? null;
 
+  const { data: hospitalizations = [] } = useQuery({
+    queryKey: ["outpatient-patient-hospitalizations", patientId, user?.hospitalId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("hospitalizations")
+        .select("id, hospitalization_number")
+        .eq("patient_id", patientId!)
+        .eq("hospital_id", user!.hospitalId)
+        .order("admitted_at", { ascending: false });
+      return data || [];
+    },
+    enabled: !!patientId && !!user?.hospitalId,
+  });
+
+  const hospMap = useMemo(
+    () => Object.fromEntries(hospitalizations.map((h: any) => [h.id, h.hospitalization_number])),
+    [hospitalizations]
+  );
+
   const { data: statuses = [] } = useQuery({
     queryKey: ["service-statuses-codes"],
     queryFn: async () => {
@@ -261,13 +280,14 @@ export default function OutpatientPatientDetail() {
                 labTypeId={labTypeId}
                 consultTypeId={consultTypeId}
                 canOrder={canOrder}
+                hospMap={hospMap}
               />
             </TabsContent>
             <TabsContent value="lab" className="pt-4">
-              <LabTab patientId={patientId!} physicianId={physicianId} labTypeId={labTypeId} canOrder={canOrder} />
+              <LabTab patientId={patientId!} physicianId={physicianId} labTypeId={labTypeId} canOrder={canOrder} hospMap={hospMap} />
             </TabsContent>
             <TabsContent value="consultation" className="pt-4">
-              <ConsultTab patientId={patientId!} physicianId={physicianId} consultTypeId={consultTypeId} canOrder={canOrder} />
+              <ConsultTab patientId={patientId!} physicianId={physicianId} consultTypeId={consultTypeId} canOrder={canOrder} hospMap={hospMap} />
             </TabsContent>
             <TabsContent value="care" className="pt-4">
               <CareTab patientId={patientId!} />
@@ -300,13 +320,14 @@ function ContextBadge({ hospNumber }: { hospNumber: string | null }) {
 /* ============ Orders Tab ============ */
 
 function OrdersTab({
-  patientId, physicianId, labTypeId, consultTypeId, canOrder,
+  patientId, physicianId, labTypeId, consultTypeId, canOrder, hospMap,
 }: {
   patientId: string;
   physicianId: string | null | undefined;
   labTypeId: string | null;
   consultTypeId: string | null;
   canOrder: boolean;
+  hospMap: Record<string, string>;
 }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -319,7 +340,7 @@ function OrdersTab({
     queryFn: async () => {
       const { data } = await supabase
         .from("visit_services")
-        .select("id, created_at, cost_at_time, hospitalization_id, service_statuses(code, name_ru), services(name, service_type_id), hospitalizations(hospitalization_number)")
+        .select("id, created_at, cost_at_time, hospitalization_id, service_statuses(code, name_ru), services(name, service_type_id)")
         .eq("patient_id", patientId)
         .eq("hospital_id", user!.hospitalId)
         .order("created_at", { ascending: false });
@@ -391,7 +412,7 @@ function OrdersTab({
               isHistorical(vs.created_at) && "bg-muted/30")}>
               <div className="flex items-center gap-2">
                 <span className="font-medium">{vs.services?.name}</span>
-                <ContextBadge hospNumber={vs.hospitalizations?.hospitalization_number ?? null} />
+                <ContextBadge hospNumber={hospMap[vs.hospitalization_id] ?? null} />
                 <span className="text-xs text-muted-foreground">
                   {vs.created_at && format(new Date(vs.created_at), "MMM d, yyyy")}
                 </span>
@@ -432,7 +453,7 @@ function OrdersTab({
 
 /* ============ Lab Tab ============ */
 
-function LabTab({ patientId, physicianId, labTypeId, canOrder }: { patientId: string; physicianId: string | null | undefined; labTypeId: string | null; canOrder: boolean }) {
+function LabTab({ patientId, physicianId, labTypeId, canOrder, hospMap }: { patientId: string; physicianId: string | null | undefined; labTypeId: string | null; canOrder: boolean; hospMap: Record<string, string> }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -444,7 +465,7 @@ function LabTab({ patientId, physicianId, labTypeId, canOrder }: { patientId: st
     queryFn: async () => {
       const { data } = await supabase
         .from("visit_services")
-        .select("id, created_at, hospitalization_id, service_statuses(code, name_ru), services(id, name, service_type_id), hospitalizations(hospitalization_number)")
+        .select("id, created_at, hospitalization_id, service_statuses(code, name_ru), services(id, name, service_type_id)")
         .eq("patient_id", patientId)
         .eq("hospital_id", user!.hospitalId)
         .order("created_at", { ascending: false });
@@ -512,7 +533,7 @@ function LabTab({ patientId, physicianId, labTypeId, canOrder }: { patientId: st
               isHistorical(vs.created_at) && "bg-muted/30")}>
               <div className="flex items-center gap-2">
                 <span className="font-medium">{vs.services?.name}</span>
-                <ContextBadge hospNumber={vs.hospitalizations?.hospitalization_number ?? null} />
+                <ContextBadge hospNumber={hospMap[vs.hospitalization_id] ?? null} />
                 <span className="text-xs text-muted-foreground">
                   {vs.created_at && format(new Date(vs.created_at), "MMM d, yyyy")}
                 </span>
@@ -557,12 +578,13 @@ function LabTab({ patientId, physicianId, labTypeId, canOrder }: { patientId: st
 /* ============ Consultation Tab ============ */
 
 function ConsultTab({
-  patientId, physicianId, consultTypeId, canOrder,
+  patientId, physicianId, consultTypeId, canOrder, hospMap,
 }: {
   patientId: string;
   physicianId: string | null | undefined;
   consultTypeId: string | null;
   canOrder: boolean;
+  hospMap: Record<string, string>;
 }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -576,7 +598,7 @@ function ConsultTab({
     queryFn: async () => {
       const { data } = await supabase
         .from("visit_services")
-        .select("id, created_at, hospitalization_id, assigned_physician_id, service_statuses(code, name_ru), services(name, service_type_id), hospitalizations(hospitalization_number), physicians!visit_services_assigned_physician_id_fkey(profiles(full_name))")
+        .select("id, created_at, hospitalization_id, assigned_physician_id, service_statuses(code, name_ru), services(name, service_type_id), physicians!visit_services_assigned_physician_id_fkey(profiles(full_name))")
         .eq("patient_id", patientId)
         .eq("hospital_id", user!.hospitalId)
         .order("created_at", { ascending: false });
@@ -663,7 +685,7 @@ function ConsultTab({
                     {vs.physicians?.profiles?.full_name || "Unassigned"}
                   </span>
                 </div>
-                <ContextBadge hospNumber={vs.hospitalizations?.hospitalization_number ?? null} />
+                <ContextBadge hospNumber={hospMap[vs.hospitalization_id] ?? null} />
               </div>
               <Badge variant="outline">{vs.service_statuses?.name_ru || vs.service_statuses?.code}</Badge>
             </li>
