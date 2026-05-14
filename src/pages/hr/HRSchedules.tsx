@@ -24,9 +24,11 @@ const DAYS = [
   { value: 0, short: "Sun", long: "Sunday" },
 ];
 
+type Selection = { kind: "physician"; id: string } | { kind: "room"; id: string };
+
 export default function HRSchedules() {
   const { user } = useAuth();
-  const [selectedPhysicianId, setSelectedPhysicianId] = useState<string>("");
+  const [selection, setSelection] = useState<Selection | null>(null);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [blockOpen, setBlockOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<any>(null);
@@ -45,17 +47,34 @@ export default function HRSchedules() {
     enabled: !!user,
   });
 
+  const { data: officeRooms = [] } = useQuery({
+    queryKey: ["hr-office-rooms", user?.hospitalId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("rooms")
+        .select("id, name, room_types!inner(name, is_office_room)")
+        .eq("hospital_id", user!.hospitalId)
+        .eq("is_active", true)
+        .filter("room_types.is_office_room", "eq", true);
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
   if (!user) return null;
+
+  const isSelected = (s: Selection) =>
+    selection && selection.kind === s.kind && selection.id === s.id;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="font-heading text-2xl font-bold text-foreground">Schedules</h1>
-        <p className="text-sm text-muted-foreground">Manage physician schedules and blocked times.</p>
+        <p className="text-sm text-muted-foreground">Manage physician and office room schedules.</p>
       </div>
 
       <div className="grid grid-cols-[300px_1fr] gap-6 items-start">
-        {/* Left: physician list */}
+        {/* Left: physician + room list */}
         <div className="rounded-lg border bg-card p-3 space-y-1">
           <p className="px-2 py-1 text-xs font-semibold uppercase text-muted-foreground">Physicians</p>
           {physicians.length === 0 && (
@@ -64,32 +83,50 @@ export default function HRSchedules() {
           {physicians.map((p: any) => (
             <button
               key={p.id}
-              onClick={() => setSelectedPhysicianId(p.id)}
+              onClick={() => setSelection({ kind: "physician", id: p.id })}
               className={`w-full text-left rounded-md p-2 text-sm transition-colors ${
-                selectedPhysicianId === p.id ? "bg-primary/10 text-primary" : "hover:bg-muted"
+                isSelected({ kind: "physician", id: p.id }) ? "bg-primary/10 text-primary" : "hover:bg-muted"
               }`}
             >
               <div className="font-medium">{p.profiles?.full_name || "—"}</div>
               <div className="text-xs text-muted-foreground">{p.specialization || "—"}</div>
             </button>
           ))}
+
+          <div className="my-2 border-t" />
+          <p className="px-2 py-1 text-xs font-semibold uppercase text-muted-foreground">Office Rooms</p>
+          {officeRooms.length === 0 && (
+            <p className="px-2 py-2 text-sm text-muted-foreground">No office rooms.</p>
+          )}
+          {officeRooms.map((r: any) => (
+            <button
+              key={r.id}
+              onClick={() => setSelection({ kind: "room", id: r.id })}
+              className={`w-full text-left rounded-md p-2 text-sm transition-colors ${
+                isSelected({ kind: "room", id: r.id }) ? "bg-primary/10 text-primary" : "hover:bg-muted"
+              }`}
+            >
+              <div className="font-medium">{r.name}</div>
+              <div className="text-xs text-muted-foreground">Office Room</div>
+            </button>
+          ))}
         </div>
 
         {/* Right */}
         <div className="space-y-6">
-          {!selectedPhysicianId ? (
+          {!selection ? (
             <div className="rounded-lg border bg-card p-10 text-center text-sm text-muted-foreground">
-              Select a physician to view schedules.
+              Select a physician or office room to view schedules.
             </div>
           ) : (
             <>
               <SchedulesSection
-                physicianId={selectedPhysicianId}
+                selection={selection}
                 onAdd={() => { setEditingSchedule(null); setScheduleOpen(true); }}
                 onEdit={(s) => { setEditingSchedule(s); setScheduleOpen(true); }}
               />
               <BlocksSection
-                physicianId={selectedPhysicianId}
+                selection={selection}
                 onAdd={() => setBlockOpen(true)}
               />
             </>
@@ -97,24 +134,27 @@ export default function HRSchedules() {
         </div>
       </div>
 
-      {scheduleOpen && (
+      {scheduleOpen && selection && (
         <ScheduleDialog
           open={scheduleOpen}
           onOpenChange={setScheduleOpen}
-          physicianId={selectedPhysicianId}
+          physicianId={selection.kind === "physician" ? selection.id : undefined}
+          roomId={selection.kind === "room" ? selection.id : undefined}
           editing={editingSchedule}
         />
       )}
-      {blockOpen && (
+      {blockOpen && selection && (
         <BlockDialog
           open={blockOpen}
           onOpenChange={setBlockOpen}
-          physicianId={selectedPhysicianId}
+          physicianId={selection.kind === "physician" ? selection.id : undefined}
+          roomId={selection.kind === "room" ? selection.id : undefined}
         />
       )}
     </div>
   );
 }
+
 
 function SchedulesSection({
   physicianId, onAdd, onEdit,
