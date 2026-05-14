@@ -456,7 +456,11 @@ export default function ServicesPage() {
                 </TableHeader>
                 <TableBody>
                   {services.map((s) => (
-                    <TableRow key={s.id}>
+                    <TableRow
+                      key={s.id}
+                      className={cn("cursor-pointer", selectedServiceId === s.id && "bg-primary/10")}
+                      onClick={() => setSelectedServiceId(s.id)}
+                    >
                       <TableCell className="font-medium">{s.name}</TableCell>
                       <TableCell>{s.code || "—"}</TableCell>
                       <TableCell className="text-right">{Number(s.cost).toFixed(2)}</TableCell>
@@ -467,7 +471,7 @@ export default function ServicesPage() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="icon" onClick={() => openEditSvc(s)}>
+                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEditSvc(s); }}>
                           <Edit className="h-4 w-4" />
                         </Button>
                       </TableCell>
