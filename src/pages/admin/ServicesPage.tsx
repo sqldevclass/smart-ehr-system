@@ -94,7 +94,12 @@ export default function ServicesPage() {
 
   useEffect(() => {
     setSelectedGroupId(null);
+    setSelectedServiceId(null);
   }, [selectedTypeId]);
+
+  useEffect(() => {
+    setSelectedServiceId(null);
+  }, [selectedGroupId]);
 
   useEffect(() => {
     if (!selectedGroupId && groups.length > 0) setSelectedGroupId(groups[0].id);
