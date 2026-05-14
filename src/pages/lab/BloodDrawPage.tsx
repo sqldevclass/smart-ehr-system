@@ -94,7 +94,9 @@ export default function BloodDrawPage() {
         patient_id: selected.patient_id,
         hospital_id: user.hospitalId,
         barcode: finalBarcode,
+        status: 'in_progress',
         drawn_by: user.id,
+        drawn_at: new Date().toISOString(),
         notes: notes.trim() || null,
       });
       if (insertErr) throw insertErr;
