@@ -408,7 +408,8 @@ function ScheduleDialog({
     try {
       const payload: any = {
         hospital_id: user!.hospitalId,
-        physician_id: physicianId,
+        physician_id: roomId ? null : physicianId,
+        room_id: roomId || null,
         schedule_type: scheduleType,
         days_of_week: days,
         work_start: localTimeToUTC(workStart, tz),
