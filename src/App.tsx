@@ -52,6 +52,10 @@ import InpatientPatientDetail from "./pages/physician/InpatientPatientDetail.tsx
 import NurseLayout from "./components/nurse/NurseLayout.tsx";
 import NursePatientsList from "./pages/nurse/NursePatientsList.tsx";
 import NurseProfile from "./pages/nurse/NurseProfile.tsx";
+import LabLayout from "./components/lab/LabLayout.tsx";
+import BloodDrawPage from "./pages/lab/BloodDrawPage.tsx";
+import LabResultsPage from "./pages/lab/LabResultsPage.tsx";
+import LabProfile from "./pages/lab/LabProfile.tsx";
 
 const queryClient = new QueryClient();
 
