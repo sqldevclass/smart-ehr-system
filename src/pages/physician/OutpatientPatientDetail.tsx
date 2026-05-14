@@ -371,11 +371,17 @@ function OrdersTab({
 
   return (
     <div className="space-y-3">
-      <div className="flex justify-end">
-        <Button size="sm" onClick={() => setOpen(true)} className="gap-1">
-          <Plus className="h-4 w-4" /> Add Order
-        </Button>
-      </div>
+      {canOrder ? (
+        <div className="flex justify-end">
+          <Button size="sm" onClick={() => setOpen(true)} className="gap-1">
+            <Plus className="h-4 w-4" /> Add Order
+          </Button>
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          Orders can be placed once the patient has paid for their visit.
+        </p>
+      )}
       {services.length === 0 ? (
         <p className="text-sm text-muted-foreground">No orders yet.</p>
       ) : (
