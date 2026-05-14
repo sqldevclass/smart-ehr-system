@@ -24,6 +24,7 @@ interface VisitServiceRow {
   slot_id: string | null;
   is_waitlist: boolean | null;
   completed_by?: string | null;
+  assigned_room_id?: string | null;
   service_statuses: { code: string | null; name_ru: string | null } | null;
   services: { id?: string; name: string | null } | null;
   rooms?: { name: string | null } | null;
@@ -60,8 +61,11 @@ export default function MyPatientsList() {
   const [loading, setLoading] = useState(true);
   const [physicianMissing, setPhysicianMissing] = useState(false);
   const [rows, setRows] = useState<VisitServiceRow[]>([]);
+  const [roomRows, setRoomRows] = useState<VisitServiceRow[]>([]);
+  const [roomMap, setRoomMap] = useState<Record<string, string>>({});
   const [completedByNames, setCompletedByNames] = useState<Record<string, string>>({});
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [expandedRooms, setExpandedRooms] = useState<Record<string, boolean>>({});
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -90,6 +94,7 @@ export default function MyPatientsList() {
 
     if (allowedStatusIds.length === 0) {
       setRows([]);
+      setRoomRows([]);
       setLoading(false);
       return;
     }
@@ -100,7 +105,7 @@ export default function MyPatientsList() {
     const { data: vs, error: vsErr } = await supabase
       .from("visit_services")
       .select(
-        "id, scheduled_at, queue_number, cost_at_time, visit_id, slot_id, is_waitlist, created_at, completed_by, service_statuses(code, name_ru), services(id, name), visits(visit_date, patients(first_name, last_name, patient_number, date_of_birth))"
+        "id, scheduled_at, queue_number, cost_at_time, visit_id, slot_id, is_waitlist, created_at, completed_by, assigned_room_id, service_statuses(code, name_ru), services(id, name), visits(visit_date, patients(first_name, last_name, patient_number, date_of_birth))"
       )
       .eq("assigned_physician_id", (phys as Physician).id)
       .eq("hospital_id", user.hospitalId)
@@ -110,36 +115,38 @@ export default function MyPatientsList() {
 
     if (vsErr) toast.error(vsErr.message);
 
-    // Office room services: physician is assigned to office room(s) via office_room_physicians
-    const { data: roomLinks } = await supabase
+    // Office rooms this physician is assigned to
+    const { data: myRooms } = await supabase
       .from("office_room_physicians")
-      .select("room_id")
+      .select("room_id, rooms(id, name)")
       .eq("physician_id", (phys as Physician).id)
       .eq("hospital_id", user.hospitalId);
 
-    const roomIds = (roomLinks || []).map((r: any) => r.room_id);
+    const myRoomIds = (myRooms || []).map((r: any) => r.room_id);
+    const rMap: Record<string, string> = {};
+    for (const r of myRooms || []) {
+      rMap[(r as any).room_id] = (r as any).rooms?.name || "Room";
+    }
+    setRoomMap(rMap);
+
     let roomServices: any[] = [];
-    if (roomIds.length > 0) {
+    if (myRoomIds.length > 0) {
       const { data: rs, error: rsErr } = await supabase
         .from("visit_services")
         .select(
-          "id, scheduled_at, queue_number, cost_at_time, visit_id, slot_id, is_waitlist, created_at, completed_by, service_statuses(code, name_ru), services(id, name), rooms(name), visits(visit_date, patients(first_name, last_name, patient_number, date_of_birth))"
+          "id, scheduled_at, queue_number, cost_at_time, visit_id, slot_id, is_waitlist, created_at, completed_by, assigned_room_id, service_statuses(code, name_ru), services(id, name), visits(visit_date, patients(first_name, last_name, patient_number, date_of_birth))"
         )
         .eq("hospital_id", user.hospitalId)
-        .in("assigned_room_id", roomIds)
-        .in("status_id", allowedStatusIds);
+        .in("assigned_room_id", myRoomIds)
+        .in("status_id", allowedStatusIds)
+        .gte("scheduled_at", dayStart)
+        .lte("scheduled_at", dayEnd);
       if (rsErr) toast.error(rsErr.message);
       roomServices = rs || [];
     }
 
-    const allRows = [...(vs || []), ...roomServices];
-    // Deduplicate by id (in case of overlap)
-    const dedupMap = new Map<string, any>();
-    for (const r of allRows) dedupMap.set(r.id, r);
-    const merged = Array.from(dedupMap.values());
-
     const selectedDateStr = format(selectedDate, "yyyy-MM-dd");
-    const filtered = merged.filter((row: any) => {
+    const filteredMain = (vs || []).filter((row: any) => {
       if (row.scheduled_at) {
         return row.scheduled_at >= dayStart && row.scheduled_at <= dayEnd;
       }
@@ -149,9 +156,17 @@ export default function MyPatientsList() {
       return false;
     });
 
-    // Fetch profiles for completed_by uuids
+    // Avoid double-listing rows already in the main list
+    const mainIds = new Set(filteredMain.map((r: any) => r.id));
+    const filteredRoom = roomServices.filter((r: any) => !mainIds.has(r.id));
+
+    // Fetch profiles for completed_by uuids across both lists
     const completedIds = Array.from(
-      new Set(filtered.map((r: any) => r.completed_by).filter(Boolean))
+      new Set(
+        [...filteredMain, ...filteredRoom]
+          .map((r: any) => r.completed_by)
+          .filter(Boolean)
+      )
     );
     if (completedIds.length > 0) {
       const { data: profs } = await supabase
@@ -165,7 +180,8 @@ export default function MyPatientsList() {
       setCompletedByNames({});
     }
 
-    setRows(filtered as any);
+    setRows(filteredMain as any);
+    setRoomRows(filteredRoom as any);
     setLoading(false);
   }, [user, selectedDate]);
 
@@ -197,15 +213,11 @@ export default function MyPatientsList() {
       return 0;
     });
 
-    // Group by slot_id, primary first then waitlist
     const bySlot = new Map<string, VisitServiceRow[]>();
-    const nonSlot: VisitServiceRow[] = [];
     sortedRows.forEach((r) => {
       if (r.slot_id) {
         if (!bySlot.has(r.slot_id)) bySlot.set(r.slot_id, []);
         bySlot.get(r.slot_id)!.push(r);
-      } else {
-        nonSlot.push(r);
       }
     });
     bySlot.forEach((arr) => {
@@ -232,6 +244,26 @@ export default function MyPatientsList() {
     return result;
   }, [rows]);
 
+  // Group room services by assigned_room_id, sorted by scheduled_at desc
+  const roomGroups = useMemo(() => {
+    const groups: Record<string, VisitServiceRow[]> = {};
+    for (const roomId of Object.keys(roomMap)) groups[roomId] = [];
+    for (const r of roomRows) {
+      const rid = (r as any).assigned_room_id;
+      if (!rid) continue;
+      if (!groups[rid]) groups[rid] = [];
+      groups[rid].push(r);
+    }
+    for (const rid of Object.keys(groups)) {
+      groups[rid].sort((a, b) => {
+        const aT = a.scheduled_at ? new Date(a.scheduled_at).getTime() : 0;
+        const bT = b.scheduled_at ? new Date(b.scheduled_at).getTime() : 0;
+        return bT - aT;
+      });
+    }
+    return groups;
+  }, [roomRows, roomMap]);
+
   if (loading) {
     return <p className="text-sm text-muted-foreground">Loading…</p>;
   }
@@ -244,6 +276,62 @@ export default function MyPatientsList() {
   }
 
   const isToday = isSameDay(selectedDate, new Date());
+
+  const renderServiceRow = (r: VisitServiceRow) => {
+    const patient = r.visits?.patients;
+    const isWL = !!r.is_waitlist;
+    return (
+      <TableRow key={r.id}>
+        <TableCell className={`font-medium ${isWL ? "pl-8" : ""}`}>
+          {formatPatient(patient)}
+        </TableCell>
+        <TableCell className="font-mono text-xs">
+          {patient?.patient_number || "—"}
+        </TableCell>
+        <TableCell>
+          <div className="flex flex-col gap-0.5">
+            <span>{r.services?.name || "—"}</span>
+            {r.service_statuses?.code === "completed" && r.completed_by && completedByNames[r.completed_by] && (
+              <span className="text-[11px] text-muted-foreground">
+                Completed by: {completedByNames[r.completed_by]}
+              </span>
+            )}
+          </div>
+        </TableCell>
+        <TableCell>
+          {isWL ? (
+            <span className="rounded border border-orange-300 bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-900">
+              Wait List
+            </span>
+          ) : r.scheduled_at ? (
+            toLocal(r.scheduled_at, user?.timezone || "Asia/Tashkent", "MMM d, HH:mm")
+          ) : r.queue_number != null ? (
+            `#${r.queue_number}`
+          ) : (
+            "—"
+          )}
+        </TableCell>
+        <TableCell>
+          <span
+            className={`rounded border px-2 py-0.5 text-xs font-medium ${statusVariant(
+              r.service_statuses?.code
+            )}`}
+          >
+            {r.service_statuses?.name_ru || r.service_statuses?.code || "—"}
+          </span>
+        </TableCell>
+        <TableCell className="text-right">
+          {r.service_statuses?.code === "ready_for_execution" && (
+            <Button size="sm" onClick={() => handleComplete(r.id)}>
+              Complete
+            </Button>
+          )}
+        </TableCell>
+      </TableRow>
+    );
+  };
+
+  const roomIdsList = Object.keys(roomMap);
 
   return (
     <div className="space-y-6">
@@ -301,68 +389,65 @@ export default function MyPatientsList() {
                 </TableCell>
               </TableRow>
             ) : (
-              sorted.map((r) => {
-                const patient = r.visits?.patients;
-                const isWL = !!r.is_waitlist;
-                return (
-                  <TableRow key={r.id}>
-                    <TableCell className={`font-medium ${isWL ? "pl-8" : ""}`}>
-                      {formatPatient(patient)}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">
-                      {patient?.patient_number || "—"}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-0.5">
-                        <span>{r.services?.name || "—"}</span>
-                        {r.rooms?.name && (
-                          <span className="inline-flex w-fit rounded border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-900">
-                            Office Room: {r.rooms.name}
-                          </span>
-                        )}
-                        {r.service_statuses?.code === "completed" && r.completed_by && completedByNames[r.completed_by] && (
-                          <span className="text-[11px] text-muted-foreground">
-                            Completed by: {completedByNames[r.completed_by]}
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {isWL ? (
-                        <span className="rounded border border-orange-300 bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-900">
-                          Wait List
-                        </span>
-                      ) : r.scheduled_at ? (
-                        toLocal(r.scheduled_at, user?.timezone || "Asia/Tashkent", "MMM d, HH:mm")
-                      ) : r.queue_number != null ? (
-                        `#${r.queue_number}`
-                      ) : (
-                        "—"
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <span
-                        className={`rounded border px-2 py-0.5 text-xs font-medium ${statusVariant(
-                          r.service_statuses?.code
-                        )}`}
-                      >
-                        {r.service_statuses?.name_ru || r.service_statuses?.code || "—"}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {r.service_statuses?.code === "ready_for_execution" && (
-                        <Button size="sm" onClick={() => handleComplete(r.id)}>
-                          Complete
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })
+              sorted.map(renderServiceRow)
             )}
           </TableBody>
         </Table>
       </div>
+
+      {roomIdsList.length > 0 && (
+        <div className="space-y-4">
+          <h2 className="font-heading text-lg font-semibold text-foreground">
+            Office Room Services
+          </h2>
+          {roomIdsList.map((roomId) => {
+            const list = roomGroups[roomId] || [];
+            const expanded = !!expandedRooms[roomId];
+            const visible = expanded ? list : list.slice(0, 1);
+            return (
+              <div key={roomId} className="rounded-lg border bg-card">
+                <div className="flex items-center justify-between border-b px-4 py-2">
+                  <div className="text-sm font-medium">{roomMap[roomId]}</div>
+                  {list.length > 1 && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() =>
+                        setExpandedRooms((s) => ({ ...s, [roomId]: !expanded }))
+                      }
+                    >
+                      {expanded ? "Show less" : `Show all (${list.length})`}
+                    </Button>
+                  )}
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Patient</TableHead>
+                      <TableHead>Patient #</TableHead>
+                      <TableHead>Service</TableHead>
+                      <TableHead>Time / Queue</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {visible.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-6">
+                          No services for this room today.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      visible.map(renderServiceRow)
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
