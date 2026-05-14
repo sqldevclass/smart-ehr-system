@@ -31,6 +31,7 @@ import CashierProfile from "./pages/cashier/CashierProfile.tsx";
 import PhysicianLayout from "./components/physician/PhysicianLayout.tsx";
 import MyPatientsList from "./pages/physician/MyPatientsList.tsx";
 import PhysicianPatientDetail from "./pages/physician/PhysicianPatientDetail.tsx";
+import OutpatientPatientDetail from "./pages/physician/OutpatientPatientDetail.tsx";
 import ExamCardDetail from "./pages/physician/ExamCardDetail.tsx";
 import PhysicianProfile from "./pages/physician/PhysicianProfile.tsx";
 import PhysicianSchedule from "./pages/physician/PhysicianSchedule.tsx";
@@ -86,7 +87,8 @@ const App = () => (
             <Route index element={<MyPatientsList />} />
             <Route path="inpatient" element={<InpatientPatientsList />} />
             <Route path="inpatient/:hospId" element={<InpatientPatientDetail />} />
-            <Route path="patients/:patientId" element={<PhysicianPatientDetail />} />
+            <Route path="patients/:patientId" element={<OutpatientPatientDetail />} />
+            <Route path="patients-legacy/:patientId" element={<PhysicianPatientDetail />} />
             <Route path="patients/:patientId/exam/:examId" element={<ExamCardDetail />} />
             <Route path="schedule" element={<PhysicianSchedule />} />
             <Route path="profile" element={<PhysicianProfile />} />
