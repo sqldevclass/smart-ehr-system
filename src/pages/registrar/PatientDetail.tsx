@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { BookingModal } from "@/components/booking/BookingModal";
 import { BookingSearch } from "@/components/booking/BookingSearch";
 import type { OfficeRoomResult, PhysicianResult, ServiceResult } from "@/components/booking/types";
+import { LabResultsButton } from "@/components/lab/LabResultsButton";
 
 export default function PatientDetail() {
   const { patientId } = useParams();
@@ -353,6 +354,9 @@ export default function PatientDetail() {
                           )}
                         </span>
                         <div className="flex items-center gap-2 shrink-0">
+                          {vs.service_statuses?.code === "completed" && (
+                            <LabResultsButton visitServiceId={vs.id} variant="indicator" />
+                          )}
                           <span className="rounded bg-muted px-2 py-0.5 text-muted-foreground">
                             {vs.service_statuses?.name_ru || vs.service_statuses?.code || "—"}
                           </span>

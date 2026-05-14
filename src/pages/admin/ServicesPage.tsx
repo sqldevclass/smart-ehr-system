@@ -18,6 +18,7 @@ import { Switch } from "@/components/ui/switch";
 import { Plus, Edit } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { LabParametersSection } from "@/components/admin/LabParametersSection";
 
 interface ServiceType {
   id: string;
@@ -52,6 +53,7 @@ export default function ServicesPage() {
 
   const [selectedTypeId, setSelectedTypeId] = useState<string | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
 
   // ----- Service Types -----
   const { data: types = [] } = useQuery({
@@ -93,7 +95,12 @@ export default function ServicesPage() {
 
   useEffect(() => {
     setSelectedGroupId(null);
+    setSelectedServiceId(null);
   }, [selectedTypeId]);
+
+  useEffect(() => {
+    setSelectedServiceId(null);
+  }, [selectedGroupId]);
 
   useEffect(() => {
     if (!selectedGroupId && groups.length > 0) setSelectedGroupId(groups[0].id);
@@ -455,7 +462,11 @@ export default function ServicesPage() {
                 </TableHeader>
                 <TableBody>
                   {services.map((s) => (
-                    <TableRow key={s.id}>
+                    <TableRow
+                      key={s.id}
+                      className={cn("cursor-pointer", selectedServiceId === s.id && "bg-primary/10")}
+                      onClick={() => setSelectedServiceId(s.id)}
+                    >
                       <TableCell className="font-medium">{s.name}</TableCell>
                       <TableCell>{s.code || "—"}</TableCell>
                       <TableCell className="text-right">{Number(s.cost).toFixed(2)}</TableCell>
@@ -466,7 +477,7 @@ export default function ServicesPage() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="icon" onClick={() => openEditSvc(s)}>
+                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEditSvc(s); }}>
                           <Edit className="h-4 w-4" />
                         </Button>
                       </TableCell>
@@ -478,6 +489,12 @@ export default function ServicesPage() {
           </div>
         </div>
       </div>
+
+      {selectedServiceId && (() => {
+        const t = types.find((x) => x.id === selectedTypeId);
+        if (t?.code !== "laboratory") return null;
+        return <LabParametersSection serviceId={selectedServiceId} />;
+      })()}
 
       {/* Type Dialog */}
       <Dialog open={typeDialog} onOpenChange={setTypeDialog}>

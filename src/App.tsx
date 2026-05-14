@@ -52,6 +52,10 @@ import InpatientPatientDetail from "./pages/physician/InpatientPatientDetail.tsx
 import NurseLayout from "./components/nurse/NurseLayout.tsx";
 import NursePatientsList from "./pages/nurse/NursePatientsList.tsx";
 import NurseProfile from "./pages/nurse/NurseProfile.tsx";
+import LabLayout from "./components/lab/LabLayout.tsx";
+import BloodDrawPage from "./pages/lab/BloodDrawPage.tsx";
+import LabResultsPage from "./pages/lab/LabResultsPage.tsx";
+import LabProfile from "./pages/lab/LabProfile.tsx";
 
 const queryClient = new QueryClient();
 
@@ -111,6 +115,12 @@ const App = () => (
           <Route path="/nurse" element={<ProtectedRoute allowedRoles={["inpatient_nurse", "head_nurse"]}><NurseLayout /></ProtectedRoute>}>
             <Route index element={<NursePatientsList />} />
             <Route path="profile" element={<NurseProfile />} />
+          </Route>
+          <Route path="/lab" element={<ProtectedRoute allowedRoles={["lab_physician", "blood_draw_nurse"]}><LabLayout /></ProtectedRoute>}>
+            <Route index element={<LabResultsPage />} />
+            <Route path="blood-draw" element={<BloodDrawPage />} />
+            <Route path="results" element={<LabResultsPage />} />
+            <Route path="profile" element={<LabProfile />} />
           </Route>
           <Route path="/pharmacy" element={<ProtectedRoute allowedRoles={["pharmacist"]}><DashboardPlaceholder expectedRole="pharmacist" /></ProtectedRoute>} />
           <Route path="/warehouse" element={<ProtectedRoute allowedRoles={["warehouse_staff"]}><DashboardPlaceholder expectedRole="warehouse_staff" /></ProtectedRoute>} />
