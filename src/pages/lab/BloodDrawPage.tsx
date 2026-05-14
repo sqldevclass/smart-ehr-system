@@ -41,12 +41,11 @@ export default function BloodDrawPage() {
       const { data } = await supabase
         .from("service_statuses")
         .select("id, code")
-        .in("code", ["ready_for_execution", "in_progress"]);
+        .eq("code", "ready_for_execution");
       return data || [];
     },
   });
   const readyId = statuses.find((s: any) => s.code === "ready_for_execution")?.id;
-  const inProgressId = statuses.find((s: any) => s.code === "in_progress")?.id;
 
   const { data: rawServices = [], refetch } = useQuery({
     queryKey: ["lab-blood-draw", user?.hospitalId, readyId],
@@ -85,7 +84,7 @@ export default function BloodDrawPage() {
   };
 
   const saveDraw = async () => {
-    if (!selected || !user || !inProgressId) return;
+    if (!selected || !user) return;
     setSaving(true);
     try {
       const finalBarcode = barcode.trim() || `LAB-${Date.now()}`;
@@ -100,12 +99,6 @@ export default function BloodDrawPage() {
         notes: notes.trim() || null,
       });
       if (insertErr) throw insertErr;
-
-      const { error: updErr } = await supabase
-        .from("visit_services")
-        .update({ status_id: inProgressId })
-        .eq("id", selected.id);
-      if (updErr) throw updErr;
 
       toast.success(`Sample drawn. Barcode: ${finalBarcode}`);
       setSavedBarcode(finalBarcode);
