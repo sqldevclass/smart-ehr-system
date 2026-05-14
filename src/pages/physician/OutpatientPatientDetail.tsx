@@ -578,12 +578,13 @@ function LabTab({ patientId, physicianId, labTypeId, canOrder, hospMap }: { pati
 /* ============ Consultation Tab ============ */
 
 function ConsultTab({
-  patientId, physicianId, consultTypeId, canOrder,
+  patientId, physicianId, consultTypeId, canOrder, hospMap,
 }: {
   patientId: string;
   physicianId: string | null | undefined;
   consultTypeId: string | null;
   canOrder: boolean;
+  hospMap: Record<string, string>;
 }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
