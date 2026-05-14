@@ -515,7 +515,7 @@ function ScheduleDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{editing ? "Edit Schedule" : "Add Schedule"}</DialogTitle>
+          <DialogTitle>{editing ? "Edit Schedule" : roomId ? "Add Room Schedule" : "Add Schedule"}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-5">
