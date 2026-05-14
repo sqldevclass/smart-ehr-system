@@ -598,7 +598,7 @@ function ConsultTab({
     queryFn: async () => {
       const { data } = await supabase
         .from("visit_services")
-        .select("id, created_at, hospitalization_id, assigned_physician_id, service_statuses(code, name_ru), services(name, service_type_id), hospitalizations(hospitalization_number), physicians!visit_services_assigned_physician_id_fkey(profiles(full_name))")
+        .select("id, created_at, hospitalization_id, assigned_physician_id, service_statuses(code, name_ru), services(name, service_type_id), physicians!visit_services_assigned_physician_id_fkey(profiles(full_name))")
         .eq("patient_id", patientId)
         .eq("hospital_id", user!.hospitalId)
         .order("created_at", { ascending: false });
