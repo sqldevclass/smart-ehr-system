@@ -37,17 +37,18 @@ export default function OutpatientPatientDetail() {
   const [showAllergies, setShowAllergies] = useState(false);
 
   const { data: patient, isLoading } = useQuery({
-    queryKey: ["outpatient-patient", patientId],
+    queryKey: ["outpatient-patient", patientId, user?.hospitalId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("patients")
         .select("*, patient_allergies(allergen, severity), patient_contacts(*)")
         .eq("id", patientId!)
+        .eq("hospital_id", user!.hospitalId)
         .single();
       if (error) throw error;
       return data;
     },
-    enabled: !!patientId,
+    enabled: !!patientId && !!user?.hospitalId,
   });
 
   const { data: serviceTypes = [] } = useQuery({
