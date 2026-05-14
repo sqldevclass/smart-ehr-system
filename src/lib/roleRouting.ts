@@ -12,6 +12,8 @@ export const roleRoutes: Record<string, string> = {
   pharmacy_staff: "/pharmacy",
   warehouse_staff: "/warehouse",
   hr: "/hr",
+  lab_physician: "/lab/results",
+  blood_draw_nurse: "/lab/blood-draw",
 };
 
 // Highest-priority dashboard first
@@ -24,6 +26,8 @@ export const ROLE_PRIORITY = [
   "inpatient_nurse",
   "registrar",
   "hr",
+  "lab_physician",
+  "blood_draw_nurse",
   "pharmacist",
   "pharmacy_staff",
   "warehouse_staff",
