@@ -63,6 +63,25 @@ export default function OutpatientPatientDetail() {
   const labTypeId = serviceTypes.find((t: any) => t.code === "laboratory")?.id ?? null;
   const consultTypeId = serviceTypes.find((t: any) => t.code === "consultation")?.id ?? null;
 
+  const { data: hospitalizations = [] } = useQuery({
+    queryKey: ["outpatient-patient-hospitalizations", patientId, user?.hospitalId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("hospitalizations")
+        .select("id, hospitalization_number")
+        .eq("patient_id", patientId!)
+        .eq("hospital_id", user!.hospitalId)
+        .order("admitted_at", { ascending: false });
+      return data || [];
+    },
+    enabled: !!patientId && !!user?.hospitalId,
+  });
+
+  const hospMap = useMemo(
+    () => Object.fromEntries(hospitalizations.map((h: any) => [h.id, h.hospitalization_number])),
+    [hospitalizations]
+  );
+
   const { data: statuses = [] } = useQuery({
     queryKey: ["service-statuses-codes"],
     queryFn: async () => {
