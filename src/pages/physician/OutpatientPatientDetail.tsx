@@ -533,7 +533,7 @@ function LabTab({ patientId, physicianId, labTypeId, canOrder, hospMap }: { pati
               isHistorical(vs.created_at) && "bg-muted/30")}>
               <div className="flex items-center gap-2">
                 <span className="font-medium">{vs.services?.name}</span>
-                <ContextBadge hospNumber={vs.hospitalizations?.hospitalization_number ?? null} />
+                <ContextBadge hospNumber={hospMap[vs.hospitalization_id] ?? null} />
                 <span className="text-xs text-muted-foreground">
                   {vs.created_at && format(new Date(vs.created_at), "MMM d, yyyy")}
                 </span>
