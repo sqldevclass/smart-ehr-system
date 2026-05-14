@@ -381,6 +381,7 @@ export function BookingModal(props: BookingModalProps) {
               </div>
             )}
 
+            {console.log("canConfirm:", canConfirm, "physician:", physician?.scheduleType, "pickedServices:", pickedServices?.length, "queueDate:", queueDate, "selectedSlot:", selectedSlot?.id)}
             <div className="flex items-center justify-end gap-2 border-t pt-4">
               <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
               <Button disabled={!canConfirm || submitting} onClick={handleConfirm}>
