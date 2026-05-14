@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { localDayBoundsUTC, toLocal } from "@/lib/timezone";
-import { QueuePanel } from "./QueuePanel";
+
 import type { ServiceResult, SlotRow } from "./types";
 
 interface PhysCol {
