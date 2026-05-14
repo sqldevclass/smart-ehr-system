@@ -342,11 +342,12 @@ function BlocksSection({
 }
 
 function ScheduleDialog({
-  open, onOpenChange, physicianId, editing,
+  open, onOpenChange, physicianId, roomId, editing,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  physicianId: string;
+  physicianId?: string;
+  roomId?: string;
   editing: any | null;
 }) {
   const { user } = useAuth();
