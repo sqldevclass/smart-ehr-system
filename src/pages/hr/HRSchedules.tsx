@@ -677,11 +677,12 @@ function ScheduleDialog({
 }
 
 function BlockDialog({
-  open, onOpenChange, physicianId,
+  open, onOpenChange, physicianId, roomId,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  physicianId: string;
+  physicianId?: string;
+  roomId?: string;
 }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -698,19 +699,22 @@ function BlockDialog({
       const tz = user!.timezone || "Asia/Tashkent";
       const { error } = await supabase.from("physician_schedule_blocks").insert({
         hospital_id: user!.hospitalId,
-        physician_id: physicianId,
+        physician_id: roomId ? null : physicianId,
+        room_id: roomId || null,
         blocked_from: toUTC(new Date(from), tz).toISOString(),
         blocked_to: toUTC(new Date(to), tz).toISOString(),
         reason: reason.trim() || null,
         blocked_by: user!.id,
       });
       if (error) throw error;
-      await supabase.rpc("apply_block_to_existing_slots", {
-        p_physician_id: physicianId,
-        p_hospital_id: user!.hospitalId,
-      });
+      if (physicianId) {
+        await supabase.rpc("apply_block_to_existing_slots", {
+          p_physician_id: physicianId,
+          p_hospital_id: user!.hospitalId,
+        });
+      }
       toast.success("Time blocked.");
-      queryClient.invalidateQueries({ queryKey: ["physician-blocks", physicianId] });
+      queryClient.invalidateQueries({ queryKey: ["physician-blocks", roomId ? "room" : "physician", roomId || physicianId] });
       onOpenChange(false);
     } catch (err: any) {
       toast.error(err.message || "Failed to block time.");
