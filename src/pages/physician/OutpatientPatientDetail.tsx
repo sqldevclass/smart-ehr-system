@@ -320,13 +320,14 @@ function ContextBadge({ hospNumber }: { hospNumber: string | null }) {
 /* ============ Orders Tab ============ */
 
 function OrdersTab({
-  patientId, physicianId, labTypeId, consultTypeId, canOrder,
+  patientId, physicianId, labTypeId, consultTypeId, canOrder, hospMap,
 }: {
   patientId: string;
   physicianId: string | null | undefined;
   labTypeId: string | null;
   consultTypeId: string | null;
   canOrder: boolean;
+  hospMap: Record<string, string>;
 }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
