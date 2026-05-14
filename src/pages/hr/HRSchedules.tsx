@@ -259,23 +259,25 @@ function SchedulesSection({
 }
 
 function BlocksSection({
-  physicianId, onAdd,
-}: { physicianId: string; onAdd: () => void }) {
+  selection, onAdd,
+}: { selection: Selection; onAdd: () => void }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const physicianId = selection.kind === "physician" ? selection.id : null;
+  const roomId = selection.kind === "room" ? selection.id : null;
   const { data: blocks = [] } = useQuery({
-    queryKey: ["physician-blocks", physicianId],
+    queryKey: ["physician-blocks", selection.kind, selection.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("physician_schedule_blocks")
-        .select("*")
-        .eq("physician_id", physicianId)
+      let q = supabase.from("physician_schedule_blocks").select("*");
+      if (physicianId) q = q.eq("physician_id", physicianId);
+      else if (roomId) q = q.eq("room_id", roomId);
+      const { data, error } = await q
         .or(`blocked_to.gte.${new Date().toISOString()},is_recurring.eq.true`)
         .order("blocked_from");
       if (error) throw error;
       return data || [];
     },
-    enabled: !!physicianId,
+    enabled: !!selection.id,
   });
 
   const handleDelete = async (id: string) => {
@@ -286,7 +288,7 @@ function BlocksSection({
       return;
     }
     toast.success("Block removed.");
-    queryClient.invalidateQueries({ queryKey: ["physician-blocks", physicianId] });
+    queryClient.invalidateQueries({ queryKey: ["physician-blocks", selection.kind, selection.id] });
   };
 
   return (
