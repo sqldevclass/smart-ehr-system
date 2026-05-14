@@ -285,18 +285,15 @@ export default function MyPatientsList() {
     const pid = r.visits?.patient_id;
     const isWL = !!r.is_waitlist;
     return (
-      <TableRow key={r.id}>
+      <TableRow
+        key={r.id}
+        className="cursor-pointer hover:bg-accent"
+        onClick={() => {
+          if (pid) navigate(`/physician/patients/${pid}`);
+        }}
+      >
         <TableCell className={`font-medium ${isWL ? "pl-8" : ""}`}>
-          {pid ? (
-            <button
-              className="text-primary hover:underline text-left"
-              onClick={() => navigate(`/physician/patients/${pid}`)}
-            >
-              {formatPatient(patient)}
-            </button>
-          ) : (
-            formatPatient(patient)
-          )}
+          {formatPatient(patient)}
         </TableCell>
         <TableCell className="font-mono text-xs">
           {patient?.patient_number || "—"}
@@ -335,7 +332,7 @@ export default function MyPatientsList() {
         </TableCell>
         <TableCell className="text-right">
           {r.service_statuses?.code === "ready_for_execution" && (
-            <Button size="sm" onClick={() => handleComplete(r.id)}>
+            <Button size="sm" onClick={(e) => { e.stopPropagation(); handleComplete(r.id); }}>
               Complete
             </Button>
           )}
