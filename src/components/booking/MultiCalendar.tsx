@@ -258,15 +258,48 @@ export function MultiCalendar(props: MultiCalendarProps) {
         if (updErr) throw updErr;
       }
 
-      const { data: bookData, error: bookErr } = await supabase.rpc("book_slot", {
-        p_slot_id: selected.slot.id,
-        p_visit_service_id: visitServiceId,
-      });
-      if (bookErr) throw bookErr;
-      const isWaitlist =
-        (bookData as any)?.is_waitlist ??
-        (Array.isArray(bookData) ? (bookData as any)[0]?.is_waitlist : undefined);
-      toast.success(isWaitlist ? "Added to waitlist" : "Booked");
+      const isQueueBooking = selected.slot.id.startsWith("queue-");
+      if (isQueueBooking) {
+        const physCol = selected.col as PhysCol;
+        const today = dateStr;
+        let queueConfigId: string;
+        const { data: existingConfig } = await supabase
+          .from("queue_configs")
+          .select("id")
+          .eq("physician_id", physCol.id)
+          .eq("hospital_id", hospitalId)
+          .eq("queue_date", today)
+          .maybeSingle();
+        if (existingConfig) {
+          queueConfigId = existingConfig.id;
+        } else {
+          const { data: newConfig, error: configErr } = await supabase
+            .from("queue_configs")
+            .insert({ physician_id: physCol.id, hospital_id: hospitalId, queue_date: today })
+            .select("id")
+            .single();
+          if (configErr) throw configErr;
+          queueConfigId = newConfig.id;
+        }
+        const { data: qData, error: qErr } = await supabase.rpc("assign_queue_number", {
+          p_queue_config_id: queueConfigId,
+          p_visit_service_id: visitServiceId,
+          p_hospital_id: hospitalId,
+        });
+        if (qErr) throw qErr;
+        const queueNumber = (qData as any)?.queue_number;
+        toast.success(`Booked. Queue #${queueNumber}`);
+      } else {
+        const { data: bookData, error: bookErr } = await supabase.rpc("book_slot", {
+          p_slot_id: selected.slot.id,
+          p_visit_service_id: visitServiceId,
+        });
+        if (bookErr) throw bookErr;
+        const isWaitlist =
+          (bookData as any)?.is_waitlist ??
+          (Array.isArray(bookData) ? (bookData as any)[0]?.is_waitlist : undefined);
+        toast.success(isWaitlist ? "Added to waitlist" : "Booked");
+      }
       setSelected(null);
       await Promise.all([refetchSlots(), refetchRoomSlots()]);
       onBooked();
