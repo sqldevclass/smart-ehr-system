@@ -779,7 +779,7 @@ function CareTab({ patientId }: { patientId: string }) {
 
 /* ============ Diagnoses Tab ============ */
 
-function DiagnosesTab({ patientId }: { patientId: string }) {
+function DiagnosesTab({ patientId, canOrder }: { patientId: string; canOrder: boolean }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -845,11 +845,17 @@ function DiagnosesTab({ patientId }: { patientId: string }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex justify-end">
-        <Button size="sm" onClick={() => setOpen(true)} className="gap-1">
-          <Plus className="h-4 w-4" /> Add Diagnosis
-        </Button>
-      </div>
+      {canOrder ? (
+        <div className="flex justify-end">
+          <Button size="sm" onClick={() => setOpen(true)} className="gap-1">
+            <Plus className="h-4 w-4" /> Add Diagnosis
+          </Button>
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          Orders can be placed once the patient has paid for their visit.
+        </p>
+      )}
       {diagnoses.length === 0 ? (
         <p className="text-sm text-muted-foreground">No diagnoses yet.</p>
       ) : (
