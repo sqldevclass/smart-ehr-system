@@ -490,6 +490,12 @@ export default function ServicesPage() {
         </div>
       </div>
 
+      {selectedServiceId && (() => {
+        const t = types.find((x) => x.id === selectedTypeId);
+        if (t?.code !== "laboratory") return null;
+        return <LabParametersSection serviceId={selectedServiceId} />;
+      })()}
+
       {/* Type Dialog */}
       <Dialog open={typeDialog} onOpenChange={setTypeDialog}>
         <DialogContent>
