@@ -116,6 +116,12 @@ const App = () => (
             <Route index element={<NursePatientsList />} />
             <Route path="profile" element={<NurseProfile />} />
           </Route>
+          <Route path="/lab" element={<ProtectedRoute allowedRoles={["lab_physician", "blood_draw_nurse"]}><LabLayout /></ProtectedRoute>}>
+            <Route index element={<LabResultsPage />} />
+            <Route path="blood-draw" element={<BloodDrawPage />} />
+            <Route path="results" element={<LabResultsPage />} />
+            <Route path="profile" element={<LabProfile />} />
+          </Route>
           <Route path="/pharmacy" element={<ProtectedRoute allowedRoles={["pharmacist"]}><DashboardPlaceholder expectedRole="pharmacist" /></ProtectedRoute>} />
           <Route path="/warehouse" element={<ProtectedRoute allowedRoles={["warehouse_staff"]}><DashboardPlaceholder expectedRole="warehouse_staff" /></ProtectedRoute>} />
           <Route path="/auth/callback" element={<AuthCallback />} />
