@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { localDayBoundsUTC, toLocal } from "@/lib/timezone";
-import { QueuePanel } from "./QueuePanel";
+
 import type { ServiceResult, SlotRow } from "./types";
 
 interface PhysCol {
@@ -165,6 +165,29 @@ export function MultiCalendar(props: MultiCalendarProps) {
     enabled: roomIds.length > 0,
   });
 
+  const { data: queueConfigsData } = useQuery({
+    queryKey: ["multi-cal-queue-configs", physicianIds.join(","), dateStr, hospitalId],
+    queryFn: async () => {
+      const queuePhysIds = physicians
+        .filter((p) => p.scheduleType === "queue")
+        .map((p) => p.id);
+      if (queuePhysIds.length === 0) return {} as Record<string, number>;
+      const { data } = await supabase
+        .from("queue_configs")
+        .select("physician_id, last_number")
+        .eq("hospital_id", hospitalId)
+        .eq("queue_date", dateStr)
+        .in("physician_id", queuePhysIds);
+      const map: Record<string, number> = {};
+      (data || []).forEach((r: any) => {
+        map[r.physician_id] = r.last_number ?? 0;
+      });
+      return map;
+    },
+    enabled: physicians.some((p) => p.scheduleType === "queue"),
+  });
+  const queueConfigs = queueConfigsData ?? {};
+
   const slotsByPhysician = useMemo(() => {
     const map = new Map<string, (SlotRow & { physician_id: string })[]>();
     for (const s of slots) {
@@ -235,15 +258,48 @@ export function MultiCalendar(props: MultiCalendarProps) {
         if (updErr) throw updErr;
       }
 
-      const { data: bookData, error: bookErr } = await supabase.rpc("book_slot", {
-        p_slot_id: selected.slot.id,
-        p_visit_service_id: visitServiceId,
-      });
-      if (bookErr) throw bookErr;
-      const isWaitlist =
-        (bookData as any)?.is_waitlist ??
-        (Array.isArray(bookData) ? (bookData as any)[0]?.is_waitlist : undefined);
-      toast.success(isWaitlist ? "Added to waitlist" : "Booked");
+      const isQueueBooking = selected.slot.id.startsWith("queue-");
+      if (isQueueBooking) {
+        const physCol = selected.col as PhysCol;
+        const today = dateStr;
+        let queueConfigId: string;
+        const { data: existingConfig } = await supabase
+          .from("queue_configs")
+          .select("id")
+          .eq("physician_id", physCol.id)
+          .eq("hospital_id", hospitalId)
+          .eq("queue_date", today)
+          .maybeSingle();
+        if (existingConfig) {
+          queueConfigId = existingConfig.id;
+        } else {
+          const { data: newConfig, error: configErr } = await supabase
+            .from("queue_configs")
+            .insert({ physician_id: physCol.id, hospital_id: hospitalId, queue_date: today })
+            .select("id")
+            .single();
+          if (configErr) throw configErr;
+          queueConfigId = newConfig.id;
+        }
+        const { data: qData, error: qErr } = await supabase.rpc("assign_queue_number", {
+          p_queue_config_id: queueConfigId,
+          p_visit_service_id: visitServiceId,
+          p_hospital_id: hospitalId,
+        });
+        if (qErr) throw qErr;
+        const queueNumber = (qData as any)?.queue_number;
+        toast.success(`Booked. Queue #${queueNumber}`);
+      } else {
+        const { data: bookData, error: bookErr } = await supabase.rpc("book_slot", {
+          p_slot_id: selected.slot.id,
+          p_visit_service_id: visitServiceId,
+        });
+        if (bookErr) throw bookErr;
+        const isWaitlist =
+          (bookData as any)?.is_waitlist ??
+          (Array.isArray(bookData) ? (bookData as any)[0]?.is_waitlist : undefined);
+        toast.success(isWaitlist ? "Added to waitlist" : "Booked");
+      }
       setSelected(null);
       await Promise.all([refetchSlots(), refetchRoomSlots()]);
       onBooked();
@@ -351,12 +407,34 @@ export function MultiCalendar(props: MultiCalendarProps) {
                       </div>
                       <div className="max-h-[420px] overflow-y-auto p-2 space-y-1">
                         {col.scheduleType === "queue" ? (
-                          <QueuePanel
-                            physicianId={col.id}
-                            hospitalId={hospitalId}
-                            selectedDate={date}
-                            timezone={timezone}
-                          />
+                          <div
+                            className={cn(
+                              "cursor-pointer rounded-lg border-2 p-4 text-center transition",
+                              selected?.col.id === col.id
+                                ? "border-primary bg-primary/5"
+                                : "border-dashed border-muted-foreground/30 hover:border-primary/50 hover:bg-muted/30"
+                            )}
+                            onClick={() => {
+                              const queueSelection: SlotRow = {
+                                id: `queue-${col.id}`,
+                                slot_datetime: new Date().toISOString(),
+                                booking_count: 0,
+                                is_blocked: false,
+                                block_reason: null,
+                              };
+                              setSelected({ slot: queueSelection, col });
+                            }}
+                          >
+                            <div className="text-2xl font-bold text-foreground">
+                              Queue #{(queueConfigs?.[col.id] ?? 0) + 1}
+                            </div>
+                            <div className="mt-1 text-xs text-muted-foreground">
+                              Click to select queue
+                            </div>
+                            {selected?.col.id === col.id && (
+                              <div className="mt-2 text-xs font-medium text-primary">✓ Selected</div>
+                            )}
+                          </div>
                         ) : physSlots.length === 0 ? (
                           <div className="py-6 text-center text-xs text-muted-foreground">
                             No slots
