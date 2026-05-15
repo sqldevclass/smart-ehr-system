@@ -383,7 +383,7 @@ function OrdersTab({
         p_ordered_by: user!.id,
         p_services: [{
           service_id: serviceId,
-          assigned_physician_id: physicianId,
+          assigned_physician_id: null,
           cost_at_time: (svc as any)?.cost_with_vat ?? 0,
         }],
       });
