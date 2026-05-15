@@ -123,8 +123,6 @@ export default function PatientDetail() {
 
   const fullName = [patient.last_name, patient.first_name, patient.middle_name].filter(Boolean).join(" ");
 
-  const handleSendToCashier = () => toast.success("Sent to cashier.");
-
   const cancelService = async (visitServiceId: string, visitId: string, costAtTime: number, visitTotalAmount: number) => {
     try {
       const { data: cancelledStatus, error: statusErr } = await supabase
