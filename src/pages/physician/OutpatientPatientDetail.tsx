@@ -128,7 +128,7 @@ export default function OutpatientPatientDetail() {
   const age = patient.date_of_birth ? differenceInYears(new Date(), new Date(patient.date_of_birth)) : null;
   const allergies = (patient.patient_allergies as any[]) || [];
   const contacts = (patient.patient_contacts as any[]) || [];
-  const canOrder = (todays as any[]).some((vs: any) => vs.service_statuses?.code === "ready_for_execution");
+  const canOrder = activeServices.length > 0;
 
   return (
     <div className="space-y-4">
