@@ -486,6 +486,20 @@ export default function PatientDetail() {
           setSelectedOfficeRoom(null);
         }}
       />
+
+      <BookingModal
+        open={!!schedulingVisitService}
+        onOpenChange={(o) => { if (!o) setSchedulingVisitService(null); }}
+        patientId={patientId!}
+        hospitalId={user!.hospitalId}
+        mode="registrar"
+        existingVisitServiceId={schedulingVisitService?.id}
+        preselectedServiceId={schedulingVisitService?.serviceId}
+        onBooked={() => {
+          queryClient.invalidateQueries({ queryKey: ["patient-visits", patientId] });
+          setSchedulingVisitService(null);
+        }}
+      />
     </div>
   );
 }
