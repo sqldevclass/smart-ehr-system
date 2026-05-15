@@ -361,6 +361,18 @@ export default function PatientDetail() {
                           <span className="rounded bg-muted px-2 py-0.5 text-muted-foreground">
                             {vs.service_statuses?.name_ru || vs.service_statuses?.code || "—"}
                           </span>
+                          {vs.source === "physician" &&
+                            vs.service_statuses?.code === "preliminary" &&
+                            (!vs.invoice_items || vs.invoice_items.length === 0) && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-5 px-1.5 text-[10px]"
+                                onClick={() => setSchedulingVisitService({ id: vs.id, serviceId: vs.services?.id })}
+                              >
+                                Assign & Schedule
+                              </Button>
+                            )}
                           {vs.service_statuses?.code === "preliminary" && (
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
