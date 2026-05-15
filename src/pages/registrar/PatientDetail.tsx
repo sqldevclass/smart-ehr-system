@@ -105,10 +105,10 @@ export default function PatientDetail() {
         .select("id, cost_at_time, created_by, services(id, name), service_statuses(code, name_ru), profiles!visit_services_created_by_fkey(full_name)")
         .eq("patient_id", patientId!)
         .eq("hospital_id", user!.hospitalId)
-        .eq("source", "physician")
-        .eq("service_statuses.code", "preliminary")
-        .is("assigned_physician_id", null);
-      return data || [];
+        .eq("source", "physician");
+      return (data || []).filter((vs: any) =>
+        vs.service_statuses?.code === "preliminary"
+      );
     },
     enabled: !!patientId && !!user,
   });
@@ -169,22 +169,19 @@ export default function PatientDetail() {
     }
   };
 
-  const handleInvoiceOrders = async (uninvoicedOrders: any[]) => {
-    if (uninvoicedOrders.length === 0) {
-      toast.success("Patient can proceed to cashier");
-      return;
-    }
+  const handleInvoiceVisit = async (visitId: string, uninvoicedServices: any[]) => {
+    if (uninvoicedServices.length === 0) return;
     const { error } = await supabase.rpc("registrar_invoice_physician_orders", {
       p_patient_id: patientId!,
       p_hospital_id: user!.hospitalId,
       p_invoiced_by: user!.id,
-      p_visit_service_ids: uninvoicedOrders.map((vs: any) => vs.id),
+      p_visit_service_ids: uninvoicedServices.map((vs: any) => vs.id),
     });
     if (error) {
-      toast.error(error.message || "Failed to invoice orders.");
+      toast.error(error.message || "Failed to invoice.");
       return;
     }
-    toast.success("Physician orders invoiced.");
+    toast.success("Invoiced. Patient can pay at the cashier.");
     queryClient.invalidateQueries({ queryKey: ["patient-visits", patientId] });
   };
 
@@ -351,12 +348,12 @@ export default function PatientDetail() {
             const total = Number(v.total_amount || 0);
             const paid = Number(v.amount_paid || 0);
             const outstanding = Math.max(0, total - paid);
-            const uninvoicedOrders = (v.visit_services || []).filter(
+            const uninvoicedServices = (v.visit_services || []).filter(
               (vs: any) =>
-                vs.source === "physician" &&
                 vs.service_statuses?.code === "preliminary" &&
                 (!vs.invoice_items || vs.invoice_items.length === 0),
             );
+            const isInvoiced = uninvoicedServices.length === 0;
             return (
               <div key={v.id} className="rounded-md border p-4 space-y-3">
                 <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -375,11 +372,6 @@ export default function PatientDetail() {
                     <div className="font-semibold">Total: {total.toFixed(2)}</div>
                     <div className="text-xs text-muted-foreground">Paid: {paid.toFixed(2)}</div>
                     <div className="text-xs text-muted-foreground">Outstanding: {outstanding.toFixed(2)}</div>
-                    {outstanding > 0 && (
-                      <Button size="sm" variant="outline" onClick={() => handleInvoiceOrders(uninvoicedOrders)}>
-                        Invoice
-                      </Button>
-                    )}
                   </div>
                 </div>
 
@@ -402,18 +394,6 @@ export default function PatientDetail() {
                           <span className="rounded bg-muted px-2 py-0.5 text-muted-foreground">
                             {vs.service_statuses?.name_ru || vs.service_statuses?.code || "—"}
                           </span>
-                          {vs.source === "physician" &&
-                            vs.service_statuses?.code === "preliminary" &&
-                            (!vs.invoice_items || vs.invoice_items.length === 0) && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-5 px-1.5 text-[10px]"
-                                onClick={() => setSchedulingVisitService({ id: vs.id, serviceId: vs.services?.id })}
-                              >
-                                Assign & Schedule
-                              </Button>
-                            )}
                           {vs.service_statuses?.code === "preliminary" && (
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
@@ -445,6 +425,16 @@ export default function PatientDetail() {
                     ))}
                   </div>
                 )}
+
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    disabled={isInvoiced}
+                    onClick={() => handleInvoiceVisit(v.id, uninvoicedServices)}
+                  >
+                    {isInvoiced ? "Invoiced" : "Invoice"}
+                  </Button>
+                </div>
               </div>
             );
           };
