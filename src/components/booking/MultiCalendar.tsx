@@ -39,6 +39,7 @@ interface MultiCalendarProps {
   patientId: string;
   hospitalizationId?: string;
   officeRoomId?: string;
+  existingVisitServiceId?: string;
 }
 
 function deriveScheduleType(rows: any[] | null | undefined, date: Date): "slots" | "queue" | null {
@@ -55,7 +56,7 @@ function deriveScheduleType(rows: any[] | null | undefined, date: Date): "slots"
 }
 
 export function MultiCalendar(props: MultiCalendarProps) {
-  const { service, hospitalId, timezone, mode, patientId, hospitalizationId, officeRoomId, onBooked } = props;
+  const { service, hospitalId, timezone, mode, patientId, hospitalizationId, officeRoomId, existingVisitServiceId, onBooked } = props;
   const { user } = useAuth();
   const [date, setDate] = useState<Date>(new Date());
   const [selected, setSelected] = useState<{ slot: SlotRow; col: Col } | null>(null);
@@ -216,7 +217,14 @@ export function MultiCalendar(props: MultiCalendarProps) {
     try {
       const isRoom = selected.col.kind === "room";
       let visitServiceId: string;
-      if (mode === "registrar") {
+      if (existingVisitServiceId) {
+        const { error: updateErr } = await supabase
+          .from("visit_services")
+          .update({ assigned_physician_id: isRoom ? null : (selected.col as PhysCol).id })
+          .eq("id", existingVisitServiceId);
+        if (updateErr) throw updateErr;
+        visitServiceId = existingVisitServiceId;
+      } else if (mode === "registrar") {
         const { data, error } = await supabase.rpc("registrar_add_service", {
           p_patient_id: patientId,
           p_hospital_id: hospitalId,

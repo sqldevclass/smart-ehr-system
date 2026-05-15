@@ -118,12 +118,15 @@ export function BookingModal(props: BookingModalProps) {
       .eq("id", preselectedServiceId)
       .single()
       .then(({ data }) => {
-        if (data) setPickedServices([{
-          id: data.id,
-          name: data.name,
-          costWithVat: Number(data.cost_with_vat || 0),
-          serviceTypeName: (data.service_types as any)?.name_en || null,
-        }]);
+        if (data) {
+          setPickedServices([{
+            id: data.id,
+            name: data.name,
+            costWithVat: Number(data.cost_with_vat || 0),
+            serviceTypeName: (data.service_types as any)?.name_en || null,
+          }]);
+          setShowMultiCalendar(true);
+        }
       });
   }, [open, preselectedServiceId, existingVisitServiceId]);
 
@@ -337,8 +340,9 @@ export function BookingModal(props: BookingModalProps) {
               patientId={patientId}
               hospitalizationId={hospitalizationId}
               officeRoomId={officeRoom?.id}
+              existingVisitServiceId={existingVisitServiceId}
               onBooked={() => onBooked({
-                visitServiceId: "",
+                visitServiceId: existingVisitServiceId || "",
                 serviceId: pickedServices[0].id,
                 officeRoomId: officeRoom?.id,
               })}
