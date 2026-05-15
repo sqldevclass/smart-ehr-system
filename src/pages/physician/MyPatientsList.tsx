@@ -26,6 +26,8 @@ interface VisitServiceRow {
   is_waitlist: boolean | null;
   completed_by?: string | null;
   assigned_room_id?: string | null;
+  created_by?: string | null;
+  ordering_physician?: { full_name: string | null } | null;
   service_statuses: { code: string | null; name_ru: string | null } | null;
   services: { id?: string; name: string | null } | null;
   rooms?: { name: string | null } | null;
@@ -108,7 +110,7 @@ export default function MyPatientsList() {
     const { data: vs, error: vsErr } = await supabase
       .from("visit_services")
       .select(
-        "id, scheduled_at, queue_number, cost_at_time, visit_id, slot_id, is_waitlist, created_at, completed_by, assigned_room_id, service_statuses(code, name_ru), services(id, name), visits(patient_id, visit_date, patients(first_name, last_name, patient_number, date_of_birth))"
+        "id, scheduled_at, queue_number, cost_at_time, visit_id, slot_id, is_waitlist, created_at, completed_by, assigned_room_id, created_by, service_statuses(code, name_ru), services(id, name), profiles!visit_services_created_by_fkey(full_name), visits(patient_id, visit_date, patients(first_name, last_name, patient_number, date_of_birth))"
       )
       .eq("assigned_physician_id", (phys as Physician).id)
       .eq("hospital_id", user.hospitalId)
@@ -298,6 +300,11 @@ export default function MyPatientsList() {
         <TableCell>
           <div className="flex flex-col gap-0.5">
             <span>{r.services?.name || "—"}</span>
+            {r.created_by && r.ordering_physician?.full_name && (
+              <span className="text-[11px] text-muted-foreground">
+                Ordered by: {r.ordering_physician.full_name}
+              </span>
+            )}
             {r.service_statuses?.code === "completed" && r.completed_by && completedByNames[r.completed_by] && (
               <span className="text-[11px] text-muted-foreground">
                 Completed by: {completedByNames[r.completed_by]}
