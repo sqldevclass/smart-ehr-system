@@ -11,8 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { cn } from "@/lib/utils";
 import { localDayBoundsUTC, toLocal } from "@/lib/timezone";
 
-import type { ServiceResult, SlotRow } from "./types";
-
+import type { BookingResult, ServiceResult, SlotRow } from "./types";
 interface PhysCol {
   kind: "physician";
   id: string;
@@ -35,7 +34,7 @@ interface MultiCalendarProps {
   hospitalId: string;
   timezone: string;
   mode: "registrar" | "inpatient";
-  onBooked: () => void;
+  onBooked: (result: BookingResult) => void;
   patientId: string;
   hospitalizationId?: string;
   officeRoomId?: string;
@@ -267,6 +266,8 @@ export function MultiCalendar(props: MultiCalendarProps) {
       }
 
       const isQueueBooking = selected.slot.id.startsWith("queue-");
+      let queueNumber: number | undefined;
+      let isWaitlist: boolean | undefined;
       if (isQueueBooking) {
         const physCol = selected.col as PhysCol;
         const today = dateStr;
@@ -295,7 +296,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
           p_hospital_id: hospitalId,
         });
         if (qErr) throw qErr;
-        const queueNumber = (qData as any)?.queue_number;
+        queueNumber = (qData as any)?.queue_number;
         toast.success(`Booked. Queue #${queueNumber}`);
       } else {
         const { data: bookData, error: bookErr } = await supabase.rpc("book_slot", {
@@ -303,7 +304,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
           p_visit_service_id: visitServiceId,
         });
         if (bookErr) throw bookErr;
-        const isWaitlist =
+        isWaitlist =
           (bookData as any)?.is_waitlist ??
           (Array.isArray(bookData) ? (bookData as any)[0]?.is_waitlist : undefined);
         toast.success(isWaitlist ? "Added to waitlist" : "Booked");
@@ -410,9 +411,17 @@ export function MultiCalendar(props: MultiCalendarProps) {
         }
       }
 
+      onBooked({
+        visitServiceId: existingVisitServiceId || visitServiceId,
+        serviceId: service.id,
+        physicianId: selected.col.kind === "physician" ? (selected.col as PhysCol).id : undefined,
+        officeRoomId: selected.col.kind === "room" ? (selected.col as RoomCol).id : undefined,
+        isWaitlist: isWaitlist ?? false,
+        scheduledAt: selected.slot.id.startsWith("queue-") ? undefined : selected.slot.slot_datetime,
+        queueNumber,
+      });
       setSelected(null);
       await Promise.all([refetchSlots(), refetchRoomSlots()]);
-      onBooked();
     } catch (err: any) {
       toast.error(err.message || "Failed to book");
     } finally {

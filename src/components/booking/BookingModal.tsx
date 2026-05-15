@@ -341,11 +341,7 @@ export function BookingModal(props: BookingModalProps) {
               hospitalizationId={hospitalizationId}
               officeRoomId={officeRoom?.id}
               existingVisitServiceId={existingVisitServiceId}
-              onBooked={() => onBooked({
-                visitServiceId: existingVisitServiceId || "",
-                serviceId: pickedServices[0].id,
-                officeRoomId: officeRoom?.id,
-              })}
+              onBooked={(result) => onBooked(result)}
             />
             <div className="flex items-center justify-end gap-2 border-t pt-4">
               <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
