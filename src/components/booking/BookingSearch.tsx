@@ -194,10 +194,10 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
       </div>
       {open && enabled && hasResults && (
         <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-96 overflow-y-auto rounded-md border bg-popover shadow-lg">
-          {physicians.length > 0 && (
+          {visiblePhysicians.length > 0 && (
             <div>
               <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase text-muted-foreground">Physicians</div>
-              {physicians.map((p) => (
+              {visiblePhysicians.map((p) => (
                 <button
                   key={p.id}
                   type="button"
@@ -219,10 +219,10 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
               ))}
             </div>
           )}
-          {services.length > 0 && (
+          {visibleServices.length > 0 && (
             <div>
               <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase text-muted-foreground">Services</div>
-              {services.map((s) => (
+              {visibleServices.map((s) => (
                 <button
                   key={s.id}
                   type="button"
@@ -238,12 +238,12 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
               ))}
             </div>
           )}
-          {servicePhysicians.length > 0 && (
+          {visibleServicePhysicians.length > 0 && (
             <div>
               <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase text-muted-foreground">
                 Physicians for this service
               </div>
-              {servicePhysicians.map((r, i) => (
+              {visibleServicePhysicians.map((r, i) => (
                 <button
                   key={`${r.physician.id}-${r.service.id}-${i}`}
                   type="button"
@@ -267,10 +267,10 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
               ))}
             </div>
           )}
-          {officeRooms.length > 0 && (
+          {visibleOfficeRooms.length > 0 && (
             <div>
               <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase text-muted-foreground">Office Rooms</div>
-              {officeRooms.map((r, i) => (
+              {visibleOfficeRooms.map((r, i) => (
                 <button
                   key={`${r.id}-${r.service.id}-${i}`}
                   type="button"
