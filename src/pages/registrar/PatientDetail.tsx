@@ -123,8 +123,6 @@ export default function PatientDetail() {
 
   const fullName = [patient.last_name, patient.first_name, patient.middle_name].filter(Boolean).join(" ");
 
-  const handleSendToCashier = () => toast.success("Sent to cashier.");
-
   const cancelService = async (visitServiceId: string, visitId: string, costAtTime: number, visitTotalAmount: number) => {
     try {
       const { data: cancelledStatus, error: statusErr } = await supabase
@@ -172,6 +170,10 @@ export default function PatientDetail() {
   };
 
   const handleInvoiceOrders = async (uninvoicedOrders: any[]) => {
+    if (uninvoicedOrders.length === 0) {
+      toast.success("Patient can proceed to cashier");
+      return;
+    }
     const { error } = await supabase.rpc("registrar_invoice_physician_orders", {
       p_patient_id: patientId!,
       p_hospital_id: user!.hospitalId,
@@ -355,7 +357,6 @@ export default function PatientDetail() {
                 vs.service_statuses?.code === "preliminary" &&
                 (!vs.invoice_items || vs.invoice_items.length === 0),
             );
-            const hasUninvoicedPhysicianOrder = uninvoicedOrders.length > 0;
             return (
               <div key={v.id} className="rounded-md border p-4 space-y-3">
                 <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -370,23 +371,17 @@ export default function PatientDetail() {
                       {v.status || "—"}
                     </span>
                   </div>
-                  <div className="text-right text-sm">
+                  <div className="text-right text-sm space-y-1">
                     <div className="font-semibold">Total: {total.toFixed(2)}</div>
                     <div className="text-xs text-muted-foreground">Paid: {paid.toFixed(2)}</div>
                     <div className="text-xs text-muted-foreground">Outstanding: {outstanding.toFixed(2)}</div>
+                    {outstanding > 0 && (
+                      <Button size="sm" variant="outline" onClick={() => handleInvoiceOrders(uninvoicedOrders)}>
+                        Invoice
+                      </Button>
+                    )}
                   </div>
                 </div>
-
-                {hasUninvoicedPhysicianOrder && (
-                  <div className="rounded-md border border-amber-300 bg-amber-50 p-3 flex items-center justify-between gap-3 dark:border-amber-700 dark:bg-amber-950/30">
-                    <span className="text-xs text-amber-900 dark:text-amber-200">
-                      This visit has physician-ordered services not yet invoiced.
-                    </span>
-                    <Button size="sm" variant="outline" onClick={() => handleInvoiceOrders(uninvoicedOrders)}>
-                      Send to Cashier
-                    </Button>
-                  </div>
-                )}
 
                 {v.visit_services?.length > 0 && (
                   <div className="space-y-1">
