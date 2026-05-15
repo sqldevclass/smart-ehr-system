@@ -227,15 +227,15 @@ export default function OutpatientPatientDetail() {
         </CardContent>
       </Card>
 
-      {/* Today's services */}
-      {todays.length > 0 && (
+      {/* Active services */}
+      {activeServices.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Today's Services</CardTitle>
+            <CardTitle className="text-base">Active Services</CardTitle>
           </CardHeader>
           <CardContent>
             <ul className="space-y-2">
-              {todays.map((vs: any) => (
+              {activeServices.map((vs: any) => (
                 <li key={vs.id} className="flex items-center justify-between rounded border p-2 text-sm">
                   <div className="flex flex-col">
                     <span className="font-medium">{vs.services?.name}</span>
