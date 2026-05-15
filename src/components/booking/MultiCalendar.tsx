@@ -411,9 +411,17 @@ export function MultiCalendar(props: MultiCalendarProps) {
         }
       }
 
+      onBooked({
+        visitServiceId: existingVisitServiceId || visitServiceId,
+        serviceId: service.id,
+        physicianId: selected.col.kind === "physician" ? (selected.col as PhysCol).id : undefined,
+        officeRoomId: selected.col.kind === "room" ? (selected.col as RoomCol).id : undefined,
+        isWaitlist: isWaitlist ?? false,
+        scheduledAt: selected.slot.id.startsWith("queue-") ? undefined : selected.slot.slot_datetime,
+        queueNumber,
+      });
       setSelected(null);
       await Promise.all([refetchSlots(), refetchRoomSlots()]);
-      onBooked();
     } catch (err: any) {
       toast.error(err.message || "Failed to book");
     } finally {
