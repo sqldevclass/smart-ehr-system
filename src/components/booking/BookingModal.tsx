@@ -340,8 +340,9 @@ export function BookingModal(props: BookingModalProps) {
               patientId={patientId}
               hospitalizationId={hospitalizationId}
               officeRoomId={officeRoom?.id}
+              existingVisitServiceId={existingVisitServiceId}
               onBooked={() => onBooked({
-                visitServiceId: "",
+                visitServiceId: existingVisitServiceId || "",
                 serviceId: pickedServices[0].id,
                 officeRoomId: officeRoom?.id,
               })}
