@@ -348,12 +348,12 @@ export default function PatientDetail() {
             const total = Number(v.total_amount || 0);
             const paid = Number(v.amount_paid || 0);
             const outstanding = Math.max(0, total - paid);
-            const uninvoicedOrders = (v.visit_services || []).filter(
+            const uninvoicedServices = (v.visit_services || []).filter(
               (vs: any) =>
-                vs.source === "physician" &&
                 vs.service_statuses?.code === "preliminary" &&
                 (!vs.invoice_items || vs.invoice_items.length === 0),
             );
+            const isInvoiced = uninvoicedServices.length === 0;
             return (
               <div key={v.id} className="rounded-md border p-4 space-y-3">
                 <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -372,11 +372,6 @@ export default function PatientDetail() {
                     <div className="font-semibold">Total: {total.toFixed(2)}</div>
                     <div className="text-xs text-muted-foreground">Paid: {paid.toFixed(2)}</div>
                     <div className="text-xs text-muted-foreground">Outstanding: {outstanding.toFixed(2)}</div>
-                    {outstanding > 0 && (
-                      <Button size="sm" variant="outline" onClick={() => handleInvoiceOrders(uninvoicedOrders)}>
-                        Invoice
-                      </Button>
-                    )}
                   </div>
                 </div>
 
@@ -399,18 +394,6 @@ export default function PatientDetail() {
                           <span className="rounded bg-muted px-2 py-0.5 text-muted-foreground">
                             {vs.service_statuses?.name_ru || vs.service_statuses?.code || "—"}
                           </span>
-                          {vs.source === "physician" &&
-                            vs.service_statuses?.code === "preliminary" &&
-                            (!vs.invoice_items || vs.invoice_items.length === 0) && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-5 px-1.5 text-[10px]"
-                                onClick={() => setSchedulingVisitService({ id: vs.id, serviceId: vs.services?.id })}
-                              >
-                                Assign & Schedule
-                              </Button>
-                            )}
                           {vs.service_statuses?.code === "preliminary" && (
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
@@ -442,6 +425,16 @@ export default function PatientDetail() {
                     ))}
                   </div>
                 )}
+
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    disabled={isInvoiced}
+                    onClick={() => handleInvoiceVisit(v.id, uninvoicedServices)}
+                  >
+                    {isInvoiced ? "Invoiced" : "Invoice"}
+                  </Button>
+                </div>
               </div>
             );
           };
