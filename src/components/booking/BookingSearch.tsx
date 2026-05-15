@@ -53,6 +53,20 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
 
   const enabled = debounced.trim().length >= 1;
 
+  const { data: allowedPhysicianIds } = useQuery({
+    queryKey: ["booking-search-allowed-physicians", hospitalId, restrictServiceId],
+    queryFn: async () => {
+      if (!restrictServiceId) return null;
+      const { data } = await supabase
+        .from("physician_service_privileges")
+        .select("physician_id")
+        .eq("hospital_id", hospitalId)
+        .eq("service_id", restrictServiceId);
+      return new Set((data || []).map((r: any) => r.physician_id));
+    },
+    enabled: !!restrictServiceId,
+  });
+
   const { data: physicians = [] } = useQuery({
     queryKey: ["booking-search-physicians", hospitalId, debounced],
     queryFn: async () => {
