@@ -299,7 +299,7 @@ export function BookingModal(props: BookingModalProps) {
 
   const goBackToSearch = () => {
     setPhysician(null);
-    setPickedServices(null);
+    if (!existingVisitServiceId) setPickedServices(null);
     setShowPicker(false);
     setSelectedSlot(null);
     setQueueDate(null);
