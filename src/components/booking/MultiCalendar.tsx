@@ -217,7 +217,14 @@ export function MultiCalendar(props: MultiCalendarProps) {
     try {
       const isRoom = selected.col.kind === "room";
       let visitServiceId: string;
-      if (mode === "registrar") {
+      if (existingVisitServiceId) {
+        const { error: updateErr } = await supabase
+          .from("visit_services")
+          .update({ assigned_physician_id: isRoom ? null : (selected.col as PhysCol).id })
+          .eq("id", existingVisitServiceId);
+        if (updateErr) throw updateErr;
+        visitServiceId = existingVisitServiceId;
+      } else if (mode === "registrar") {
         const { data, error } = await supabase.rpc("registrar_add_service", {
           p_patient_id: patientId,
           p_hospital_id: hospitalId,
