@@ -12,6 +12,7 @@ interface Props {
   onServiceSelect: (s: ServiceResult) => void;
   onOfficeRoomSelect?: (room: OfficeRoomResult) => void;
   disabled?: boolean;
+  restrictServiceId?: string;
 }
 
 function useDebounced<T>(value: T, delay = 300): T {
