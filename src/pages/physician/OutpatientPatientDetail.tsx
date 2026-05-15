@@ -97,17 +97,22 @@ export default function OutpatientPatientDetail() {
     queryFn: async () => {
       const todayStart = startOfDay(new Date()).toISOString();
       const todayEnd = endOfDay(new Date()).toISOString();
+      const todayStr = format(new Date(), "yyyy-MM-dd");
       const ids = [readyId, prelimId].filter(Boolean) as string[];
       const { data } = await supabase
         .from("visit_services")
-        .select("id, scheduled_at, queue_number, is_waitlist, cost_at_time, service_statuses(code, name_ru), services(name)")
+        .select("id, scheduled_at, queue_number, is_waitlist, cost_at_time, service_statuses(code, name_ru), services(name), visits(visit_date)")
         .eq("patient_id", patientId!)
         .eq("assigned_physician_id", physicianId!)
         .eq("hospital_id", user!.hospitalId)
-        .gte("scheduled_at", todayStart)
-        .lte("scheduled_at", todayEnd)
         .in("status_id", ids);
-      return data || [];
+      return (data || []).filter((vs: any) => {
+        if (vs.scheduled_at) {
+          return vs.scheduled_at >= todayStart && vs.scheduled_at <= todayEnd;
+        }
+        // Queue and unscheduled — check visit date
+        return vs.visits?.visit_date === todayStr;
+      });
     },
     enabled: !!patientId && !!physicianId && !!user?.hospitalId && !!readyId && !!prelimId,
   });
