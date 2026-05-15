@@ -303,7 +303,37 @@ export default function PatientDetail() {
 
       {/* Two-column layout: (left) + Visits (right) */}
       <div className="grid grid-cols-2 gap-6 items-start">
-        <div />
+        <div className="space-y-4">
+          <div className="rounded-lg border bg-card p-4 space-y-3">
+            <h3 className="font-semibold text-foreground text-sm">Physician Orders</h3>
+            {physicianOrders.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No pending physician orders.</p>
+            ) : (
+              <div className="space-y-2">
+                {physicianOrders.map((po: any) => (
+                  <div key={po.id} className="flex items-center justify-between gap-3 rounded-md border p-3">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium truncate">{po.services?.name || "—"}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Ordered by: {po.profiles?.full_name || "—"}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-sm font-medium">{Number(po.cost_at_time || 0).toFixed(2)}</span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setSchedulingVisitService({ id: po.id, serviceId: po.services?.id })}
+                      >
+                        Assign & Schedule
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Visits - right */}
         <div className="rounded-lg border bg-card p-6 space-y-3">
@@ -353,7 +383,7 @@ export default function PatientDetail() {
                       This visit has physician-ordered services not yet invoiced.
                     </span>
                     <Button size="sm" variant="outline" onClick={() => handleInvoiceOrders(uninvoicedOrders)}>
-                      Invoice
+                      Send to Cashier
                     </Button>
                   </div>
                 )}
@@ -420,17 +450,6 @@ export default function PatientDetail() {
                     ))}
                   </div>
                 )}
-
-                <div className="flex justify-end gap-2">
-                  {outstanding > 0 && (
-                    <Button size="sm" variant="outline" onClick={handleSendToCashier}>
-                      Send to Cashier
-                    </Button>
-                  )}
-                  <Button size="sm" variant="outline" onClick={() => navigate(`/registrar/visits/${v.id}`)}>
-                    Open Visit
-                  </Button>
-                </div>
               </div>
             );
           };
@@ -512,6 +531,7 @@ export default function PatientDetail() {
         existingVisitServiceId={schedulingVisitService?.id}
         preselectedServiceId={schedulingVisitService?.serviceId}
         onBooked={() => {
+          queryClient.invalidateQueries({ queryKey: ["physician-orders", patientId] });
           queryClient.invalidateQueries({ queryKey: ["patient-visits", patientId] });
           setSchedulingVisitService(null);
         }}
