@@ -34,7 +34,7 @@ interface MultiCalendarProps {
   hospitalId: string;
   timezone: string;
   mode: "registrar" | "inpatient";
-  onBooked: () => void;
+  onBooked: (result: BookingResult) => void;
   patientId: string;
   hospitalizationId?: string;
   officeRoomId?: string;
