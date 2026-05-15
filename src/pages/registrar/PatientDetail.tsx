@@ -170,6 +170,10 @@ export default function PatientDetail() {
   };
 
   const handleInvoiceOrders = async (uninvoicedOrders: any[]) => {
+    if (uninvoicedOrders.length === 0) {
+      toast.success("Patient can proceed to cashier");
+      return;
+    }
     const { error } = await supabase.rpc("registrar_invoice_physician_orders", {
       p_patient_id: patientId!,
       p_hospital_id: user!.hospitalId,
