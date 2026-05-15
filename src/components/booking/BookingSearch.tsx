@@ -167,8 +167,17 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
     enabled,
   });
 
+  const filterByPriv = <T extends { id: string }>(arr: T[]) =>
+    restrictServiceId && allowedPhysicianIds ? arr.filter((p) => allowedPhysicianIds.has(p.id)) : arr;
+  const visiblePhysicians = filterByPriv(physicians);
+  const visibleServices = restrictServiceId ? [] : services;
+  const visibleOfficeRooms = restrictServiceId ? [] : officeRooms;
+  const visibleServicePhysicians = restrictServiceId
+    ? servicePhysicians.filter((r) => r.service.id === restrictServiceId && (!allowedPhysicianIds || allowedPhysicianIds.has(r.physician.id)))
+    : servicePhysicians;
+
   const hasResults =
-    physicians.length > 0 || services.length > 0 || servicePhysicians.length > 0 || officeRooms.length > 0;
+    visiblePhysicians.length > 0 || visibleServices.length > 0 || visibleServicePhysicians.length > 0 || visibleOfficeRooms.length > 0;
 
   return (
     <div className="relative" ref={ref}>
