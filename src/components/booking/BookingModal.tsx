@@ -349,6 +349,12 @@ export function BookingModal(props: BookingModalProps) {
           </div>
         ) : !physician ? (
           <div className="space-y-4">
+            {existingVisitServiceId && pickedServices && pickedServices.length > 0 && (
+              <div className="rounded-md border bg-muted/30 p-2 text-xs">
+                <span className="text-muted-foreground">Service: </span>
+                <span className="font-medium">{pickedServices[0].name}</span>
+              </div>
+            )}
             <BookingSearch
               hospitalId={hospitalId}
               onPhysicianSelect={handlePhysicianSelect}
@@ -359,6 +365,7 @@ export function BookingModal(props: BookingModalProps) {
                 setPhysician(null);
                 setShowMultiCalendar(true);
               }}
+              restrictServiceId={existingVisitServiceId && preselectedServiceId ? preselectedServiceId : undefined}
             />
             <p className="text-xs text-muted-foreground">
               Search for a physician, service, or office room to book.
