@@ -6,6 +6,7 @@ export interface BookingModalProps {
   mode: "registrar" | "inpatient";
   hospitalizationId?: string;
   preselectedServiceId?: string;
+  existingVisitServiceId?: string;
   initialPhysician?: PhysicianResult | null;
   initialService?: ServiceResult | null;
   initialOfficeRoom?: OfficeRoomResult | null;
