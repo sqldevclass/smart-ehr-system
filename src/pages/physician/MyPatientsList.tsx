@@ -26,6 +26,8 @@ interface VisitServiceRow {
   is_waitlist: boolean | null;
   completed_by?: string | null;
   assigned_room_id?: string | null;
+  created_by?: string | null;
+  ordering_physician?: { full_name: string | null } | null;
   service_statuses: { code: string | null; name_ru: string | null } | null;
   services: { id?: string; name: string | null } | null;
   rooms?: { name: string | null } | null;
