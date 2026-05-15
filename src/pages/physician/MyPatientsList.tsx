@@ -300,6 +300,11 @@ export default function MyPatientsList() {
         <TableCell>
           <div className="flex flex-col gap-0.5">
             <span>{r.services?.name || "—"}</span>
+            {r.created_by && r.ordering_physician?.full_name && (
+              <span className="text-[11px] text-muted-foreground">
+                Ordered by: {r.ordering_physician.full_name}
+              </span>
+            )}
             {r.service_statuses?.code === "completed" && r.completed_by && completedByNames[r.completed_by] && (
               <span className="text-[11px] text-muted-foreground">
                 Completed by: {completedByNames[r.completed_by]}
