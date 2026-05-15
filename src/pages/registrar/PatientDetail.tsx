@@ -105,10 +105,10 @@ export default function PatientDetail() {
         .select("id, cost_at_time, created_by, services(id, name), service_statuses(code, name_ru), profiles!visit_services_created_by_fkey(full_name)")
         .eq("patient_id", patientId!)
         .eq("hospital_id", user!.hospitalId)
-        .eq("source", "physician")
-        .eq("service_statuses.code", "preliminary")
-        .is("assigned_physician_id", null);
-      return data || [];
+        .eq("source", "physician");
+      return (data || []).filter((vs: any) =>
+        vs.service_statuses?.code === "preliminary"
+      );
     },
     enabled: !!patientId && !!user,
   });
