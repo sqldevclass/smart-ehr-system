@@ -39,6 +39,7 @@ interface MultiCalendarProps {
   patientId: string;
   hospitalizationId?: string;
   officeRoomId?: string;
+  existingVisitServiceId?: string;
 }
 
 function deriveScheduleType(rows: any[] | null | undefined, date: Date): "slots" | "queue" | null {
