@@ -37,7 +37,7 @@ function deriveScheduleType(rows: any[] | null | undefined): "slots" | "queue" |
   return (active?.schedule_type as "slots" | "queue" | null) ?? (rows[0].schedule_type ?? null);
 }
 
-export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, onOfficeRoomSelect, disabled }: Props) {
+export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, onOfficeRoomSelect, disabled, restrictServiceId }: Props) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const debounced = useDebounced(query, 300);
