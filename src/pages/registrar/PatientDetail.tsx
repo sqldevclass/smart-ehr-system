@@ -169,22 +169,19 @@ export default function PatientDetail() {
     }
   };
 
-  const handleInvoiceOrders = async (uninvoicedOrders: any[]) => {
-    if (uninvoicedOrders.length === 0) {
-      toast.success("Patient can proceed to cashier");
-      return;
-    }
+  const handleInvoiceVisit = async (visitId: string, uninvoicedServices: any[]) => {
+    if (uninvoicedServices.length === 0) return;
     const { error } = await supabase.rpc("registrar_invoice_physician_orders", {
       p_patient_id: patientId!,
       p_hospital_id: user!.hospitalId,
       p_invoiced_by: user!.id,
-      p_visit_service_ids: uninvoicedOrders.map((vs: any) => vs.id),
+      p_visit_service_ids: uninvoicedServices.map((vs: any) => vs.id),
     });
     if (error) {
-      toast.error(error.message || "Failed to invoice orders.");
+      toast.error(error.message || "Failed to invoice.");
       return;
     }
-    toast.success("Physician orders invoiced.");
+    toast.success("Invoiced. Patient can pay at the cashier.");
     queryClient.invalidateQueries({ queryKey: ["patient-visits", patientId] });
   };
 
