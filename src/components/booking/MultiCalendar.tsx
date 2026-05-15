@@ -56,7 +56,7 @@ function deriveScheduleType(rows: any[] | null | undefined, date: Date): "slots"
 }
 
 export function MultiCalendar(props: MultiCalendarProps) {
-  const { service, hospitalId, timezone, mode, patientId, hospitalizationId, officeRoomId, onBooked } = props;
+  const { service, hospitalId, timezone, mode, patientId, hospitalizationId, officeRoomId, existingVisitServiceId, onBooked } = props;
   const { user } = useAuth();
   const [date, setDate] = useState<Date>(new Date());
   const [selected, setSelected] = useState<{ slot: SlotRow; col: Col } | null>(null);
