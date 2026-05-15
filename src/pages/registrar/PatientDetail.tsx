@@ -97,6 +97,22 @@ export default function PatientDetail() {
     enabled: !!patientId && !!user,
   });
 
+  const { data: physicianOrders = [] } = useQuery({
+    queryKey: ["physician-orders", patientId, user?.hospitalId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("visit_services")
+        .select("id, cost_at_time, created_by, services(id, name), service_statuses(code, name_ru), profiles!visit_services_created_by_fkey(full_name)")
+        .eq("patient_id", patientId!)
+        .eq("hospital_id", user!.hospitalId)
+        .eq("source", "physician")
+        .eq("service_statuses.code", "preliminary")
+        .is("assigned_physician_id", null);
+      return data || [];
+    },
+    enabled: !!patientId && !!user,
+  });
+
   const hasVisitToday = useMemo(() => {
     const today = format(new Date(), "yyyy-MM-dd");
     return visits.some((v: any) => (v.visit_date || "").startsWith(today));
