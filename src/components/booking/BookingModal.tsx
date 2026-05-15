@@ -109,6 +109,24 @@ export function BookingModal(props: BookingModalProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // Auto-load preselected service when rescheduling an existing visit_service
+  useEffect(() => {
+    if (!open || !preselectedServiceId || !existingVisitServiceId) return;
+    supabase
+      .from("services")
+      .select("id, name, cost_with_vat, service_types(name_en)")
+      .eq("id", preselectedServiceId)
+      .single()
+      .then(({ data }) => {
+        if (data) setPickedServices([{
+          id: data.id,
+          name: data.name,
+          costWithVat: Number(data.cost_with_vat || 0),
+          serviceTypeName: (data.service_types as any)?.name_en || null,
+        }]);
+      });
+  }, [open, preselectedServiceId, existingVisitServiceId]);
+
   // Auto-set queueDate when physician switches to queue mode
   useEffect(() => {
     if (physician?.scheduleType === "queue" && !queueDate) {
