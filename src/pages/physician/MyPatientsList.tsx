@@ -153,10 +153,7 @@ export default function MyPatientsList() {
       if (row.scheduled_at) {
         return row.scheduled_at >= dayStart && row.scheduled_at <= dayEnd;
       }
-      if (row.queue_number != null) {
-        return row.visits?.visit_date === selectedDateStr;
-      }
-      return false;
+      return row.visits?.visit_date === selectedDateStr;
     });
 
     // Avoid double-listing rows already in the main list
