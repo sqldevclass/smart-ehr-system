@@ -147,9 +147,14 @@ export function BookingModal(props: BookingModalProps) {
     setPhysician(p);
     setSelectedSlot(null);
     setQueueDate(null);
-    setPickedServices(null);
+    if (!existingVisitServiceId) {
+      setPickedServices(null);
+      setShowPicker(true);
+    } else {
+      // Existing visit_service: skip picker, service is already set from preselectedServiceId
+      setShowPicker(false);
+    }
     setShowMultiCalendar(false);
-    setShowPicker(true);
   };
 
   const handleServiceFromSearch = (service: ServiceResult) => {
