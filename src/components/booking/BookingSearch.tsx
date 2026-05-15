@@ -12,6 +12,7 @@ interface Props {
   onServiceSelect: (s: ServiceResult) => void;
   onOfficeRoomSelect?: (room: OfficeRoomResult) => void;
   disabled?: boolean;
+  restrictServiceId?: string;
 }
 
 function useDebounced<T>(value: T, delay = 300): T {
@@ -36,7 +37,7 @@ function deriveScheduleType(rows: any[] | null | undefined): "slots" | "queue" |
   return (active?.schedule_type as "slots" | "queue" | null) ?? (rows[0].schedule_type ?? null);
 }
 
-export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, onOfficeRoomSelect, disabled }: Props) {
+export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, onOfficeRoomSelect, disabled, restrictServiceId }: Props) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const debounced = useDebounced(query, 300);
@@ -51,6 +52,20 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
   }, []);
 
   const enabled = debounced.trim().length >= 1;
+
+  const { data: allowedPhysicianIds } = useQuery({
+    queryKey: ["booking-search-allowed-physicians", hospitalId, restrictServiceId],
+    queryFn: async () => {
+      if (!restrictServiceId) return null;
+      const { data } = await supabase
+        .from("physician_service_privileges")
+        .select("physician_id")
+        .eq("hospital_id", hospitalId)
+        .eq("service_id", restrictServiceId);
+      return new Set((data || []).map((r: any) => r.physician_id));
+    },
+    enabled: !!restrictServiceId,
+  });
 
   const { data: physicians = [] } = useQuery({
     queryKey: ["booking-search-physicians", hospitalId, debounced],
@@ -152,8 +167,17 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
     enabled,
   });
 
+  const filterByPriv = <T extends { id: string }>(arr: T[]) =>
+    restrictServiceId && allowedPhysicianIds ? arr.filter((p) => allowedPhysicianIds.has(p.id)) : arr;
+  const visiblePhysicians = filterByPriv(physicians);
+  const visibleServices = restrictServiceId ? [] : services;
+  const visibleOfficeRooms = restrictServiceId ? [] : officeRooms;
+  const visibleServicePhysicians = restrictServiceId
+    ? servicePhysicians.filter((r) => r.service.id === restrictServiceId && (!allowedPhysicianIds || allowedPhysicianIds.has(r.physician.id)))
+    : servicePhysicians;
+
   const hasResults =
-    physicians.length > 0 || services.length > 0 || servicePhysicians.length > 0 || officeRooms.length > 0;
+    visiblePhysicians.length > 0 || visibleServices.length > 0 || visibleServicePhysicians.length > 0 || visibleOfficeRooms.length > 0;
 
   return (
     <div className="relative" ref={ref}>
@@ -170,10 +194,10 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
       </div>
       {open && enabled && hasResults && (
         <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-96 overflow-y-auto rounded-md border bg-popover shadow-lg">
-          {physicians.length > 0 && (
+          {visiblePhysicians.length > 0 && (
             <div>
               <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase text-muted-foreground">Physicians</div>
-              {physicians.map((p) => (
+              {visiblePhysicians.map((p) => (
                 <button
                   key={p.id}
                   type="button"
@@ -195,10 +219,10 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
               ))}
             </div>
           )}
-          {services.length > 0 && (
+          {visibleServices.length > 0 && (
             <div>
               <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase text-muted-foreground">Services</div>
-              {services.map((s) => (
+              {visibleServices.map((s) => (
                 <button
                   key={s.id}
                   type="button"
@@ -214,12 +238,12 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
               ))}
             </div>
           )}
-          {servicePhysicians.length > 0 && (
+          {visibleServicePhysicians.length > 0 && (
             <div>
               <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase text-muted-foreground">
                 Physicians for this service
               </div>
-              {servicePhysicians.map((r, i) => (
+              {visibleServicePhysicians.map((r, i) => (
                 <button
                   key={`${r.physician.id}-${r.service.id}-${i}`}
                   type="button"
@@ -243,10 +267,10 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
               ))}
             </div>
           )}
-          {officeRooms.length > 0 && (
+          {visibleOfficeRooms.length > 0 && (
             <div>
               <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase text-muted-foreground">Office Rooms</div>
-              {officeRooms.map((r, i) => (
+              {visibleOfficeRooms.map((r, i) => (
                 <button
                   key={`${r.id}-${r.service.id}-${i}`}
                   type="button"

@@ -39,6 +39,7 @@ export default function PatientDetail() {
   const [selectedPhysician, setSelectedPhysician] = useState<PhysicianResult | null>(null);
   const [selectedService, setSelectedService] = useState<ServiceResult | null>(null);
   const [selectedOfficeRoom, setSelectedOfficeRoom] = useState<OfficeRoomResult | null>(null);
+  const [schedulingVisitService, setSchedulingVisitService] = useState<{ id: string; serviceId: string } | null>(null);
 
   const { data: patient, isLoading } = useQuery({
     queryKey: ["patient", patientId],
@@ -86,7 +87,7 @@ export default function PatientDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("visits")
-        .select("id, visit_date, status, total_amount, amount_paid, visit_services(id, source, cost_at_time, services(name), service_statuses(code, name_ru), invoice_items(id))")
+        .select("id, visit_date, status, total_amount, amount_paid, visit_services(id, source, cost_at_time, services(id, name), service_statuses(code, name_ru), invoice_items(id))")
         .eq("patient_id", patientId!)
         .eq("hospital_id", user!.hospitalId)
         .order("created_at", { ascending: false });
@@ -360,6 +361,18 @@ export default function PatientDetail() {
                           <span className="rounded bg-muted px-2 py-0.5 text-muted-foreground">
                             {vs.service_statuses?.name_ru || vs.service_statuses?.code || "—"}
                           </span>
+                          {vs.source === "physician" &&
+                            vs.service_statuses?.code === "preliminary" &&
+                            (!vs.invoice_items || vs.invoice_items.length === 0) && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-5 px-1.5 text-[10px]"
+                                onClick={() => setSchedulingVisitService({ id: vs.id, serviceId: vs.services?.id })}
+                              >
+                                Assign & Schedule
+                              </Button>
+                            )}
                           {vs.service_statuses?.code === "preliminary" && (
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
@@ -471,6 +484,20 @@ export default function PatientDetail() {
           setSelectedPhysician(null);
           setSelectedService(null);
           setSelectedOfficeRoom(null);
+        }}
+      />
+
+      <BookingModal
+        open={!!schedulingVisitService}
+        onOpenChange={(o) => { if (!o) setSchedulingVisitService(null); }}
+        patientId={patientId!}
+        hospitalId={user!.hospitalId}
+        mode="registrar"
+        existingVisitServiceId={schedulingVisitService?.id}
+        preselectedServiceId={schedulingVisitService?.serviceId}
+        onBooked={() => {
+          queryClient.invalidateQueries({ queryKey: ["patient-visits", patientId] });
+          setSchedulingVisitService(null);
         }}
       />
     </div>

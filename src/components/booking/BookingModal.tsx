@@ -28,7 +28,8 @@ const REGISTRATION_SOURCES = [
 export function BookingModal(props: BookingModalProps) {
   const {
     open, onOpenChange, patientId, hospitalId, mode, hospitalizationId,
-    preselectedServiceId, initialPhysician, initialService, initialOfficeRoom, onBooked,
+    preselectedServiceId, existingVisitServiceId,
+    initialPhysician, initialService, initialOfficeRoom, onBooked,
   } = props;
   const { user } = useAuth();
   const tz = user?.timezone || "Asia/Tashkent";
@@ -108,6 +109,24 @@ export function BookingModal(props: BookingModalProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // Auto-load preselected service when rescheduling an existing visit_service
+  useEffect(() => {
+    if (!open || !preselectedServiceId || !existingVisitServiceId) return;
+    supabase
+      .from("services")
+      .select("id, name, cost_with_vat, service_types(name_en)")
+      .eq("id", preselectedServiceId)
+      .single()
+      .then(({ data }) => {
+        if (data) setPickedServices([{
+          id: data.id,
+          name: data.name,
+          costWithVat: Number(data.cost_with_vat || 0),
+          serviceTypeName: (data.service_types as any)?.name_en || null,
+        }]);
+      });
+  }, [open, preselectedServiceId, existingVisitServiceId]);
+
   // Auto-set queueDate when physician switches to queue mode
   useEffect(() => {
     if (physician?.scheduleType === "queue" && !queueDate) {
@@ -128,9 +147,14 @@ export function BookingModal(props: BookingModalProps) {
     setPhysician(p);
     setSelectedSlot(null);
     setQueueDate(null);
-    setPickedServices(null);
+    if (!existingVisitServiceId) {
+      setPickedServices(null);
+      setShowPicker(true);
+    } else {
+      // Existing visit_service: skip picker, service is already set from preselectedServiceId
+      setShowPicker(false);
+    }
     setShowMultiCalendar(false);
-    setShowPicker(true);
   };
 
   const handleServiceFromSearch = (service: ServiceResult) => {
@@ -211,7 +235,17 @@ export function BookingModal(props: BookingModalProps) {
       if (isQueueMode) queueConfigId = await ensureQueueConfig(physician.id);
 
       for (const svc of pickedServices) {
-        const visitServiceId = await createVisitService(svc);
+        let visitServiceId: string;
+        if (existingVisitServiceId) {
+          const { error: updateErr } = await supabase
+            .from("visit_services")
+            .update({ assigned_physician_id: physician.id })
+            .eq("id", existingVisitServiceId);
+          if (updateErr) throw updateErr;
+          visitServiceId = existingVisitServiceId;
+        } else {
+          visitServiceId = await createVisitService(svc);
+        }
 
         let isWaitlist: boolean | undefined;
         let scheduledAt: string | undefined;
@@ -265,7 +299,7 @@ export function BookingModal(props: BookingModalProps) {
 
   const goBackToSearch = () => {
     setPhysician(null);
-    setPickedServices(null);
+    if (!existingVisitServiceId) setPickedServices(null);
     setShowPicker(false);
     setSelectedSlot(null);
     setQueueDate(null);
@@ -315,6 +349,12 @@ export function BookingModal(props: BookingModalProps) {
           </div>
         ) : !physician ? (
           <div className="space-y-4">
+            {existingVisitServiceId && pickedServices && pickedServices.length > 0 && (
+              <div className="rounded-md border bg-muted/30 p-2 text-xs">
+                <span className="text-muted-foreground">Service: </span>
+                <span className="font-medium">{pickedServices[0].name}</span>
+              </div>
+            )}
             <BookingSearch
               hospitalId={hospitalId}
               onPhysicianSelect={handlePhysicianSelect}
@@ -325,6 +365,7 @@ export function BookingModal(props: BookingModalProps) {
                 setPhysician(null);
                 setShowMultiCalendar(true);
               }}
+              restrictServiceId={existingVisitServiceId && preselectedServiceId ? preselectedServiceId : undefined}
             />
             <p className="text-xs text-muted-foreground">
               Search for a physician, service, or office room to book.

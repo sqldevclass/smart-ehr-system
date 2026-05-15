@@ -589,7 +589,6 @@ function ConsultTab({
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [targetPhysicianId, setTargetPhysicianId] = useState("");
   const [serviceId, setServiceId] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -607,52 +606,39 @@ function ConsultTab({
     enabled: !!user?.hospitalId && !!consultTypeId,
   });
 
-  const { data: physicians = [] } = useQuery({
-    queryKey: ["physicians-other-out", user?.hospitalId, physicianId],
-    queryFn: async () => {
-      let q = supabase
-        .from("physicians")
-        .select("id, specialization, profiles!inner(full_name)")
-        .eq("hospital_id", user!.hospitalId)
-        .eq("is_active", true);
-      if (physicianId) q = q.neq("id", physicianId);
-      const { data } = await q;
-      return data || [];
-    },
-    enabled: !!user?.hospitalId && open,
-  });
-
-  const { data: privileges = [] } = useQuery({
-    queryKey: ["consult-privileges", targetPhysicianId, consultTypeId],
+  const { data: catalog = [] } = useQuery({
+    queryKey: ["consult-services-catalog", user?.hospitalId, consultTypeId],
     queryFn: async () => {
       const { data } = await supabase
-        .from("physician_service_privileges")
-        .select("service_id, services(id, name, cost_with_vat, service_type_id)")
-        .eq("physician_id", targetPhysicianId);
-      return (data || []).filter((p: any) => p.services?.service_type_id === consultTypeId);
+        .from("services")
+        .select("id, name, cost_with_vat")
+        .eq("hospital_id", user!.hospitalId)
+        .eq("service_type_id", consultTypeId!)
+        .eq("is_active", true)
+        .order("name");
+      return data || [];
     },
-    enabled: open && !!targetPhysicianId && !!consultTypeId,
+    enabled: open && !!user?.hospitalId && !!consultTypeId,
   });
 
   const handleAdd = async () => {
-    if (!targetPhysicianId || !serviceId) return;
+    if (!serviceId) return;
     setSubmitting(true);
     try {
-      const svc = privileges.find((p: any) => p.services?.id === serviceId)?.services;
+      const svc = catalog.find((s: any) => s.id === serviceId);
       const { error } = await supabase.rpc("physician_order_services", {
         p_patient_id: patientId,
         p_hospital_id: user!.hospitalId,
         p_ordered_by: user!.id,
         p_services: [{
           service_id: serviceId,
-          assigned_physician_id: targetPhysicianId,
+          assigned_physician_id: null,
           cost_at_time: (svc as any)?.cost_with_vat ?? 0,
         }],
       });
       if (error) { toast.error(error.message); return; }
       toast.success("Consultation requested.");
       setOpen(false);
-      setTargetPhysicianId("");
       setServiceId("");
       queryClient.invalidateQueries({ queryKey: ["outpatient-consult"] });
     } finally { setSubmitting(false); }
@@ -698,27 +684,12 @@ function ConsultTab({
           <DialogHeader><DialogTitle>Request Consultation</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Physician</Label>
-              <Select value={targetPhysicianId} onValueChange={(v) => { setTargetPhysicianId(v); setServiceId(""); }}>
-                <SelectTrigger><SelectValue placeholder="Select physician" /></SelectTrigger>
-                <SelectContent>
-                  {physicians.map((p: any) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.profiles?.full_name}{p.specialization ? ` — ${p.specialization}` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
               <Label>Service</Label>
-              <Select value={serviceId} onValueChange={setServiceId} disabled={!targetPhysicianId}>
-                <SelectTrigger>
-                  <SelectValue placeholder={targetPhysicianId ? "Select service" : "Select physician first"} />
-                </SelectTrigger>
+              <Select value={serviceId} onValueChange={setServiceId}>
+                <SelectTrigger><SelectValue placeholder="Select consultation service" /></SelectTrigger>
                 <SelectContent>
-                  {privileges.map((p: any) => (
-                    <SelectItem key={p.services.id} value={p.services.id}>{p.services.name}</SelectItem>
+                  {catalog.map((s: any) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -726,7 +697,7 @@ function ConsultTab({
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={handleAdd} disabled={!targetPhysicianId || !serviceId || submitting}>
+            <Button onClick={handleAdd} disabled={!serviceId || submitting}>
               {submitting ? "Saving…" : "Request"}
             </Button>
           </DialogFooter>
