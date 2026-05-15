@@ -357,7 +357,6 @@ export default function PatientDetail() {
                 vs.service_statuses?.code === "preliminary" &&
                 (!vs.invoice_items || vs.invoice_items.length === 0),
             );
-            const hasUninvoicedPhysicianOrder = uninvoicedOrders.length > 0;
             return (
               <div key={v.id} className="rounded-md border p-4 space-y-3">
                 <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -372,23 +371,17 @@ export default function PatientDetail() {
                       {v.status || "—"}
                     </span>
                   </div>
-                  <div className="text-right text-sm">
+                  <div className="text-right text-sm space-y-1">
                     <div className="font-semibold">Total: {total.toFixed(2)}</div>
                     <div className="text-xs text-muted-foreground">Paid: {paid.toFixed(2)}</div>
                     <div className="text-xs text-muted-foreground">Outstanding: {outstanding.toFixed(2)}</div>
+                    {outstanding > 0 && (
+                      <Button size="sm" variant="outline" onClick={() => handleInvoiceOrders(uninvoicedOrders)}>
+                        Invoice
+                      </Button>
+                    )}
                   </div>
                 </div>
-
-                {hasUninvoicedPhysicianOrder && (
-                  <div className="rounded-md border border-amber-300 bg-amber-50 p-3 flex items-center justify-between gap-3 dark:border-amber-700 dark:bg-amber-950/30">
-                    <span className="text-xs text-amber-900 dark:text-amber-200">
-                      This visit has physician-ordered services not yet invoiced.
-                    </span>
-                    <Button size="sm" variant="outline" onClick={() => handleInvoiceOrders(uninvoicedOrders)}>
-                      Send to Cashier
-                    </Button>
-                  </div>
-                )}
 
                 {v.visit_services?.length > 0 && (
                   <div className="space-y-1">
