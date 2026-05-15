@@ -11,8 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { cn } from "@/lib/utils";
 import { localDayBoundsUTC, toLocal } from "@/lib/timezone";
 
-import type { ServiceResult, SlotRow } from "./types";
-
+import type { BookingResult, ServiceResult, SlotRow } from "./types";
 interface PhysCol {
   kind: "physician";
   id: string;
