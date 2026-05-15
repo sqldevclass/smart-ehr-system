@@ -92,29 +92,20 @@ export default function OutpatientPatientDetail() {
   const readyId = statuses.find((s: any) => s.code === "ready_for_execution")?.id ?? null;
   const prelimId = statuses.find((s: any) => s.code === "preliminary")?.id ?? null;
 
-  const { data: todays = [] } = useQuery({
-    queryKey: ["outpatient-today-services", patientId, physicianId, readyId, prelimId],
+  const { data: activeServices = [] } = useQuery({
+    queryKey: ["outpatient-active-services", patientId, physicianId, readyId],
     queryFn: async () => {
-      const todayStart = startOfDay(new Date()).toISOString();
-      const todayEnd = endOfDay(new Date()).toISOString();
-      const todayStr = format(new Date(), "yyyy-MM-dd");
-      const ids = [readyId, prelimId].filter(Boolean) as string[];
+      if (!readyId) return [];
       const { data } = await supabase
         .from("visit_services")
-        .select("id, scheduled_at, queue_number, is_waitlist, cost_at_time, service_statuses(code, name_ru), services(name), visits(visit_date)")
+        .select("id, scheduled_at, queue_number, is_waitlist, cost_at_time, service_statuses(code, name_ru), services(name)")
         .eq("patient_id", patientId!)
         .eq("assigned_physician_id", physicianId!)
         .eq("hospital_id", user!.hospitalId)
-        .in("status_id", ids);
-      return (data || []).filter((vs: any) => {
-        if (vs.scheduled_at) {
-          return vs.scheduled_at >= todayStart && vs.scheduled_at <= todayEnd;
-        }
-        // Queue and unscheduled — check visit date
-        return vs.visits?.visit_date === todayStr;
-      });
+        .eq("status_id", readyId);
+      return data || [];
     },
-    enabled: !!patientId && !!physicianId && !!user?.hospitalId && !!readyId && !!prelimId,
+    enabled: !!patientId && !!physicianId && !!user?.hospitalId && !!readyId,
   });
 
   const handleComplete = async (vsId: string) => {
@@ -137,7 +128,7 @@ export default function OutpatientPatientDetail() {
   const age = patient.date_of_birth ? differenceInYears(new Date(), new Date(patient.date_of_birth)) : null;
   const allergies = (patient.patient_allergies as any[]) || [];
   const contacts = (patient.patient_contacts as any[]) || [];
-  const canOrder = (todays as any[]).some((vs: any) => vs.service_statuses?.code === "ready_for_execution");
+  const canOrder = activeServices.length > 0;
 
   return (
     <div className="space-y-4">
@@ -236,15 +227,15 @@ export default function OutpatientPatientDetail() {
         </CardContent>
       </Card>
 
-      {/* Today's services */}
-      {todays.length > 0 && (
+      {/* Active services */}
+      {activeServices.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Today's Services</CardTitle>
+            <CardTitle className="text-base">Active Services</CardTitle>
           </CardHeader>
           <CardContent>
             <ul className="space-y-2">
-              {todays.map((vs: any) => (
+              {activeServices.map((vs: any) => (
                 <li key={vs.id} className="flex items-center justify-between rounded border p-2 text-sm">
                   <div className="flex flex-col">
                     <span className="font-medium">{vs.services?.name}</span>
