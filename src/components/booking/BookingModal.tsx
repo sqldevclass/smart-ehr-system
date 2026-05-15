@@ -235,7 +235,17 @@ export function BookingModal(props: BookingModalProps) {
       if (isQueueMode) queueConfigId = await ensureQueueConfig(physician.id);
 
       for (const svc of pickedServices) {
-        const visitServiceId = await createVisitService(svc);
+        let visitServiceId: string;
+        if (existingVisitServiceId) {
+          const { error: updateErr } = await supabase
+            .from("visit_services")
+            .update({ assigned_physician_id: physician.id })
+            .eq("id", existingVisitServiceId);
+          if (updateErr) throw updateErr;
+          visitServiceId = existingVisitServiceId;
+        } else {
+          visitServiceId = await createVisitService(svc);
+        }
 
         let isWaitlist: boolean | undefined;
         let scheduledAt: string | undefined;
