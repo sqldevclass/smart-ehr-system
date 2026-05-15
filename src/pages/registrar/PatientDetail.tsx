@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ import { BookingModal } from "@/components/booking/BookingModal";
 import { BookingSearch } from "@/components/booking/BookingSearch";
 import type { OfficeRoomResult, PhysicianResult, ServiceResult } from "@/components/booking/types";
 import { LabResultsButton } from "@/components/lab/LabResultsButton";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function PatientDetail() {
   const { patientId } = useParams();
@@ -39,7 +40,7 @@ export default function PatientDetail() {
   const [selectedPhysician, setSelectedPhysician] = useState<PhysicianResult | null>(null);
   const [selectedService, setSelectedService] = useState<ServiceResult | null>(null);
   const [selectedOfficeRoom, setSelectedOfficeRoom] = useState<OfficeRoomResult | null>(null);
-  const [schedulingVisitService, setSchedulingVisitService] = useState<{ id: string; serviceId: string } | null>(null);
+  const [schedulingOrder, setSchedulingOrder] = useState<{ id: string; serviceId: string } | null>(null);
 
   const { data: patient, isLoading } = useQuery({
     queryKey: ["patient", patientId],
@@ -82,107 +83,77 @@ export default function PatientDetail() {
     enabled: !!patientId,
   });
 
-  const { data: visits = [] } = useQuery({
-    queryKey: ["patient-visits", patientId, user?.hospitalId],
+  const { data: physicianOrders = [], refetch: refetchOrders } = useQuery({
+    queryKey: ["physician-orders", patientId, user?.hospitalId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("visits")
-        .select("id, visit_date, status, total_amount, amount_paid, visit_services(id, source, cost_at_time, services(id, name), service_statuses(code, name_ru), invoice_items(id))")
+      const { data: prelim } = await supabase
+        .from("service_statuses").select("id").eq("code", "preliminary").single();
+      const { data } = await supabase
+        .from("visit_services")
+        .select("id, cost_at_time, source, services(id, name), profiles!visit_services_created_by_fkey(full_name)")
         .eq("patient_id", patientId!)
         .eq("hospital_id", user!.hospitalId)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
+        .eq("source", "physician")
+        .is("visit_id", null)
+        .eq("status_id", prelim?.id);
       return data || [];
     },
     enabled: !!patientId && !!user,
   });
 
-  const { data: physicianOrders = [] } = useQuery({
-    queryKey: ["physician-orders", patientId, user?.hospitalId],
+  const { data: visits = [], refetch: refetchVisits } = useQuery({
+    queryKey: ["patient-visits", patientId, user?.hospitalId],
     queryFn: async () => {
       const { data } = await supabase
-        .from("visit_services")
-        .select("id, cost_at_time, created_by, services(id, name), service_statuses(code, name_ru), profiles!visit_services_created_by_fkey(full_name)")
+        .from("visits")
+        .select("id, visit_date, status, total_amount, amount_paid, visit_services(id, source, cost_at_time, assigned_physician_id, services(id, name), service_statuses(code, name_ru), invoice_items(id))")
         .eq("patient_id", patientId!)
         .eq("hospital_id", user!.hospitalId)
-        .eq("source", "physician");
-      return (data || []).filter((vs: any) =>
-        vs.service_statuses?.code === "preliminary"
-      );
+        .order("created_at", { ascending: false });
+      return data || [];
     },
     enabled: !!patientId && !!user,
   });
-
-  const hasVisitToday = useMemo(() => {
-    const today = format(new Date(), "yyyy-MM-dd");
-    return visits.some((v: any) => (v.visit_date || "").startsWith(today));
-  }, [visits]);
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
   if (!patient) return <p className="text-sm text-destructive">Patient not found.</p>;
 
   const fullName = [patient.last_name, patient.first_name, patient.middle_name].filter(Boolean).join(" ");
 
-  const cancelService = async (visitServiceId: string, visitId: string, costAtTime: number, visitTotalAmount: number) => {
+  const cancelService = async (visitServiceId: string, visitId: string, cost: number, total: number) => {
     try {
-      const { data: cancelledStatus, error: statusErr } = await supabase
-        .from("service_statuses")
-        .select("id")
-        .eq("code", "cancelled")
-        .single();
-      if (statusErr) throw statusErr;
+      const { data: cancelled } = await supabase
+        .from("service_statuses").select("id").eq("code", "cancelled").single();
 
-      const { error: updateErr } = await supabase
-        .from("visit_services")
-        .update({ status_id: cancelledStatus.id })
-        .eq("id", visitServiceId);
-      if (updateErr) throw updateErr;
+      await supabase.from("visit_services").update({ status_id: cancelled!.id }).eq("id", visitServiceId);
+      await supabase.from("visits").update({ total_amount: Math.max(0, total - cost) }).eq("id", visitId);
+      await supabase.from("invoice_items").delete().eq("visit_service_id", visitServiceId);
 
-      await supabase
-        .from("visits")
-        .update({ total_amount: Math.max(0, visitTotalAmount - costAtTime) })
-        .eq("id", visitId);
-
-      await supabase
-        .from("invoice_items")
-        .delete()
-        .eq("visit_service_id", visitServiceId);
-
-      // Check if any non-cancelled services remain on this visit
-      const { data: remainingServices } = await supabase
-        .from("visit_services")
-        .select("id")
+      const { data: remaining } = await supabase
+        .from("visit_services").select("id")
         .eq("visit_id", visitId)
-        .not("status_id", "eq", cancelledStatus.id);
+        .not("status_id", "eq", cancelled!.id);
 
-      if (!remainingServices || remainingServices.length === 0) {
-        await supabase
-          .from("visits")
-          .update({ status: "cancelled" })
-          .eq("id", visitId);
+      if (!remaining || remaining.length === 0) {
+        await supabase.from("visits").update({ status: "cancelled" }).eq("id", visitId);
       }
 
       toast.success("Service cancelled.");
-      queryClient.invalidateQueries({ queryKey: ["patient-visits", patientId] });
+      refetchVisits();
     } catch (err: any) {
       toast.error(err.message || "Failed to cancel service.");
     }
   };
 
-  const handleInvoiceVisit = async (visitId: string, uninvoicedServices: any[]) => {
-    if (uninvoicedServices.length === 0) return;
-    const { error } = await supabase.rpc("registrar_invoice_physician_orders", {
-      p_patient_id: patientId!,
+  const handleInvoice = async (visitId: string) => {
+    const { error } = await supabase.rpc("registrar_invoice_visit", {
+      p_visit_id: visitId,
       p_hospital_id: user!.hospitalId,
       p_invoiced_by: user!.id,
-      p_visit_service_ids: uninvoicedServices.map((vs: any) => vs.id),
     });
-    if (error) {
-      toast.error(error.message || "Failed to invoice.");
-      return;
-    }
-    toast.success("Invoiced. Patient can pay at the cashier.");
-    queryClient.invalidateQueries({ queryKey: ["patient-visits", patientId] });
+    if (error) { toast.error(error.message); return; }
+    toast.success("Invoiced. Patient can proceed to cashier.");
+    refetchVisits();
   };
 
   return (
@@ -300,178 +271,179 @@ export default function PatientDetail() {
         />
       </div>
 
-      {/* Two-column layout: (left) + Visits (right) */}
+      {/* Two-column: Physician Orders | Visits */}
       <div className="grid grid-cols-2 gap-6 items-start">
-        <div className="space-y-4">
-          <div className="rounded-lg border bg-card p-4 space-y-3">
-            <h3 className="font-semibold text-foreground text-sm">Physician Orders</h3>
-            {physicianOrders.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No pending physician orders.</p>
-            ) : (
-              <div className="space-y-2">
-                {physicianOrders.map((po: any) => (
-                  <div key={po.id} className="flex items-center justify-between gap-3 rounded-md border p-3">
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium truncate">{po.services?.name || "—"}</div>
-                      <div className="text-xs text-muted-foreground">
-                        Ordered by: {po.profiles?.full_name || "—"}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-sm font-medium">{Number(po.cost_at_time || 0).toFixed(2)}</span>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setSchedulingVisitService({ id: po.id, serviceId: po.services?.id })}
-                      >
-                        Assign & Schedule
-                      </Button>
+        {/* Physician Orders */}
+        <div className="rounded-lg border bg-card p-4 space-y-3">
+          <h3 className="font-semibold text-foreground text-sm">Physician Orders</h3>
+          {physicianOrders.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No pending physician orders.</p>
+          ) : (
+            <div className="space-y-2">
+              {physicianOrders.map((po: any) => (
+                <div key={po.id} className="flex items-center justify-between gap-3 rounded-md border p-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold truncate">{po.services?.name || "—"}</div>
+                    <div className="text-xs text-muted-foreground">
+                      Ordered by: {po.profiles?.full_name || "—"}
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Visits - right */}
-        <div className="rounded-lg border bg-card p-6 space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-foreground">Visits</h3>
-        </div>
-        {(() => {
-          const isPast = (v: any) => v.status === "paid" || v.status === "cancelled";
-          const activeVisits = visits.filter((v: any) => !isPast(v));
-          const pastVisits = visits.filter(isPast);
-
-          const renderVisit = (v: any) => {
-            const total = Number(v.total_amount || 0);
-            const paid = Number(v.amount_paid || 0);
-            const outstanding = Math.max(0, total - paid);
-            const uninvoicedServices = (v.visit_services || []).filter(
-              (vs: any) =>
-                vs.service_statuses?.code === "preliminary" &&
-                (!vs.invoice_items || vs.invoice_items.length === 0),
-            );
-            const isInvoiced = uninvoicedServices.length === 0;
-            return (
-              <div key={v.id} className="rounded-md border p-4 space-y-3">
-                <div className="flex items-start justify-between gap-3 flex-wrap">
-                  <div>
-                    <div className="text-xs text-muted-foreground font-mono">
-                      Visit #{v.id.slice(0, 8)}
-                    </div>
-                    <div className="text-sm font-medium">
-                      {v.visit_date ? format(new Date(v.visit_date), "MMM d, yyyy") : "—"}
-                    </div>
-                    <span className="inline-block mt-1 rounded bg-muted px-2 py-0.5 text-xs font-medium capitalize">
-                      {v.status || "—"}
-                    </span>
-                  </div>
-                  <div className="text-right text-sm space-y-1">
-                    <div className="font-semibold">Total: {total.toFixed(2)}</div>
-                    <div className="text-xs text-muted-foreground">Paid: {paid.toFixed(2)}</div>
-                    <div className="text-xs text-muted-foreground">Outstanding: {outstanding.toFixed(2)}</div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-sm font-medium">{Number(po.cost_at_time || 0).toFixed(2)}</span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setSchedulingOrder({ id: po.id, serviceId: po.services?.id })}
+                    >
+                      Assign & Schedule
+                    </Button>
                   </div>
                 </div>
+              ))}
+            </div>
+          )}
+        </div>
 
-                {v.visit_services?.length > 0 && (
-                  <div className="space-y-1">
-                    {v.visit_services.map((vs: any) => (
-                      <div key={vs.id} className="flex items-center justify-between text-xs gap-2">
-                        <span className="truncate">
-                          {vs.services?.name || "—"}
-                          {vs.source === "physician" && (
-                            <span className="ml-2 rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-800 dark:bg-blue-900/40 dark:text-blue-200">
-                              physician
-                            </span>
-                          )}
-                        </span>
-                        <div className="flex items-center gap-2 shrink-0">
-                          {vs.service_statuses?.code === "completed" && (
-                            <LabResultsButton visitServiceId={vs.id} variant="indicator" />
-                          )}
-                          <span className="rounded bg-muted px-2 py-0.5 text-muted-foreground">
-                            {vs.service_statuses?.name_ru || vs.service_statuses?.code || "—"}
-                          </span>
-                          {vs.service_statuses?.code === "preliminary" && (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="outline" size="sm" className="h-5 px-1.5 text-[10px] text-destructive border-destructive/30 hover:bg-destructive/10">
-                                  Cancel
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Cancel this service?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    This will cancel "{vs.services?.name}" and remove it from the invoice.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>No</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                    onClick={() => cancelService(vs.id, v.id, Number(vs.cost_at_time || 0), Number(v.total_amount || 0))}
-                                  >
-                                    Yes, cancel
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          )}
-                        </div>
+        {/* Visits */}
+        <div className="rounded-lg border bg-card p-6 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-foreground">Visits</h3>
+          </div>
+          {(() => {
+            const isPast = (v: any) => v.status === "paid" || v.status === "cancelled";
+            const activeVisits = visits.filter((v: any) => !isPast(v));
+            const pastVisits = visits.filter(isPast);
+
+            const renderVisit = (v: any) => {
+              const total = Number(v.total_amount || 0);
+              const paid = Number(v.amount_paid || 0);
+              const outstanding = Math.max(0, total - paid);
+              const uninvoiced = (v.visit_services || []).filter(
+                (vs: any) =>
+                  vs.service_statuses?.code === "preliminary" &&
+                  (!vs.invoice_items || vs.invoice_items.length === 0),
+              );
+              const isFullyInvoiced = uninvoiced.length === 0;
+              return (
+                <div key={v.id} className="rounded-md border p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div>
+                      <div className="text-xs text-muted-foreground font-mono">
+                        Visit #{v.id.slice(0, 8)}
                       </div>
-                    ))}
+                      <div className="text-sm font-medium">
+                        {v.visit_date ? format(new Date(v.visit_date), "MMM d, yyyy") : "—"}
+                      </div>
+                      <span className="inline-block mt-1 rounded bg-muted px-2 py-0.5 text-xs font-medium capitalize">
+                        {v.status || "—"}
+                      </span>
+                    </div>
+                    <div className="text-right text-sm space-y-1">
+                      <div className="font-semibold">Total: {total.toFixed(2)}</div>
+                      <div className="text-xs text-muted-foreground">Paid: {paid.toFixed(2)}</div>
+                      <div className="text-xs text-muted-foreground">Outstanding: {outstanding.toFixed(2)}</div>
+                    </div>
+                  </div>
+
+                  {v.visit_services?.length > 0 && (
+                    <div className="space-y-1">
+                      {v.visit_services.map((vs: any) => (
+                        <div key={vs.id} className="flex items-center justify-between text-xs gap-2">
+                          <span className="truncate">
+                            {vs.services?.name || "—"}
+                            <span className={`ml-2 rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                              vs.source === "physician"
+                                ? "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200"
+                                : "bg-muted text-muted-foreground"
+                            }`}>
+                              {vs.source || "—"}
+                            </span>
+                          </span>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {vs.service_statuses?.code === "completed" && (
+                              <LabResultsButton visitServiceId={vs.id} variant="indicator" />
+                            )}
+                            <span className="rounded bg-muted px-2 py-0.5 text-muted-foreground">
+                              {vs.service_statuses?.name_ru || vs.service_statuses?.code || "—"}
+                            </span>
+                            {vs.service_statuses?.code === "preliminary" && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="outline" size="sm" className="h-5 px-1.5 text-[10px] text-destructive border-destructive/30 hover:bg-destructive/10">
+                                    Cancel
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Cancel this service?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      This will cancel "{vs.services?.name}" and remove it from the invoice.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>No</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      onClick={() => cancelService(vs.id, v.id, Number(vs.cost_at_time || 0), Number(v.total_amount || 0))}
+                                    >
+                                      Yes, cancel
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex justify-end">
+                    <Button
+                      size="sm"
+                      disabled={isFullyInvoiced}
+                      onClick={() => handleInvoice(v.id)}
+                    >
+                      {isFullyInvoiced ? "Invoiced" : "Invoice"}
+                    </Button>
+                  </div>
+                </div>
+              );
+            };
+
+            return (
+              <>
+                {activeVisits.length === 0 && pastVisits.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No visits yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {activeVisits.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No active visits.</p>
+                    ) : (
+                      activeVisits.map(renderVisit)
+                    )}
+
+                    {pastVisits.length > 0 && (
+                      <div className="pt-2">
+                        <button
+                          onClick={() => setShowPastVisits((s) => !s)}
+                          className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                        >
+                          {showPastVisits ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                          {showPastVisits ? "Hide past visits" : `Show past visits (${pastVisits.length})`}
+                        </button>
+                        {showPastVisits && (
+                          <div className="mt-3 space-y-3">
+                            {pastVisits.map(renderVisit)}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
-
-                <div className="flex justify-end">
-                  <Button
-                    size="sm"
-                    disabled={isInvoiced}
-                    onClick={() => handleInvoiceVisit(v.id, uninvoicedServices)}
-                  >
-                    {isInvoiced ? "Invoiced" : "Invoice"}
-                  </Button>
-                </div>
-              </div>
+              </>
             );
-          };
-
-          return (
-            <>
-              {activeVisits.length === 0 && pastVisits.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No visits yet.</p>
-              ) : (
-                <div className="space-y-3">
-                  {activeVisits.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No active visits.</p>
-                  ) : (
-                    activeVisits.map(renderVisit)
-                  )}
-
-                  {pastVisits.length > 0 && (
-                    <div className="pt-2">
-                      <button
-                        onClick={() => setShowPastVisits((s) => !s)}
-                        className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-                      >
-                        {showPastVisits ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                        {showPastVisits ? "Hide past visits" : `Show past visits (${pastVisits.length})`}
-                      </button>
-                      {showPastVisits && (
-                        <div className="mt-3 space-y-3">
-                          {pastVisits.map(renderVisit)}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
-          );
-        })()}
+          })()}
         </div>
       </div>
 
@@ -499,7 +471,7 @@ export default function PatientDetail() {
         initialService={selectedService}
         initialOfficeRoom={selectedOfficeRoom}
         onBooked={() => {
-          queryClient.invalidateQueries({ queryKey: ["patient-visits", patientId] });
+          refetchVisits();
           setBookingOpen(false);
           setSelectedPhysician(null);
           setSelectedService(null);
@@ -508,17 +480,27 @@ export default function PatientDetail() {
       />
 
       <BookingModal
-        open={!!schedulingVisitService}
-        onOpenChange={(o) => { if (!o) setSchedulingVisitService(null); }}
+        open={!!schedulingOrder}
+        onOpenChange={(o) => { if (!o) setSchedulingOrder(null); }}
         patientId={patientId!}
         hospitalId={user!.hospitalId}
         mode="registrar"
-        existingVisitServiceId={schedulingVisitService?.id}
-        preselectedServiceId={schedulingVisitService?.serviceId}
-        onBooked={() => {
-          queryClient.invalidateQueries({ queryKey: ["physician-orders", patientId] });
-          queryClient.invalidateQueries({ queryKey: ["patient-visits", patientId] });
-          setSchedulingVisitService(null);
+        existingVisitServiceId={schedulingOrder?.id}
+        preselectedServiceId={schedulingOrder?.serviceId}
+        onBooked={async (result) => {
+          if (!result.physicianId) { toast.error("No physician selected."); return; }
+          const { error } = await supabase.rpc("registrar_assign_physician_order", {
+            p_visit_service_id: schedulingOrder!.id,
+            p_assigned_physician_id: result.physicianId,
+            p_patient_id: patientId!,
+            p_hospital_id: user!.hospitalId,
+            p_assigned_by: user!.id,
+          });
+          if (error) { toast.error(error.message); return; }
+          toast.success("Service assigned and scheduled.");
+          refetchOrders();
+          refetchVisits();
+          setSchedulingOrder(null);
         }}
       />
     </div>
