@@ -28,7 +28,8 @@ const REGISTRATION_SOURCES = [
 export function BookingModal(props: BookingModalProps) {
   const {
     open, onOpenChange, patientId, hospitalId, mode, hospitalizationId,
-    preselectedServiceId, initialPhysician, initialService, initialOfficeRoom, onBooked,
+    preselectedServiceId, existingVisitServiceId,
+    initialPhysician, initialService, initialOfficeRoom, onBooked,
   } = props;
   const { user } = useAuth();
   const tz = user?.timezone || "Asia/Tashkent";
