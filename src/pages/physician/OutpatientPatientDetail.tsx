@@ -313,6 +313,28 @@ function ContextBadge({ hospNumber }: { hospNumber: string | null }) {
   );
 }
 
+async function deletePhysicianOrder(
+  visitServiceId: string,
+  hospitalId: string,
+  queryClient: ReturnType<typeof useQueryClient>,
+  patientId: string,
+) {
+  const { error } = await supabase.rpc("delete_physician_order", {
+    p_visit_service_id: visitServiceId,
+    p_hospital_id: hospitalId,
+  });
+  if (error) { toast.error(error.message); return; }
+  toast.success("Order deleted.");
+  queryClient.invalidateQueries({ queryKey: ["outpatient-orders", patientId] });
+  queryClient.invalidateQueries({ queryKey: ["outpatient-lab", patientId] });
+  queryClient.invalidateQueries({ queryKey: ["outpatient-consult", patientId] });
+}
+
+function canDelete(vs: any): boolean {
+  return vs.service_statuses?.code === "preliminary"
+    && (!vs.invoice_items || vs.invoice_items.length === 0);
+}
+
 /* ============ Orders Tab ============ */
 
 function OrdersTab({
@@ -336,7 +358,7 @@ function OrdersTab({
     queryFn: async () => {
       const { data } = await supabase
         .from("visit_services")
-        .select("id, created_at, cost_at_time, hospitalization_id, service_statuses(code, name_ru), services(name, service_type_id)")
+        .select("id, created_at, cost_at_time, hospitalization_id, service_statuses(code, name_ru), services(name, service_type_id), invoice_items(id)")
         .eq("patient_id", patientId)
         .eq("hospital_id", user!.hospitalId)
         .eq("created_by", user!.id)
@@ -414,7 +436,19 @@ function OrdersTab({
                   {vs.created_at && format(new Date(vs.created_at), "MMM d, yyyy")}
                 </span>
               </div>
-              <Badge variant="outline">{vs.service_statuses?.name_ru || vs.service_statuses?.code}</Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline">{vs.service_statuses?.name_ru || vs.service_statuses?.code}</Badge>
+                {canDelete(vs) && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => deletePhysicianOrder(vs.id, user!.hospitalId, queryClient, patientId)}
+                  >
+                    Delete
+                  </Button>
+                )}
+              </div>
             </li>
           ))}
         </ul>
@@ -462,7 +496,7 @@ function LabTab({ patientId, physicianId, labTypeId, canOrder, hospMap }: { pati
     queryFn: async () => {
       const { data } = await supabase
         .from("visit_services")
-        .select("id, created_at, hospitalization_id, service_statuses(code, name_ru), services(id, name, service_type_id)")
+        .select("id, created_at, hospitalization_id, service_statuses(code, name_ru), services(id, name, service_type_id), invoice_items(id)")
         .eq("patient_id", patientId)
         .eq("hospital_id", user!.hospitalId)
         .eq("created_by", user!.id)
@@ -539,6 +573,16 @@ function LabTab({ patientId, physicianId, labTypeId, canOrder, hospMap }: { pati
               <div className="flex items-center gap-2">
                 {vs.service_statuses?.code === "completed" && <LabResultsButton visitServiceId={vs.id} />}
                 <Badge variant="outline">{vs.service_statuses?.name_ru || vs.service_statuses?.code}</Badge>
+                {canDelete(vs) && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => deletePhysicianOrder(vs.id, user!.hospitalId, queryClient, patientId)}
+                  >
+                    Delete
+                  </Button>
+                )}
               </div>
             </li>
           ))}
@@ -595,7 +639,7 @@ function ConsultTab({
     queryFn: async () => {
       const { data } = await supabase
         .from("visit_services")
-        .select("id, created_at, hospitalization_id, assigned_physician_id, service_statuses(code, name_ru), services(name, service_type_id), physicians!visit_services_assigned_physician_id_fkey(profiles(full_name))")
+        .select("id, created_at, hospitalization_id, assigned_physician_id, service_statuses(code, name_ru), services(name, service_type_id), physicians!visit_services_assigned_physician_id_fkey(profiles(full_name)), invoice_items(id)")
         .eq("patient_id", patientId)
         .eq("hospital_id", user!.hospitalId)
         .eq("created_by", user!.id)
@@ -672,7 +716,19 @@ function ConsultTab({
                 </div>
                 <ContextBadge hospNumber={hospMap[vs.hospitalization_id] ?? null} />
               </div>
-              <Badge variant="outline">{vs.service_statuses?.name_ru || vs.service_statuses?.code}</Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline">{vs.service_statuses?.name_ru || vs.service_statuses?.code}</Badge>
+                {canDelete(vs) && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => deletePhysicianOrder(vs.id, user!.hospitalId, queryClient, patientId)}
+                  >
+                    Delete
+                  </Button>
+                )}
+              </div>
             </li>
           ))}
         </ul>
