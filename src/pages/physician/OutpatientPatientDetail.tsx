@@ -332,13 +332,14 @@ function OrdersTab({
   const [submitting, setSubmitting] = useState(false);
 
   const { data: services = [] } = useQuery({
-    queryKey: ["outpatient-orders", patientId, labTypeId, consultTypeId],
+    queryKey: ["outpatient-orders", patientId, labTypeId, consultTypeId, user?.id],
     queryFn: async () => {
       const { data } = await supabase
         .from("visit_services")
         .select("id, created_at, cost_at_time, hospitalization_id, service_statuses(code, name_ru), services(name, service_type_id)")
         .eq("patient_id", patientId)
         .eq("hospital_id", user!.hospitalId)
+        .eq("created_by", user!.id)
         .order("created_at", { ascending: false });
       return (data || []).filter((vs: any) =>
         vs.services?.service_type_id !== labTypeId && vs.services?.service_type_id !== consultTypeId
