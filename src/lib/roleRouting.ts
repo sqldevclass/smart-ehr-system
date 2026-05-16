@@ -11,6 +11,7 @@ export const roleRoutes: Record<string, string> = {
   pharmacist: "/pharmacy",
   pharmacy_staff: "/pharmacy",
   warehouse_staff: "/warehouse",
+  inventory_manager: "/inventory",
   hr: "/hr",
   lab_physician: "/lab/results",
   blood_draw_nurse: "/lab/blood-draw",
@@ -31,6 +32,7 @@ export const ROLE_PRIORITY = [
   "pharmacist",
   "pharmacy_staff",
   "warehouse_staff",
+  "inventory_manager",
 ];
 
 export function pickPrimaryRole(roles: string[]): string | null {
