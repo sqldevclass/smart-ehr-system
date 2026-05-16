@@ -313,6 +313,28 @@ function ContextBadge({ hospNumber }: { hospNumber: string | null }) {
   );
 }
 
+async function deletePhysicianOrder(
+  visitServiceId: string,
+  hospitalId: string,
+  queryClient: ReturnType<typeof useQueryClient>,
+  patientId: string,
+) {
+  const { error } = await supabase.rpc("delete_physician_order", {
+    p_visit_service_id: visitServiceId,
+    p_hospital_id: hospitalId,
+  });
+  if (error) { toast.error(error.message); return; }
+  toast.success("Order deleted.");
+  queryClient.invalidateQueries({ queryKey: ["outpatient-orders", patientId] });
+  queryClient.invalidateQueries({ queryKey: ["outpatient-lab", patientId] });
+  queryClient.invalidateQueries({ queryKey: ["outpatient-consult", patientId] });
+}
+
+function canDelete(vs: any): boolean {
+  return vs.service_statuses?.code === "preliminary"
+    && (!vs.invoice_items || vs.invoice_items.length === 0);
+}
+
 /* ============ Orders Tab ============ */
 
 function OrdersTab({
