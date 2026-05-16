@@ -573,6 +573,16 @@ function LabTab({ patientId, physicianId, labTypeId, canOrder, hospMap }: { pati
               <div className="flex items-center gap-2">
                 {vs.service_statuses?.code === "completed" && <LabResultsButton visitServiceId={vs.id} />}
                 <Badge variant="outline">{vs.service_statuses?.name_ru || vs.service_statuses?.code}</Badge>
+                {canDelete(vs) && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => deletePhysicianOrder(vs.id, user!.hospitalId, queryClient, patientId)}
+                  >
+                    Delete
+                  </Button>
+                )}
               </div>
             </li>
           ))}
