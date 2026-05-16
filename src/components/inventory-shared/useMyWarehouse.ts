@@ -15,7 +15,7 @@ export function useMyWarehouse(warehouseTypeCode: "central_pharmacy" | "general"
         .eq("warehouse_types.code", warehouseTypeCode)
         .maybeSingle();
       if (error) throw error;
-      return data as { id: string; name: string; warehouse_types: { code: string } } | null;
+      return data as unknown as { id: string; name: string } | null;
     },
   });
 }
