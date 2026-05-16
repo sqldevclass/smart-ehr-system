@@ -591,13 +591,14 @@ function ConsultTab({
   const [submitting, setSubmitting] = useState(false);
 
   const { data: services = [] } = useQuery({
-    queryKey: ["outpatient-consult", patientId, consultTypeId],
+    queryKey: ["outpatient-consult", patientId, consultTypeId, user?.id],
     queryFn: async () => {
       const { data } = await supabase
         .from("visit_services")
         .select("id, created_at, hospitalization_id, assigned_physician_id, service_statuses(code, name_ru), services(name, service_type_id), physicians!visit_services_assigned_physician_id_fkey(profiles(full_name))")
         .eq("patient_id", patientId)
         .eq("hospital_id", user!.hospitalId)
+        .eq("created_by", user!.id)
         .order("created_at", { ascending: false });
       return (data || []).filter((vs: any) => vs.services?.service_type_id === consultTypeId);
     },
