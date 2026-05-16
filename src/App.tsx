@@ -57,6 +57,24 @@ import LabLayout from "./components/lab/LabLayout.tsx";
 import BloodDrawPage from "./pages/lab/BloodDrawPage.tsx";
 import LabResultsPage from "./pages/lab/LabResultsPage.tsx";
 import LabProfile from "./pages/lab/LabProfile.tsx";
+import PharmacistLayout from "./components/pharmacy/PharmacistLayout.tsx";
+import IncomingPage from "./pages/pharmacy/IncomingPage.tsx";
+import StockPage from "./pages/pharmacy/StockPage.tsx";
+import ExpensesPage from "./pages/pharmacy/ExpensesPage.tsx";
+import TransfersPage from "./pages/pharmacy/TransfersPage.tsx";
+import FormularyPage from "./pages/pharmacy/FormularyPage.tsx";
+import PharmacySettingsPage from "./pages/pharmacy/PharmacySettingsPage.tsx";
+import PharmacyProfile from "./pages/pharmacy/PharmacyProfile.tsx";
+import WarehouseLayout from "./components/warehouse/WarehouseLayout.tsx";
+import WarehouseIncomingPage from "./pages/warehouse/WarehouseIncomingPage.tsx";
+import WarehouseStockPage from "./pages/warehouse/WarehouseStockPage.tsx";
+import WarehouseExpensesPage from "./pages/warehouse/WarehouseExpensesPage.tsx";
+import WarehouseTransfersPage from "./pages/warehouse/WarehouseTransfersPage.tsx";
+import WarehouseSettingsPage from "./pages/warehouse/WarehouseSettingsPage.tsx";
+import WarehouseProfile from "./pages/warehouse/WarehouseProfile.tsx";
+import InventoryLayout from "./components/inventory/InventoryLayout.tsx";
+import EquipmentPage from "./pages/inventory/EquipmentPage.tsx";
+import InventoryProfile from "./pages/inventory/InventoryProfile.tsx";
 
 const queryClient = new QueryClient();
 
@@ -124,8 +142,27 @@ const App = () => (
             <Route path="results" element={<LabResultsPage />} />
             <Route path="profile" element={<LabProfile />} />
           </Route>
-          <Route path="/pharmacy" element={<ProtectedRoute allowedRoles={["pharmacist"]}><DashboardPlaceholder expectedRole="pharmacist" /></ProtectedRoute>} />
-          <Route path="/warehouse" element={<ProtectedRoute allowedRoles={["warehouse_staff"]}><DashboardPlaceholder expectedRole="warehouse_staff" /></ProtectedRoute>} />
+          <Route path="/pharmacy" element={<ProtectedRoute allowedRoles={["pharmacist"]}><PharmacistLayout /></ProtectedRoute>}>
+            <Route index element={<IncomingPage />} />
+            <Route path="stock" element={<StockPage />} />
+            <Route path="expenses" element={<ExpensesPage />} />
+            <Route path="transfers" element={<TransfersPage />} />
+            <Route path="formulary" element={<FormularyPage />} />
+            <Route path="settings" element={<PharmacySettingsPage />} />
+            <Route path="profile" element={<PharmacyProfile />} />
+          </Route>
+          <Route path="/warehouse" element={<ProtectedRoute allowedRoles={["warehouse_staff"]}><WarehouseLayout /></ProtectedRoute>}>
+            <Route index element={<WarehouseIncomingPage />} />
+            <Route path="stock" element={<WarehouseStockPage />} />
+            <Route path="expenses" element={<WarehouseExpensesPage />} />
+            <Route path="transfers" element={<WarehouseTransfersPage />} />
+            <Route path="settings" element={<WarehouseSettingsPage />} />
+            <Route path="profile" element={<WarehouseProfile />} />
+          </Route>
+          <Route path="/inventory" element={<ProtectedRoute allowedRoles={["inventory_manager"]}><InventoryLayout /></ProtectedRoute>}>
+            <Route index element={<EquipmentPage />} />
+            <Route path="profile" element={<InventoryProfile />} />
+          </Route>
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/auth/set-password" element={<SetPassword />} />
           <Route path="/auth/callback-error" element={<CallbackError />} />
