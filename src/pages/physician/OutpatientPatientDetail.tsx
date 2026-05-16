@@ -783,13 +783,14 @@ function DiagnosesTab({ patientId, canOrder }: { patientId: string; canOrder: bo
   const [submitting, setSubmitting] = useState(false);
 
   const { data: diagnoses = [] } = useQuery({
-    queryKey: ["outpatient-diagnoses", patientId],
+    queryKey: ["outpatient-diagnoses", patientId, user?.id],
     queryFn: async () => {
       const { data } = await supabase
         .from("patient_diagnoses")
         .select("id, icd10_code, diagnosis_type, acuity, recorded_at, hospitalization_id, hospitalizations(hospitalization_number), icd10_codes(code, name_ru)")
         .eq("patient_id", patientId)
         .eq("hospital_id", user!.hospitalId)
+        .eq("recorded_by", user!.id)
         .order("recorded_at", { ascending: false });
       return data || [];
     },
