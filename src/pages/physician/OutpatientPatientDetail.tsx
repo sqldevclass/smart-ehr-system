@@ -332,13 +332,14 @@ function OrdersTab({
   const [submitting, setSubmitting] = useState(false);
 
   const { data: services = [] } = useQuery({
-    queryKey: ["outpatient-orders", patientId, labTypeId, consultTypeId],
+    queryKey: ["outpatient-orders", patientId, labTypeId, consultTypeId, user?.id],
     queryFn: async () => {
       const { data } = await supabase
         .from("visit_services")
         .select("id, created_at, cost_at_time, hospitalization_id, service_statuses(code, name_ru), services(name, service_type_id)")
         .eq("patient_id", patientId)
         .eq("hospital_id", user!.hospitalId)
+        .eq("created_by", user!.id)
         .order("created_at", { ascending: false });
       return (data || []).filter((vs: any) =>
         vs.services?.service_type_id !== labTypeId && vs.services?.service_type_id !== consultTypeId
@@ -457,13 +458,14 @@ function LabTab({ patientId, physicianId, labTypeId, canOrder, hospMap }: { pati
   const [submitting, setSubmitting] = useState(false);
 
   const { data: services = [] } = useQuery({
-    queryKey: ["outpatient-lab", patientId, labTypeId],
+    queryKey: ["outpatient-lab", patientId, labTypeId, user?.id],
     queryFn: async () => {
       const { data } = await supabase
         .from("visit_services")
         .select("id, created_at, hospitalization_id, service_statuses(code, name_ru), services(id, name, service_type_id)")
         .eq("patient_id", patientId)
         .eq("hospital_id", user!.hospitalId)
+        .eq("created_by", user!.id)
         .order("created_at", { ascending: false });
       return (data || []).filter((vs: any) => vs.services?.service_type_id === labTypeId);
     },
@@ -589,13 +591,14 @@ function ConsultTab({
   const [submitting, setSubmitting] = useState(false);
 
   const { data: services = [] } = useQuery({
-    queryKey: ["outpatient-consult", patientId, consultTypeId],
+    queryKey: ["outpatient-consult", patientId, consultTypeId, user?.id],
     queryFn: async () => {
       const { data } = await supabase
         .from("visit_services")
         .select("id, created_at, hospitalization_id, assigned_physician_id, service_statuses(code, name_ru), services(name, service_type_id), physicians!visit_services_assigned_physician_id_fkey(profiles(full_name))")
         .eq("patient_id", patientId)
         .eq("hospital_id", user!.hospitalId)
+        .eq("created_by", user!.id)
         .order("created_at", { ascending: false });
       return (data || []).filter((vs: any) => vs.services?.service_type_id === consultTypeId);
     },
@@ -709,13 +712,14 @@ function CareTab({ patientId }: { patientId: string }) {
   const { user } = useAuth();
 
   const { data: orders = [] } = useQuery({
-    queryKey: ["outpatient-care", patientId],
+    queryKey: ["outpatient-care", patientId, user?.id],
     queryFn: async () => {
       const { data } = await supabase
         .from("hospitalization_orders")
         .select("id, order_type, order_value, ordered_at, hospitalization_id, hospitalizations!inner(patient_id, hospitalization_number)")
         .eq("hospitalizations.patient_id", patientId)
         .eq("hospital_id", user!.hospitalId)
+        .eq("ordered_by", user!.id)
         .order("ordered_at", { ascending: false });
       return data || [];
     },
@@ -779,13 +783,14 @@ function DiagnosesTab({ patientId, canOrder }: { patientId: string; canOrder: bo
   const [submitting, setSubmitting] = useState(false);
 
   const { data: diagnoses = [] } = useQuery({
-    queryKey: ["outpatient-diagnoses", patientId],
+    queryKey: ["outpatient-diagnoses", patientId, user?.id],
     queryFn: async () => {
       const { data } = await supabase
         .from("patient_diagnoses")
         .select("id, icd10_code, diagnosis_type, acuity, recorded_at, hospitalization_id, hospitalizations(hospitalization_number), icd10_codes(code, name_ru)")
         .eq("patient_id", patientId)
         .eq("hospital_id", user!.hospitalId)
+        .eq("recorded_by", user!.id)
         .order("recorded_at", { ascending: false });
       return data || [];
     },

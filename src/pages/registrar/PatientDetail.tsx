@@ -90,11 +90,10 @@ export default function PatientDetail() {
         .from("service_statuses").select("id").eq("code", "preliminary").single();
       const { data } = await supabase
         .from("visit_services")
-        .select("id, cost_at_time, source, services(id, name), profiles!visit_services_created_by_fkey(full_name)")
+        .select("id, visit_id, cost_at_time, assigned_physician_id, scheduled_at, queue_number, services(id, name), profiles!visit_services_created_by_fkey(full_name)")
         .eq("patient_id", patientId!)
         .eq("hospital_id", user!.hospitalId)
         .eq("source", "physician")
-        .is("visit_id", null)
         .eq("status_id", prelim?.id);
       return data || [];
     },
@@ -153,6 +152,17 @@ export default function PatientDetail() {
     });
     if (error) { toast.error(error.message); return; }
     toast.success("Invoiced. Patient can proceed to cashier.");
+    refetchVisits();
+  };
+
+  const handleCancelPhysicianOrder = async (visitServiceId: string) => {
+    const { error } = await supabase.rpc("cancel_physician_order", {
+      p_visit_service_id: visitServiceId,
+      p_hospital_id: user!.hospitalId,
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success("Service cancelled and returned to orders.");
+    refetchOrders();
     refetchVisits();
   };
 
@@ -280,26 +290,38 @@ export default function PatientDetail() {
             <p className="text-sm text-muted-foreground">No pending physician orders.</p>
           ) : (
             <div className="space-y-2">
-              {physicianOrders.map((po: any) => (
-                <div key={po.id} className="flex items-center justify-between gap-3 rounded-md border p-3">
-                  <div className="min-w-0">
-                    <div className="text-sm font-semibold truncate">{po.services?.name || "—"}</div>
-                    <div className="text-xs text-muted-foreground">
-                      Ordered by: {po.profiles?.full_name || "—"}
+              {physicianOrders.map((po: any) => {
+                const isAssigned = !!po.visit_id;
+                const scheduleLabel = po.scheduled_at
+                  ? format(new Date(po.scheduled_at), "MMM d, HH:mm")
+                  : po.queue_number != null
+                  ? `Queue #${po.queue_number}`
+                  : null;
+                return (
+                  <div key={po.id} className="flex items-center justify-between gap-3 rounded-md border p-3">
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold truncate">{po.services?.name || "—"}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Ordered by: {po.profiles?.full_name || "—"}
+                      </div>
+                      {isAssigned && scheduleLabel && (
+                        <div className="text-xs text-muted-foreground mt-0.5">{scheduleLabel}</div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-sm font-medium">{Number(po.cost_at_time || 0).toFixed(2)}</span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={isAssigned}
+                        onClick={() => setSchedulingOrder({ id: po.id, serviceId: po.services?.id })}
+                      >
+                        Assign & Schedule
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-sm font-medium">{Number(po.cost_at_time || 0).toFixed(2)}</span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setSchedulingOrder({ id: po.id, serviceId: po.services?.id })}
-                    >
-                      Assign & Schedule
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -366,7 +388,7 @@ export default function PatientDetail() {
                             <span className="rounded bg-muted px-2 py-0.5 text-muted-foreground">
                               {vs.service_statuses?.name_ru || vs.service_statuses?.code || "—"}
                             </span>
-                            {vs.service_statuses?.code === "preliminary" && (
+                            {vs.service_statuses?.code === "preliminary" && v.status !== "paid" && v.status !== "cancelled" && (
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                   <Button variant="outline" size="sm" className="h-5 px-1.5 text-[10px] text-destructive border-destructive/30 hover:bg-destructive/10">
@@ -377,14 +399,20 @@ export default function PatientDetail() {
                                   <AlertDialogHeader>
                                     <AlertDialogTitle>Cancel this service?</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                      This will cancel "{vs.services?.name}" and remove it from the invoice.
+                                      {vs.source === "physician"
+                                        ? `This will cancel "${vs.services?.name}" and return it to the physician orders list.`
+                                        : `This will cancel "${vs.services?.name}" and remove it from the invoice.`}
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
                                     <AlertDialogCancel>No</AlertDialogCancel>
                                     <AlertDialogAction
                                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                      onClick={() => cancelService(vs.id, v.id, Number(vs.cost_at_time || 0), Number(v.total_amount || 0))}
+                                      onClick={() =>
+                                        vs.source === "physician"
+                                          ? handleCancelPhysicianOrder(vs.id)
+                                          : cancelService(vs.id, v.id, Number(vs.cost_at_time || 0), Number(v.total_amount || 0))
+                                      }
                                     >
                                       Yes, cancel
                                     </AlertDialogAction>
