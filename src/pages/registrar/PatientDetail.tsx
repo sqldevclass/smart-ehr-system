@@ -289,12 +289,24 @@ export default function PatientDetail() {
           ) : (
             <div className="space-y-2">
               {physicianOrders.map((po: any) => {
-                const isAssigned = !!po.visit_id;
+                const code = po.service_statuses?.code;
+                const visit = po.visit_id ? visits.find((v: any) => v.id === po.visit_id) : null;
+                const visitPaid = visit?.status === "paid";
+                let state: "enabled" | "disabled" | "paid" | "completed" | "hidden";
+                if (code === "cancelled") state = "hidden";
+                else if (code === "completed") state = "completed";
+                else if (visitPaid || code === "ready_for_execution") state = "paid";
+                else if (!po.visit_id) state = "enabled";
+                else state = "disabled";
+
+                if (state === "hidden") return null;
+
                 const scheduleLabel = po.scheduled_at
                   ? format(new Date(po.scheduled_at), "MMM d, HH:mm")
                   : po.queue_number != null
                   ? `Queue #${po.queue_number}`
                   : null;
+
                 return (
                   <div key={po.id} className="flex items-center justify-between gap-3 rounded-md border p-3">
                     <div className="min-w-0">
@@ -302,16 +314,21 @@ export default function PatientDetail() {
                       <div className="text-xs text-muted-foreground">
                         Ordered by: {po.profiles?.full_name || "—"}
                       </div>
-                      {isAssigned && scheduleLabel && (
+                      {po.visit_id && scheduleLabel && (
                         <div className="text-xs text-muted-foreground mt-0.5">{scheduleLabel}</div>
                       )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <span className="text-sm font-medium">{Number(po.cost_at_time || 0).toFixed(2)}</span>
+                      {(state === "paid" || state === "completed") && (
+                        <span className="rounded bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          {state === "completed" ? "Completed" : "Paid"}
+                        </span>
+                      )}
                       <Button
                         size="sm"
                         variant="outline"
-                        disabled={isAssigned}
+                        disabled={state !== "enabled"}
                         onClick={() => setSchedulingOrder({ id: po.id, serviceId: po.services?.id })}
                       >
                         Assign & Schedule
