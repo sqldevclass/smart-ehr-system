@@ -9,13 +9,25 @@ import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Building2, Mail, Lock } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { routeForRoles } from "@/lib/roleRouting";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (!user) return;
+    const route = routeForRoles(user.roles);
+    if (route) {
+      toast.success("Welcome back!");
+      navigate(route);
+    } else {
+      toast.error("No role assigned. Please contact your administrator.");
+      supabase.auth.signOut();
+    }
+  }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,53 +35,17 @@ const Login = () => {
       toast.error("Please enter both email and password.");
       return;
     }
-
     setLoading(true);
     try {
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       });
-
-      if (authError) {
-        toast.error(authError.message);
-        return;
+      if (error) {
+        toast.error(error.message);
       }
-
-      const userId = authData.user?.id;
-      if (!userId) {
-        toast.error("Login failed. Please try again.");
-        return;
-      }
-
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("hospital_id")
-        .eq("id", userId)
-        .single();
-
-      if (profileError || !profile) {
-        toast.error("Could not load your profile. Please contact support.");
-        return;
-      }
-
-      const { data: userRoles } = await supabase
-        .from("user_roles")
-        .select("roles(code)")
-        .eq("user_id", userId);
-
-      const roles = (userRoles ?? [])
-        .map((ur: any) => ur.roles?.code)
-        .filter(Boolean) as string[];
-
-      const route = routeForRoles(roles);
-      if (!route) {
-        toast.error(`No role assigned. Please contact your administrator.`);
-        return;
-      }
-
-      toast.success("Welcome back!");
-      navigate(route);
+      // AuthProvider's onAuthStateChange will fire and load the user
+      // Navigation is handled by the useEffect above
     } catch (err: any) {
       toast.error(err.message || "Something went wrong.");
     } finally {
