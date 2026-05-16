@@ -496,7 +496,7 @@ function LabTab({ patientId, physicianId, labTypeId, canOrder, hospMap }: { pati
     queryFn: async () => {
       const { data } = await supabase
         .from("visit_services")
-        .select("id, created_at, hospitalization_id, service_statuses(code, name_ru), services(id, name, service_type_id)")
+        .select("id, created_at, hospitalization_id, service_statuses(code, name_ru), services(id, name, service_type_id), invoice_items(id)")
         .eq("patient_id", patientId)
         .eq("hospital_id", user!.hospitalId)
         .eq("created_by", user!.id)
