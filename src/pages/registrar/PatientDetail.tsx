@@ -290,26 +290,38 @@ export default function PatientDetail() {
             <p className="text-sm text-muted-foreground">No pending physician orders.</p>
           ) : (
             <div className="space-y-2">
-              {physicianOrders.map((po: any) => (
-                <div key={po.id} className="flex items-center justify-between gap-3 rounded-md border p-3">
-                  <div className="min-w-0">
-                    <div className="text-sm font-semibold truncate">{po.services?.name || "—"}</div>
-                    <div className="text-xs text-muted-foreground">
-                      Ordered by: {po.profiles?.full_name || "—"}
+              {physicianOrders.map((po: any) => {
+                const isAssigned = !!po.visit_id;
+                const scheduleLabel = po.scheduled_at
+                  ? format(new Date(po.scheduled_at), "MMM d, HH:mm")
+                  : po.queue_number != null
+                  ? `Queue #${po.queue_number}`
+                  : null;
+                return (
+                  <div key={po.id} className="flex items-center justify-between gap-3 rounded-md border p-3">
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold truncate">{po.services?.name || "—"}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Ordered by: {po.profiles?.full_name || "—"}
+                      </div>
+                      {isAssigned && scheduleLabel && (
+                        <div className="text-xs text-muted-foreground mt-0.5">{scheduleLabel}</div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-sm font-medium">{Number(po.cost_at_time || 0).toFixed(2)}</span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={isAssigned}
+                        onClick={() => setSchedulingOrder({ id: po.id, serviceId: po.services?.id })}
+                      >
+                        Assign & Schedule
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-sm font-medium">{Number(po.cost_at_time || 0).toFixed(2)}</span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setSchedulingOrder({ id: po.id, serviceId: po.services?.id })}
-                    >
-                      Assign & Schedule
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
