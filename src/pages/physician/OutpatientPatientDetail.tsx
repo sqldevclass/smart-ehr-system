@@ -712,13 +712,14 @@ function CareTab({ patientId }: { patientId: string }) {
   const { user } = useAuth();
 
   const { data: orders = [] } = useQuery({
-    queryKey: ["outpatient-care", patientId],
+    queryKey: ["outpatient-care", patientId, user?.id],
     queryFn: async () => {
       const { data } = await supabase
         .from("hospitalization_orders")
         .select("id, order_type, order_value, ordered_at, hospitalization_id, hospitalizations!inner(patient_id, hospitalization_number)")
         .eq("hospitalizations.patient_id", patientId)
         .eq("hospital_id", user!.hospitalId)
+        .eq("ordered_by", user!.id)
         .order("ordered_at", { ascending: false });
       return data || [];
     },
