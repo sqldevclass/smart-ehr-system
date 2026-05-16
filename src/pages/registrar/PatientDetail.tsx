@@ -86,15 +86,13 @@ export default function PatientDetail() {
   const { data: physicianOrders = [], refetch: refetchOrders } = useQuery({
     queryKey: ["physician-orders", patientId, user?.hospitalId],
     queryFn: async () => {
-      const { data: prelim } = await supabase
-        .from("service_statuses").select("id").eq("code", "preliminary").single();
       const { data } = await supabase
         .from("visit_services")
-        .select("id, visit_id, cost_at_time, assigned_physician_id, scheduled_at, queue_number, services(id, name), profiles!visit_services_created_by_fkey(full_name)")
+        .select("id, visit_id, cost_at_time, assigned_physician_id, scheduled_at, queue_number, status_id, service_statuses(code, name_ru), services(id, name), profiles!visit_services_created_by_fkey(full_name)")
         .eq("patient_id", patientId!)
         .eq("hospital_id", user!.hospitalId)
         .eq("source", "physician")
-        .eq("status_id", prelim?.id);
+        .order("created_at", { ascending: true });
       return data || [];
     },
     enabled: !!patientId && !!user,
