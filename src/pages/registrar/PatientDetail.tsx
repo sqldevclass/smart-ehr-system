@@ -155,6 +155,17 @@ export default function PatientDetail() {
     refetchVisits();
   };
 
+  const handleCancelPhysicianOrder = async (visitServiceId: string) => {
+    const { error } = await supabase.rpc("cancel_physician_order", {
+      p_visit_service_id: visitServiceId,
+      p_hospital_id: user!.hospitalId,
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success("Service cancelled and returned to orders.");
+    refetchOrders();
+    refetchVisits();
+  };
+
   return (
     <div className="max-w-6xl space-y-6">
       <Button variant="ghost" onClick={() => navigate("/registrar")} className="gap-2">
