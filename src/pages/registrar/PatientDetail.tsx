@@ -388,7 +388,7 @@ export default function PatientDetail() {
                             <span className="rounded bg-muted px-2 py-0.5 text-muted-foreground">
                               {vs.service_statuses?.name_ru || vs.service_statuses?.code || "—"}
                             </span>
-                            {vs.service_statuses?.code === "preliminary" && (
+                            {vs.service_statuses?.code === "preliminary" && v.status !== "paid" && v.status !== "cancelled" && (
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                   <Button variant="outline" size="sm" className="h-5 px-1.5 text-[10px] text-destructive border-destructive/30 hover:bg-destructive/10">
@@ -399,14 +399,20 @@ export default function PatientDetail() {
                                   <AlertDialogHeader>
                                     <AlertDialogTitle>Cancel this service?</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                      This will cancel "{vs.services?.name}" and remove it from the invoice.
+                                      {vs.source === "physician"
+                                        ? `This will cancel "${vs.services?.name}" and return it to the physician orders list.`
+                                        : `This will cancel "${vs.services?.name}" and remove it from the invoice.`}
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
                                     <AlertDialogCancel>No</AlertDialogCancel>
                                     <AlertDialogAction
                                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                      onClick={() => cancelService(vs.id, v.id, Number(vs.cost_at_time || 0), Number(v.total_amount || 0))}
+                                      onClick={() =>
+                                        vs.source === "physician"
+                                          ? handleCancelPhysicianOrder(vs.id)
+                                          : cancelService(vs.id, v.id, Number(vs.cost_at_time || 0), Number(v.total_amount || 0))
+                                      }
                                     >
                                       Yes, cancel
                                     </AlertDialogAction>
