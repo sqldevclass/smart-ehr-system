@@ -113,7 +113,7 @@ function ProductsSection() {
   const { data: productTypes = [] } = useQuery({
     queryKey: ["product_types"],
     queryFn: async () => {
-      const { data } = await supabase.from("product_types").select("id, name").order("name");
+      const { data } = await supabase.from("product_types").select("id, name_ru").order("sort_order");
       return data || [];
     },
   });
@@ -124,9 +124,9 @@ function ProductsSection() {
     queryFn: async () => {
       const { data } = await supabase
         .from("units_of_measurement")
-        .select("id, name, hospital_id")
+        .select("id, name_ru, abbreviation")
         .or(`hospital_id.is.null,hospital_id.eq.${user!.hospitalId}`)
-        .order("name");
+        .order("sort_order");
       return data || [];
     },
   });
@@ -137,9 +137,9 @@ function ProductsSection() {
     queryFn: async () => {
       const { data } = await supabase
         .from("release_forms")
-        .select("id, name, hospital_id")
+        .select("id, name_ru")
         .or(`hospital_id.is.null,hospital_id.eq.${user!.hospitalId}`)
-        .order("name");
+        .order("sort_order");
       return data || [];
     },
   });
@@ -150,9 +150,9 @@ function ProductsSection() {
     queryFn: async () => {
       const { data } = await supabase
         .from("packaging_types")
-        .select("id, name, hospital_id")
+        .select("id, name_ru")
         .or(`hospital_id.is.null,hospital_id.eq.${user!.hospitalId}`)
-        .order("name");
+        .order("sort_order");
       return data || [];
     },
   });
@@ -264,7 +264,7 @@ function ProductsSection() {
               <SelectContent>
                 <SelectItem value="all">All types</SelectItem>
                 {productTypes.map((t: any) => (
-                  <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                  <SelectItem key={t.id} value={t.id}>{t.name_ru}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -349,7 +349,7 @@ function ProductsSection() {
                 <SelectTrigger><SelectValue placeholder="Select unit" /></SelectTrigger>
                 <SelectContent>
                   {units.map((u: any) => (
-                    <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                    <SelectItem key={u.id} value={u.id}>{u.name_ru}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -364,7 +364,7 @@ function ProductsSection() {
                 <SelectContent>
                   <SelectItem value="none">—</SelectItem>
                   {releaseForms.map((r: any) => (
-                    <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                    <SelectItem key={r.id} value={r.id}>{r.name_ru}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -379,7 +379,7 @@ function ProductsSection() {
                 <SelectContent>
                   <SelectItem value="none">—</SelectItem>
                   {packagings.map((p: any) => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    <SelectItem key={p.id} value={p.id}>{p.name_ru}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
