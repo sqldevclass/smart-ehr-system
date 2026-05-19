@@ -4,6 +4,10 @@
 -- new registrar_assign_physician_order RPC assigns physician and moves service to visit
 -- new registrar_invoice_visit RPC creates invoice for all services on a visit
 
+-- Drop functions that are being redefined with different signatures
+DROP FUNCTION IF EXISTS public.physician_order_services CASCADE;
+DROP FUNCTION IF EXISTS public.registrar_assign_physician_order CASCADE;
+DROP FUNCTION IF EXISTS public.registrar_invoice_visit CASCADE;
 -- ============================================================
 -- 1. Make visit_id nullable
 -- ============================================================

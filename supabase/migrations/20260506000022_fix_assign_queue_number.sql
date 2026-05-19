@@ -1,5 +1,6 @@
 -- Migration 022: Fix assign_queue_number to also update visit_services.queue_number
 -- Previously only created queue_numbers row but didn't update visit_services
+DROP FUNCTION IF EXISTS public.assign_queue_number CASCADE;
 
 CREATE OR REPLACE FUNCTION public.assign_queue_number(
   p_queue_config_id  uuid,

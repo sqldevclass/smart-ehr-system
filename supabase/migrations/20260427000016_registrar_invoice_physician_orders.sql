@@ -11,6 +11,7 @@
 -- Removes automatic invoice creation
 -- Just creates visit + visit_services with source='physician'
 -- ============================================================
+DROP FUNCTION IF EXISTS public.physician_order_services CASCADE;
 
 CREATE OR REPLACE FUNCTION public.physician_order_services(
   p_patient_id  uuid,

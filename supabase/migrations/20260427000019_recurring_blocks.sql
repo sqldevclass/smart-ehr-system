@@ -1,3 +1,5 @@
+DROP FUNCTION IF EXISTS public.generate_slots CASCADE;
+
 -- Migration 019: Add recurring block support to physician_schedule_blocks
 
 ALTER TABLE public.physician_schedule_blocks

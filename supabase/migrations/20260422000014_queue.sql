@@ -15,7 +15,7 @@ CREATE TABLE public.queue_configs (
   physician_id  uuid REFERENCES public.physicians(id) ON DELETE CASCADE,
   room_id       uuid REFERENCES public.rooms(id) ON DELETE CASCADE,
   queue_date    date NOT NULL DEFAULT current_date,
-  display_token text UNIQUE DEFAULT encode(gen_random_bytes(8), 'hex'),
+  display_token text UNIQUE DEFAULT substr(md5(random()::text || clock_timestamp()::text), 1, 16),
   last_number   int DEFAULT 0,
   is_active     boolean DEFAULT true,
   reset_at      timestamptz,

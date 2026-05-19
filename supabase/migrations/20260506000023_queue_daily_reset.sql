@@ -1,6 +1,6 @@
 -- Migration 023: Queue daily reset
 -- assign_queue_number now automatically resets counter when date changes
-
+DROP FUNCTION IF EXISTS public.assign_queue_number CASCADE;
 CREATE OR REPLACE FUNCTION public.assign_queue_number(
   p_queue_config_id  uuid,
   p_visit_service_id uuid,

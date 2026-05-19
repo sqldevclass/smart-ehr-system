@@ -608,64 +608,7 @@ INSERT INTO public.activity_modes (code, name_ru, name_en, sort_order) VALUES
   ('strict_bed_rest', 'Строгий постельный режим', 'Strict Bed Rest',  1),
   ('ward_mode',       'Палатный режим',            'Ward Mode',        2),
   ('general_mode',    'Общий режим',               'General Mode',     3);
-
--- Job Positions (HR-managed, hospital-specific)
-CREATE TABLE public.job_positions (
-  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  hospital_id uuid NOT NULL REFERENCES public.hospitals(id) ON DELETE CASCADE,
-  type        text NOT NULL CHECK (type IN ('administration', 'medical_staff')),
-  name        text NOT NULL,
-  is_active   boolean DEFAULT true,
-  UNIQUE (hospital_id, name)
-);
-
--- Specializations (HR-managed, hospital-specific)
-CREATE TABLE public.specializations (
-  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  hospital_id uuid NOT NULL REFERENCES public.hospitals(id) ON DELETE CASCADE,
-  name        text NOT NULL,
-  is_active   boolean DEFAULT true,
-  UNIQUE (hospital_id, name)
-);
-
--- Service Types (Admin-managed, hospital-specific)
-CREATE TABLE public.service_types (
-  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  hospital_id uuid NOT NULL REFERENCES public.hospitals(id) ON DELETE CASCADE,
-  code        text NOT NULL,
-  name_ru     text NOT NULL,
-  name_en     text,
-  sort_order  int DEFAULT 0,
-  is_active   boolean DEFAULT true,
-  UNIQUE (hospital_id, code)
-);
-
--- Seed starter data for Kaiser Test hospital
-INSERT INTO public.job_positions (hospital_id, type, name) VALUES
-  ('cf74311c-1827-4066-9376-f9270815c339', 'medical_staff',  'Кардиолог'),
-  ('cf74311c-1827-4066-9376-f9270815c339', 'medical_staff',  'Кардиохирург'),
-  ('cf74311c-1827-4066-9376-f9270815c339', 'medical_staff',  'Дерматолог'),
-  ('cf74311c-1827-4066-9376-f9270815c339', 'medical_staff',  'Уролог');
-
-INSERT INTO public.specializations (hospital_id, name) VALUES
-  ('cf74311c-1827-4066-9376-f9270815c339', 'Кардиология'),
-  ('cf74311c-1827-4066-9376-f9270815c339', 'Кардиохирургия'),
-  ('cf74311c-1827-4066-9376-f9270815c339', 'Дерматология'),
-  ('cf74311c-1827-4066-9376-f9270815c339', 'Урология');
-
-INSERT INTO public.service_types (hospital_id, code, name_ru, name_en, sort_order) VALUES
-  ('cf74311c-1827-4066-9376-f9270815c339', 'surgery',        'Хирургия',           'Surgery',        1),
-  ('cf74311c-1827-4066-9376-f9270815c339', 'inpatient',      'Стационар',          'Inpatient',      2),
-  ('cf74311c-1827-4066-9376-f9270815c339', 'laboratory',     'Лаборатория',        'Laboratory',     3),
-  ('cf74311c-1827-4066-9376-f9270815c339', 'polyclinic',     'Поликлиника',        'Polyclinic',     4),
-  ('cf74311c-1827-4066-9376-f9270815c339', 'icu',            'Реанимация',         'ICU',            5),
-  ('cf74311c-1827-4066-9376-f9270815c339', 'radiology',      'Радиология',         'Radiology',      6),
-  ('cf74311c-1827-4066-9376-f9270815c339', 'angiography',    'Ангиография',        'Angiography',    7),
-  ('cf74311c-1827-4066-9376-f9270815c339', 'physiotherapy',  'Физиотерапия',       'Physiotherapy',  8),
-  ('cf74311c-1827-4066-9376-f9270815c339', 'spa',            'СПА',                'SPA',            9),
-  ('cf74311c-1827-4066-9376-f9270815c339', 'consultation',   'Консультация',       'Consultation',  10),
-  ('cf74311c-1827-4066-9376-f9270815c339', 'diagnostics',    'Диагностика',        'Diagnostics',   11);
-
+  
   -- Part 6: Document Group Types
 
 CREATE TABLE public.document_group_types (

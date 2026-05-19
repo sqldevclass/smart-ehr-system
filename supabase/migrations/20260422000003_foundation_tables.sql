@@ -3,16 +3,7 @@
 -- user_roles, user_permissions, hospital_settings,
 -- hospital_sequences, staff_invitations
 
--- ============================================================
--- Step 1: Rebuild hospitals with correct schema
--- Save existing data first, drop, recreate, reinsert
--- ============================================================
-
-CREATE TABLE public.hospitals_backup AS 
-  SELECT id, name, email, phone, address FROM public.hospitals;
-
-DROP TABLE public.hospitals CASCADE;
-
+-- Step 1: Create hospitals
 CREATE TABLE public.hospitals (
   id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name       text NOT NULL,
@@ -24,21 +15,11 @@ CREATE TABLE public.hospitals (
   created_at timestamptz DEFAULT now()
 );
 
-INSERT INTO public.hospitals (id, name, email, phone, address)
-SELECT id, name, email, phone, address
-FROM public.hospitals_backup;
+-- Seed Kaiser Test hospital
+INSERT INTO public.hospitals (id, name)
+VALUES ('cf74311c-1827-4066-9376-f9270815c339', 'Kaiser Test');
 
-DROP TABLE public.hospitals_backup;
-
--- ============================================================
--- Step 2: Rebuild profiles with correct schema
--- ============================================================
-
-CREATE TABLE public.profiles_backup AS
-  SELECT id, hospital_id, full_name, phone FROM public.profiles;
-
-DROP TABLE public.profiles CASCADE;
-
+-- Step 2: Create profiles
 CREATE TABLE public.profiles (
   id          uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   hospital_id uuid NOT NULL REFERENCES public.hospitals(id) ON DELETE CASCADE,
@@ -47,12 +28,6 @@ CREATE TABLE public.profiles (
   is_active   boolean DEFAULT true,
   created_at  timestamptz DEFAULT now()
 );
-
-INSERT INTO public.profiles (id, hospital_id, full_name)
-SELECT id, hospital_id, full_name
-FROM public.profiles_backup;
-
-DROP TABLE public.profiles_backup;
 
 -- ============================================================
 -- Step 3: User Roles junction table
@@ -66,31 +41,6 @@ CREATE TABLE public.user_roles (
   granted_at  timestamptz DEFAULT now(),
   PRIMARY KEY (user_id, role_id)
 );
-
--- Seed roles for existing test users
--- John Doe → admin
-INSERT INTO public.user_roles (user_id, role_id, hospital_id)
-SELECT 
-  '527dc340-738c-41e4-bd2f-451d84dd0f30',
-  r.id,
-  'cf74311c-1827-4066-9376-f9270815c339'
-FROM public.roles r WHERE r.code = 'admin';
-
--- Asqar Sobirov → outpatient_registrar
-INSERT INTO public.user_roles (user_id, role_id, hospital_id)
-SELECT 
-  '87a5bedf-ed2f-4699-82ae-3a05df2d92af',
-  r.id,
-  'cf74311c-1827-4066-9376-f9270815c339'
-FROM public.roles r WHERE r.code = 'outpatient_registrar';
-
--- Bunyod Babajonov → physician
-INSERT INTO public.user_roles (user_id, role_id, hospital_id)
-SELECT 
-  '26fe042f-ee52-4570-adf9-ecc1fee35fee',
-  r.id,
-  'cf74311c-1827-4066-9376-f9270815c339'
-FROM public.roles r WHERE r.code = 'physician';
 
 -- ============================================================
 -- Step 4: User Permissions (individual overrides)
@@ -167,3 +117,61 @@ CREATE TABLE public.staff_invitations (
   accepted_at      timestamptz,
   auth_user_id     uuid REFERENCES auth.users(id)
 );
+-- ============================================================
+-- Hospital-managed lookup tables
+-- Moved here from 002 because they reference hospitals
+-- ============================================================
+
+CREATE TABLE public.job_positions (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  hospital_id uuid NOT NULL REFERENCES public.hospitals(id) ON DELETE CASCADE,
+  type        text NOT NULL CHECK (type IN ('administration', 'medical_staff')),
+  name        text NOT NULL,
+  is_active   boolean DEFAULT true,
+  UNIQUE (hospital_id, name)
+);
+
+CREATE TABLE public.specializations (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  hospital_id uuid NOT NULL REFERENCES public.hospitals(id) ON DELETE CASCADE,
+  name        text NOT NULL,
+  is_active   boolean DEFAULT true,
+  UNIQUE (hospital_id, name)
+);
+
+CREATE TABLE public.service_types (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  hospital_id uuid NOT NULL REFERENCES public.hospitals(id) ON DELETE CASCADE,
+  code        text NOT NULL,
+  name_ru     text NOT NULL,
+  name_en     text,
+  sort_order  int DEFAULT 0,
+  is_active   boolean DEFAULT true,
+  UNIQUE (hospital_id, code)
+);
+
+-- Seed starter data for Kaiser Test hospital
+INSERT INTO public.job_positions (hospital_id, type, name) VALUES
+  ('cf74311c-1827-4066-9376-f9270815c339', 'medical_staff', 'Кардиолог'),
+  ('cf74311c-1827-4066-9376-f9270815c339', 'medical_staff', 'Кардиохирург'),
+  ('cf74311c-1827-4066-9376-f9270815c339', 'medical_staff', 'Дерматолог'),
+  ('cf74311c-1827-4066-9376-f9270815c339', 'medical_staff', 'Уролог');
+
+INSERT INTO public.specializations (hospital_id, name) VALUES
+  ('cf74311c-1827-4066-9376-f9270815c339', 'Кардиология'),
+  ('cf74311c-1827-4066-9376-f9270815c339', 'Кардиохирургия'),
+  ('cf74311c-1827-4066-9376-f9270815c339', 'Дерматология'),
+  ('cf74311c-1827-4066-9376-f9270815c339', 'Урология');
+
+INSERT INTO public.service_types (hospital_id, code, name_ru, name_en, sort_order) VALUES
+  ('cf74311c-1827-4066-9376-f9270815c339', 'surgery',       'Хирургия',      'Surgery',       1),
+  ('cf74311c-1827-4066-9376-f9270815c339', 'inpatient',     'Стационар',     'Inpatient',     2),
+  ('cf74311c-1827-4066-9376-f9270815c339', 'laboratory',    'Лаборатория',   'Laboratory',    3),
+  ('cf74311c-1827-4066-9376-f9270815c339', 'polyclinic',    'Поликлиника',   'Polyclinic',    4),
+  ('cf74311c-1827-4066-9376-f9270815c339', 'icu',           'Реанимация',    'ICU',           5),
+  ('cf74311c-1827-4066-9376-f9270815c339', 'radiology',     'Радиология',    'Radiology',     6),
+  ('cf74311c-1827-4066-9376-f9270815c339', 'angiography',   'Ангиография',   'Angiography',   7),
+  ('cf74311c-1827-4066-9376-f9270815c339', 'physiotherapy', 'Физиотерапия',  'Physiotherapy', 8),
+  ('cf74311c-1827-4066-9376-f9270815c339', 'spa',           'СПА',           'SPA',           9),
+  ('cf74311c-1827-4066-9376-f9270815c339', 'consultation',  'Консультация',  'Consultation',  10),
+  ('cf74311c-1827-4066-9376-f9270815c339', 'diagnostics',   'Диагностика',   'Diagnostics',   11);

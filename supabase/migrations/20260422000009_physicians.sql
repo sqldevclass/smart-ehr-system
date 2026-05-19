@@ -263,14 +263,3 @@ CREATE POLICY "physician_doc_priv_delete" ON public.physician_document_privilege
     hospital_id = public.get_my_hospital_id()
     AND public.has_permission('schedules.manage')
   );
-
--- ============================================================
--- Seed test physician for Bunyod Babajonov
--- ============================================================
-
-INSERT INTO public.physicians (profile_id, hospital_id, specialization, dashboard_type)
-SELECT 
-  '26fe042f-ee52-4570-adf9-ecc1fee35fee',
-  'cf74311c-1827-4066-9376-f9270815c339',
-  'Кардиология',
-  'clinical';

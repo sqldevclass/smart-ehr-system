@@ -1,7 +1,8 @@
 -- Migration 028: Office Room support
 -- Adds office room concept: shared clinical spaces with services and physicians
 -- Reuses physician_schedules and schedule_slots with room_id
-
+DROP FUNCTION IF EXISTS public.complete_service CASCADE;
+DROP FUNCTION IF EXISTS public.generate_slots CASCADE;
 -- ============================================================
 -- 1. Add completed_by to visit_services
 -- ============================================================
