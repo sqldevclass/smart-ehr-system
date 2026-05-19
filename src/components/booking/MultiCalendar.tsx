@@ -127,11 +127,24 @@ export function MultiCalendar(props: MultiCalendarProps) {
         .eq("service_id", service.id)
         .eq("hospital_id", hospitalId);
       if (error) throw error;
+      const roomIds = (data || []).map((r: any) => r.room_id);
+      let roomScheduleTypes: Record<string, "slots" | "queue"> = {};
+      if (roomIds.length > 0) {
+        const { data: schedRows } = await supabase
+          .from("physician_schedules")
+          .select("room_id, schedule_type")
+          .in("room_id", roomIds)
+          .is("physician_id", null);
+        (schedRows || []).forEach((s: any) => {
+          if (s.room_id) roomScheduleTypes[s.room_id] = s.schedule_type;
+        });
+      }
       return (data || []).map((r: any): RoomCol => ({
         kind: "room",
         id: r.room_id,
         name: r.rooms?.name || "—",
         roomType: r.rooms?.room_types?.name ?? null,
+        scheduleType: roomScheduleTypes[r.room_id] ?? null,
       }));
     },
   });
