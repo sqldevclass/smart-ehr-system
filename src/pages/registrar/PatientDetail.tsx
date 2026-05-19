@@ -531,14 +531,21 @@ export default function PatientDetail() {
         existingVisitServiceId={schedulingOrder?.id}
         preselectedServiceId={schedulingOrder?.serviceId}
         onBooked={async (result) => {
-          if (!result.physicianId) { toast.error("No physician selected."); return; }
-          const { error } = await supabase.rpc("registrar_assign_physician_order", {
-            p_visit_service_id: schedulingOrder!.id,
-            p_assigned_physician_id: result.physicianId,
-            p_patient_id: patientId!,
-            p_hospital_id: user!.hospitalId,
-            p_assigned_by: user!.id,
-          });
+          if (!result.physicianId && !result.officeRoomId) {
+            toast.error("No physician or room selected.");
+            return;
+          }
+          const { error } = await supabase.rpc(
+            "registrar_assign_physician_order",
+            {
+              p_visit_service_id:      schedulingOrder!.id,
+              p_patient_id:            patientId!,
+              p_hospital_id:           user!.hospitalId,
+              p_assigned_by:           user!.id,
+              p_assigned_physician_id: result.physicianId ?? null,
+              p_assigned_room_id:      result.officeRoomId ?? null,
+            }
+          );
           if (error) { toast.error(error.message); return; }
           toast.success("Service assigned and scheduled.");
           refetchOrders();
