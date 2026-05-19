@@ -856,16 +856,16 @@ function DiagnosesTab({ patientId, canOrder }: { patientId: string; canOrder: bo
   const { data: searchResults = [] } = useQuery({
     queryKey: ["icd10-search-out", search],
     queryFn: async () => {
-      if (search.trim().length < 2) return [];
+      if (search.trim().length < 1) return [];
       const { data } = await supabase
         .from("icd10_codes")
         .select("id, code, name_ru")
         .eq("is_leaf", true)
-        .ilike("name_ru", `%${search.trim()}%`)
+        .or(`name_ru.ilike.%${search.trim()}%,code.ilike.%${search.trim()}%`)
         .limit(20);
       return data || [];
     },
-    enabled: open && search.trim().length >= 2,
+    enabled: open && search.trim().length >= 1,
   });
 
   const handleSave = async () => {
