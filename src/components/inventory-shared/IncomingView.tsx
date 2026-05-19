@@ -63,6 +63,20 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
     },
   });
 
+  const { data: drugFormulary = [] } = useQuery({
+    queryKey: ["drug-formulary-active", user?.hospitalId],
+    enabled: !!user?.hospitalId && warehouseTypeCode === "central_pharmacy",
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("drug_formulary")
+        .select("id, trade_name, inn, release_form_id, packaging_id, manufacturer_id")
+        .eq("hospital_id", user!.hospitalId)
+        .eq("is_active", true)
+        .order("trade_name");
+      return data || [];
+    },
+  });
+
   const { data: recent = [] } = useQuery({
     queryKey: ["incoming-recent", warehouse?.id],
     enabled: !!warehouse?.id,
