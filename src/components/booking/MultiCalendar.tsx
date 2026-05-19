@@ -627,7 +627,36 @@ export function MultiCalendar(props: MultiCalendarProps) {
                       </div>
                     </div>
                     <div className="max-h-[420px] overflow-y-auto p-2 space-y-1">
-                      {rSlots.length === 0 ? (
+                      {col.scheduleType === "queue" ? (
+                        <div
+                          className={cn(
+                            "cursor-pointer rounded-lg border-2 p-4 text-center transition",
+                            selected?.col.id === col.id
+                              ? "border-primary bg-primary/5"
+                              : "border-dashed border-muted-foreground/30 hover:border-primary/50 hover:bg-muted/30"
+                          )}
+                          onClick={() => {
+                            const queueSelection: SlotRow = {
+                              id: `queue-room-${col.id}`,
+                              slot_datetime: new Date().toISOString(),
+                              booking_count: 0,
+                              is_blocked: false,
+                              block_reason: null,
+                            };
+                            setSelected({ slot: queueSelection, col });
+                          }}
+                        >
+                          <div className="text-2xl font-bold text-foreground">
+                            Queue #{(roomQueueConfigs?.[col.id] ?? 0) + 1}
+                          </div>
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            Click to select queue
+                          </div>
+                          {selected?.col.id === col.id && (
+                            <div className="mt-2 text-xs font-medium text-primary">✓ Selected</div>
+                          )}
+                        </div>
+                      ) : rSlots.length === 0 ? (
                         <div className="py-6 text-center text-xs text-muted-foreground">
                           No slots
                         </div>
