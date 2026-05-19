@@ -62,10 +62,10 @@ export default function PharmacySettingsPage() {
           <LookupSection table="release_forms" label="Форма выпуска" hasHospitalId />
         </TabsContent>
         <TabsContent value="packaging">
-          <LookupSection table="packaging_types" label="Упаковка" hasAbbr hasHospitalId />
+          <LookupSection table="packaging_types" label="Упаковка" showCode hasHospitalId />
         </TabsContent>
         <TabsContent value="product_types">
-          <LookupSection table="product_types" label="Вид товара" hasHospitalId={false} />
+          <LookupSection table="product_types" label="Вид товара" hasHospitalId />
         </TabsContent>
         <TabsContent value="warehouses"><WarehousesSection /></TabsContent>
         <TabsContent value="formulary"><FormularySection /></TabsContent>
