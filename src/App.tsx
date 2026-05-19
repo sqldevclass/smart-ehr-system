@@ -62,7 +62,7 @@ import IncomingPage from "./pages/pharmacy/IncomingPage.tsx";
 import StockPage from "./pages/pharmacy/StockPage.tsx";
 import ExpensesPage from "./pages/pharmacy/ExpensesPage.tsx";
 import TransfersPage from "./pages/pharmacy/TransfersPage.tsx";
-import FormularyPage from "./pages/pharmacy/FormularyPage.tsx";
+
 import PharmacySettingsPage from "./pages/pharmacy/PharmacySettingsPage.tsx";
 import PharmacyProfile from "./pages/pharmacy/PharmacyProfile.tsx";
 import WarehouseLayout from "./components/warehouse/WarehouseLayout.tsx";
