@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Plus, ChevronDown, ChevronUp } from "lucide-react";
 import { format, differenceInYears, startOfDay, endOfDay, isToday } from "date-fns";
 import { LabResultsButton } from "@/components/lab/LabResultsButton";
+import { DocumentForm } from "@/components/documents/DocumentForm";
 import { cn } from "@/lib/utils";
 
 const statusBadge = (code?: string | null) => {
