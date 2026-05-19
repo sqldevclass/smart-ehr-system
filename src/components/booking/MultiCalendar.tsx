@@ -25,6 +25,7 @@ interface RoomCol {
   id: string;
   name: string;
   roomType: string | null;
+  scheduleType: "slots" | "queue" | null;
 }
 
 type Col = PhysCol | RoomCol;
