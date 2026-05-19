@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Plus, ChevronDown, ChevronUp } from "lucide-react";
 import { format, differenceInYears, startOfDay, endOfDay, isToday } from "date-fns";
 import { LabResultsButton } from "@/components/lab/LabResultsButton";
+import { DocumentForm } from "@/components/documents/DocumentForm";
 import { cn } from "@/lib/utils";
 
 const statusBadge = (code?: string | null) => {
@@ -35,6 +36,10 @@ export default function OutpatientPatientDetail() {
   const queryClient = useQueryClient();
   const [showMore, setShowMore] = useState(false);
   const [showAllergies, setShowAllergies] = useState(false);
+  const [documentService, setDocumentService] = useState<{
+    visitServiceId: string;
+    documentTypeId: string | null;
+  } | null>(null);
 
   const { data: patient, isLoading } = useQuery({
     queryKey: ["outpatient-patient", patientId, user?.hospitalId],
@@ -98,7 +103,7 @@ export default function OutpatientPatientDetail() {
       if (!readyId) return [];
       const { data } = await supabase
         .from("visit_services")
-        .select("id, scheduled_at, queue_number, is_waitlist, cost_at_time, service_statuses(code, name_ru), services(name)")
+        .select("id, scheduled_at, queue_number, is_waitlist, cost_at_time, service_statuses(code, name_ru), services(name, linked_document_type_id)")
         .eq("patient_id", patientId!)
         .eq("assigned_physician_id", physicianId!)
         .eq("hospital_id", user!.hospitalId)
@@ -248,7 +253,20 @@ export default function OutpatientPatientDetail() {
                       {vs.service_statuses?.name_ru || vs.service_statuses?.code}
                     </span>
                     {vs.service_statuses?.code === "ready_for_execution" && (
-                      <Button size="sm" onClick={() => handleComplete(vs.id)}>Complete</Button>
+                      vs.services?.linked_document_type_id ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setDocumentService({
+                            visitServiceId: vs.id,
+                            documentTypeId: vs.services?.linked_document_type_id ?? null,
+                          })}
+                        >
+                          Документ
+                        </Button>
+                      ) : (
+                        <Button size="sm" onClick={() => handleComplete(vs.id)}>Complete</Button>
+                      )
                     )}
                   </div>
                 </li>
@@ -294,6 +312,23 @@ export default function OutpatientPatientDetail() {
           </Tabs>
         </CardContent>
       </Card>
+
+      {documentService && (
+        <DocumentForm
+          visitServiceId={documentService.visitServiceId}
+          documentTypeId={documentService.documentTypeId}
+          patientId={patientId!}
+          hospitalizationId={null}
+          hospitalId={user!.hospitalId}
+          onClose={() => setDocumentService(null)}
+          onSaved={() => {
+            setDocumentService(null);
+            queryClient.invalidateQueries({
+              queryKey: ["outpatient-active-services"],
+            });
+          }}
+        />
+      )}
     </div>
   );
 }
