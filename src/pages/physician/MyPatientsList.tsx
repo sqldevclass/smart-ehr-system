@@ -143,9 +143,7 @@ export default function MyPatientsList() {
         )
         .eq("hospital_id", user.hospitalId)
         .in("assigned_room_id", myRoomIds)
-        .in("status_id", allowedStatusIds)
-        .gte("scheduled_at", dayStart)
-        .lte("scheduled_at", dayEnd);
+        .in("status_id", allowedStatusIds);
       if (rsErr) toast.error(rsErr.message);
       roomServices = rs || [];
     }
@@ -160,7 +158,13 @@ export default function MyPatientsList() {
 
     // Avoid double-listing rows already in the main list
     const mainIds = new Set(filteredMain.map((r: any) => r.id));
-    const filteredRoom = roomServices.filter((r: any) => !mainIds.has(r.id));
+    const filteredRoom = roomServices.filter((r: any) => {
+      if (mainIds.has(r.id)) return false;
+      if (r.scheduled_at) {
+        return r.scheduled_at >= dayStart && r.scheduled_at <= dayEnd;
+      }
+      return r.visits?.visit_date === selectedDateStr;
+    });
 
     // Fetch profiles for completed_by uuids across both lists
     const completedIds = Array.from(
