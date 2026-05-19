@@ -45,6 +45,7 @@ interface Service {
   vat_rate: number | null;
   is_active: boolean;
   service_subgroup_id: string | null;
+  linked_document_type_id: string | null;
 }
 
 export default function ServicesPage() {
@@ -130,7 +131,7 @@ export default function ServicesPage() {
       if (!user || !selectedGroupId) return [];
       const { data, error } = await supabase
         .from("services")
-        .select("id, name, code, cost, cost_with_vat, vat_rate, is_active, service_subgroup_id")
+        .select("id, name, code, cost, cost_with_vat, vat_rate, is_active, service_subgroup_id, linked_document_type_id")
         .eq("hospital_id", user.hospitalId)
         .eq("service_group_id", selectedGroupId)
         .order("name");
@@ -138,6 +139,21 @@ export default function ServicesPage() {
       return (data || []) as Service[];
     },
     enabled: !!user && !!selectedGroupId,
+  });
+
+  // ----- Document Types -----
+  const { data: documentTypes = [] } = useQuery({
+    queryKey: ["document-types-all", user?.hospitalId],
+    enabled: !!user?.hospitalId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("document_types")
+        .select("id, name_ru, code")
+        .or(`hospital_id.is.null,hospital_id.eq.${user!.hospitalId}`)
+        .eq("is_active", true)
+        .order("name_ru");
+      return data || [];
+    },
   });
 
   // ============ Type Dialog ============
@@ -267,11 +283,13 @@ export default function ServicesPage() {
   const [svcCost, setSvcCost] = useState<string>("0");
   const [svcVatRate, setSvcVatRate] = useState<string>("");
   const [svcActive, setSvcActive] = useState(true);
+  const [svcLinkedDocTypeId, setSvcLinkedDocTypeId] = useState<string>("none");
 
   const openCreateSvc = () => {
     setEditingSvc(null);
     setSvcName(""); setSvcCode(""); setSvcSubgroupId("none");
     setSvcCost("0"); setSvcVatRate(""); setSvcActive(true);
+    setSvcLinkedDocTypeId("none");
     setSvcDialog(true);
   };
   const openEditSvc = (s: Service) => {
@@ -282,6 +300,7 @@ export default function ServicesPage() {
     setSvcCost(String(s.cost ?? 0));
     setSvcVatRate(s.vat_rate != null ? String(s.vat_rate) : "");
     setSvcActive(s.is_active);
+    setSvcLinkedDocTypeId(s.linked_document_type_id || "none");
     setSvcDialog(true);
   };
   const saveSvc = async () => {
@@ -299,6 +318,7 @@ export default function ServicesPage() {
         cost: costNum,
         vat_rate: vatNum,
         is_active: svcActive,
+        linked_document_type_id: svcLinkedDocTypeId === "none" ? null : svcLinkedDocTypeId,
       };
       if (editingSvc) {
         const { error } = await supabase.from("services").update(payload).eq("id", editingSvc.id);
@@ -574,6 +594,22 @@ export default function ServicesPage() {
                 <Label>VAT Rate (%)</Label>
                 <Input type="number" min="0" step="0.01" value={svcVatRate} onChange={(e) => setSvcVatRate(e.target.value)} placeholder="Hospital default" />
               </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Linked Document Type</Label>
+              <Select value={svcLinkedDocTypeId} onValueChange={setSvcLinkedDocTypeId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="None" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {documentTypes.map((dt: any) => (
+                    <SelectItem key={dt.id} value={dt.id}>
+                      {dt.name_ru}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex items-center justify-between"><Label>Active</Label><Switch checked={svcActive} onCheckedChange={setSvcActive} /></div>
           </div>
