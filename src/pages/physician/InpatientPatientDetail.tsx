@@ -680,7 +680,7 @@ function DiagnosesTab({ hospId, patientId }: { hospId: string; patientId: string
   const { data: searchResults = [] } = useQuery({
     queryKey: ["icd10-search", search],
     queryFn: async () => {
-      if (search.trim().length < 2) return [];
+      if (search.trim().length < 1) return [];
       const { data } = await supabase
         .from("icd10_codes")
         .select("id, code, name_ru")
@@ -689,7 +689,7 @@ function DiagnosesTab({ hospId, patientId }: { hospId: string; patientId: string
         .limit(20);
       return data || [];
     },
-    enabled: open && search.trim().length >= 2,
+    enabled: open && search.trim().length >= 1,
   });
 
   const handleSave = async () => {
