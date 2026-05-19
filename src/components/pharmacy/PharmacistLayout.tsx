@@ -4,7 +4,6 @@ import {
   Boxes,
   Trash2,
   ArrowLeftRight,
-  FlaskConical,
   Settings,
   UserCircle,
   LogOut,
@@ -31,7 +30,6 @@ const navItems = [
   { title: "Stock", url: "/pharmacy/stock", icon: Boxes },
   { title: "Expenses", url: "/pharmacy/expenses", icon: Trash2 },
   { title: "Transfers", url: "/pharmacy/transfers", icon: ArrowLeftRight },
-  { title: "Drug Formulary", url: "/pharmacy/formulary", icon: FlaskConical },
   { title: "Settings", url: "/pharmacy/settings", icon: Settings },
   { title: "Profile", url: "/pharmacy/profile", icon: UserCircle },
 ];
