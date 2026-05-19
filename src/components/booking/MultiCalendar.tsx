@@ -312,7 +312,8 @@ export function MultiCalendar(props: MultiCalendarProps) {
         if (updErr) throw updErr;
       }
 
-      const isQueueBooking = selected.slot.id.startsWith("queue-");
+      const isRoomQueueBooking = selected.slot.id.startsWith("queue-room-");
+      const isQueueBooking = selected.slot.id.startsWith("queue-") && !isRoomQueueBooking;
       let queueNumber: number | undefined;
       let isWaitlist: boolean | undefined;
       if (isQueueBooking) {
