@@ -312,6 +312,23 @@ export default function OutpatientPatientDetail() {
           </Tabs>
         </CardContent>
       </Card>
+
+      {documentService && (
+        <DocumentForm
+          visitServiceId={documentService.visitServiceId}
+          documentTypeId={documentService.documentTypeId}
+          patientId={patientId!}
+          hospitalizationId={null}
+          hospitalId={user!.hospitalId}
+          onClose={() => setDocumentService(null)}
+          onSaved={() => {
+            setDocumentService(null);
+            queryClient.invalidateQueries({
+              queryKey: ["outpatient-active-services"],
+            });
+          }}
+        />
+      )}
     </div>
   );
 }
