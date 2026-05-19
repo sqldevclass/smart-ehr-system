@@ -68,24 +68,33 @@ export function MultiCalendar(props: MultiCalendarProps) {
     queryKey: ["multi-cal-physicians", service.id, hospitalId, dateStr, officeRoomId || "none"],
     queryFn: async (): Promise<PhysCol[]> => {
       if (officeRoomId) {
-        const { data, error } = await supabase
+        // Step 1: get physician IDs from office_room_physicians
+        const { data: orpRows, error: orpErr } = await supabase
           .from("office_room_physicians")
-          .select(
-            "physician_id, physicians!inner(id, specialization, is_active, profiles!inner(full_name), physician_schedules(schedule_type, valid_from, valid_to, days_of_week))"
-          )
+          .select("physician_id")
           .eq("room_id", officeRoomId)
           .eq("hospital_id", hospitalId);
-        if (error) throw error;
-        return (data || [])
-          .filter((r: any) => r.physicians?.is_active !== false)
-          .map((r: any): PhysCol => ({
-            kind: "physician",
-            id: r.physician_id,
-            fullName: r.physicians?.profiles?.full_name || "—",
-            specialization: r.physicians?.specialization ?? null,
-            scheduleType: deriveScheduleType(r.physicians?.physician_schedules, date),
-          }));
+        if (orpErr) throw orpErr;
+        const physicianIds = (orpRows || []).map((r: any) => r.physician_id);
+        if (physicianIds.length === 0) return [];
+
+        // Step 2: fetch physician details + schedules directly
+        const { data: phRows, error: phErr } = await supabase
+          .from("physicians")
+          .select("id, specialization, is_active, profiles!inner(full_name), physician_schedules(schedule_type, valid_from, valid_to, days_of_week)")
+          .in("id", physicianIds)
+          .eq("is_active", true);
+        if (phErr) throw phErr;
+        return (phRows || []).map((p: any): PhysCol => ({
+          kind: "physician",
+          id: p.id,
+          fullName: p.profiles?.full_name || "—",
+          specialization: p.specialization ?? null,
+          scheduleType: deriveScheduleType(p.physician_schedules, date),
+        }));
       }
+
+      // Non-office-room path: unchanged
       const { data, error } = await supabase
         .from("physician_service_privileges")
         .select(
