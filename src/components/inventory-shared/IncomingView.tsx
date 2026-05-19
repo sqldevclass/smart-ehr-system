@@ -212,18 +212,33 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
       >
         <div className="space-y-1.5">
           <Label>Product</Label>
-          <Select value={productId} onValueChange={setProductId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select product" />
-            </SelectTrigger>
-            <SelectContent>
-              {products.map((p: any) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {warehouseTypeCode === "central_pharmacy" ? (
+            <Select value={productId} onValueChange={setProductId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Выберите препарат" />
+              </SelectTrigger>
+              <SelectContent>
+                {drugFormulary.map((d: any) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.trade_name}{d.inn ? ` (${d.inn})` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Select value={productId} onValueChange={setProductId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select product" />
+              </SelectTrigger>
+              <SelectContent>
+                {products.map((p: any) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
         <div className="space-y-1.5">
           <Label>Series #</Label>
