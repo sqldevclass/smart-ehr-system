@@ -25,6 +25,7 @@ interface RoomCol {
   id: string;
   name: string;
   roomType: string | null;
+  scheduleType: "slots" | "queue" | null;
 }
 
 type Col = PhysCol | RoomCol;
@@ -126,11 +127,24 @@ export function MultiCalendar(props: MultiCalendarProps) {
         .eq("service_id", service.id)
         .eq("hospital_id", hospitalId);
       if (error) throw error;
+      const roomIds = (data || []).map((r: any) => r.room_id);
+      let roomScheduleTypes: Record<string, "slots" | "queue"> = {};
+      if (roomIds.length > 0) {
+        const { data: schedRows } = await supabase
+          .from("physician_schedules")
+          .select("room_id, schedule_type")
+          .in("room_id", roomIds)
+          .is("physician_id", null);
+        (schedRows || []).forEach((s: any) => {
+          if (s.room_id) roomScheduleTypes[s.room_id] = s.schedule_type;
+        });
+      }
       return (data || []).map((r: any): RoomCol => ({
         kind: "room",
         id: r.room_id,
         name: r.rooms?.name || "—",
         roomType: r.rooms?.room_types?.name ?? null,
+        scheduleType: roomScheduleTypes[r.room_id] ?? null,
       }));
     },
   });
@@ -196,6 +210,30 @@ export function MultiCalendar(props: MultiCalendarProps) {
     enabled: physicians.some((p) => p.scheduleType === "queue"),
   });
   const queueConfigs = queueConfigsData ?? {};
+
+  const { data: roomQueueConfigsData } = useQuery({
+    queryKey: ["multi-cal-room-queue-configs", roomIds.sort().join(","), dateStr, hospitalId],
+    queryFn: async () => {
+      const queueRoomIds = rooms
+        .filter((r) => r.scheduleType === "queue")
+        .map((r) => r.id);
+      if (queueRoomIds.length === 0) return {} as Record<string, number>;
+      const { data } = await supabase
+        .from("queue_configs")
+        .select("room_id, last_number")
+        .eq("hospital_id", hospitalId)
+        .eq("queue_date", dateStr)
+        .in("room_id", queueRoomIds)
+        .is("physician_id", null);
+      const map: Record<string, number> = {};
+      (data || []).forEach((r: any) => {
+        if (r.room_id) map[r.room_id] = r.last_number ?? 0;
+      });
+      return map;
+    },
+    enabled: rooms.some((r) => r.scheduleType === "queue"),
+  });
+  const roomQueueConfigs = roomQueueConfigsData ?? {};
 
   const slotsByPhysician = useMemo(() => {
     const map = new Map<string, (SlotRow & { physician_id: string })[]>();
@@ -274,7 +312,8 @@ export function MultiCalendar(props: MultiCalendarProps) {
         if (updErr) throw updErr;
       }
 
-      const isQueueBooking = selected.slot.id.startsWith("queue-");
+      const isRoomQueueBooking = selected.slot.id.startsWith("queue-room-");
+      const isQueueBooking = selected.slot.id.startsWith("queue-") && !isRoomQueueBooking;
       let queueNumber: number | undefined;
       let isWaitlist: boolean | undefined;
       if (isQueueBooking) {
@@ -294,6 +333,37 @@ export function MultiCalendar(props: MultiCalendarProps) {
           const { data: newConfig, error: configErr } = await supabase
             .from("queue_configs")
             .insert({ physician_id: physCol.id, hospital_id: hospitalId, queue_date: today })
+            .select("id")
+            .single();
+          if (configErr) throw configErr;
+          queueConfigId = newConfig.id;
+        }
+        const { data: qData, error: qErr } = await supabase.rpc("assign_queue_number", {
+          p_queue_config_id: queueConfigId,
+          p_visit_service_id: visitServiceId,
+          p_hospital_id: hospitalId,
+        });
+        if (qErr) throw qErr;
+        queueNumber = (qData as any)?.queue_number;
+        toast.success(`Booked. Queue #${queueNumber}`);
+      } else if (isRoomQueueBooking) {
+        const roomCol = selected.col as RoomCol;
+        const today = dateStr;
+        let queueConfigId: string;
+        const { data: existingConfig } = await supabase
+          .from("queue_configs")
+          .select("id")
+          .eq("room_id", roomCol.id)
+          .eq("hospital_id", hospitalId)
+          .eq("queue_date", today)
+          .is("physician_id", null)
+          .maybeSingle();
+        if (existingConfig) {
+          queueConfigId = existingConfig.id;
+        } else {
+          const { data: newConfig, error: configErr } = await supabase
+            .from("queue_configs")
+            .insert({ room_id: roomCol.id, hospital_id: hospitalId, queue_date: today })
             .select("id")
             .single();
           if (configErr) throw configErr;
@@ -589,7 +659,36 @@ export function MultiCalendar(props: MultiCalendarProps) {
                       </div>
                     </div>
                     <div className="max-h-[420px] overflow-y-auto p-2 space-y-1">
-                      {rSlots.length === 0 ? (
+                      {col.scheduleType === "queue" ? (
+                        <div
+                          className={cn(
+                            "cursor-pointer rounded-lg border-2 p-4 text-center transition",
+                            selected?.col.id === col.id
+                              ? "border-primary bg-primary/5"
+                              : "border-dashed border-muted-foreground/30 hover:border-primary/50 hover:bg-muted/30"
+                          )}
+                          onClick={() => {
+                            const queueSelection: SlotRow = {
+                              id: `queue-room-${col.id}`,
+                              slot_datetime: new Date().toISOString(),
+                              booking_count: 0,
+                              is_blocked: false,
+                              block_reason: null,
+                            };
+                            setSelected({ slot: queueSelection, col });
+                          }}
+                        >
+                          <div className="text-2xl font-bold text-foreground">
+                            Queue #{(roomQueueConfigs?.[col.id] ?? 0) + 1}
+                          </div>
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            Click to select queue
+                          </div>
+                          {selected?.col.id === col.id && (
+                            <div className="mt-2 text-xs font-medium text-primary">✓ Selected</div>
+                          )}
+                        </div>
+                      ) : rSlots.length === 0 ? (
                         <div className="py-6 text-center text-xs text-muted-foreground">
                           No slots
                         </div>
