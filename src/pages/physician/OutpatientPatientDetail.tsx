@@ -36,6 +36,10 @@ export default function OutpatientPatientDetail() {
   const queryClient = useQueryClient();
   const [showMore, setShowMore] = useState(false);
   const [showAllergies, setShowAllergies] = useState(false);
+  const [documentService, setDocumentService] = useState<{
+    visitServiceId: string;
+    documentTypeId: string | null;
+  } | null>(null);
 
   const { data: patient, isLoading } = useQuery({
     queryKey: ["outpatient-patient", patientId, user?.hospitalId],
