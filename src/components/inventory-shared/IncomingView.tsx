@@ -103,12 +103,50 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
     mutationFn: async () => {
       if (!warehouse || !user) throw new Error("Warehouse not configured");
       if (!productId) throw new Error("Pick a product");
+
+      let resolvedProductId = productId;
+      if (warehouseTypeCode === "central_pharmacy") {
+        const selectedDrug = drugFormulary.find((d: any) => d.id === productId);
+        if (selectedDrug) {
+          const { data: existingProduct } = await supabase
+            .from("products")
+            .select("id")
+            .eq("hospital_id", user!.hospitalId)
+            .eq("name", selectedDrug.trade_name)
+            .maybeSingle();
+          if (existingProduct) {
+            resolvedProductId = existingProduct.id;
+          } else {
+            const { data: medType } = await supabase
+              .from("product_types")
+              .select("id")
+              .eq("code", "medications")
+              .maybeSingle();
+            const { data: newProduct, error: prodErr } = await supabase
+              .from("products")
+              .insert({
+                hospital_id: user!.hospitalId,
+                name: selectedDrug.trade_name,
+                inn: selectedDrug.inn ?? null,
+                product_type_id: medType!.id,
+                manufacturer_id: selectedDrug.manufacturer_id ?? null,
+                release_form_id: selectedDrug.release_form_id ?? null,
+                packaging_type_id: selectedDrug.packaging_id ?? null,
+              })
+              .select("id")
+              .single();
+            if (prodErr) throw prodErr;
+            resolvedProductId = newProduct!.id;
+          }
+        }
+      }
+
       const { data: batch, error } = await supabase
         .from("inventory_batches")
         .insert({
           hospital_id: user.hospitalId,
           warehouse_id: warehouse.id,
-          product_id: productId,
+          product_id: resolvedProductId,
           supplier_id: supplierId || null,
           series_number: series || null,
           expiry_date: expiry || null,
@@ -126,7 +164,7 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
         hospital_id: user.hospitalId,
         warehouse_id: warehouse.id,
         inventory_batch_id: batch!.id,
-        product_id: productId,
+        product_id: resolvedProductId,
         source_type: "incoming",
         quantity_packages: parseFloat(qtyPackages) || 0,
         quantity_units: parseFloat(qtyUnits) || 0,
