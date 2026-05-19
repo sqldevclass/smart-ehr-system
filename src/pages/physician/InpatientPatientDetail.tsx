@@ -685,7 +685,7 @@ function DiagnosesTab({ hospId, patientId }: { hospId: string; patientId: string
         .from("icd10_codes")
         .select("id, code, name_ru")
         .eq("is_leaf", true)
-        .ilike("name_ru", `%${search.trim()}%`)
+        .or(`name_ru.ilike.%${search.trim()}%,code.ilike.%${search.trim()}%`)
         .limit(20);
       return data || [];
     },
