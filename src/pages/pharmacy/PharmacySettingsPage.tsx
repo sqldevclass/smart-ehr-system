@@ -291,11 +291,13 @@ function LookupSection({
   table,
   label,
   hasAbbr,
+  showCode,
   hasHospitalId = true,
 }: {
   table: "units_of_measurement" | "release_forms" | "packaging_types" | "product_types";
   label: string;
   hasAbbr?: boolean;
+  showCode?: boolean;
   hasHospitalId?: boolean;
 }) {
   const { user } = useAuth();
@@ -309,17 +311,19 @@ function LookupSection({
   }>({ name_ru: "", abbreviation: "" });
 
   const queryKey = [table, user?.hospitalId];
-  const selectCols = hasAbbr
-    ? "id, name_ru, abbreviation, hospital_id, sort_order"
-    : "id, name_ru, hospital_id, sort_order";
-  // product_types has no hospital_id; query all rows.
+  const baseCols = ["id", "name_ru", "sort_order"];
+  if (hasAbbr) baseCols.push("abbreviation");
+  if (showCode) baseCols.push("code");
+  if (hasHospitalId) baseCols.push("hospital_id");
+  const selectCols = baseCols.join(", ");
+
   const { data: items = [] } = useQuery({
     queryKey,
     enabled: !!user?.hospitalId,
     queryFn: async () => {
       let q = supabase
         .from(table)
-        .select(hasHospitalId ? selectCols : selectCols.replace(", hospital_id", ""))
+        .select(selectCols)
         .order("sort_order")
         .order("name_ru");
       if (hasHospitalId) {
@@ -340,7 +344,6 @@ function LookupSection({
         const { error } = await supabase.from(table).update(payload).eq("id", form.id);
         if (error) throw error;
       } else {
-        // Hospital-scoped insert with generated code
         const code = user.hospitalId.slice(0, 8) + "_" + Date.now();
         const insertPayload: any = {
           ...payload,
@@ -360,6 +363,20 @@ function LookupSection({
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from(table).delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Deleted");
+      qc.invalidateQueries({ queryKey });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const colCount = 3 + (hasAbbr ? 1 : 0) + (showCode ? 1 : 0);
 
   return (
     <div className="space-y-4">
@@ -405,8 +422,9 @@ function LookupSection({
             <tr className="text-left">
               <th className="p-3">Название</th>
               {hasAbbr && <th className="p-3">Сокращенно</th>}
+              {showCode && <th className="p-3">Код</th>}
               <th className="p-3">Source</th>
-              <th className="p-3 w-12"></th>
+              <th className="p-3 w-24"></th>
             </tr>
           </thead>
           <tbody>
@@ -416,25 +434,37 @@ function LookupSection({
                 <tr key={r.id} className="border-t">
                   <td className="p-3">{r.name_ru}</td>
                   {hasAbbr && <td className="p-3">{r.abbreviation || "—"}</td>}
+                  {showCode && <td className="p-3">{r.code || "—"}</td>}
                   <td className="p-3">
                     {isPlatform ? <Badge variant="secondary">Platform</Badge> : <Badge>Hospital</Badge>}
                   </td>
                   <td className="p-3">
                     {!isPlatform && (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => {
-                          setForm({
-                            id: r.id,
-                            name_ru: r.name_ru,
-                            abbreviation: r.abbreviation ?? "",
-                          });
-                          setOpen(true);
-                        }}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => {
+                            setForm({
+                              id: r.id,
+                              name_ru: r.name_ru,
+                              abbreviation: r.abbreviation ?? "",
+                            });
+                            setOpen(true);
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => {
+                            if (confirm("Delete this row?")) deleteMutation.mutate(r.id);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -442,7 +472,7 @@ function LookupSection({
             })}
             {items.length === 0 && (
               <tr>
-                <td colSpan={hasAbbr ? 4 : 3} className="p-6 text-center text-muted-foreground">
+                <td colSpan={colCount} className="p-6 text-center text-muted-foreground">
                   No rows.
                 </td>
               </tr>
@@ -453,6 +483,7 @@ function LookupSection({
     </div>
   );
 }
+
 
 /* ───────────────────── Warehouses ───────────────────── */
 function WarehousesSection() {
