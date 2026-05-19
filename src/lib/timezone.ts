@@ -20,13 +20,23 @@ export function localDayBoundsUTC(
   date: Date,
   timezone: string,
 ): { start: string; end: string } {
-  const zonedStart = new Date(date);
-  zonedStart.setHours(0, 0, 0, 0);
-  const zonedEnd = new Date(date);
-  zonedEnd.setHours(23, 59, 59, 999);
+  // Get the calendar date components as they appear in the target timezone
+  const inZone = toZonedTime(date, timezone);
+  // Build midnight and end-of-day using those components.
+  // fromZonedTime reads the Date's local-time values and treats them
+  // as wall-clock time in `timezone`, giving correct UTC regardless
+  // of the browser's own timezone.
+  const startLocal = new Date(
+    inZone.getFullYear(), inZone.getMonth(), inZone.getDate(),
+    0, 0, 0, 0
+  );
+  const endLocal = new Date(
+    inZone.getFullYear(), inZone.getMonth(), inZone.getDate(),
+    23, 59, 59, 999
+  );
   return {
-    start: fromZonedTime(zonedStart, timezone).toISOString(),
-    end: fromZonedTime(zonedEnd, timezone).toISOString(),
+    start: fromZonedTime(startLocal, timezone).toISOString(),
+    end:   fromZonedTime(endLocal,   timezone).toISOString(),
   };
 }
 
