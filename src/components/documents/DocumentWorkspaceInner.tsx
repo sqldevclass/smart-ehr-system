@@ -25,8 +25,10 @@ interface InnerProps {
   existingValues: any[];
   patient: any;
   documentType: any;
-  visitServices: any[];
+  mainServices: any[];
+  childServices: any[];
   pendingOrders: any[];
+  physicianNameMap: Record<string, string>;
   completedByProfile: any;
   visitDate: Date;
   hospitalName: string;
@@ -35,7 +37,8 @@ interface InnerProps {
 export default function DocumentWorkspaceInner({
   visitServiceId, patientId, visitId, hospitalId, documentTypeId, onClose,
   existingDoc, sectionsData, fieldsData, existingValues, patient,
-  documentType, visitServices, pendingOrders, completedByProfile, visitDate, hospitalName,
+  documentType, mainServices, childServices, pendingOrders, physicianNameMap,
+  completedByProfile, visitDate, hospitalName,
 }: InnerProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -277,15 +280,19 @@ export default function DocumentWorkspaceInner({
 
           {activeTab === "assignments" ? (
             <AssignmentsSection
-              visitServices={visitServices}
+              mainServices={mainServices}
+              childServices={childServices}
               pendingOrders={pendingOrders}
+              physicianNameMap={physicianNameMap}
               isReadOnly={isReadOnly}
               patientId={patientId}
               hospitalId={hospitalId}
               visitId={visitId}
+              visitServiceId={visitServiceId}
               onOrderCreated={() => {
-                queryClient.invalidateQueries({ queryKey: ["doc-ws-visit-services", visitId, hospitalId] });
-                queryClient.invalidateQueries({ queryKey: ["doc-ws-pending-orders", patientId, hospitalId] });
+                queryClient.invalidateQueries({ queryKey: ["doc-ws-main", visitId, hospitalId] });
+                queryClient.invalidateQueries({ queryKey: ["doc-ws-child", visitId, hospitalId] });
+                queryClient.invalidateQueries({ queryKey: ["doc-ws-pending", visitServiceId, hospitalId] });
               }}
             />
           ) : (
