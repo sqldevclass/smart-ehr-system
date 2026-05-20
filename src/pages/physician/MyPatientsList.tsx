@@ -72,6 +72,12 @@ export default function MyPatientsList() {
   const [completedByNames, setCompletedByNames] = useState<Record<string, string>>({});
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [expandedRooms, setExpandedRooms] = useState<Record<string, boolean>>({});
+  const [activeDocument, setActiveDocument] = useState<{
+    visitServiceId: string;
+    patientId: string;
+    visitId: string;
+    documentTypeId: string;
+  } | null>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
