@@ -18,6 +18,7 @@ interface InnerProps {
   visitId: string;
   hospitalId: string;
   documentTypeId: string;
+  serviceStatusCode: string;
   onClose: () => void;
   existingDoc: any;
   sectionsData: any[];
