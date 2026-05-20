@@ -294,12 +294,22 @@ export default function MyPatientsList() {
     const patient = r.visits?.patients;
     const pid = r.visits?.patient_id;
     const isWL = !!r.is_waitlist;
+    const linkedDocTypeId = r.services?.linked_document_type_id || null;
     return (
       <TableRow
         key={r.id}
-        className="cursor-pointer hover:bg-accent"
+        className="cursor-pointer hover:bg-muted/50"
         onClick={() => {
-          if (pid) navigate(`/physician/patients/${pid}`);
+          if (linkedDocTypeId && pid && r.visit_id) {
+            setActiveDocument({
+              visitServiceId: r.id,
+              patientId: pid,
+              visitId: r.visit_id,
+              documentTypeId: linkedDocTypeId,
+            });
+          } else if (pid) {
+            navigate(`/physician/patients/${pid}`);
+          }
         }}
       >
         <TableCell className={`font-medium ${isWL ? "pl-8" : ""}`}>
