@@ -148,7 +148,27 @@ export default function DocumentWorkspaceInner({
       const docId = await handleSave(true);
       if (!docId) return;
       const { error } = await supabase.rpc("complete_document", { p_document_id: docId });
-      if (error) { toast.error(error.message); return; }
+      if (error) {
+        const raw = error.message || "";
+        let friendly = raw;
+        const prefixMatch = raw.match(/complete_document failed: (.+)/);
+        if (prefixMatch) friendly = prefixMatch[1];
+        if (friendly.includes("pending child services")) {
+          const servicesMatch = friendly.match(/pending child services: (.+)/);
+          const serviceList = servicesMatch ? servicesMatch[1] : "";
+          toast.error(
+            `Невозможно подтвердить документ. Следующие услуги ещё не завершены: ${serviceList}`,
+            { duration: 6000 }
+          );
+        } else if (friendly.includes("Mandatory fields not filled")) {
+          const fieldsMatch = friendly.match(/Mandatory fields not filled: (.+)/);
+          const fieldList = fieldsMatch ? fieldsMatch[1] : "";
+          toast.error(`Заполните обязательные поля: ${fieldList}`, { duration: 6000 });
+        } else {
+          toast.error(friendly, { duration: 6000 });
+        }
+        return;
+      }
       toast.success("Документ подтверждён");
       onClose();
     } finally {
