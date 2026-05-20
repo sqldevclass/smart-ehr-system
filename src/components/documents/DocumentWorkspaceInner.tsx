@@ -350,34 +350,6 @@ export default function DocumentWorkspaceInner({
             />
           </div>
 
-          {activeTab === "assignments" ? (
-            <AssignmentsSection
-              mainServices={mainServices}
-              childServices={childServices}
-              pendingOrders={pendingOrders}
-              physicianNameMap={physicianNameMap}
-              isReadOnly={isReadOnly}
-              patientId={patientId}
-              hospitalId={hospitalId}
-              visitId={visitId}
-              visitServiceId={visitServiceId}
-              onOrderCreated={() => {
-                queryClient.invalidateQueries({ queryKey: ["doc-ws-main", visitId, hospitalId] });
-                queryClient.invalidateQueries({ queryKey: ["doc-ws-child", visitId, hospitalId] });
-                queryClient.invalidateQueries({ queryKey: ["doc-ws-pending", visitServiceId, hospitalId] });
-              }}
-            />
-          ) : (
-            sections[Number(activeTab)] && (
-              <DocumentSection
-                section={sections[Number(activeTab)]}
-                values={values}
-                setVal={setVal}
-                isReadOnly={isReadOnly}
-              />
-            )
-          )}
-
           {isReadOnly && existingDoc?.completed_at && (
             <div className="mt-8 pt-4 border-t flex items-end justify-between text-sm">
               <div>
