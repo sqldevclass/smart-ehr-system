@@ -422,9 +422,6 @@ function DocumentFormInner({
               <Label htmlFor="criticality-flag">Критичность</Label>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => handleSave()} disabled={isSaving}>
-                Сохранить
-              </Button>
               <Button onClick={handleConfirm} disabled={!canConfirm}>
                 Подтвердить
               </Button>
