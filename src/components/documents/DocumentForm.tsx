@@ -290,7 +290,6 @@ function DocumentFormInner({
             document_type_id: selectedTypeId,
             visit_service_id: visitServiceId,
             status: "preliminary",
-            criticality_flag: criticalityFlag,
             created_by: user.id,
           })
           .select("id")
@@ -298,12 +297,8 @@ function DocumentFormInner({
         if (error) { toast.error(error.message); return null; }
         docId = doc!.id;
         setDocumentId(docId);
-      } else {
-        await supabase
-          .from("patient_documents")
-          .update({ criticality_flag: criticalityFlag })
-          .eq("id", docId);
       }
+
 
       const rows = Object.entries(values).map(([fieldId, value]) => ({
         patient_document_id: docId!,
