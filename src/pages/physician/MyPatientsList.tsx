@@ -283,7 +283,7 @@ export default function MyPatientsList() {
 
   const isToday = isSameDay(selectedDate, new Date());
 
-  const renderServiceRow = (r: VisitServiceRow) => {
+  const renderServiceRow = (r: VisitServiceRow, showActions = true) => {
     const patient = r.visits?.patients;
     const pid = r.visits?.patient_id;
     const isWL = !!r.is_waitlist;
@@ -338,13 +338,15 @@ export default function MyPatientsList() {
             {r.service_statuses?.name_ru || r.service_statuses?.code || "—"}
           </span>
         </TableCell>
-        <TableCell className="text-right">
-          {r.service_statuses?.code === "ready_for_execution" && (
-            <Button size="sm" onClick={(e) => { e.stopPropagation(); handleComplete(r.id); }}>
-              Complete
-            </Button>
-          )}
-        </TableCell>
+        {showActions && (
+          <TableCell className="text-right">
+            {r.service_statuses?.code === "ready_for_execution" && (
+              <Button size="sm" onClick={(e) => { e.stopPropagation(); handleComplete(r.id); }}>
+                Complete
+              </Button>
+            )}
+          </TableCell>
+        )}
       </TableRow>
     );
   };
