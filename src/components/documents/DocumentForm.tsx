@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -24,11 +25,18 @@ interface Props {
   onSaved: () => void;
 }
 
-export function DocumentForm(props: Props) {
+type ExistingDoc = {
+  id: string;
+  status: string;
+  criticality_flag: boolean;
+  document_type_id: string | null;
+} | null;
+
+export default function DocumentForm(props: Props) {
   const [selectedTypeId, setSelectedTypeId] = useState<string | null>(props.documentTypeId);
 
   const { data: existingDoc, isLoading: existingDocLoading } = useQuery({
-    queryKey: ["existing-document", props.visitServiceId],
+    queryKey: ["existing-document", props.visitServiceId, props.hospitalId],
     enabled: !!props.visitServiceId,
     queryFn: async () => {
       const { data } = await supabase
@@ -37,7 +45,7 @@ export function DocumentForm(props: Props) {
         .eq("visit_service_id", props.visitServiceId)
         .eq("hospital_id", props.hospitalId)
         .maybeSingle();
-      return data;
+      return (data ?? null) as ExistingDoc;
     },
   });
 
@@ -47,27 +55,115 @@ export function DocumentForm(props: Props) {
     }
   }, [existingDoc, selectedTypeId]);
 
+  const { data: docType } = useQuery({
+    queryKey: ["document-type", selectedTypeId],
+    enabled: !!selectedTypeId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("document_types")
+        .select("id, name_ru, color, requires_second_sig")
+        .eq("id", selectedTypeId!)
+        .single();
+      return data;
+    },
+  });
+
+  const { data: sectionsData } = useQuery({
+    queryKey: ["document-type-sections-only", selectedTypeId],
+    enabled: !!selectedTypeId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("document_type_sections")
+        .select(`
+          sort_order,
+          document_sections!inner(id, code, name_ru)
+        `)
+        .eq("document_type_id", selectedTypeId!)
+        .order("sort_order");
+      return data || [];
+    },
+  });
+
+  const { data: fieldsData } = useQuery({
+    queryKey: ["document-type-fields-only", selectedTypeId],
+    enabled: !!selectedTypeId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("document_type_fields")
+        .select(`
+          section_id,
+          sort_order,
+          is_mandatory,
+          is_visible,
+          field_definitions!inner(
+            id, attribute_code, label_ru,
+            field_type, options, unit
+          )
+        `)
+        .eq("document_type_id", selectedTypeId!)
+        .order("sort_order");
+      return data || [];
+    },
+  });
+
+  const { data: existingValues } = useQuery({
+    queryKey: ["document-field-values", existingDoc?.id],
+    enabled: !!existingDoc?.id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("patient_document_field_values")
+        .select("field_definition_id, value")
+        .eq("patient_document_id", existingDoc!.id);
+      return data || [];
+    },
+  });
+
+  const valuesReady = !existingDoc?.id || !!existingValues;
+  const isReady =
+    !!selectedTypeId &&
+    !!sectionsData &&
+    !!fieldsData &&
+    valuesReady &&
+    !existingDocLoading;
+
   return (
     <Sheet open={true} onOpenChange={(o) => { if (!o) props.onClose(); }}>
       <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
         {existingDocLoading ? (
-          <p className="text-sm text-muted-foreground">Загрузка...</p>
+          <div className="flex h-40 items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
         ) : !selectedTypeId ? (
           <TypePicker
             hospitalId={props.hospitalId}
             onSelect={(id) => setSelectedTypeId(id)}
           />
+        ) : !isReady ? (
+          <div className="flex h-40 items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
         ) : (
-          <DocumentEditor
-            {...props}
-            documentTypeId={selectedTypeId}
+          <DocumentFormInner
+            visitServiceId={props.visitServiceId}
+            patientId={props.patientId}
+            hospitalizationId={props.hospitalizationId}
+            hospitalId={props.hospitalId}
+            selectedTypeId={selectedTypeId}
             existingDoc={existingDoc ?? null}
+            sectionsData={sectionsData || []}
+            fieldsData={fieldsData || []}
+            existingValues={existingValues || []}
+            docType={docType}
+            onClose={props.onClose}
+            onSaved={props.onSaved}
           />
         )}
       </SheetContent>
     </Sheet>
   );
 }
+
+export { DocumentForm };
 
 function TypePicker({ hospitalId, onSelect }: { hospitalId: string; onSelect: (id: string) => void }) {
   const { data: types = [] } = useQuery({
@@ -108,89 +204,41 @@ function TypePicker({ hospitalId, onSelect }: { hospitalId: string; onSelect: (i
   );
 }
 
-function DocumentEditor({
-  visitServiceId, documentTypeId, patientId, hospitalizationId, hospitalId, onSaved, existingDoc,
-}: Props & { documentTypeId: string; existingDoc: { id: string; status: string; criticality_flag: boolean; document_type_id: string | null } | null }) {
+interface InnerProps {
+  visitServiceId: string;
+  patientId: string;
+  hospitalizationId: string | null;
+  hospitalId: string;
+  selectedTypeId: string;
+  existingDoc: { id: string; status: string; criticality_flag: boolean } | null;
+  sectionsData: any[];
+  fieldsData: any[];
+  existingValues: { field_definition_id: string; value: string }[];
+  docType: any;
+  onClose: () => void;
+  onSaved: () => void;
+}
+
+function DocumentFormInner({
+  visitServiceId, patientId, hospitalizationId, hospitalId,
+  selectedTypeId, existingDoc, sectionsData, fieldsData, existingValues,
+  docType, onSaved,
+}: InnerProps) {
   const { user } = useAuth();
-  const [values, setValues] = useState<Record<string, string>>({});
-  const [criticalityFlag, setCriticalityFlag] = useState(existingDoc?.criticality_flag ?? false);
-  const [documentId, setDocumentId] = useState<string | null>(existingDoc?.id ?? null);
+
+  const [documentId, setDocumentId] = useState<string | null>(() => existingDoc?.id ?? null);
+  const [criticalityFlag, setCriticalityFlag] = useState<boolean>(() => existingDoc?.criticality_flag ?? false);
+  const [values, setValues] = useState<Record<string, string>>(() => {
+    const loaded: Record<string, string> = {};
+    (existingValues || []).forEach((v) => {
+      loaded[v.field_definition_id] = v.value ?? "";
+    });
+    return loaded;
+  });
   const [isSaving, setIsSaving] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
 
   const isReadOnly = existingDoc?.status === "completed";
-
-  const { data: docType } = useQuery({
-    queryKey: ["document-type", documentTypeId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("document_types")
-        .select("id, name_ru, color, requires_second_sig")
-        .eq("id", documentTypeId)
-        .single();
-      return data;
-    },
-  });
-
-  const { data: sectionsData } = useQuery({
-    queryKey: ["document-type-sections-only", documentTypeId],
-    enabled: !!documentTypeId,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("document_type_sections")
-        .select(`
-          sort_order,
-          document_sections!inner(id, code, name_ru)
-        `)
-        .eq("document_type_id", documentTypeId)
-        .order("sort_order");
-      return data || [];
-    },
-  });
-
-  const { data: fieldsData } = useQuery({
-    queryKey: ["document-type-fields-only", documentTypeId],
-    enabled: !!documentTypeId,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("document_type_fields")
-        .select(`
-          section_id,
-          sort_order,
-          is_mandatory,
-          is_visible,
-          field_definitions!inner(
-            id, attribute_code, label_ru,
-            field_type, options, unit
-          )
-        `)
-        .eq("document_type_id", documentTypeId)
-        .order("sort_order");
-      return data || [];
-    },
-  });
-
-  const { data: existingValues } = useQuery({
-    queryKey: ["document-field-values", documentId],
-    enabled: !!documentId,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("patient_document_field_values")
-        .select("field_definition_id, value")
-        .eq("patient_document_id", documentId);
-      return data || [];
-    },
-  });
-
-  useEffect(() => {
-    if (existingValues && existingValues.length > 0) {
-      const loaded: Record<string, string> = {};
-      existingValues.forEach((v: any) => {
-        loaded[v.field_definition_id] = v.value ?? "";
-      });
-      setValues(loaded);
-    }
-  }, [existingValues]);
 
   const sections = useMemo(() => {
     if (!sectionsData || !fieldsData) return [];
@@ -239,7 +287,7 @@ function DocumentEditor({
             patient_id: patientId,
             hospitalization_id: hospitalizationId,
             hospital_id: hospitalId,
-            document_type_id: documentTypeId,
+            document_type_id: selectedTypeId,
             visit_service_id: visitServiceId,
             status: "preliminary",
             criticality_flag: criticalityFlag,
@@ -291,7 +339,7 @@ function DocumentEditor({
     }
   };
 
-  const canConfirm = criticalityFlag && allMandatoryFilled && documentId !== null && !isSaving && !isConfirming;
+  const canConfirm = !isReadOnly && criticalityFlag && allMandatoryFilled && documentId !== null && !isSaving && !isConfirming;
 
   return (
     <>
@@ -393,10 +441,10 @@ function FieldRow({
       const sel = value ? value.split(",").filter(Boolean) : [];
       display = sel.map((v) => options.find((o) => o.value === v)?.label_ru ?? v).join(", ");
     }
-    control = (
-      <p className="text-sm whitespace-pre-wrap py-1.5 text-foreground">
-        {display || <span className="text-muted-foreground">—</span>}
-      </p>
+    control = display ? (
+      <p className="text-sm whitespace-pre-wrap py-1.5 text-foreground">{display}</p>
+    ) : (
+      <span className="italic text-sm text-muted-foreground">Не заполнено</span>
     );
   } else {
     switch (def.field_type) {
