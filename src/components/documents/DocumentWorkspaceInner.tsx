@@ -288,6 +288,7 @@ export default function DocumentWorkspaceInner({
               patientId={patientId}
               hospitalId={hospitalId}
               visitId={visitId}
+              visitServiceId={visitServiceId}
               onOrderCreated={() => {
                 queryClient.invalidateQueries({ queryKey: ["doc-ws-main", visitId, hospitalId] });
                 queryClient.invalidateQueries({ queryKey: ["doc-ws-child", visitId, hospitalId] });
