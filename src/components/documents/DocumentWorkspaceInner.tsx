@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -26,6 +26,7 @@ interface InnerProps {
   patient: any;
   documentType: any;
   visitServices: any[];
+  pendingOrders: any[];
   completedByProfile: any;
   visitDate: Date;
   hospitalName: string;
@@ -34,7 +35,7 @@ interface InnerProps {
 export default function DocumentWorkspaceInner({
   visitServiceId, patientId, visitId, hospitalId, documentTypeId, onClose,
   existingDoc, sectionsData, fieldsData, existingValues, patient,
-  documentType, visitServices, completedByProfile, visitDate, hospitalName,
+  documentType, visitServices, pendingOrders, completedByProfile, visitDate, hospitalName,
 }: InnerProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -53,16 +54,6 @@ export default function DocumentWorkspaceInner({
   const [activeTab, setActiveTab] = useState("0");
 
   const isReadOnly = existingDoc?.status === "completed";
-
-  const isDirtyRef = useRef(false);
-  const documentIdRef = useRef<string | null>(documentId);
-  const isReadOnlyRef = useRef(isReadOnly);
-  const valuesRef = useRef(values);
-
-  useEffect(() => { isDirtyRef.current = isDirty; }, [isDirty]);
-  useEffect(() => { documentIdRef.current = documentId; }, [documentId]);
-  useEffect(() => { isReadOnlyRef.current = isReadOnly; }, [isReadOnly]);
-  useEffect(() => { valuesRef.current = values; }, [values]);
 
   const sections = useMemo(() => {
     return [...sectionsData]
@@ -96,13 +87,8 @@ export default function DocumentWorkspaceInner({
   }, [sections, values]);
 
   const setVal = (id: string, val: string) => {
-    setValues((p) => {
-      const next = { ...p, [id]: val };
-      valuesRef.current = next;
-      return next;
-    });
+    setValues((p) => ({ ...p, [id]: val }));
     setIsDirty(true);
-    isDirtyRef.current = true;
   };
 
   const handleSave = async (silent = false): Promise<string | null> => {
@@ -163,31 +149,57 @@ export default function DocumentWorkspaceInner({
     }
   };
 
-  // Auto-save on unmount
+  // Debounced autosave — fires 2s after last change
   useEffect(() => {
-    return () => {
-      if (!isDirtyRef.current || isReadOnlyRef.current) return;
-      const currentValues = valuesRef.current;
-      const currentDocId = documentIdRef.current;
-      if (currentDocId) {
-        supabase
+    if (!isDirty || isReadOnly) return;
+    const timer = setTimeout(async () => {
+      if (isReadOnly) return;
+      if (!documentId) {
+        const { data: doc, error } = await supabase
+          .from("patient_documents")
+          .insert({
+            patient_id: patientId,
+            hospital_id: hospitalId,
+            document_type_id: documentTypeId,
+            visit_service_id: visitServiceId,
+            status: "preliminary",
+            created_by: user!.id,
+          })
+          .select("id")
+          .single();
+        if (error || !doc) return;
+        setDocumentId(doc.id);
+        await supabase
           .from("patient_document_field_values")
           .upsert(
-            Object.entries(currentValues).map(
-              ([fieldId, value]) => ({
-                patient_document_id: currentDocId,
-                field_definition_id: fieldId,
-                hospital_id: hospitalId,
-                value,
-                recorded_by: user!.id,
-              })
-            ),
+            Object.entries(values).map(([fieldId, value]) => ({
+              patient_document_id: doc.id,
+              field_definition_id: fieldId,
+              hospital_id: hospitalId,
+              value,
+              recorded_by: user!.id,
+            })),
             { onConflict: "patient_document_id,field_definition_id" }
-          )
-          .then(() => {});
+          );
+      } else {
+        await supabase
+          .from("patient_document_field_values")
+          .upsert(
+            Object.entries(values).map(([fieldId, value]) => ({
+              patient_document_id: documentId,
+              field_definition_id: fieldId,
+              hospital_id: hospitalId,
+              value,
+              recorded_by: user!.id,
+            })),
+            { onConflict: "patient_document_id,field_definition_id" }
+          );
       }
-    };
-  }, []); // empty deps — reads from refs at unmount
+      setIsDirty(false);
+    }, 2000);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [values, isDirty, isReadOnly]);
 
   const canConfirm =
     !isReadOnly && allMandatoryFilled && documentId !== null && !isSaving && !isConfirming;
@@ -266,13 +278,15 @@ export default function DocumentWorkspaceInner({
           {activeTab === "assignments" ? (
             <AssignmentsSection
               visitServices={visitServices}
+              pendingOrders={pendingOrders}
               isReadOnly={isReadOnly}
               patientId={patientId}
               hospitalId={hospitalId}
               visitId={visitId}
-              onOrderCreated={() =>
-                queryClient.invalidateQueries({ queryKey: ["doc-ws-visit-services", visitId, hospitalId] })
-              }
+              onOrderCreated={() => {
+                queryClient.invalidateQueries({ queryKey: ["doc-ws-visit-services", visitId, hospitalId] });
+                queryClient.invalidateQueries({ queryKey: ["doc-ws-pending-orders", patientId, hospitalId] });
+              }}
             />
           ) : (
             sections[Number(activeTab)] && (
