@@ -140,8 +140,7 @@ export default function DocumentWorkspace(props: Props) {
           completed_at, created_at,
           services!inner(name, service_type_id,
             service_types!inner(code)),
-          service_statuses!inner(code, name_ru),
-          profiles!assigned_physician_id(full_name)
+          service_statuses!inner(code, name_ru)
         `)
         .eq("patient_id", patientId)
         .eq("hospital_id", hospitalId)
