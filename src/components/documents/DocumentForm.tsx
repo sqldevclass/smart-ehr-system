@@ -227,7 +227,7 @@ function DocumentFormInner({
   const { user } = useAuth();
 
   const [documentId, setDocumentId] = useState<string | null>(() => existingDoc?.id ?? null);
-  const [criticalityFlag, setCriticalityFlag] = useState<boolean>(() => existingDoc?.criticality_flag ?? false);
+
   const [values, setValues] = useState<Record<string, string>>(() => {
     const loaded: Record<string, string> = {};
     (existingValues || []).forEach((v) => {
