@@ -36,7 +36,7 @@ interface InnerProps {
 }
 
 export default function DocumentWorkspaceInner({
-  visitServiceId, patientId, visitId, hospitalId, documentTypeId, onClose,
+  visitServiceId, patientId, visitId, hospitalId, documentTypeId, serviceStatusCode, onClose,
   existingDoc, sectionsData, fieldsData, existingValues, patient,
   documentType, mainServices, childServices, pendingOrders, physicianNameMap,
   completedByProfile, visitDate, hospitalName,
@@ -57,7 +57,10 @@ export default function DocumentWorkspaceInner({
   const [isConfirming, setIsConfirming] = useState(false);
   const [activeTab, setActiveTab] = useState("0");
 
-  const isReadOnly = existingDoc?.status === "completed";
+  const isReadOnly =
+    existingDoc?.status === "completed" ||
+    (serviceStatusCode !== "ready_for_execution" &&
+     serviceStatusCode !== "completed");
 
   const sections = useMemo(() => {
     return [...sectionsData]
@@ -210,6 +213,12 @@ export default function DocumentWorkspaceInner({
 
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)]">
+      {serviceStatusCode === "preliminary" && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-yellow-50 border-b border-yellow-200 text-yellow-800 text-sm">
+          <span>⏳</span>
+          <span>Услуга ожидает оплаты. Документ доступен только для просмотра.</span>
+        </div>
+      )}
       {/* Toolbar */}
       <div className="flex items-center justify-between border-b px-4 py-2 bg-card">
         <div className="flex items-center gap-3">
@@ -222,7 +231,7 @@ export default function DocumentWorkspaceInner({
           >
             {documentType?.name_ru}
           </span>
-          {isReadOnly && (
+          {isReadOnly && serviceStatusCode !== "preliminary" && (
             <Badge className="bg-green-600 hover:bg-green-600 text-white">Завершено</Badge>
           )}
         </div>
