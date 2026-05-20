@@ -337,7 +337,6 @@ export default function OutpatientPatientDetail() {
           hospitalId={user!.hospitalId}
           onClose={() => setDocumentService(null)}
           onSaved={() => {
-            setDocumentService(null);
             queryClient.invalidateQueries({
               queryKey: ["outpatient-active-services"],
             });
