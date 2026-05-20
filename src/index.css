@@ -98,12 +98,44 @@
 }
 
 @media print {
-  body > * { display: none; }
-  .document-print-area { display: block !important; }
-  .document-section-page {
-    page-break-before: always;
+  /* Hide app chrome */
+  nav, aside, header,
+  [data-sidebar],
+  .physician-left-panel,
+  .document-toolbar,
+  .document-tabs-bar,
+  .document-page-bg {
+    display: none !important;
   }
-  .document-section-page:first-child {
+
+  /* Reset page layout */
+  body, #root {
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Show all sections for print */
+  .document-section-hidden-for-print {
+    display: block !important;
+  }
+
+  /* Page breaks between sections */
+  .document-print-section {
+    page-break-before: always;
+    page-break-inside: avoid;
+  }
+  .document-print-section:first-child {
     page-break-before: avoid;
+  }
+
+  /* A4 card reset for print */
+  .document-a4-card {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 2cm !important;
+    width: 100% !important;
+    min-height: unset !important;
   }
 }
