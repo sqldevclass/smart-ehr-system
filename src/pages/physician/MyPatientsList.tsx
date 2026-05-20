@@ -370,6 +370,22 @@ export default function MyPatientsList() {
 
   const roomIdsList = Object.keys(roomMap);
 
+  if (activeDocument) {
+    return (
+      <DocumentWorkspace
+        visitServiceId={activeDocument.visitServiceId}
+        patientId={activeDocument.patientId}
+        visitId={activeDocument.visitId}
+        hospitalId={user!.hospitalId}
+        documentTypeId={activeDocument.documentTypeId}
+        onClose={() => {
+          setActiveDocument(null);
+          load();
+        }}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
