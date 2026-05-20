@@ -334,7 +334,7 @@ function DocumentFormInner({
     }
   };
 
-  const canConfirm = !isReadOnly && criticalityFlag && allMandatoryFilled && documentId !== null && !isSaving && !isConfirming;
+  const canConfirm = !isReadOnly && allMandatoryFilled && documentId !== null && !isSaving && !isConfirming;
 
   return (
     <>
