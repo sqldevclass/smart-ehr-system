@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { format, subDays, addDays, startOfDay, endOfDay, isSameDay } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { toLocal } from "@/lib/timezone";
+import DocumentWorkspace from "@/components/documents/DocumentWorkspace";
 
 interface Physician {
   id: string;
