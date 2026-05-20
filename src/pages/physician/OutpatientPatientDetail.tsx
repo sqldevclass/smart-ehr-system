@@ -98,19 +98,22 @@ export default function OutpatientPatientDetail() {
   const prelimId = statuses.find((s: any) => s.code === "preliminary")?.id ?? null;
 
   const { data: activeServices = [] } = useQuery({
-    queryKey: ["outpatient-active-services", patientId, physicianId, readyId],
+    queryKey: ["outpatient-active-services", patientId, physicianId],
     queryFn: async () => {
-      if (!readyId) return [];
       const { data } = await supabase
         .from("visit_services")
         .select("id, scheduled_at, queue_number, is_waitlist, cost_at_time, service_statuses(code, name_ru), services(name, linked_document_type_id)")
         .eq("patient_id", patientId!)
         .eq("assigned_physician_id", physicianId!)
-        .eq("hospital_id", user!.hospitalId)
-        .eq("status_id", readyId);
-      return data || [];
+        .eq("hospital_id", user!.hospitalId);
+      return (data || []).filter((vs: any) => {
+        const code = vs.service_statuses?.code;
+        if (code === "ready_for_execution") return true;
+        if (code === "completed" && vs.services?.linked_document_type_id) return true;
+        return false;
+      });
     },
-    enabled: !!patientId && !!physicianId && !!user?.hospitalId && !!readyId,
+    enabled: !!patientId && !!physicianId && !!user?.hospitalId,
   });
 
   const handleComplete = async (vsId: string) => {
