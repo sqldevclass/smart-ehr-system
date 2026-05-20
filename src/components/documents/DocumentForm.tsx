@@ -126,8 +126,21 @@ export default function DocumentForm(props: Props) {
     valuesReady &&
     !existingDocLoading;
 
+  const dirtyRef = useRef(false);
+  const saveRef = useRef<(() => Promise<string | null>) | null>(null);
+
   return (
-    <Sheet open={true} onOpenChange={(o) => { if (!o) props.onClose(); }}>
+    <Sheet
+      open={true}
+      onOpenChange={async (o) => {
+        if (!o) {
+          if (dirtyRef.current && saveRef.current) {
+            try { await saveRef.current(); } catch { /* silent */ }
+          }
+          props.onClose();
+        }
+      }}
+    >
       <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
         {existingDocLoading ? (
           <div className="flex h-40 items-center justify-center">
@@ -156,6 +169,8 @@ export default function DocumentForm(props: Props) {
             docType={docType}
             onClose={props.onClose}
             onSaved={props.onSaved}
+            dirtyRef={dirtyRef}
+            saveRef={saveRef}
           />
         )}
       </SheetContent>
