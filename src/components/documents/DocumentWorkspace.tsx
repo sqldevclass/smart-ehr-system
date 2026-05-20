@@ -130,6 +130,29 @@ export default function DocumentWorkspace(props: Props) {
     },
   });
 
+  const { data: pendingOrders = [] } = useQuery({
+    queryKey: ["doc-ws-pending-orders", patientId, hospitalId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("visit_services")
+        .select(`
+          id, source, scheduled_at, queue_number,
+          completed_at, created_at,
+          services!inner(name, service_type_id,
+            service_types!inner(code)),
+          service_statuses!inner(code, name_ru),
+          profiles!assigned_physician_id(full_name)
+        `)
+        .eq("patient_id", patientId)
+        .eq("hospital_id", hospitalId)
+        .eq("source", "physician")
+        .is("visit_id", null)
+        .order("created_at");
+      return data || [];
+    },
+  });
+
+
   const { data: completedByProfile } = useQuery({
     queryKey: ["doc-ws-completedby", existingDoc?.completed_by],
     enabled: !!existingDoc?.completed_by,
