@@ -41,7 +41,7 @@ export default function DocumentForm(props: Props) {
     queryFn: async () => {
       const { data } = await supabase
         .from("patient_documents")
-        .select("id, status, criticality_flag, document_type_id")
+        .select("id, status, document_type_id")
         .eq("visit_service_id", props.visitServiceId)
         .eq("hospital_id", props.hospitalId)
         .maybeSingle();
