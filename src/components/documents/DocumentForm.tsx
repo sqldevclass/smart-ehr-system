@@ -232,12 +232,14 @@ interface InnerProps {
   docType: any;
   onClose: () => void;
   onSaved: () => void;
+  dirtyRef: React.MutableRefObject<boolean>;
+  saveRef: React.MutableRefObject<((silent?: boolean) => Promise<string | null>) | null>;
 }
 
 function DocumentFormInner({
   visitServiceId, patientId, hospitalizationId, hospitalId,
   selectedTypeId, existingDoc, sectionsData, fieldsData, existingValues,
-  docType, onSaved,
+  docType, onSaved, dirtyRef, saveRef,
 }: InnerProps) {
   const { user } = useAuth();
 
