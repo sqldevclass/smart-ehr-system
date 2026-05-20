@@ -52,12 +52,12 @@ export default function DocumentWorkspaceInner({
   const [isConfirming, setIsConfirming] = useState(false);
   const [activeTab, setActiveTab] = useState("0");
 
+  const isReadOnly = existingDoc?.status === "completed";
+
   const isDirtyRef = useRef(false);
   const documentIdRef = useRef<string | null>(documentId);
   const isReadOnlyRef = useRef(isReadOnly);
   const valuesRef = useRef(values);
-
-  const isReadOnly = existingDoc?.status === "completed";
 
   useEffect(() => { isDirtyRef.current = isDirty; }, [isDirty]);
   useEffect(() => { documentIdRef.current = documentId; }, [documentId]);
