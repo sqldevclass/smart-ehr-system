@@ -210,7 +210,7 @@ interface InnerProps {
   hospitalizationId: string | null;
   hospitalId: string;
   selectedTypeId: string;
-  existingDoc: { id: string; status: string; criticality_flag: boolean } | null;
+  existingDoc: { id: string; status: string } | null;
   sectionsData: any[];
   fieldsData: any[];
   existingValues: { field_definition_id: string; value: string }[];
