@@ -240,7 +240,7 @@ export default function DocumentWorkspaceInner({
         </div>
       )}
       {/* Toolbar */}
-      <div className="flex items-center justify-between border-b px-4 py-2 bg-card">
+      <div className="document-toolbar flex items-center justify-between border-b px-4 py-2 bg-card">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={onClose}>
             <ArrowLeft className="h-4 w-4 mr-1" /> Назад
@@ -268,7 +268,7 @@ export default function DocumentWorkspaceInner({
       </div>
 
       {/* Tabs */}
-      <div className="border-b bg-card px-4 overflow-x-auto">
+      <div className="document-tabs-bar border-b bg-card px-4 overflow-x-auto">
         <div className="flex">
           {sections.map((s, i) => (
             <button
@@ -299,14 +299,56 @@ export default function DocumentWorkspaceInner({
       </div>
 
       {/* A4 Document Area */}
-      <div className="flex-1 overflow-y-auto bg-muted/30 p-6 document-print-area">
-        <div className="mx-auto max-w-[210mm] bg-card rounded-md shadow-sm border p-8">
+      <div className="document-page-bg flex-1 overflow-y-auto bg-muted/30 p-6 document-print-area">
+        <div className="document-a4-card mx-auto max-w-[210mm] bg-card rounded-md shadow-sm border p-8">
           <DocumentPatientHeader
             patient={patient}
             documentType={documentType}
             hospitalName={hospitalName}
             visitDate={visitDate}
           />
+
+          {sections.map((s, i) => (
+            <div
+              key={s.id}
+              className={
+                activeTab === String(i)
+                  ? "document-print-section"
+                  : "document-print-section document-section-hidden-for-print hidden print:block"
+              }
+            >
+              <DocumentSection
+                section={s}
+                values={values}
+                setVal={setVal}
+                isReadOnly={isReadOnly}
+              />
+            </div>
+          ))}
+          <div
+            className={
+              activeTab === "assignments"
+                ? "document-print-section"
+                : "document-print-section document-section-hidden-for-print hidden print:block"
+            }
+          >
+            <AssignmentsSection
+              mainServices={mainServices}
+              childServices={childServices}
+              pendingOrders={pendingOrders}
+              physicianNameMap={physicianNameMap}
+              isReadOnly={isReadOnly}
+              patientId={patientId}
+              hospitalId={hospitalId}
+              visitId={visitId}
+              visitServiceId={visitServiceId}
+              onOrderCreated={() => {
+                queryClient.invalidateQueries({ queryKey: ["doc-ws-main", visitId, hospitalId] });
+                queryClient.invalidateQueries({ queryKey: ["doc-ws-child", visitId, hospitalId] });
+                queryClient.invalidateQueries({ queryKey: ["doc-ws-pending", visitServiceId, hospitalId] });
+              }}
+            />
+          </div>
 
           {activeTab === "assignments" ? (
             <AssignmentsSection
