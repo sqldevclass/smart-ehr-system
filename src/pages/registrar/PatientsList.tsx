@@ -107,7 +107,7 @@ export default function PatientsList() {
       if (!user) return new Set<string>();
       const { data, error } = await supabase
         .from("visit_services")
-        .select("visit:visits!inner(patient_id, hospital_id), source, service_statuses!inner(code), invoice_items(id)")
+        .select("visit:visits!visit_id!inner(patient_id, hospital_id), source, service_statuses!inner(code), invoice_items(id)")
         .eq("source", "physician")
         .eq("service_statuses.code", "preliminary")
         .eq("visit.hospital_id", user.hospitalId);
