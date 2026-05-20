@@ -458,7 +458,7 @@ export default function MyPatientsList() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      visible.map(renderServiceRow)
+                      visible.map((r) => renderServiceRow(r, true))
                     )}
                   </TableBody>
                 </Table>
