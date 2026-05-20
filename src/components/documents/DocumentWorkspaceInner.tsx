@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -37,6 +37,7 @@ export default function DocumentWorkspaceInner({
   documentType, visitServices, completedByProfile, visitDate, hospitalName,
 }: InnerProps) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const [documentId, setDocumentId] = useState<string | null>(() => existingDoc?.id ?? null);
   const [values, setValues] = useState<Record<string, string>>(() => {
@@ -232,7 +233,16 @@ export default function DocumentWorkspaceInner({
           />
 
           {activeTab === "assignments" ? (
-            <AssignmentsSection visitServices={visitServices} isReadOnly={isReadOnly} />
+            <AssignmentsSection
+              visitServices={visitServices}
+              isReadOnly={isReadOnly}
+              patientId={patientId}
+              hospitalId={hospitalId}
+              visitId={visitId}
+              onOrderCreated={() =>
+                queryClient.invalidateQueries({ queryKey: ["doc-ws-visit-services", visitId, hospitalId] })
+              }
+            />
           ) : (
             sections[Number(activeTab)] && (
               <DocumentSection

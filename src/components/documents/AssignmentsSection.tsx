@@ -1,5 +1,12 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -7,6 +14,10 @@ import {
 interface Props {
   visitServices: any[];
   isReadOnly: boolean;
+  patientId: string;
+  hospitalId: string;
+  visitId: string;
+  onOrderCreated: () => void;
 }
 
 const GROUP_LABEL: Record<string, string> = {
@@ -14,7 +25,12 @@ const GROUP_LABEL: Record<string, string> = {
   consultation: "Консультации",
 };
 
-export default function AssignmentsSection({ visitServices }: Props) {
+export default function AssignmentsSection({
+  visitServices, isReadOnly, patientId, hospitalId, visitId, onOrderCreated,
+}: Props) {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
   const groups = useMemo(() => {
     const out: Record<string, any[]> = { laboratory: [], consultation: [], other: [] };
     for (const vs of visitServices) {
@@ -26,49 +42,145 @@ export default function AssignmentsSection({ visitServices }: Props) {
     return out;
   }, [visitServices]);
 
-  const renderGroup = (key: string, name: string, list: any[]) => {
-    if (list.length === 0) return null;
+  const { data: availableServices = [] } = useQuery({
+    queryKey: ["services-for-ordering", hospitalId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("services")
+        .select("id, name, cost_with_vat, service_types!inner(code, name_ru)")
+        .eq("hospital_id", hospitalId)
+        .eq("is_active", true)
+        .order("name");
+      return data || [];
+    },
+  });
+
+  const [showOrderForm, setShowOrderForm] = useState<string | null>(null);
+  const [selectedServiceId, setSelectedServiceId] = useState<string>("");
+  const [isOrdering, setIsOrdering] = useState(false);
+
+  const handleOrder = async () => {
+    if (!selectedServiceId) return;
+    setIsOrdering(true);
+    const service = availableServices.find((s: any) => s.id === selectedServiceId);
+    await supabase.rpc("physician_order_services", {
+      p_patient_id: patientId,
+      p_hospital_id: hospitalId,
+      p_ordered_by: user!.id,
+      p_services: [{
+        service_id: selectedServiceId,
+        cost_at_time: service?.cost_with_vat ?? 0,
+      }],
+    });
+    setIsOrdering(false);
+    setShowOrderForm(null);
+    setSelectedServiceId("");
+    queryClient.invalidateQueries({ queryKey: ["visit-services", visitId] });
+    onOrderCreated();
+  };
+
+  const renderOrderForm = (kind: string) => {
+    if (showOrderForm !== kind) return null;
+    return (
+      <div className="mt-3 p-3 border rounded-md bg-gray-50 space-y-2">
+        <Select value={selectedServiceId} onValueChange={setSelectedServiceId}>
+          <SelectTrigger>
+            <SelectValue placeholder="Выберите услугу" />
+          </SelectTrigger>
+          <SelectContent>
+            {availableServices
+              .filter((s: any) => {
+                if (kind === "lab") return s.service_types?.code === "laboratory";
+                if (kind === "consultation") return s.service_types?.code === "consultation";
+                return !["laboratory", "consultation"].includes(s.service_types?.code);
+              })
+              .map((s: any) => (
+                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+              ))}
+          </SelectContent>
+        </Select>
+        <div className="flex gap-2">
+          <Button size="sm" disabled={!selectedServiceId || isOrdering} onClick={handleOrder}>
+            {isOrdering ? "..." : "Назначить"}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              setShowOrderForm(null);
+              setSelectedServiceId("");
+            }}
+          >
+            Отмена
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderGroup = (
+    key: string,
+    name: string,
+    list: any[],
+    addBtn: { kind: string; label: string } | null,
+  ) => {
+    if (list.length === 0 && (isReadOnly || !addBtn)) return null;
     return (
       <div key={key} className="space-y-2">
         <h3 className="font-heading text-base font-semibold">{name}</h3>
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Услуга</TableHead>
-                <TableHead>Статус</TableHead>
-                <TableHead>Врач</TableHead>
-                <TableHead>Время</TableHead>
-                <TableHead>Завершено</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {list.map((vs) => (
-                <TableRow key={vs.id}>
-                  <TableCell className="font-medium">{vs.services?.name}</TableCell>
-                  <TableCell>
-                    <span className="text-xs rounded border px-2 py-0.5 bg-muted">
-                      {vs.service_statuses?.name_ru}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-sm">{vs.profiles?.full_name ?? "—"}</TableCell>
-                  <TableCell className="text-sm">
-                    {vs.scheduled_at
-                      ? format(new Date(vs.scheduled_at), "dd.MM HH:mm")
-                      : vs.queue_number
-                      ? `#${vs.queue_number}`
-                      : "—"}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {vs.completed_at
-                      ? format(new Date(vs.completed_at), "dd.MM.yyyy HH:mm")
-                      : "—"}
-                  </TableCell>
+        {list.length > 0 && (
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Услуга</TableHead>
+                  <TableHead>Статус</TableHead>
+                  <TableHead>Врач</TableHead>
+                  <TableHead>Время</TableHead>
+                  <TableHead>Завершено</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {list.map((vs) => (
+                  <TableRow key={vs.id}>
+                    <TableCell className="font-medium">{vs.services?.name}</TableCell>
+                    <TableCell>
+                      <span className="text-xs rounded border px-2 py-0.5 bg-muted">
+                        {vs.service_statuses?.name_ru}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-sm">{vs.profiles?.full_name ?? "—"}</TableCell>
+                    <TableCell className="text-sm">
+                      {vs.scheduled_at
+                        ? format(new Date(vs.scheduled_at), "dd.MM HH:mm")
+                        : vs.queue_number
+                        ? `#${vs.queue_number}`
+                        : "—"}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {vs.completed_at
+                        ? format(new Date(vs.completed_at), "dd.MM.yyyy HH:mm")
+                        : "—"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+        {!isReadOnly && addBtn && (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-2"
+              onClick={() => setShowOrderForm(addBtn.kind)}
+            >
+              {addBtn.label}
+            </Button>
+            {renderOrderForm(addBtn.kind)}
+          </>
+        )}
       </div>
     );
   };
@@ -76,9 +188,15 @@ export default function AssignmentsSection({ visitServices }: Props) {
   return (
     <div className="document-section-page space-y-6">
       <h2 className="font-heading text-lg font-semibold border-b pb-2">Назначения</h2>
-      {renderGroup("laboratory", GROUP_LABEL.laboratory, groups.laboratory)}
-      {renderGroup("consultation", GROUP_LABEL.consultation, groups.consultation)}
-      {renderGroup("other", "Услуги", groups.other)}
+      {renderGroup("laboratory", GROUP_LABEL.laboratory, groups.laboratory, {
+        kind: "lab", label: "+ Направить в лабораторию",
+      })}
+      {renderGroup("consultation", GROUP_LABEL.consultation, groups.consultation, {
+        kind: "consultation", label: "+ Направить на консультацию",
+      })}
+      {renderGroup("other", "Услуги", groups.other, {
+        kind: "service", label: "+ Добавить услугу",
+      })}
 
       <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
         Медикаменты — доступно в Фазе 6
