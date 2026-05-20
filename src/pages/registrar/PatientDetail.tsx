@@ -103,7 +103,7 @@ export default function PatientDetail() {
     queryFn: async () => {
       const { data } = await supabase
         .from("visits")
-        .select("id, visit_date, status, total_amount, amount_paid, visit_services(id, source, cost_at_time, assigned_physician_id, services(id, name), service_statuses(code, name_ru), invoice_items(id))")
+        .select("id, visit_date, status, total_amount, amount_paid, visit_services!visit_id(id, source, cost_at_time, assigned_physician_id, services(id, name), service_statuses(code, name_ru), invoice_items(id))")
         .eq("patient_id", patientId!)
         .eq("hospital_id", user!.hospitalId)
         .order("created_at", { ascending: false });
