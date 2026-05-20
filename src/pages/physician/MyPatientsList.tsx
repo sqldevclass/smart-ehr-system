@@ -398,18 +398,17 @@ export default function MyPatientsList() {
               <TableHead>Service</TableHead>
               <TableHead>Time / Queue</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sorted.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-6">
+                <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-6">
                   No services for today.
                 </TableCell>
               </TableRow>
             ) : (
-              sorted.map(renderServiceRow)
+              sorted.map((r) => renderServiceRow(r, false))
             )}
           </TableBody>
         </Table>
