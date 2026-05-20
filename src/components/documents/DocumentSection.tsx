@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
@@ -6,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 interface FieldDef {
   id: string;
+  attribute_code?: string;
   label_ru: string;
   field_type: string;
   options: any;
@@ -88,32 +92,86 @@ function renderField(
 }
 
 export default function DocumentSection({ section, values, setVal, isReadOnly }: Props) {
+  const [icdSearch, setIcdSearch] = useState<Record<string, string>>({});
+
+  const { data: icdResults = [] } = useQuery({
+    queryKey: ["icd10-search", icdSearch],
+    queryFn: async () => {
+      const term = Object.values(icdSearch).find((v) => v && v.length >= 1);
+      if (!term) return [];
+      const { data } = await supabase
+        .from("icd10_codes")
+        .select("id, code, name_ru")
+        .eq("is_leaf", true)
+        .or(`name_ru.ilike.%${term}%,code.ilike.%${term}%`)
+        .limit(20);
+      return data || [];
+    },
+    enabled: Object.values(icdSearch).some((v) => v && v.length >= 1),
+  });
+
   return (
     <div className="document-section-page space-y-4">
       <h2 className="font-heading text-lg font-semibold border-b pb-2">
         {section.name_ru}
       </h2>
       <div className="space-y-4">
-        {section.fields.map((field) => (
-          <div key={field.def.id} className="space-y-1.5">
-            <div className="text-sm font-medium flex items-center gap-1">
-              {field.def.label_ru}
-              {field.def.unit && (
-                <span className="text-xs text-muted-foreground">({field.def.unit})</span>
-              )}
-              {field.is_mandatory && !isReadOnly && (
-                <span className="text-destructive">*</span>
-              )}
-            </div>
-            {isReadOnly ? (
-              <div className="text-sm py-1.5 whitespace-pre-wrap">
-                {values[field.def.id] || (
-                  <span className="italic text-sm text-muted-foreground">Не заполнено</span>
+        {section.fields.map((field) => {
+          const isDiag =
+            field.def.attribute_code?.startsWith("diag.") &&
+            field.def.field_type === "textarea";
+          return (
+            <div key={field.def.id} className="space-y-1.5">
+              <div className="text-sm font-medium flex items-center gap-1">
+                {field.def.label_ru}
+                {field.def.unit && (
+                  <span className="text-xs text-muted-foreground">({field.def.unit})</span>
+                )}
+                {field.is_mandatory && !isReadOnly && (
+                  <span className="text-destructive">*</span>
                 )}
               </div>
-            ) : renderField(field.def, values, setVal)}
-          </div>
-        ))}
+              {isReadOnly ? (
+                <div className="text-sm py-1.5 whitespace-pre-wrap">
+                  {values[field.def.id] || (
+                    <span className="italic text-sm text-muted-foreground">Не заполнено</span>
+                  )}
+                </div>
+              ) : isDiag ? (
+                <div className="relative">
+                  <Input
+                    value={icdSearch[field.def.id] ?? values[field.def.id] ?? ""}
+                    onChange={(e) =>
+                      setIcdSearch((p) => ({ ...p, [field.def.id]: e.target.value }))
+                    }
+                    placeholder="Поиск по МКБ-10..."
+                  />
+                  {icdResults.length > 0 && (icdSearch[field.def.id]?.length ?? 0) >= 1 && (
+                    <div className="absolute z-50 w-full bg-white border rounded-md shadow-lg max-h-48 overflow-y-auto mt-1">
+                      {icdResults.map((r: any) => (
+                        <div
+                          key={r.id}
+                          className="px-3 py-2 text-sm hover:bg-muted cursor-pointer"
+                          onClick={() => {
+                            const displayValue = `${r.code} — ${r.name_ru}`;
+                            setVal(field.def.id, displayValue);
+                            setIcdSearch((p) => ({ ...p, [field.def.id]: displayValue }));
+                          }}
+                        >
+                          <span className="font-medium">{r.code}</span>
+                          {" — "}
+                          {r.name_ru}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                renderField(field.def, values, setVal)
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
