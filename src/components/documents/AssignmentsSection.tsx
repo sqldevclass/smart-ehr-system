@@ -13,6 +13,7 @@ import {
 
 interface Props {
   visitServices: any[];
+  pendingOrders: any[];
   isReadOnly: boolean;
   patientId: string;
   hospitalId: string;
@@ -26,21 +27,23 @@ const GROUP_LABEL: Record<string, string> = {
 };
 
 export default function AssignmentsSection({
-  visitServices, isReadOnly, patientId, hospitalId, visitId, onOrderCreated,
+  visitServices, pendingOrders, isReadOnly, patientId, hospitalId, visitId, onOrderCreated,
 }: Props) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
   const groups = useMemo(() => {
     const out: Record<string, any[]> = { laboratory: [], consultation: [], other: [] };
-    for (const vs of visitServices) {
+    const allServices = [...visitServices, ...pendingOrders];
+    for (const vs of allServices) {
       const code = vs.services?.service_types?.code;
       if (code === "laboratory") out.laboratory.push(vs);
       else if (code === "consultation") out.consultation.push(vs);
       else out.other.push(vs);
     }
     return out;
-  }, [visitServices]);
+  }, [visitServices, pendingOrders]);
+
 
   const { data: availableServices = [] } = useQuery({
     queryKey: ["services-for-ordering", hospitalId],
