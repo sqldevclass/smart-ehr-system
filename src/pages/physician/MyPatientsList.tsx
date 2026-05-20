@@ -30,7 +30,7 @@ interface VisitServiceRow {
   created_by?: string | null;
   ordering_physician?: { full_name: string | null } | null;
   service_statuses: { code: string | null; name_ru: string | null } | null;
-  services: { id?: string; name: string | null } | null;
+  services: { id?: string; name: string | null; linked_document_type_id?: string | null } | null;
   rooms?: { name: string | null } | null;
   visits: {
     patient_id?: string | null;
