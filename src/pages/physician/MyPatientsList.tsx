@@ -77,6 +77,7 @@ export default function MyPatientsList() {
     patientId: string;
     visitId: string;
     documentTypeId: string;
+    serviceStatusCode: string;
   } | null>(null);
 
   const load = useCallback(async () => {
@@ -306,6 +307,8 @@ export default function MyPatientsList() {
               patientId: pid,
               visitId: r.visit_id,
               documentTypeId: linkedDocTypeId,
+              serviceStatusCode:
+                r.service_statuses?.code ?? "preliminary",
             });
           } else if (pid) {
             navigate(`/physician/patients/${pid}`);
@@ -378,6 +381,7 @@ export default function MyPatientsList() {
         visitId={activeDocument.visitId}
         hospitalId={user!.hospitalId}
         documentTypeId={activeDocument.documentTypeId}
+        serviceStatusCode={activeDocument.serviceStatusCode}
         onClose={() => {
           setActiveDocument(null);
           load();
