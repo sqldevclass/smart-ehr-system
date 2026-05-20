@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -111,46 +112,95 @@ export default function DocumentWorkspace(props: Props) {
     },
   });
 
-  const { data: visitServices = [] } = useQuery({
-    queryKey: ["doc-ws-visit-services", visitId, hospitalId],
+  const { data: mainServices = [] } = useQuery({
+    queryKey: ["doc-ws-main", visitId, hospitalId],
     queryFn: async () => {
       const { data } = await supabase
         .from("visit_services")
         .select(`
-          id, source, scheduled_at, queue_number, completed_at,
+          id, source, scheduled_at, queue_number,
+          completed_at, assigned_physician_id,
           services!inner(name, service_type_id,
             service_types!inner(code)),
-          service_statuses!inner(code, name_ru),
-          profiles!assigned_physician_id(full_name)
+          service_statuses!inner(code, name_ru)
         `)
         .eq("visit_id", visitId)
         .eq("hospital_id", hospitalId)
+        .eq("source", "registrar")
+        .order("created_at");
+      return data || [];
+    },
+  });
+
+  const { data: childServices = [] } = useQuery({
+    queryKey: ["doc-ws-child", visitId, hospitalId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("visit_services")
+        .select(`
+          id, source, scheduled_at, queue_number,
+          completed_at, assigned_physician_id,
+          services!inner(name, service_type_id,
+            service_types!inner(code)),
+          service_statuses!inner(code, name_ru)
+        `)
+        .eq("hospital_id", hospitalId)
+        .eq("source", "physician")
+        .not("visit_id", "is", null)
+        .eq("ordered_from_visit_service_id", visitServiceId)
         .order("created_at");
       return data || [];
     },
   });
 
   const { data: pendingOrders = [] } = useQuery({
-    queryKey: ["doc-ws-pending-orders", patientId, hospitalId],
+    queryKey: ["doc-ws-pending", visitServiceId, hospitalId],
     queryFn: async () => {
       const { data } = await supabase
         .from("visit_services")
         .select(`
           id, source, scheduled_at, queue_number,
-          completed_at, created_at,
+          completed_at, assigned_physician_id,
           services!inner(name, service_type_id,
             service_types!inner(code)),
           service_statuses!inner(code, name_ru)
         `)
-        .eq("patient_id", patientId)
         .eq("hospital_id", hospitalId)
         .eq("source", "physician")
         .is("visit_id", null)
+        .eq("ordered_from_visit_service_id", visitServiceId)
         .order("created_at");
       return data || [];
     },
   });
 
+  const allPhysicianIds = useMemo(() => {
+    const ids = new Set<string>();
+    [...mainServices, ...childServices, ...pendingOrders].forEach((vs: any) => {
+      if (vs.assigned_physician_id) ids.add(vs.assigned_physician_id);
+    });
+    return Array.from(ids);
+  }, [mainServices, childServices, pendingOrders]);
+
+  const { data: physicianNames = [] } = useQuery({
+    queryKey: ["physician-names", allPhysicianIds],
+    enabled: allPhysicianIds.length > 0,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("physicians")
+        .select("id, profiles!inner(full_name)")
+        .in("id", allPhysicianIds);
+      return data || [];
+    },
+  });
+
+  const physicianNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    (physicianNames || []).forEach((p: any) => {
+      map[p.id] = p.profiles?.full_name ?? "—";
+    });
+    return map;
+  }, [physicianNames]);
 
   const { data: completedByProfile } = useQuery({
     queryKey: ["doc-ws-completedby", existingDoc?.completed_by],
@@ -193,12 +243,13 @@ export default function DocumentWorkspace(props: Props) {
       existingValues={existingValues || []}
       patient={patient}
       documentType={documentType}
-      visitServices={visitServices}
+      mainServices={mainServices}
+      childServices={childServices}
       pendingOrders={pendingOrders}
+      physicianNameMap={physicianNameMap}
       completedByProfile={completedByProfile}
       visitDate={visitDate}
       hospitalName={user?.hospitalName || ""}
     />
   );
 }
-
