@@ -389,9 +389,8 @@ function DocumentFormInner({
               Подтвердить
             </Button>
           </div>
-
-          </>
         )}
+
       </SheetFooter>
     </>
   );
