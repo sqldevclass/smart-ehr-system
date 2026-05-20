@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -54,6 +54,16 @@ export default function DocumentWorkspaceInner({
 
   const isReadOnly = existingDoc?.status === "completed";
 
+  const isDirtyRef = useRef(false);
+  const documentIdRef = useRef<string | null>(documentId);
+  const isReadOnlyRef = useRef(isReadOnly);
+  const valuesRef = useRef(values);
+
+  useEffect(() => { isDirtyRef.current = isDirty; }, [isDirty]);
+  useEffect(() => { documentIdRef.current = documentId; }, [documentId]);
+  useEffect(() => { isReadOnlyRef.current = isReadOnly; }, [isReadOnly]);
+  useEffect(() => { valuesRef.current = values; }, [values]);
+
   const sections = useMemo(() => {
     return [...sectionsData]
       .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
@@ -85,9 +95,14 @@ export default function DocumentWorkspaceInner({
     return true;
   }, [sections, values]);
 
-  const setVal = (id: string, v: string) => {
+  const setVal = (id: string, val: string) => {
+    setValues((p) => {
+      const next = { ...p, [id]: val };
+      valuesRef.current = next;
+      return next;
+    });
     setIsDirty(true);
-    setValues((p) => ({ ...p, [id]: v }));
+    isDirtyRef.current = true;
   };
 
   const handleSave = async (silent = false): Promise<string | null> => {
@@ -151,12 +166,28 @@ export default function DocumentWorkspaceInner({
   // Auto-save on unmount
   useEffect(() => {
     return () => {
-      if (isDirty && !isReadOnly && documentId) {
-        handleSave(true);
+      if (!isDirtyRef.current || isReadOnlyRef.current) return;
+      const currentValues = valuesRef.current;
+      const currentDocId = documentIdRef.current;
+      if (currentDocId) {
+        supabase
+          .from("patient_document_field_values")
+          .upsert(
+            Object.entries(currentValues).map(
+              ([fieldId, value]) => ({
+                patient_document_id: currentDocId,
+                field_definition_id: fieldId,
+                hospital_id: hospitalId,
+                value,
+                recorded_by: user!.id,
+              })
+            ),
+            { onConflict: "patient_document_id,field_definition_id" }
+          )
+          .then(() => {});
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDirty, isReadOnly, documentId]);
+  }, []); // empty deps — reads from refs at unmount
 
   const canConfirm =
     !isReadOnly && allMandatoryFilled && documentId !== null && !isSaving && !isConfirming;
