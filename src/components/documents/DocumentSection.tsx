@@ -1,11 +1,9 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import ICD10SearchField from "./ICD10SearchField";
 
 interface FieldDef {
   id: string;
@@ -92,24 +90,6 @@ function renderField(
 }
 
 export default function DocumentSection({ section, values, setVal, isReadOnly }: Props) {
-  const [icdSearch, setIcdSearch] = useState<Record<string, string>>({});
-
-  const { data: icdResults = [] } = useQuery({
-    queryKey: ["icd10-search", icdSearch],
-    queryFn: async () => {
-      const term = Object.values(icdSearch).find((v) => v && v.length >= 1);
-      if (!term) return [];
-      const { data } = await supabase
-        .from("icd10_codes")
-        .select("id, code, name_ru")
-        .eq("is_leaf", true)
-        .or(`name_ru.ilike.%${term}%,code.ilike.%${term}%`)
-        .limit(20);
-      return data || [];
-    },
-    enabled: Object.values(icdSearch).some((v) => v && v.length >= 1),
-  });
-
   return (
     <div className="document-section-page space-y-4">
       <h2 className="font-heading text-lg font-semibold border-b pb-2">
@@ -131,39 +111,18 @@ export default function DocumentSection({ section, values, setVal, isReadOnly }:
                   <span className="text-destructive">*</span>
                 )}
               </div>
-              {isReadOnly ? (
+              {isDiag ? (
+                <ICD10SearchField
+                  fieldId={field.def.id}
+                  label={field.def.label_ru}
+                  value={values[field.def.id] ?? ""}
+                  onChange={(val) => setVal(field.def.id, val)}
+                  isReadOnly={isReadOnly}
+                />
+              ) : isReadOnly ? (
                 <div className="text-sm py-1.5 whitespace-pre-wrap">
                   {values[field.def.id] || (
                     <span className="italic text-sm text-muted-foreground">Не заполнено</span>
-                  )}
-                </div>
-              ) : isDiag ? (
-                <div className="relative">
-                  <Input
-                    value={icdSearch[field.def.id] ?? values[field.def.id] ?? ""}
-                    onChange={(e) =>
-                      setIcdSearch((p) => ({ ...p, [field.def.id]: e.target.value }))
-                    }
-                    placeholder="Поиск по МКБ-10..."
-                  />
-                  {icdResults.length > 0 && (icdSearch[field.def.id]?.length ?? 0) >= 1 && (
-                    <div className="absolute z-50 w-full bg-white border rounded-md shadow-lg max-h-48 overflow-y-auto mt-1">
-                      {icdResults.map((r: any) => (
-                        <div
-                          key={r.id}
-                          className="px-3 py-2 text-sm hover:bg-muted cursor-pointer"
-                          onClick={() => {
-                            const displayValue = `${r.code} — ${r.name_ru}`;
-                            setVal(field.def.id, displayValue);
-                            setIcdSearch((p) => ({ ...p, [field.def.id]: displayValue }));
-                          }}
-                        >
-                          <span className="font-medium">{r.code}</span>
-                          {" — "}
-                          {r.name_ru}
-                        </div>
-                      ))}
-                    </div>
                   )}
                 </div>
               ) : (
