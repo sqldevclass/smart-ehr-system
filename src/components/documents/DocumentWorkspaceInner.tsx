@@ -37,6 +37,7 @@ export default function DocumentWorkspaceInner({
   documentType, visitServices, completedByProfile, visitDate, hospitalName,
 }: InnerProps) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const [documentId, setDocumentId] = useState<string | null>(() => existingDoc?.id ?? null);
   const [values, setValues] = useState<Record<string, string>>(() => {
