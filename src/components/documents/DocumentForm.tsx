@@ -28,7 +28,6 @@ interface Props {
 type ExistingDoc = {
   id: string;
   status: string;
-  criticality_flag: boolean;
   document_type_id: string | null;
 } | null;
 
@@ -41,7 +40,7 @@ export default function DocumentForm(props: Props) {
     queryFn: async () => {
       const { data } = await supabase
         .from("patient_documents")
-        .select("id, status, criticality_flag, document_type_id")
+        .select("id, status, document_type_id")
         .eq("visit_service_id", props.visitServiceId)
         .eq("hospital_id", props.hospitalId)
         .maybeSingle();
@@ -225,7 +224,7 @@ interface InnerProps {
   hospitalizationId: string | null;
   hospitalId: string;
   selectedTypeId: string;
-  existingDoc: { id: string; status: string; criticality_flag: boolean } | null;
+  existingDoc: { id: string; status: string } | null;
   sectionsData: any[];
   fieldsData: any[];
   existingValues: { field_definition_id: string; value: string }[];
@@ -244,7 +243,6 @@ function DocumentFormInner({
   const { user } = useAuth();
 
   const [documentId, setDocumentId] = useState<string | null>(() => existingDoc?.id ?? null);
-  const [criticalityFlag, setCriticalityFlag] = useState<boolean>(() => existingDoc?.criticality_flag ?? false);
   const [values, setValues] = useState<Record<string, string>>(() => {
     const loaded: Record<string, string> = {};
     (existingValues || []).forEach((v) => {
@@ -310,7 +308,6 @@ function DocumentFormInner({
             document_type_id: selectedTypeId,
             visit_service_id: visitServiceId,
             status: "preliminary",
-            criticality_flag: criticalityFlag,
             created_by: user.id,
           })
           .select("id")
@@ -318,11 +315,6 @@ function DocumentFormInner({
         if (error) { if (!silent) toast.error(error.message); return null; }
         docId = doc!.id;
         setDocumentId(docId);
-      } else {
-        await supabase
-          .from("patient_documents")
-          .update({ criticality_flag: criticalityFlag })
-          .eq("id", docId);
       }
 
       const rows = Object.entries(values).map(([fieldId, value]) => ({
@@ -365,7 +357,7 @@ function DocumentFormInner({
     }
   };
 
-  const canConfirm = !isReadOnly && criticalityFlag && allMandatoryFilled && documentId !== null && !isSaving && !isConfirming;
+  const canConfirm = !isReadOnly && allMandatoryFilled && documentId !== null && !isSaving && !isConfirming;
 
   return (
     <>
@@ -412,21 +404,11 @@ function DocumentFormInner({
             <Button variant="outline" onClick={onSaved}>Закрыть</Button>
           </div>
         ) : (
-          <>
-            <div className="flex items-center gap-2">
-              <Switch
-                id="criticality-flag"
-                checked={criticalityFlag}
-                onCheckedChange={setCriticalityFlag}
-              />
-              <Label htmlFor="criticality-flag">Критичность</Label>
-            </div>
-            <div className="flex gap-2">
-              <Button onClick={handleConfirm} disabled={!canConfirm}>
-                Подтвердить
-              </Button>
-            </div>
-          </>
+          <div className="flex w-full justify-end">
+            <Button onClick={handleConfirm} disabled={!canConfirm}>
+              Подтвердить
+            </Button>
+          </div>
         )}
       </SheetFooter>
     </>
