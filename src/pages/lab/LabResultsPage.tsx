@@ -51,7 +51,7 @@ export default function LabResultsPage() {
       today.setHours(0, 0, 0, 0);
       const { data, error } = await supabase
         .from("lab_samples")
-        .select("id, barcode, status, drawn_at, notes, visit_service_id, patients(first_name, last_name, patient_number, date_of_birth, gender), visit_services(services(id, name, service_type_id))")
+        .select("id, barcode, status, drawn_at, notes, visit_service_id, patients(first_name, last_name, patient_number, date_of_birth, gender), visit_services!visit_id(services(id, name, service_type_id))")
         .eq("hospital_id", user!.hospitalId)
         .in("status", ["drawn", "in_progress", "completed"])
         .gte("drawn_at", today.toISOString())

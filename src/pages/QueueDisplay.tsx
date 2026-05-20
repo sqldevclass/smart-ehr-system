@@ -47,7 +47,7 @@ export default function QueueDisplay() {
 
     const { data } = await supabase
       .from("queue_numbers")
-      .select("id, queue_number, status, visit_service_id, visit_services(status_id, service_statuses(code))")
+      .select("id, queue_number, status, visit_service_id, visit_services!visit_id(status_id, service_statuses(code))")
       .eq("queue_config_id", config.id)
       .gte("issued_at", todayStart.toISOString())
       .lte("issued_at", todayEnd.toISOString())
