@@ -20,21 +20,18 @@ interface Props {
   patientId: string;
   hospitalId: string;
   visitId: string;
+  visitServiceId: string;
   onOrderCreated: () => void;
 }
 
 export default function AssignmentsSection({
   mainServices, childServices, pendingOrders, physicianNameMap,
-  isReadOnly, patientId, hospitalId, visitId, onOrderCreated,
+  isReadOnly, patientId, hospitalId, visitId, visitServiceId, onOrderCreated,
 }: Props) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // Get visitServiceId from context — passed implicitly via parent invalidation
-  // We need it for the RPC. Derive from mainServices? No — must come via prop.
-  // The parent (DocumentWorkspaceInner) passes visitId; visitServiceId is the source.
-  // We'll accept it through the existing prop chain — add as prop.
-  const visitServiceId = (mainServices[0] as any)?._sourceVisitServiceId; // placeholder
+
 
   const groups = useMemo(() => {
     const out: Record<string, any[]> = { laboratory: [], consultation: [], other: [] };
