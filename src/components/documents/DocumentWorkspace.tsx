@@ -195,9 +195,11 @@ export default function DocumentWorkspace(props: Props) {
       patient={patient}
       documentType={documentType}
       visitServices={visitServices}
+      pendingOrders={pendingOrders}
       completedByProfile={completedByProfile}
       visitDate={visitDate}
       hospitalName={user?.hospitalName || ""}
     />
   );
 }
+
