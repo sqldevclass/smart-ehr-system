@@ -25,8 +25,10 @@ interface InnerProps {
   existingValues: any[];
   patient: any;
   documentType: any;
-  visitServices: any[];
+  mainServices: any[];
+  childServices: any[];
   pendingOrders: any[];
+  physicianNameMap: Record<string, string>;
   completedByProfile: any;
   visitDate: Date;
   hospitalName: string;
@@ -35,7 +37,8 @@ interface InnerProps {
 export default function DocumentWorkspaceInner({
   visitServiceId, patientId, visitId, hospitalId, documentTypeId, onClose,
   existingDoc, sectionsData, fieldsData, existingValues, patient,
-  documentType, visitServices, pendingOrders, completedByProfile, visitDate, hospitalName,
+  documentType, mainServices, childServices, pendingOrders, physicianNameMap,
+  completedByProfile, visitDate, hospitalName,
 }: InnerProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
