@@ -40,7 +40,7 @@ export default function VisitPage() {
       const { data, error } = await supabase
         .from("visits")
         .select(
-          "*, patients(first_name, last_name, middle_name, patient_number, date_of_birth), visit_services(*, services(name, cost_with_vat), service_statuses(code, name_ru), physicians(profile_id, profiles(full_name)))"
+          "*, patients(first_name, last_name, middle_name, patient_number, date_of_birth), visit_services!visit_id(*, services(name, cost_with_vat), service_statuses(code, name_ru), physicians(profile_id, profiles(full_name)))"
         )
         .eq("id", visitId)
         .single();
