@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,9 +28,9 @@ interface Props {
 type ExistingDoc = {
   id: string;
   status: string;
+  criticality_flag: boolean;
   document_type_id: string | null;
 } | null;
-
 
 export default function DocumentForm(props: Props) {
   const [selectedTypeId, setSelectedTypeId] = useState<string | null>(props.documentTypeId);
@@ -41,7 +41,7 @@ export default function DocumentForm(props: Props) {
     queryFn: async () => {
       const { data } = await supabase
         .from("patient_documents")
-        .select("id, status, document_type_id")
+        .select("id, status, criticality_flag, document_type_id")
         .eq("visit_service_id", props.visitServiceId)
         .eq("hospital_id", props.hospitalId)
         .maybeSingle();
@@ -126,8 +126,21 @@ export default function DocumentForm(props: Props) {
     valuesReady &&
     !existingDocLoading;
 
+  const dirtyRef = useRef(false);
+  const saveRef = useRef<(() => Promise<string | null>) | null>(null);
+
   return (
-    <Sheet open={true} onOpenChange={(o) => { if (!o) props.onClose(); }}>
+    <Sheet
+      open={true}
+      onOpenChange={async (o) => {
+        if (!o) {
+          if (dirtyRef.current && saveRef.current) {
+            try { await saveRef.current(); } catch { /* silent */ }
+          }
+          props.onClose();
+        }
+      }}
+    >
       <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
         {existingDocLoading ? (
           <div className="flex h-40 items-center justify-center">
@@ -156,6 +169,8 @@ export default function DocumentForm(props: Props) {
             docType={docType}
             onClose={props.onClose}
             onSaved={props.onSaved}
+            dirtyRef={dirtyRef}
+            saveRef={saveRef}
           />
         )}
       </SheetContent>
@@ -210,24 +225,26 @@ interface InnerProps {
   hospitalizationId: string | null;
   hospitalId: string;
   selectedTypeId: string;
-  existingDoc: { id: string; status: string } | null;
+  existingDoc: { id: string; status: string; criticality_flag: boolean } | null;
   sectionsData: any[];
   fieldsData: any[];
   existingValues: { field_definition_id: string; value: string }[];
   docType: any;
   onClose: () => void;
   onSaved: () => void;
+  dirtyRef: React.MutableRefObject<boolean>;
+  saveRef: React.MutableRefObject<((silent?: boolean) => Promise<string | null>) | null>;
 }
 
 function DocumentFormInner({
   visitServiceId, patientId, hospitalizationId, hospitalId,
   selectedTypeId, existingDoc, sectionsData, fieldsData, existingValues,
-  docType, onSaved,
+  docType, onSaved, dirtyRef, saveRef,
 }: InnerProps) {
   const { user } = useAuth();
 
   const [documentId, setDocumentId] = useState<string | null>(() => existingDoc?.id ?? null);
-
+  const [criticalityFlag, setCriticalityFlag] = useState<boolean>(() => existingDoc?.criticality_flag ?? false);
   const [values, setValues] = useState<Record<string, string>>(() => {
     const loaded: Record<string, string> = {};
     (existingValues || []).forEach((v) => {
@@ -273,9 +290,12 @@ function DocumentFormInner({
     return true;
   }, [sections, values]);
 
-  const setVal = (id: string, v: string) => setValues((p) => ({ ...p, [id]: v }));
+  const setVal = (id: string, v: string) => {
+    dirtyRef.current = true;
+    setValues((p) => ({ ...p, [id]: v }));
+  };
 
-  const handleSave = async (): Promise<string | null> => {
+  const handleSave = async (silent = false): Promise<string | null> => {
     if (!user) return null;
     setIsSaving(true);
     try {
@@ -290,15 +310,20 @@ function DocumentFormInner({
             document_type_id: selectedTypeId,
             visit_service_id: visitServiceId,
             status: "preliminary",
+            criticality_flag: criticalityFlag,
             created_by: user.id,
           })
           .select("id")
           .single();
-        if (error) { toast.error(error.message); return null; }
+        if (error) { if (!silent) toast.error(error.message); return null; }
         docId = doc!.id;
         setDocumentId(docId);
+      } else {
+        await supabase
+          .from("patient_documents")
+          .update({ criticality_flag: criticalityFlag })
+          .eq("id", docId);
       }
-
 
       const rows = Object.entries(values).map(([fieldId, value]) => ({
         patient_document_id: docId!,
@@ -311,19 +336,25 @@ function DocumentFormInner({
         const { error: upErr } = await supabase
           .from("patient_document_field_values")
           .upsert(rows, { onConflict: "patient_document_id,field_definition_id" });
-        if (upErr) { toast.error(upErr.message); return null; }
+        if (upErr) { if (!silent) toast.error(upErr.message); return null; }
       }
-      toast.success("Сохранено");
+      dirtyRef.current = false;
+      if (!silent) toast.success("Сохранено");
       return docId;
     } finally {
       setIsSaving(false);
     }
   };
 
+  useEffect(() => {
+    saveRef.current = handleSave;
+    return () => { saveRef.current = null; };
+  });
+
   const handleConfirm = async () => {
     setIsConfirming(true);
     try {
-      const docId = await handleSave();
+      const docId = await handleSave(true);
       if (!docId) return;
       const { error } = await supabase.rpc("complete_document", { p_document_id: docId });
       if (error) { toast.error(error.message); return; }
@@ -334,7 +365,7 @@ function DocumentFormInner({
     }
   };
 
-  const canConfirm = !isReadOnly && allMandatoryFilled && documentId !== null && !isSaving && !isConfirming;
+  const canConfirm = !isReadOnly && criticalityFlag && allMandatoryFilled && documentId !== null && !isSaving && !isConfirming;
 
   return (
     <>
@@ -381,16 +412,22 @@ function DocumentFormInner({
             <Button variant="outline" onClick={onSaved}>Закрыть</Button>
           </div>
         ) : (
-          <div className="flex w-full justify-end gap-2">
-            <Button variant="outline" onClick={() => handleSave()} disabled={isSaving}>
-              Сохранить
-            </Button>
-            <Button onClick={handleConfirm} disabled={!canConfirm}>
-              Подтвердить
-            </Button>
-          </div>
+          <>
+            <div className="flex items-center gap-2">
+              <Switch
+                id="criticality-flag"
+                checked={criticalityFlag}
+                onCheckedChange={setCriticalityFlag}
+              />
+              <Label htmlFor="criticality-flag">Критичность</Label>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleConfirm} disabled={!canConfirm}>
+                Подтвердить
+              </Button>
+            </div>
+          </>
         )}
-
       </SheetFooter>
     </>
   );

@@ -283,7 +283,7 @@ export default function MyPatientsList() {
 
   const isToday = isSameDay(selectedDate, new Date());
 
-  const renderServiceRow = (r: VisitServiceRow) => {
+  const renderServiceRow = (r: VisitServiceRow, showActions = true) => {
     const patient = r.visits?.patients;
     const pid = r.visits?.patient_id;
     const isWL = !!r.is_waitlist;
@@ -338,13 +338,15 @@ export default function MyPatientsList() {
             {r.service_statuses?.name_ru || r.service_statuses?.code || "—"}
           </span>
         </TableCell>
-        <TableCell className="text-right">
-          {r.service_statuses?.code === "ready_for_execution" && (
-            <Button size="sm" onClick={(e) => { e.stopPropagation(); handleComplete(r.id); }}>
-              Complete
-            </Button>
-          )}
-        </TableCell>
+        {showActions && (
+          <TableCell className="text-right">
+            {r.service_statuses?.code === "ready_for_execution" && (
+              <Button size="sm" onClick={(e) => { e.stopPropagation(); handleComplete(r.id); }}>
+                Complete
+              </Button>
+            )}
+          </TableCell>
+        )}
       </TableRow>
     );
   };
@@ -396,18 +398,17 @@ export default function MyPatientsList() {
               <TableHead>Service</TableHead>
               <TableHead>Time / Queue</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sorted.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-6">
+                <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-6">
                   No services for today.
                 </TableCell>
               </TableRow>
             ) : (
-              sorted.map(renderServiceRow)
+              sorted.map((r) => renderServiceRow(r, false))
             )}
           </TableBody>
         </Table>
@@ -457,7 +458,7 @@ export default function MyPatientsList() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      visible.map(renderServiceRow)
+                      visible.map((r) => renderServiceRow(r, true))
                     )}
                   </TableBody>
                 </Table>
