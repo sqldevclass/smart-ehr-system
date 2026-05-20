@@ -271,6 +271,18 @@ export default function OutpatientPatientDetail() {
                         <Button size="sm" onClick={() => handleComplete(vs.id)}>Complete</Button>
                       )
                     )}
+                    {vs.service_statuses?.code === "completed" && vs.services?.linked_document_type_id && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setDocumentService({
+                          visitServiceId: vs.id,
+                          documentTypeId: vs.services?.linked_document_type_id ?? null,
+                        })}
+                      >
+                        Просмотр
+                      </Button>
+                    )}
                   </div>
                 </li>
               ))}
