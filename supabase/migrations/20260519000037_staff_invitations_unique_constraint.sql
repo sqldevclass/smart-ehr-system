@@ -2,5 +2,8 @@
 -- Required for upsert conflict resolution in invite-staff-user Edge Function
 
 ALTER TABLE public.staff_invitations
+DROP CONSTRAINT IF EXISTS staff_invitations_hospital_email_unique;
+
+ALTER TABLE public.staff_invitations
 ADD CONSTRAINT staff_invitations_hospital_email_unique
 UNIQUE (hospital_id, email);
