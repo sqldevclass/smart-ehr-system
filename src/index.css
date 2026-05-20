@@ -96,3 +96,14 @@
     font-family: var(--font-heading);
   }
 }
+
+@media print {
+  body > * { display: none; }
+  .document-print-area { display: block !important; }
+  .document-section-page {
+    page-break-before: always;
+  }
+  .document-section-page:first-child {
+    page-break-before: avoid;
+  }
+}
