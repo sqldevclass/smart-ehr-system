@@ -148,7 +148,27 @@ export default function DocumentWorkspaceInner({
       const docId = await handleSave(true);
       if (!docId) return;
       const { error } = await supabase.rpc("complete_document", { p_document_id: docId });
-      if (error) { toast.error(error.message); return; }
+      if (error) {
+        const raw = error.message || "";
+        let friendly = raw;
+        const prefixMatch = raw.match(/complete_document failed: (.+)/);
+        if (prefixMatch) friendly = prefixMatch[1];
+        if (friendly.includes("pending child services")) {
+          const servicesMatch = friendly.match(/pending child services: (.+)/);
+          const serviceList = servicesMatch ? servicesMatch[1] : "";
+          toast.error(
+            `Невозможно подтвердить документ. Следующие услуги ещё не завершены: ${serviceList}`,
+            { duration: 6000 }
+          );
+        } else if (friendly.includes("Mandatory fields not filled")) {
+          const fieldsMatch = friendly.match(/Mandatory fields not filled: (.+)/);
+          const fieldList = fieldsMatch ? fieldsMatch[1] : "";
+          toast.error(`Заполните обязательные поля: ${fieldList}`, { duration: 6000 });
+        } else {
+          toast.error(friendly, { duration: 6000 });
+        }
+        return;
+      }
       toast.success("Документ подтверждён");
       onClose();
     } finally {
@@ -220,7 +240,7 @@ export default function DocumentWorkspaceInner({
         </div>
       )}
       {/* Toolbar */}
-      <div className="flex items-center justify-between border-b px-4 py-2 bg-card">
+      <div className="document-toolbar flex items-center justify-between border-b px-4 py-2 bg-card">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={onClose}>
             <ArrowLeft className="h-4 w-4 mr-1" /> Назад
@@ -248,7 +268,7 @@ export default function DocumentWorkspaceInner({
       </div>
 
       {/* Tabs */}
-      <div className="border-b bg-card px-4 overflow-x-auto">
+      <div className="document-tabs-bar border-b bg-card px-4 overflow-x-auto">
         <div className="flex">
           {sections.map((s, i) => (
             <button
@@ -279,8 +299,8 @@ export default function DocumentWorkspaceInner({
       </div>
 
       {/* A4 Document Area */}
-      <div className="flex-1 overflow-y-auto bg-muted/30 p-6 document-print-area">
-        <div className="mx-auto max-w-[210mm] bg-card rounded-md shadow-sm border p-8">
+      <div className="document-page-bg flex-1 overflow-y-auto bg-muted/30 p-6 document-print-area">
+        <div className="document-a4-card mx-auto max-w-[210mm] bg-card rounded-md shadow-sm border p-8">
           <DocumentPatientHeader
             patient={patient}
             documentType={documentType}
@@ -288,7 +308,30 @@ export default function DocumentWorkspaceInner({
             visitDate={visitDate}
           />
 
-          {activeTab === "assignments" ? (
+          {sections.map((s, i) => (
+            <div
+              key={s.id}
+              className={
+                activeTab === String(i)
+                  ? "document-print-section"
+                  : "document-print-section document-section-hidden-for-print hidden print:block"
+              }
+            >
+              <DocumentSection
+                section={s}
+                values={values}
+                setVal={setVal}
+                isReadOnly={isReadOnly}
+              />
+            </div>
+          ))}
+          <div
+            className={
+              activeTab === "assignments"
+                ? "document-print-section"
+                : "document-print-section document-section-hidden-for-print hidden print:block"
+            }
+          >
             <AssignmentsSection
               mainServices={mainServices}
               childServices={childServices}
@@ -305,16 +348,7 @@ export default function DocumentWorkspaceInner({
                 queryClient.invalidateQueries({ queryKey: ["doc-ws-pending", visitServiceId, hospitalId] });
               }}
             />
-          ) : (
-            sections[Number(activeTab)] && (
-              <DocumentSection
-                section={sections[Number(activeTab)]}
-                values={values}
-                setVal={setVal}
-                isReadOnly={isReadOnly}
-              />
-            )
-          )}
+          </div>
 
           {isReadOnly && existingDoc?.completed_at && (
             <div className="mt-8 pt-4 border-t flex items-end justify-between text-sm">

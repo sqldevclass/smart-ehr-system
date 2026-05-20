@@ -76,7 +76,15 @@ import InventoryLayout from "./components/inventory/InventoryLayout.tsx";
 import EquipmentPage from "./pages/inventory/EquipmentPage.tsx";
 import InventoryProfile from "./pages/inventory/InventoryProfile.tsx";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5,
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
