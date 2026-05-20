@@ -381,23 +381,15 @@ function DocumentFormInner({
             <Button variant="outline" onClick={onSaved}>Закрыть</Button>
           </div>
         ) : (
-          <>
-            <div className="flex items-center gap-2">
-              <Switch
-                id="criticality-flag"
-                checked={criticalityFlag}
-                onCheckedChange={setCriticalityFlag}
-              />
-              <Label htmlFor="criticality-flag">Критичность</Label>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => handleSave()} disabled={isSaving}>
-                Сохранить
-              </Button>
-              <Button onClick={handleConfirm} disabled={!canConfirm}>
-                Подтвердить
-              </Button>
-            </div>
+          <div className="flex w-full justify-end gap-2">
+            <Button variant="outline" onClick={() => handleSave()} disabled={isSaving}>
+              Сохранить
+            </Button>
+            <Button onClick={handleConfirm} disabled={!canConfirm}>
+              Подтвердить
+            </Button>
+          </div>
+
           </>
         )}
       </SheetFooter>
