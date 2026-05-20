@@ -28,9 +28,9 @@ interface Props {
 type ExistingDoc = {
   id: string;
   status: string;
-  criticality_flag: boolean;
   document_type_id: string | null;
 } | null;
+
 
 export default function DocumentForm(props: Props) {
   const [selectedTypeId, setSelectedTypeId] = useState<string | null>(props.documentTypeId);
