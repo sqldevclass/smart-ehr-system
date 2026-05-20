@@ -233,7 +233,16 @@ export default function DocumentWorkspaceInner({
           />
 
           {activeTab === "assignments" ? (
-            <AssignmentsSection visitServices={visitServices} isReadOnly={isReadOnly} />
+            <AssignmentsSection
+              visitServices={visitServices}
+              isReadOnly={isReadOnly}
+              patientId={patientId}
+              hospitalId={hospitalId}
+              visitId={visitId}
+              onOrderCreated={() =>
+                queryClient.invalidateQueries({ queryKey: ["doc-ws-visit-services", visitId, hospitalId] })
+              }
+            />
           ) : (
             sections[Number(activeTab)] && (
               <DocumentSection
