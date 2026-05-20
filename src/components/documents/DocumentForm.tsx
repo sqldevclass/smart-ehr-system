@@ -290,9 +290,12 @@ function DocumentFormInner({
     return true;
   }, [sections, values]);
 
-  const setVal = (id: string, v: string) => setValues((p) => ({ ...p, [id]: v }));
+  const setVal = (id: string, v: string) => {
+    dirtyRef.current = true;
+    setValues((p) => ({ ...p, [id]: v }));
+  };
 
-  const handleSave = async (): Promise<string | null> => {
+  const handleSave = async (silent = false): Promise<string | null> => {
     if (!user) return null;
     setIsSaving(true);
     try {
@@ -312,7 +315,7 @@ function DocumentFormInner({
           })
           .select("id")
           .single();
-        if (error) { toast.error(error.message); return null; }
+        if (error) { if (!silent) toast.error(error.message); return null; }
         docId = doc!.id;
         setDocumentId(docId);
       } else {
@@ -333,19 +336,25 @@ function DocumentFormInner({
         const { error: upErr } = await supabase
           .from("patient_document_field_values")
           .upsert(rows, { onConflict: "patient_document_id,field_definition_id" });
-        if (upErr) { toast.error(upErr.message); return null; }
+        if (upErr) { if (!silent) toast.error(upErr.message); return null; }
       }
-      toast.success("Сохранено");
+      dirtyRef.current = false;
+      if (!silent) toast.success("Сохранено");
       return docId;
     } finally {
       setIsSaving(false);
     }
   };
 
+  useEffect(() => {
+    saveRef.current = handleSave;
+    return () => { saveRef.current = null; };
+  });
+
   const handleConfirm = async () => {
     setIsConfirming(true);
     try {
-      const docId = await handleSave();
+      const docId = await handleSave(true);
       if (!docId) return;
       const { error } = await supabase.rpc("complete_document", { p_document_id: docId });
       if (error) { toast.error(error.message); return; }
