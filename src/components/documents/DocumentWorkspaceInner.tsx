@@ -41,7 +41,7 @@ export default function DocumentWorkspaceInner({
   visitServiceId, patientId, visitId, hospitalId, documentTypeId, serviceStatusCode, onClose,
   existingDoc, sectionsData, fieldsData, existingValues, patient,
   documentType, mainServices, childServices, pendingOrders, physicianNameMap,
-  completedByProfile, visitDate, hospitalName,
+  completedByProfile, visitDate, hospitalName, physicianId,
 }: InnerProps) {
   const { user } = useAuth();
   const isPhysician = user?.roles?.includes("physician") ?? false;
