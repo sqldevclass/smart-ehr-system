@@ -42,7 +42,9 @@ export default function DocumentWorkspaceInner({
   completedByProfile, visitDate, hospitalName,
 }: InnerProps) {
   const { user } = useAuth();
+  const isPhysician = user?.roles?.includes("physician") ?? false;
   const queryClient = useQueryClient();
+
 
   const [documentId, setDocumentId] = useState<string | null>(() => existingDoc?.id ?? null);
   const [values, setValues] = useState<Record<string, string>>(() => {
