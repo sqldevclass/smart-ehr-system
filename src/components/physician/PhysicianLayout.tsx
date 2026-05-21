@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { Outlet, useNavigate, useLocation, useOutletContext } from "react-router-dom";
+
 import { CalendarDays, UserCircle, LogOut } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
