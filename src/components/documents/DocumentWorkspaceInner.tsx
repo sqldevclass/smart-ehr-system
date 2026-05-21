@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -60,6 +60,15 @@ export default function DocumentWorkspaceInner({
   const [isSaving, setIsSaving] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [activeTab, setActiveTab] = useState("0");
+
+  const valuesRef = useRef(values);
+  useEffect(() => {
+    valuesRef.current = values;
+  }, [values]);
+  const documentIdRef = useRef(documentId);
+  useEffect(() => {
+    documentIdRef.current = documentId;
+  }, [documentId]);
 
   const isReadOnly =
     existingDoc?.status === "completed" ||
@@ -190,12 +199,12 @@ export default function DocumentWorkspaceInner({
   useEffect(() => {
     if (!isDirty || isReadOnly) return;
     const timer = setTimeout(async () => {
-      if (isReadOnly) return;
+      const currentValues = valuesRef.current;
+      const currentDocId = documentIdRef.current;
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-      const authClient = supabase;
-      if (!documentId) {
-        const { data: doc, error } = await authClient
+      if (!currentDocId) {
+        const { data: doc, error } = await supabase
           .from("patient_documents")
           .insert({
             patient_id: patientId,
@@ -209,10 +218,11 @@ export default function DocumentWorkspaceInner({
           .single();
         if (error || !doc) return;
         setDocumentId(doc.id);
-        await authClient
+        documentIdRef.current = doc.id;
+        await supabase
           .from("patient_document_field_values")
           .upsert(
-            Object.entries(values).map(([fieldId, value]) => ({
+            Object.entries(currentValues).map(([fieldId, value]) => ({
               patient_document_id: doc.id,
               field_definition_id: fieldId,
               hospital_id: hospitalId,
@@ -222,11 +232,11 @@ export default function DocumentWorkspaceInner({
             { onConflict: "patient_document_id,field_definition_id" }
           );
       } else {
-        await authClient
+        await supabase
           .from("patient_document_field_values")
           .upsert(
-            Object.entries(values).map(([fieldId, value]) => ({
-              patient_document_id: documentId,
+            Object.entries(currentValues).map(([fieldId, value]) => ({
+              patient_document_id: currentDocId,
               field_definition_id: fieldId,
               hospital_id: hospitalId,
               value,
@@ -239,7 +249,7 @@ export default function DocumentWorkspaceInner({
     }, 2000);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [values, isDirty, isReadOnly]);
+  }, [values, isReadOnly]);
 
   const canConfirm =
     !isReadOnly && allMandatoryFilled && documentId !== null && !isSaving && !isConfirming;
