@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -11,6 +12,8 @@ import { format, subDays, addDays, startOfDay, endOfDay, isSameDay } from "date-
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { toLocal } from "@/lib/timezone";
 import DocumentWorkspace from "@/components/documents/DocumentWorkspace";
+import { usePhysicianLayoutContext } from "@/components/physician/PhysicianLayout";
+
 
 interface Physician {
   id: string;
