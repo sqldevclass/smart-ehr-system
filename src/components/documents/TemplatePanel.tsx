@@ -33,6 +33,8 @@ export default function TemplatePanel({
   documentTypeId,
   hospitalId,
   physicianId,
+  patientId,
+  currentDocumentId,
   values,
   sections,
   onApply,
@@ -41,6 +43,8 @@ export default function TemplatePanel({
   const [showNameInput, setShowNameInput] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [showExistingDocs, setShowExistingDocs] = useState(false);
+  const [loadingDoc, setLoadingDoc] = useState(false);
 
   const { data: templates = [], refetch } = useQuery({
     queryKey: ["doc-templates", documentTypeId, physicianId],
