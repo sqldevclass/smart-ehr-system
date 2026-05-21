@@ -133,4 +133,14 @@
   .print-hide-empty {
     display: none !important;
   }
+
+  .print-patient-header {
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  .print-patient-compact {
+    display: block !important;
+    visibility: visible !important;
+  }
 }
