@@ -695,7 +695,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
             <div className="text-sm">
               <span className="text-muted-foreground">Selected:</span>{" "}
               <span className="font-medium">
-                {selectedLabel} · {toLocal(selected.slot.slot_datetime, timezone, "MMM d, HH:mm")}
+                {selectedLabel} · {toLocal(selected.slot.slot_datetime, tz, "MMM d, HH:mm")}
               </span>
             </div>
             <div className="flex gap-2">
