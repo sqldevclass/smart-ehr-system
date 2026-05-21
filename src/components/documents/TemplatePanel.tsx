@@ -61,6 +61,30 @@ export default function TemplatePanel({
     },
   });
 
+  const { data: existingDocs = [] } = useQuery({
+    queryKey: ["patient-completed-docs", patientId],
+    enabled: !!patientId && showExistingDocs,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("patient_documents")
+        .select(`
+          id, completed_at,
+          document_types!inner(name_ru),
+          patient_document_field_values(
+            field_definition_id,
+            value,
+            field_definitions!inner(attribute_code)
+          )
+        `)
+        .eq("patient_id", patientId)
+        .eq("hospital_id", hospitalId)
+        .eq("status", "completed")
+        .neq("id", currentDocumentId ?? "")
+        .order("completed_at", { ascending: false });
+      return data || [];
+    },
+  });
+
   const handleSave = async () => {
     if (!physicianId) return;
     setSaving(true);
