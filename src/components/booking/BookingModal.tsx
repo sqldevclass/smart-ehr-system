@@ -176,24 +176,6 @@ export function BookingModal(props: BookingModalProps) {
     return false;
   }, [physician, pickedServices, isQueueMode, selectedSlot]);
 
-  const ensureQueueConfig = async (physicianId: string): Promise<string> => {
-    const today = new Date().toISOString().split("T")[0];
-    const { data: existing } = await supabase
-      .from("queue_configs")
-      .select("id")
-      .eq("physician_id", physicianId)
-      .eq("hospital_id", hospitalId)
-      .eq("queue_date", today)
-      .maybeSingle();
-    if (existing) return existing.id;
-    const { data: created, error } = await supabase
-      .from("queue_configs")
-      .insert({ physician_id: physicianId, hospital_id: hospitalId, queue_date: today })
-      .select("id")
-      .single();
-    if (error) throw error;
-    return created.id;
-  };
 
   const createVisitService = async (svc: ServiceResult): Promise<string> => {
     if (mode === "registrar") {
