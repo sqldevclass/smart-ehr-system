@@ -34,6 +34,7 @@ interface InnerProps {
   completedByProfile: any;
   visitDate: Date;
   hospitalName: string;
+  physicianId: string | null;
 }
 
 export default function DocumentWorkspaceInner({
