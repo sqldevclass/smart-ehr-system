@@ -164,6 +164,28 @@ export default function TemplatePanel({
     refetch();
   };
 
+  const handleApplyExisting = (sourceDoc: any) => {
+    const sourceByCode: Record<string, string> = {};
+    (sourceDoc.patient_document_field_values || [])
+      .forEach((v: any) => {
+        const code = v.field_definitions?.attribute_code;
+        if (code && v.value?.trim()) {
+          sourceByCode[code] = v.value;
+        }
+      });
+
+    const newValues: Record<string, string> = {};
+    sections.forEach((section: any) => {
+      section.fields.forEach((f: any) => {
+        const code = f.def.attribute_code ?? "";
+        if (isExcluded(code)) return;
+        newValues[f.def.id] = sourceByCode[code] ?? "";
+      });
+    });
+    onApply(newValues);
+    setShowExistingDocs(false);
+  };
+
   if (!physicianId) return null;
 
   return (
