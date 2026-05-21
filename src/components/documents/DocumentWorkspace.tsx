@@ -73,7 +73,8 @@ export default function DocumentWorkspace(props: Props) {
 
   const { data: existingValues } = useQuery({
     queryKey: ["doc-ws-values", existingDoc?.id],
-    staleTime: 0,
+    staleTime: Infinity,
+    refetchOnMount: "always",
     refetchOnWindowFocus: false,
     enabled: !!existingDoc?.id,
     queryFn: async () => {
