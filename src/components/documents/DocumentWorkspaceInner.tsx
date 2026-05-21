@@ -172,7 +172,12 @@ export default function DocumentWorkspaceInner({
         return;
       }
       toast.success("Документ подтверждён");
+      queryClient.invalidateQueries({
+        queryKey: ["doc-ws-existing", visitServiceId, hospitalId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["physician-schedule"] });
       onClose();
+
     } finally {
       setIsConfirming(false);
     }
