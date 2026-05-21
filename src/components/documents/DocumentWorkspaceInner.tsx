@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import DocumentPatientHeader from "./DocumentPatientHeader";
 import DocumentSection from "./DocumentSection";
 import AssignmentsSection from "./AssignmentsSection";
+import TemplatePanel from "./TemplatePanel";
 
 interface InnerProps {
   visitServiceId: string;
@@ -33,13 +34,14 @@ interface InnerProps {
   completedByProfile: any;
   visitDate: Date;
   hospitalName: string;
+  physicianId: string | null;
 }
 
 export default function DocumentWorkspaceInner({
   visitServiceId, patientId, visitId, hospitalId, documentTypeId, serviceStatusCode, onClose,
   existingDoc, sectionsData, fieldsData, existingValues, patient,
   documentType, mainServices, childServices, pendingOrders, physicianNameMap,
-  completedByProfile, visitDate, hospitalName,
+  completedByProfile, visitDate, hospitalName, physicianId,
 }: InnerProps) {
   const { user } = useAuth();
   const isPhysician = user?.roles?.includes("physician") ?? false;
@@ -298,7 +300,8 @@ export default function DocumentWorkspaceInner({
 
       {/* A4 Document Area */}
       <div className="document-page-bg flex-1 overflow-y-auto bg-muted/30 p-6 document-print-area">
-        <div className="document-a4-card mx-auto max-w-[210mm] bg-card rounded-md shadow-sm border p-8">
+        <div className="flex gap-4 justify-center items-start">
+        <div className="document-a4-card max-w-[210mm] w-full bg-card rounded-md shadow-sm border p-8">
           <DocumentPatientHeader />
 
 
@@ -437,6 +440,23 @@ export default function DocumentWorkspaceInner({
               </div>
             </div>
           )}
+        </div>
+        {(!isReadOnly || (physicianId !== null)) && (
+          <div className="w-56 shrink-0 print:hidden">
+            <TemplatePanel
+              documentTypeId={documentTypeId}
+              hospitalId={hospitalId}
+              physicianId={physicianId}
+              values={values}
+              sections={sections}
+              onApply={(templateValues) => {
+                setValues((prev) => ({ ...prev, ...templateValues }));
+                setIsDirty(true);
+              }}
+              isReadOnly={isReadOnly}
+            />
+          </div>
+        )}
         </div>
       </div>
     </div>
