@@ -4,6 +4,8 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ICD10SearchField from "./ICD10SearchField";
+import { cn } from "@/lib/utils";
+
 
 interface FieldDef {
   id: string;
