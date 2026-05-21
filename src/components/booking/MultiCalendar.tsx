@@ -532,7 +532,12 @@ export function MultiCalendar(props: MultiCalendarProps) {
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-2 rounded-md border bg-card p-2">
           <div className="flex items-center gap-1">
-            <Button size="icon" variant="ghost" onClick={() => setDate((d) => addDays(d, -1))}>
+            <Button
+              size="icon"
+              variant="ghost"
+              disabled={isPastDate || dateStr <= todayStr}
+              onClick={() => setDate((d) => addDays(d, -1))}
+            >
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <div className="min-w-[160px] text-center text-sm font-medium">
@@ -542,7 +547,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-          <Button size="sm" variant="outline" onClick={() => setDate(new Date())}>
+          <Button size="sm" variant="outline" onClick={() => setDate(todayInTz)}>
             Today
           </Button>
         </div>
