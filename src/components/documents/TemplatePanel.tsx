@@ -214,49 +214,59 @@ export default function TemplatePanel({
       ))}
 
       {!isReadOnly && (
-        <div className="pt-2 border-t">
-          {showNameInput ? (
-            <div className="space-y-2">
-              <Input
-                value={templateName}
-                onChange={(e) => setTemplateName(e.target.value)}
-                placeholder="Название шаблона"
-                className="text-sm h-8"
-                autoFocus
-              />
-              <div className="flex gap-1">
-                <Button
-                  size="sm"
-                  className="h-7 text-xs flex-1"
-                  disabled={!templateName.trim() || saving}
-                  onClick={handleSave}
-                >
-                  {saving ? "..." : "Сохранить"}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 text-xs"
-                  onClick={() => {
-                    setShowNameInput(false);
-                    setTemplateName("");
-                  }}
-                >
-                  Отмена
-                </Button>
+        <>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full text-xs h-8 mb-2"
+            onClick={() => setShowExistingDocs(true)}
+          >
+            Использовать существующий документ
+          </Button>
+          <div className="pt-2 border-t">
+            {showNameInput ? (
+              <div className="space-y-2">
+                <Input
+                  value={templateName}
+                  onChange={(e) => setTemplateName(e.target.value)}
+                  placeholder="Название шаблона"
+                  className="text-sm h-8"
+                  autoFocus
+                />
+                <div className="flex gap-1">
+                  <Button
+                    size="sm"
+                    className="h-7 text-xs flex-1"
+                    disabled={!templateName.trim() || saving}
+                    onClick={handleSave}
+                  >
+                    {saving ? "..." : "Сохранить"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-xs"
+                    onClick={() => {
+                      setShowNameInput(false);
+                      setTemplateName("");
+                    }}
+                  >
+                    Отмена
+                  </Button>
+                </div>
               </div>
-            </div>
-          ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full text-xs h-8"
-              onClick={() => setShowNameInput(true)}
-            >
-              + Сохранить как шаблон
-            </Button>
-          )}
-        </div>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full text-xs h-8"
+                onClick={() => setShowNameInput(true)}
+              >
+                + Сохранить как шаблон
+              </Button>
+            )}
+          </div>
+        </>
       )}
     </div>
   );
