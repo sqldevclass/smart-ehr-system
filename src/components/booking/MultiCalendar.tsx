@@ -58,11 +58,19 @@ function deriveScheduleType(rows: any[] | null | undefined, date: Date): "slots"
 export function MultiCalendar(props: MultiCalendarProps) {
   const { service, hospitalId, timezone, mode, patientId, hospitalizationId, officeRoomId, existingVisitServiceId, onBooked } = props;
   const { user } = useAuth();
-  const [date, setDate] = useState<Date>(new Date());
+  const tz = timezone || user?.timezone || "Asia/Tashkent";
+  const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: tz });
+  const todayInTz = useMemo(() => {
+    const [y, m, d] = todayStr.split("-").map(Number);
+    return new Date(y, (m ?? 1) - 1, d ?? 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const [date, setDate] = useState<Date>(todayInTz);
   const [selected, setSelected] = useState<{ slot: SlotRow; col: Col } | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const dateStr = format(date, "yyyy-MM-dd");
+  const isPastDate = dateStr < todayStr;
   const bounds = useMemo(() => localDayBoundsUTC(date, timezone), [date, timezone]);
 
   const { data: physicians = [] } = useQuery({
@@ -189,7 +197,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
   });
 
   const { data: queueConfigsData } = useQuery({
-    queryKey: ["multi-cal-queue-configs", physicianIds.join(","), dateStr, hospitalId],
+    queryKey: ["multi-cal-queue-preview", physicianIds.join(","), dateStr, hospitalId],
     queryFn: async () => {
       const queuePhysIds = physicians
         .filter((p) => p.scheduleType === "queue")
@@ -197,13 +205,14 @@ export function MultiCalendar(props: MultiCalendarProps) {
       if (queuePhysIds.length === 0) return {} as Record<string, number>;
       const { data } = await supabase
         .from("queue_configs")
-        .select("physician_id, last_number")
+        .select("physician_id, queue_numbers(queue_number)")
         .eq("hospital_id", hospitalId)
         .eq("queue_date", dateStr)
         .in("physician_id", queuePhysIds);
       const map: Record<string, number> = {};
       (data || []).forEach((r: any) => {
-        map[r.physician_id] = r.last_number ?? 0;
+        const numbers = (r.queue_numbers || []).map((q: any) => q.queue_number);
+        map[r.physician_id] = numbers.length > 0 ? Math.max(...numbers) : 0;
       });
       return map;
     },
@@ -212,7 +221,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
   const queueConfigs = queueConfigsData ?? {};
 
   const { data: roomQueueConfigsData } = useQuery({
-    queryKey: ["multi-cal-room-queue-configs", roomIds.sort().join(","), dateStr, hospitalId],
+    queryKey: ["multi-cal-room-queue-preview", roomIds.sort().join(","), dateStr, hospitalId],
     queryFn: async () => {
       const queueRoomIds = rooms
         .filter((r) => r.scheduleType === "queue")
@@ -220,14 +229,16 @@ export function MultiCalendar(props: MultiCalendarProps) {
       if (queueRoomIds.length === 0) return {} as Record<string, number>;
       const { data } = await supabase
         .from("queue_configs")
-        .select("room_id, last_number")
+        .select("room_id, queue_numbers(queue_number)")
         .eq("hospital_id", hospitalId)
         .eq("queue_date", dateStr)
         .in("room_id", queueRoomIds)
         .is("physician_id", null);
       const map: Record<string, number> = {};
       (data || []).forEach((r: any) => {
-        if (r.room_id) map[r.room_id] = r.last_number ?? 0;
+        if (!r.room_id) return;
+        const numbers = (r.queue_numbers || []).map((q: any) => q.queue_number);
+        map[r.room_id] = numbers.length > 0 ? Math.max(...numbers) : 0;
       });
       return map;
     },
@@ -521,7 +532,12 @@ export function MultiCalendar(props: MultiCalendarProps) {
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-2 rounded-md border bg-card p-2">
           <div className="flex items-center gap-1">
-            <Button size="icon" variant="ghost" onClick={() => setDate((d) => addDays(d, -1))}>
+            <Button
+              size="icon"
+              variant="ghost"
+              disabled={isPastDate || dateStr <= todayStr}
+              onClick={() => setDate((d) => addDays(d, -1))}
+            >
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <div className="min-w-[160px] text-center text-sm font-medium">
@@ -531,7 +547,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-          <Button size="sm" variant="outline" onClick={() => setDate(new Date())}>
+          <Button size="sm" variant="outline" onClick={() => setDate(todayInTz)}>
             Today
           </Button>
         </div>
