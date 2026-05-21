@@ -35,15 +35,25 @@ const roleTitles: Record<string, string> = {
 
 type Mode = "ambulatory" | "inpatient";
 
+interface PhysicianOutletContext {
+  setPatientContext: (node: React.ReactNode | null) => void;
+}
+
+export function usePhysicianLayoutContext() {
+  return useOutletContext<PhysicianOutletContext>();
+}
+
 export default function PhysicianLayout() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [patientContext, setPatientContext] = useState<React.ReactNode | null>(null);
 
   const [mode, setMode] = useState<Mode>(() => {
     const stored = typeof window !== "undefined" ? localStorage.getItem("physician_mode") : null;
     return (stored as Mode) || "ambulatory";
   });
+
 
   // Sync mode from URL on initial load
   useEffect(() => {
