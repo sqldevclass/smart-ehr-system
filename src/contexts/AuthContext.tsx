@@ -30,55 +30,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const initialLoadDone = useRef(false);
 
   const loadUser = useCallback(async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    if (!initialLoadDone.current) {
+      setLoading(true);
+    }
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setUser(null);
+        setLoading(false);
+        initialLoadDone.current = true;
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, hospital_id")
+        .eq("id", session.user.id)
+        .single();
+
+      if (!profile) {
+        setUser(null);
+        setLoading(false);
+        initialLoadDone.current = true;
+        return;
+      }
+
+      const { data: userRoles } = await supabase
+        .from("user_roles")
+        .select("roles(code)")
+        .eq("user_id", session.user.id);
+
+      const roles = (userRoles ?? [])
+        .map((ur: any) => ur.roles?.code)
+        .filter(Boolean) as string[];
+
+      const { data: hospital } = await supabase
+        .from("hospitals")
+        .select("name")
+        .eq("id", profile.hospital_id)
+        .single();
+
+      const { data: settings } = await supabase
+        .from("hospital_settings")
+        .select("timezone")
+        .eq("hospital_id", profile.hospital_id)
+        .maybeSingle();
+
+      setUser({
+        id: session.user.id,
+        fullName: profile.full_name || "Unknown",
+        roles,
+        hospitalId: profile.hospital_id,
+        hospitalName: hospital?.name || "Unknown Hospital",
+        timezone: (settings as any)?.timezone || "Asia/Tashkent",
+      });
+    } catch {
       setUser(null);
       setLoading(false);
-      return;
-    }
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("full_name, hospital_id")
-      .eq("id", session.user.id)
-      .single();
-
-    if (!profile) {
-      setUser(null);
+    } finally {
+      initialLoadDone.current = true;
       setLoading(false);
-      return;
     }
-
-    const { data: userRoles } = await supabase
-      .from("user_roles")
-      .select("roles(code)")
-      .eq("user_id", session.user.id);
-
-    const roles = (userRoles ?? [])
-      .map((ur: any) => ur.roles?.code)
-      .filter(Boolean) as string[];
-
-    const { data: hospital } = await supabase
-      .from("hospitals")
-      .select("name")
-      .eq("id", profile.hospital_id)
-      .single();
-
-    const { data: settings } = await supabase
-      .from("hospital_settings")
-      .select("timezone")
-      .eq("hospital_id", profile.hospital_id)
-      .maybeSingle();
-
-    setUser({
-      id: session.user.id,
-      fullName: profile.full_name || "Unknown",
-      roles,
-      hospitalId: profile.hospital_id,
-      hospitalName: hospital?.name || "Unknown Hospital",
-      timezone: (settings as any)?.timezone || "Asia/Tashkent",
-    });
-    setLoading(false);
   }, []);
 
   useEffect(() => {
