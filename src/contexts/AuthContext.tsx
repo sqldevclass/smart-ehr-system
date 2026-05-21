@@ -28,6 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const initialLoadDone = useRef(false);
+  const currentUserIdRef = useRef<string | null>(null);
 
   const loadUser = useCallback(async () => {
     if (!initialLoadDone.current) {
@@ -76,14 +77,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq("hospital_id", profile.hospital_id)
         .maybeSingle();
 
-      setUser({
+      const newUser = {
         id: session.user.id,
         fullName: profile.full_name || "Unknown",
         roles,
         hospitalId: profile.hospital_id,
         hospitalName: hospital?.name || "Unknown Hospital",
         timezone: (settings as any)?.timezone || "Asia/Tashkent",
-      });
+      };
+
+      // Only update state if user identity changed
+      // Prevents unnecessary re-renders on token refresh
+      if (currentUserIdRef.current !== session.user.id) {
+        currentUserIdRef.current = session.user.id;
+        setUser(newUser);
+      }
     } catch {
       setUser(null);
       setLoading(false);
