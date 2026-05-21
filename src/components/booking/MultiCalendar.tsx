@@ -71,7 +71,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
 
   const dateStr = format(date, "yyyy-MM-dd");
   const isPastDate = dateStr < todayStr;
-  const bounds = useMemo(() => localDayBoundsUTC(date, timezone), [date, timezone]);
+  const bounds = useMemo(() => localDayBoundsUTC(date, tz), [date, tz]);
 
   const { data: physicians = [] } = useQuery({
     queryKey: ["multi-cal-physicians", service.id, hospitalId, dateStr, officeRoomId || "none"],
