@@ -482,10 +482,11 @@ export function MultiCalendar(props: MultiCalendarProps) {
 
   const renderSlotButton = (s: SlotRow, col: Col) => {
     const isSelected = selected?.slot.id === s.id;
+    const isPastDate = dateStr < todayStr;
     const full = s.booking_count >= 2;
     const waitlist = s.booking_count === 1;
     const blocked = s.is_blocked;
-    const disabled = full || blocked;
+    const disabled = full || blocked || isPastDate;
     const button = (
       <button
         key={s.id}
@@ -497,6 +498,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
           isSelected && "ring-2 ring-primary border-primary",
           blocked && "bg-muted text-muted-foreground cursor-not-allowed",
           full && !blocked && "bg-muted text-muted-foreground cursor-not-allowed",
+          isPastDate && "opacity-50 cursor-not-allowed",
           waitlist && !disabled && "bg-amber-50 border-amber-200 hover:bg-amber-100 dark:bg-amber-950/30 dark:border-amber-900",
           !waitlist && !disabled && "bg-card hover:bg-muted"
         )}
