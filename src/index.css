@@ -98,10 +98,7 @@
 }
 
 @media print {
-  /* Hide everything except the A4 card */
-  body * {
-    visibility: hidden;
-  }
+  body * { visibility: hidden; }
 
   .document-a4-card,
   .document-a4-card * {
@@ -116,6 +113,14 @@
     box-shadow: none !important;
     border: none !important;
     padding: 2cm !important;
+    min-height: unset !important;
+    height: auto !important;
+  }
+
+  /* No forced page breaks between sections */
+  .document-print-section {
+    page-break-inside: avoid;
+    margin-bottom: 1.5rem;
   }
 
   /* Show all sections when printing */
@@ -124,13 +129,8 @@
     visibility: visible !important;
   }
 
-  /* Page breaks between sections */
-  .document-print-section {
-    page-break-before: always;
-    page-break-inside: avoid;
-  }
-
-  .document-print-section:first-child {
-    page-break-before: avoid;
+  /* Hide empty fields */
+  .print-hide-empty {
+    display: none !important;
   }
 }
