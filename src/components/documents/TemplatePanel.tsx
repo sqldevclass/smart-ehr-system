@@ -69,12 +69,7 @@ export default function TemplatePanel({
         .from("patient_documents")
         .select(`
           id, completed_at,
-          document_types!inner(name_ru),
-          patient_document_field_values(
-            field_definition_id,
-            value,
-            field_definitions!inner(attribute_code)
-          )
+          document_types!inner(name_ru)
         `)
         .eq("patient_id", patientId)
         .eq("hospital_id", hospitalId)
@@ -164,25 +159,44 @@ export default function TemplatePanel({
     refetch();
   };
 
-  const handleApplyExisting = (sourceDoc: any) => {
-    const sourceByCode: Record<string, string> = {};
-    (sourceDoc.patient_document_field_values || [])
-      .forEach((v: any) => {
-        const code = v.field_definitions?.attribute_code;
-        if (code && v.value?.trim()) {
-          sourceByCode[code] = v.value;
-        }
-      });
+  const handleApplyExisting = async (docId: string) => {
+    setLoadingDoc(true);
+
+    const { data: fieldValues } = await supabase
+      .from("patient_document_field_values")
+      .select("field_definition_id, value")
+      .eq("patient_document_id", docId);
+
+    const fieldIds = (fieldValues || [])
+      .map((v: any) => v.field_definition_id);
+
+    const { data: fieldDefs } = await supabase
+      .from("field_definitions")
+      .select("id, attribute_code")
+      .in("id", fieldIds);
+
+    const codeMap: Record<string, string> = {};
+    const defMap: Record<string, string> = {};
+    (fieldDefs || []).forEach((d: any) => {
+      defMap[d.id] = d.attribute_code;
+    });
+    (fieldValues || []).forEach((v: any) => {
+      const code = defMap[v.field_definition_id];
+      if (code && v.value?.trim()) {
+        codeMap[code] = v.value;
+      }
+    });
 
     const newValues: Record<string, string> = {};
     sections.forEach((section: any) => {
       section.fields.forEach((f: any) => {
         const code = f.def.attribute_code ?? "";
         if (isExcluded(code)) return;
-        newValues[f.def.id] = sourceByCode[code] ?? "";
+        newValues[f.def.id] = codeMap[code] ?? "";
       });
     });
     onApply(newValues);
+    setLoadingDoc(false);
     setShowExistingDocs(false);
   };
 
@@ -278,7 +292,12 @@ export default function TemplatePanel({
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 max-h-96 overflow-y-auto">
-            {existingDocs.length === 0 ? (
+            {loadingDoc && (
+              <div className="text-sm text-center text-muted-foreground py-2">
+                Загрузка...
+              </div>
+            )}
+            {existingDocs.length === 1 && !loadingDoc ? (
               <p className="text-sm text-muted-foreground text-center py-4">
                 Нет завершённых документов
               </p>
@@ -287,7 +306,7 @@ export default function TemplatePanel({
                 <button
                   key={doc.id}
                   className="w-full text-left p-3 rounded-md border hover:bg-muted transition-colors"
-                  onClick={() => handleApplyExisting(doc)}
+                  onClick={() => handleApplyExisting(doc.id)}
                 >
                   <div className="font-medium text-sm">
                     {doc.document_types?.name_ru}
