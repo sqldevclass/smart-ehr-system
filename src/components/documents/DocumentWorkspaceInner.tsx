@@ -312,66 +312,67 @@ export default function DocumentWorkspaceInner({
           <DocumentPatientHeader />
 
 
-          {sections.map((s, i) => (
-            <div
-              key={s.id}
-              className={
-                activeTab === String(i)
-                  ? "document-print-section"
-                  : "document-print-section document-section-hidden-for-print hidden print:block"
-              }
-            >
-              {i === 0 ? (
-                <div className="hidden print:block mb-4 pb-4 border-b border-gray-200">
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
-                    <div>
-                      <span className="text-gray-500">Пациент: </span>
-                      <span className="font-medium">
-                        {patient.last_name} {patient.first_name} {patient.middle_name}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">П#: </span>
-                      <span>{patient.patient_number}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">ДР: </span>
-                      <span>
-                        {patient.date_of_birth
-                          ? format(new Date(patient.date_of_birth), "dd.MM.yyyy")
-                          : "—"}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Пол: </span>
-                      <span>{patient.gender || "—"}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Телефон: </span>
-                      <span>{patient.phone || "—"}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Визит: </span>
-                      <span>{format(visitDate, "dd.MM.yyyy")}</span>
+          {sections.map((s, i) => {
+            const hasFilledFields = s.fields.some(
+              (f: any) => values[f.def.id]?.trim()
+            );
+            const baseClass =
+              activeTab === String(i)
+                ? "document-print-section"
+                : "document-print-section document-section-hidden-for-print hidden print:block";
+            return (
+              <div
+                key={s.id}
+                className={cn(
+                  baseClass,
+                  isReadOnly && !hasFilledFields && "print-hide-empty"
+                )}
+              >
+                {i === 0 ? (
+                  <div className="hidden print:block mb-4 pb-4 border-b border-gray-200">
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
+                      <div>
+                        <span className="text-gray-500">Пациент: </span>
+                        <span className="font-medium">
+                          {patient.last_name} {patient.first_name} {patient.middle_name}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">П#: </span>
+                        <span>{patient.patient_number}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">ДР: </span>
+                        <span>
+                          {patient.date_of_birth
+                            ? format(new Date(patient.date_of_birth), "dd.MM.yyyy")
+                            : "—"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Пол: </span>
+                        <span>{patient.gender || "—"}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Телефон: </span>
+                        <span>{patient.phone || "—"}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Визит: </span>
+                        <span>{format(visitDate, "dd.MM.yyyy")}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ) : (
-                <div className="hidden print:block text-xs text-gray-400 mb-3">
-                  {patient.last_name} {patient.first_name} | ДР:{" "}
-                  {patient.date_of_birth
-                    ? format(new Date(patient.date_of_birth), "dd.MM.yyyy")
-                    : "—"}
-                </div>
-              )}
-              <DocumentSection
-                section={s}
-                values={values}
-                setVal={setVal}
-                isReadOnly={isReadOnly}
-              />
-            </div>
-          ))}
+                ) : null}
+                <DocumentSection
+                  section={s}
+                  values={values}
+                  setVal={setVal}
+                  isReadOnly={isReadOnly}
+                />
+              </div>
+            );
+          })}
 
           <div
             className={
