@@ -297,7 +297,7 @@ export default function TemplatePanel({
                 Загрузка...
               </div>
             )}
-            {existingDocs.length === 1 && !loadingDoc ? (
+            {existingDocs.length === 0 && !loadingDoc ? (
               <p className="text-sm text-muted-foreground text-center py-4">
                 Нет завершённых документов
               </p>
