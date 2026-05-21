@@ -329,7 +329,10 @@ export default function DocumentWorkspaceInner({
                 )}
               >
                 {i === 0 ? (
-                  <div className="hidden print:block mb-4 pb-4 border-b border-gray-200">
+                  <div
+                    className="mb-4 pb-4 border-b border-gray-200 print-patient-header"
+                    style={{ display: "none" }}
+                  >
                     <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
                       <div>
                         <span className="text-gray-500">Пациент: </span>
@@ -363,7 +366,17 @@ export default function DocumentWorkspaceInner({
                       </div>
                     </div>
                   </div>
-                ) : null}
+                ) : (
+                  <div
+                    className="text-xs text-gray-400 mb-3 print-patient-compact"
+                    style={{ display: "none" }}
+                  >
+                    {patient.last_name} {patient.first_name} | ДР:{" "}
+                    {patient.date_of_birth
+                      ? format(new Date(patient.date_of_birth), "dd.MM.yyyy")
+                      : "—"}
+                  </div>
+                )}
                 <DocumentSection
                   section={s}
                   values={values}
