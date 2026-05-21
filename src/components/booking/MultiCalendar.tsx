@@ -197,7 +197,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
   });
 
   const { data: queueConfigsData } = useQuery({
-    queryKey: ["multi-cal-queue-configs", physicianIds.join(","), dateStr, hospitalId],
+    queryKey: ["multi-cal-queue-preview", physicianIds.join(","), dateStr, hospitalId],
     queryFn: async () => {
       const queuePhysIds = physicians
         .filter((p) => p.scheduleType === "queue")
@@ -205,13 +205,14 @@ export function MultiCalendar(props: MultiCalendarProps) {
       if (queuePhysIds.length === 0) return {} as Record<string, number>;
       const { data } = await supabase
         .from("queue_configs")
-        .select("physician_id, last_number")
+        .select("physician_id, queue_numbers(queue_number)")
         .eq("hospital_id", hospitalId)
         .eq("queue_date", dateStr)
         .in("physician_id", queuePhysIds);
       const map: Record<string, number> = {};
       (data || []).forEach((r: any) => {
-        map[r.physician_id] = r.last_number ?? 0;
+        const numbers = (r.queue_numbers || []).map((q: any) => q.queue_number);
+        map[r.physician_id] = numbers.length > 0 ? Math.max(...numbers) : 0;
       });
       return map;
     },
@@ -220,7 +221,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
   const queueConfigs = queueConfigsData ?? {};
 
   const { data: roomQueueConfigsData } = useQuery({
-    queryKey: ["multi-cal-room-queue-configs", roomIds.sort().join(","), dateStr, hospitalId],
+    queryKey: ["multi-cal-room-queue-preview", roomIds.sort().join(","), dateStr, hospitalId],
     queryFn: async () => {
       const queueRoomIds = rooms
         .filter((r) => r.scheduleType === "queue")
@@ -228,14 +229,16 @@ export function MultiCalendar(props: MultiCalendarProps) {
       if (queueRoomIds.length === 0) return {} as Record<string, number>;
       const { data } = await supabase
         .from("queue_configs")
-        .select("room_id, last_number")
+        .select("room_id, queue_numbers(queue_number)")
         .eq("hospital_id", hospitalId)
         .eq("queue_date", dateStr)
         .in("room_id", queueRoomIds)
         .is("physician_id", null);
       const map: Record<string, number> = {};
       (data || []).forEach((r: any) => {
-        if (r.room_id) map[r.room_id] = r.last_number ?? 0;
+        if (!r.room_id) return;
+        const numbers = (r.queue_numbers || []).map((q: any) => q.queue_number);
+        map[r.room_id] = numbers.length > 0 ? Math.max(...numbers) : 0;
       });
       return map;
     },
