@@ -176,24 +176,6 @@ export function BookingModal(props: BookingModalProps) {
     return false;
   }, [physician, pickedServices, isQueueMode, selectedSlot]);
 
-  const ensureQueueConfig = async (physicianId: string): Promise<string> => {
-    const today = new Date().toISOString().split("T")[0];
-    const { data: existing } = await supabase
-      .from("queue_configs")
-      .select("id")
-      .eq("physician_id", physicianId)
-      .eq("hospital_id", hospitalId)
-      .eq("queue_date", today)
-      .maybeSingle();
-    if (existing) return existing.id;
-    const { data: created, error } = await supabase
-      .from("queue_configs")
-      .insert({ physician_id: physicianId, hospital_id: hospitalId, queue_date: today })
-      .select("id")
-      .single();
-    if (error) throw error;
-    return created.id;
-  };
 
   const createVisitService = async (svc: ServiceResult): Promise<string> => {
     if (mode === "registrar") {
@@ -234,8 +216,6 @@ export function BookingModal(props: BookingModalProps) {
     setSubmitting(true);
     try {
       let lastResult: BookingResult | null = null;
-      let queueConfigId: string | null = null;
-      if (isQueueMode) queueConfigId = await ensureQueueConfig(physician.id);
 
       for (const svc of pickedServices) {
         let visitServiceId: string;
@@ -263,30 +243,17 @@ export function BookingModal(props: BookingModalProps) {
           isWaitlist = (bookData as any)?.is_waitlist
             ?? (Array.isArray(bookData) ? (bookData as any)[0]?.is_waitlist : undefined);
           scheduledAt = selectedSlot.slot_datetime;
-        } else if (isQueueMode && queueConfigId) {
+        } else if (isQueueMode) {
           const { data: qData, error: qErr } = await supabase.rpc("assign_queue_number", {
-            p_queue_config_id: queueConfigId,
             p_visit_service_id: visitServiceId,
             p_hospital_id: hospitalId,
+            p_physician_id: physician.id,
           });
           if (qErr) throw qErr;
-          if (qData) {
-            // PostgREST returns composite type as array
-            // Try all possible shapes
-            if (Array.isArray(qData) && qData.length > 0) {
-              queueNumber = (qData[0] as any)?.queue_number;
-            } else if (typeof qData === 'object') {
-              queueNumber = (qData as any)?.queue_number;
-            }
-            // Fallback: read from queue_configs if still undefined
-            if (!queueNumber) {
-              const { data: cfg } = await supabase
-                .from('queue_configs')
-                .select('last_number')
-                .eq('id', queueConfigId!)
-                .single();
-              queueNumber = cfg?.last_number ?? undefined;
-            }
+          if (Array.isArray(qData) && qData.length > 0) {
+            queueNumber = (qData[0] as any)?.queue_number;
+          } else if (qData) {
+            queueNumber = (qData as any)?.queue_number;
           }
         }
 
