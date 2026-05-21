@@ -293,17 +293,6 @@ export default function DocumentWorkspaceInner({
               {s.name_ru}
             </button>
           ))}
-          <button
-            onClick={() => setActiveTab("assignments")}
-            className={cn(
-              "px-4 py-2 text-sm border-b-2 whitespace-nowrap transition-colors",
-              activeTab === "assignments"
-                ? "border-primary text-primary font-medium"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-          >
-            Назначения
-          </button>
         </div>
       </div>
 
