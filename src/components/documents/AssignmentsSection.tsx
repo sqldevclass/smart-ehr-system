@@ -189,7 +189,7 @@ export default function AssignmentsSection({
     return (
       <div key={key} className="space-y-2">
         <h3 className="font-heading text-base font-semibold">{name}</h3>
-        {list.length > 0 && renderTable(list)}
+        {list.length > 0 && renderTable(list, key)}
         {!isReadOnly && addBtn && (
           <>
             <Button
