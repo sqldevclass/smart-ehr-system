@@ -318,64 +318,31 @@ export function MultiCalendar(props: MultiCalendarProps) {
       let isWaitlist: boolean | undefined;
       if (isQueueBooking) {
         const physCol = selected.col as PhysCol;
-        const today = dateStr;
-        let queueConfigId: string;
-        const { data: existingConfig } = await supabase
-          .from("queue_configs")
-          .select("id")
-          .eq("physician_id", physCol.id)
-          .eq("hospital_id", hospitalId)
-          .eq("queue_date", today)
-          .maybeSingle();
-        if (existingConfig) {
-          queueConfigId = existingConfig.id;
-        } else {
-          const { data: newConfig, error: configErr } = await supabase
-            .from("queue_configs")
-            .insert({ physician_id: physCol.id, hospital_id: hospitalId, queue_date: today })
-            .select("id")
-            .single();
-          if (configErr) throw configErr;
-          queueConfigId = newConfig.id;
-        }
         const { data: qData, error: qErr } = await supabase.rpc("assign_queue_number", {
-          p_queue_config_id: queueConfigId,
           p_visit_service_id: visitServiceId,
           p_hospital_id: hospitalId,
+          p_physician_id: physCol.id,
         });
         if (qErr) throw qErr;
-        queueNumber = (qData as any)?.queue_number;
+        if (Array.isArray(qData) && qData.length > 0) {
+          queueNumber = (qData[0] as any)?.queue_number;
+        } else if (qData) {
+          queueNumber = (qData as any)?.queue_number;
+        }
         toast.success(`Booked. Queue #${queueNumber}`);
       } else if (isRoomQueueBooking) {
         const roomCol = selected.col as RoomCol;
-        const today = dateStr;
-        let queueConfigId: string;
-        const { data: existingConfig } = await supabase
-          .from("queue_configs")
-          .select("id")
-          .eq("room_id", roomCol.id)
-          .eq("hospital_id", hospitalId)
-          .eq("queue_date", today)
-          .is("physician_id", null)
-          .maybeSingle();
-        if (existingConfig) {
-          queueConfigId = existingConfig.id;
-        } else {
-          const { data: newConfig, error: configErr } = await supabase
-            .from("queue_configs")
-            .insert({ room_id: roomCol.id, hospital_id: hospitalId, queue_date: today })
-            .select("id")
-            .single();
-          if (configErr) throw configErr;
-          queueConfigId = newConfig.id;
-        }
         const { data: qData, error: qErr } = await supabase.rpc("assign_queue_number", {
-          p_queue_config_id: queueConfigId,
           p_visit_service_id: visitServiceId,
           p_hospital_id: hospitalId,
+          p_room_id: roomCol.id,
         });
         if (qErr) throw qErr;
-        queueNumber = (qData as any)?.queue_number;
+        if (Array.isArray(qData) && qData.length > 0) {
+          queueNumber = (qData[0] as any)?.queue_number;
+        } else if (qData) {
+          queueNumber = (qData as any)?.queue_number;
+        }
         toast.success(`Booked. Queue #${queueNumber}`);
       } else {
         const { data: bookData, error: bookErr } = await supabase.rpc("book_slot", {
