@@ -586,12 +586,16 @@ export function MultiCalendar(props: MultiCalendarProps) {
                         {col.scheduleType === "queue" ? (
                           <div
                             className={cn(
-                              "cursor-pointer rounded-lg border-2 p-4 text-center transition",
+                              "rounded-lg border-2 p-4 text-center transition",
+                              dateStr < todayStr
+                                ? "opacity-50 cursor-not-allowed bg-muted/30"
+                                : "cursor-pointer hover:border-primary/50 hover:bg-muted/30",
                               selected?.col.id === col.id
                                 ? "border-primary bg-primary/5"
-                                : "border-dashed border-muted-foreground/30 hover:border-primary/50 hover:bg-muted/30"
+                                : "border-dashed border-muted-foreground/30"
                             )}
                             onClick={() => {
+                              if (dateStr < todayStr) return;
                               const queueSelection: SlotRow = {
                                 id: `queue-${col.id}`,
                                 slot_datetime: new Date().toISOString(),
@@ -606,7 +610,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
                               Queue #{(queueConfigs?.[col.id] ?? 0) + 1}
                             </div>
                             <div className="mt-1 text-xs text-muted-foreground">
-                              Click to select queue
+                              {dateStr < todayStr ? "Past date" : "Click to select queue"}
                             </div>
                             {selected?.col.id === col.id && (
                               <div className="mt-2 text-xs font-medium text-primary">✓ Selected</div>
