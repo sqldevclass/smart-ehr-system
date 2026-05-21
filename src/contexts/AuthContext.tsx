@@ -28,6 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const initialLoadDone = useRef(false);
+  const currentUserIdRef = useRef<string | null>(null);
 
   const loadUser = useCallback(async () => {
     if (!initialLoadDone.current) {
