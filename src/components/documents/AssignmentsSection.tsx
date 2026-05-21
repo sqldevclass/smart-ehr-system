@@ -10,6 +10,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { LabResultsButton } from "@/components/lab/LabResultsButton";
 
 interface Props {
   mainServices: any[];
@@ -122,7 +123,7 @@ export default function AssignmentsSection({
     );
   };
 
-  const renderTable = (list: any[]) => (
+  const renderTable = (list: any[], groupKey?: string) => (
     <div className="rounded-md border">
       <Table>
         <TableHeader>
@@ -132,6 +133,7 @@ export default function AssignmentsSection({
             <TableHead>Врач</TableHead>
             <TableHead>Время</TableHead>
             <TableHead>Завершено</TableHead>
+            {groupKey === "laboratory" && <TableHead>Действия</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -160,6 +162,16 @@ export default function AssignmentsSection({
                   ? format(new Date(vs.completed_at), "dd.MM.yyyy HH:mm")
                   : "—"}
               </TableCell>
+              {groupKey === "laboratory" && (
+                <TableCell>
+                  {vs.service_statuses?.code === "completed" && (
+                    <LabResultsButton
+                      visitServiceId={vs.id}
+                      variant="indicator"
+                    />
+                  )}
+                </TableCell>
+              )}
             </TableRow>
           ))}
         </TableBody>
@@ -177,7 +189,7 @@ export default function AssignmentsSection({
     return (
       <div key={key} className="space-y-2">
         <h3 className="font-heading text-base font-semibold">{name}</h3>
-        {list.length > 0 && renderTable(list)}
+        {list.length > 0 && renderTable(list, key)}
         {!isReadOnly && addBtn && (
           <>
             <Button
