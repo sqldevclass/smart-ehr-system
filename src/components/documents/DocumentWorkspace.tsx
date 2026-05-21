@@ -231,6 +231,20 @@ export default function DocumentWorkspace(props: Props) {
     },
   });
 
+  const { data: physicianData } = useQuery({
+    queryKey: ["my-physician-id", user?.id],
+    ...queryDefaults,
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("physicians")
+        .select("id")
+        .eq("profile_id", user!.id)
+        .maybeSingle();
+      return data;
+    },
+  });
+
   const isReady =
     !!sectionsData && !!fieldsData && !!patient && !!documentType &&
     (!existingDoc?.id || !!existingValues);
