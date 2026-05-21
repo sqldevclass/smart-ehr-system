@@ -271,8 +271,22 @@ export function BookingModal(props: BookingModalProps) {
           });
           if (qErr) throw qErr;
           if (qData) {
-            const row = Array.isArray(qData) ? qData[0] : qData;
-            queueNumber = (row as any)?.queue_number;
+            // PostgREST returns composite type as array
+            // Try all possible shapes
+            if (Array.isArray(qData) && qData.length > 0) {
+              queueNumber = (qData[0] as any)?.queue_number;
+            } else if (typeof qData === 'object') {
+              queueNumber = (qData as any)?.queue_number;
+            }
+            // Fallback: read from queue_configs if still undefined
+            if (!queueNumber) {
+              const { data: cfg } = await supabase
+                .from('queue_configs')
+                .select('last_number')
+                .eq('id', queueConfigId!)
+                .single();
+              queueNumber = cfg?.last_number ?? undefined;
+            }
           }
         }
 
