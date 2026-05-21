@@ -63,7 +63,9 @@ export default function TemplatePanel({
 
   const { data: existingDocs = [] } = useQuery({
     queryKey: ["patient-completed-docs", patientId],
-    enabled: !!patientId && showExistingDocs,
+    enabled: !!patientId && patientId.length > 1 && showExistingDocs,
+    staleTime: 0,
+    gcTime: 0,
     queryFn: async () => {
       const { data } = await supabase
         .from("patient_documents")
