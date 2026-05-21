@@ -58,11 +58,19 @@ function deriveScheduleType(rows: any[] | null | undefined, date: Date): "slots"
 export function MultiCalendar(props: MultiCalendarProps) {
   const { service, hospitalId, timezone, mode, patientId, hospitalizationId, officeRoomId, existingVisitServiceId, onBooked } = props;
   const { user } = useAuth();
-  const [date, setDate] = useState<Date>(new Date());
+  const tz = timezone || user?.timezone || "Asia/Tashkent";
+  const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: tz });
+  const todayInTz = useMemo(() => {
+    const [y, m, d] = todayStr.split("-").map(Number);
+    return new Date(y, (m ?? 1) - 1, d ?? 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const [date, setDate] = useState<Date>(todayInTz);
   const [selected, setSelected] = useState<{ slot: SlotRow; col: Col } | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const dateStr = format(date, "yyyy-MM-dd");
+  const isPastDate = dateStr < todayStr;
   const bounds = useMemo(() => localDayBoundsUTC(date, timezone), [date, timezone]);
 
   const { data: physicians = [] } = useQuery({
