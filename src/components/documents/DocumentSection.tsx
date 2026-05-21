@@ -107,7 +107,7 @@ export default function DocumentSection({ section, values, setVal, isReadOnly }:
               key={field.def.id}
               className={cn(
                 "space-y-1.5",
-                isReadOnly && !values[field.def.id] && "print:hidden"
+                isReadOnly && !values[field.def.id] && "print-hide-empty"
               )}
             >
 
