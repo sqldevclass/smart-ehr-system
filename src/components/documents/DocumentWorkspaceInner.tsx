@@ -69,6 +69,7 @@ export default function DocumentWorkspaceInner({
       .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
       .map((s: any) => ({
         id: s.document_sections.id,
+        code: s.document_sections.code,
         name_ru: s.document_sections.name_ru,
         fields: [...fieldsData]
           .filter((f: any) =>
