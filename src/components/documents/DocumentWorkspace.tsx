@@ -284,6 +284,7 @@ export default function DocumentWorkspace(props: Props) {
       completedByProfile={completedByProfile}
       visitDate={visitDate}
       hospitalName={user?.hospitalName || ""}
+      physicianId={physicianData?.id ?? null}
     />
   );
 }
