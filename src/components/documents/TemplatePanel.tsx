@@ -268,6 +268,44 @@ export default function TemplatePanel({
           </div>
         </>
       )}
+
+      <Dialog open={showExistingDocs} onOpenChange={setShowExistingDocs}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Выбрать существующий документ</DialogTitle>
+            <DialogDescription>
+              Поля будут заполнены из выбранного документа. Диагноз и показатели не переносятся.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {existingDocs.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Нет завершённых документов
+              </p>
+            ) : (
+              existingDocs.map((doc: any) => (
+                <button
+                  key={doc.id}
+                  className="w-full text-left p-3 rounded-md border hover:bg-muted transition-colors"
+                  onClick={() => handleApplyExisting(doc)}
+                >
+                  <div className="font-medium text-sm">
+                    {doc.document_types?.name_ru}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    {doc.completed_at
+                      ? format(
+                          new Date(doc.completed_at),
+                          "dd.MM.yyyy HH:mm"
+                        )
+                      : "—"}
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
