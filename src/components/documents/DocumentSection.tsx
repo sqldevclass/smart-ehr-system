@@ -103,7 +103,14 @@ export default function DocumentSection({ section, values, setVal, isReadOnly }:
             field.def.attribute_code?.startsWith("diag.") &&
             field.def.field_type === "textarea";
           return (
-            <div key={field.def.id} className="space-y-1.5">
+            <div
+              key={field.def.id}
+              className={cn(
+                "space-y-1.5",
+                isReadOnly && !values[field.def.id] && "print:hidden"
+              )}
+            >
+
               <div className="text-sm font-medium flex items-center gap-1">
                 {field.def.label_ru}
                 {field.def.unit && (
