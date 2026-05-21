@@ -69,6 +69,7 @@ export default function DocumentWorkspaceInner({
       .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
       .map((s: any) => ({
         id: s.document_sections.id,
+        code: s.document_sections.code,
         name_ru: s.document_sections.name_ru,
         fields: [...fieldsData]
           .filter((f: any) =>
@@ -292,17 +293,6 @@ export default function DocumentWorkspaceInner({
               {s.name_ru}
             </button>
           ))}
-          <button
-            onClick={() => setActiveTab("assignments")}
-            className={cn(
-              "px-4 py-2 text-sm border-b-2 whitespace-nowrap transition-colors",
-              activeTab === "assignments"
-                ? "border-primary text-primary font-medium"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-          >
-            Назначения
-          </button>
         </div>
       </div>
 
@@ -383,34 +373,56 @@ export default function DocumentWorkspaceInner({
                   setVal={setVal}
                   isReadOnly={isReadOnly}
                 />
+                {s.code === "treatment_plan" && (
+                  <div className="mt-8 pt-6 border-t border-gray-200">
+                    <AssignmentsSection
+                      mainServices={mainServices}
+                      childServices={childServices}
+                      pendingOrders={pendingOrders}
+                      physicianNameMap={physicianNameMap}
+                      isReadOnly={isReadOnly}
+                      patientId={patientId}
+                      hospitalId={hospitalId}
+                      visitId={visitId}
+                      visitServiceId={visitServiceId}
+                      onOrderCreated={() => {
+                        queryClient.invalidateQueries({ queryKey: ["doc-ws-main", visitId, hospitalId] });
+                        queryClient.invalidateQueries({ queryKey: ["doc-ws-child", visitId, hospitalId] });
+                        queryClient.invalidateQueries({ queryKey: ["doc-ws-pending", visitServiceId, hospitalId] });
+                      }}
+                    />
+                  </div>
+                )}
               </div>
             );
           })}
 
-          <div
-            className={
-              activeTab === "assignments"
-                ? "document-print-section"
-                : "document-print-section document-section-hidden-for-print hidden print:block"
-            }
-          >
-            <AssignmentsSection
-              mainServices={mainServices}
-              childServices={childServices}
-              pendingOrders={pendingOrders}
-              physicianNameMap={physicianNameMap}
-              isReadOnly={isReadOnly}
-              patientId={patientId}
-              hospitalId={hospitalId}
-              visitId={visitId}
-              visitServiceId={visitServiceId}
-              onOrderCreated={() => {
-                queryClient.invalidateQueries({ queryKey: ["doc-ws-main", visitId, hospitalId] });
-                queryClient.invalidateQueries({ queryKey: ["doc-ws-child", visitId, hospitalId] });
-                queryClient.invalidateQueries({ queryKey: ["doc-ws-pending", visitServiceId, hospitalId] });
-              }}
-            />
-          </div>
+          {!sections.some((s) => s.code === "treatment_plan") && (
+            <div
+              className={
+                activeTab === String(sections.length - 1)
+                  ? "document-print-section mt-8 pt-6 border-t border-gray-200"
+                  : "document-print-section document-section-hidden-for-print hidden print:block mt-8 pt-6 border-t border-gray-200"
+              }
+            >
+              <AssignmentsSection
+                mainServices={mainServices}
+                childServices={childServices}
+                pendingOrders={pendingOrders}
+                physicianNameMap={physicianNameMap}
+                isReadOnly={isReadOnly}
+                patientId={patientId}
+                hospitalId={hospitalId}
+                visitId={visitId}
+                visitServiceId={visitServiceId}
+                onOrderCreated={() => {
+                  queryClient.invalidateQueries({ queryKey: ["doc-ws-main", visitId, hospitalId] });
+                  queryClient.invalidateQueries({ queryKey: ["doc-ws-child", visitId, hospitalId] });
+                  queryClient.invalidateQueries({ queryKey: ["doc-ws-pending", visitServiceId, hospitalId] });
+                }}
+              />
+            </div>
+          )}
 
           {isReadOnly && existingDoc?.completed_at && (
             <div className="mt-8 pt-4 border-t flex items-end justify-between text-sm">
