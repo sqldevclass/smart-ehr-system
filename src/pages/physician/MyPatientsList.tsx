@@ -102,18 +102,17 @@ export default function MyPatientsList() {
   useEffect(() => {
     if (activeDocument && activePatient) {
       setPatientContext(
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex items-center gap-3 text-sm text-muted-foreground">
           <span className="font-medium text-foreground">
             {activePatient.last_name} {activePatient.first_name} {activePatient.middle_name}
           </span>
-          <span>|</span>
-          <span>П#: {activePatient.patient_number}</span>
-          <span>|</span>
           <span>
-            ДР:{" "}
             {activePatient.date_of_birth
               ? format(new Date(activePatient.date_of_birth), "dd.MM.yyyy")
               : "—"}
+          </span>
+          <span className="font-mono text-xs">
+            {activePatient.patient_number}
           </span>
         </div>
       );

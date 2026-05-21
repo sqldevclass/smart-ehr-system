@@ -142,10 +142,9 @@ export default function PhysicianLayout() {
                 </span>
               )}
               {patientContext && (
-                <>
-                  <span className="text-muted-foreground">&nbsp;|&nbsp;</span>
+                <div className="flex items-center gap-3">
                   {patientContext}
-                </>
+                </div>
               )}
             </div>
             {user && (
