@@ -59,7 +59,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
   const { service, hospitalId, timezone, mode, patientId, hospitalizationId, officeRoomId, existingVisitServiceId, onBooked } = props;
   const { user } = useAuth();
   const tz = timezone || user?.timezone || "Asia/Tashkent";
-  const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: timezone });
+  const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: tz });
   const todayInTz = useMemo(() => {
     const [y, m, d] = todayStr.split("-").map(Number);
     return new Date(y, (m ?? 1) - 1, d ?? 1);
@@ -71,7 +71,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
 
   const dateStr = format(date, "yyyy-MM-dd");
   const isPastDate = dateStr < todayStr;
-  const bounds = useMemo(() => localDayBoundsUTC(date, timezone), [date, timezone]);
+  const bounds = useMemo(() => localDayBoundsUTC(date, tz), [date, tz]);
 
   const { data: physicians = [] } = useQuery({
     queryKey: ["multi-cal-physicians", service.id, hospitalId, dateStr, officeRoomId || "none"],
@@ -361,106 +361,8 @@ export function MultiCalendar(props: MultiCalendarProps) {
         toast.success(isWaitlist ? "Added to waitlist" : "Booked");
       }
 
-      // When scheduling an existing physician order, merge it into today's open visit
-      if (existingVisitServiceId) {
-        try {
-          const { data: vsRow } = await supabase
-            .from("visit_services")
-            .select("id, visit_id, cost_at_time")
-            .eq("id", existingVisitServiceId)
-            .single();
-          if (vsRow) {
-            const cost = Number(vsRow.cost_at_time || 0);
-            const oldVisitId = vsRow.visit_id;
-            const { data: openVisit } = await supabase
-              .from("visits")
-              .select("id, total_amount")
-              .eq("patient_id", patientId)
-              .eq("hospital_id", hospitalId)
-              .in("status", ["unpaid", "partial"])
-              .order("created_at", { ascending: true })
-              .limit(1)
-              .maybeSingle();
 
-            if (openVisit && openVisit.id !== oldVisitId) {
-              // Move visit_service to open visit
-              await supabase
-                .from("visit_services")
-                .update({ visit_id: openVisit.id })
-                .eq("id", existingVisitServiceId);
 
-              // Update open visit total
-              await supabase
-                .from("visits")
-                .update({ total_amount: Number(openVisit.total_amount || 0) + cost })
-                .eq("id", openVisit.id);
-
-              // Decrement old visit total / delete if empty
-              if (oldVisitId) {
-                const { data: oldVisit } = await supabase
-                  .from("visits")
-                  .select("total_amount")
-                  .eq("id", oldVisitId)
-                  .maybeSingle();
-                const { data: remaining } = await supabase
-                  .from("visit_services")
-                  .select("id")
-                  .eq("visit_id", oldVisitId);
-                if (!remaining || remaining.length === 0) {
-                  await supabase.from("visits").delete().eq("id", oldVisitId);
-                } else if (oldVisit) {
-                  await supabase
-                    .from("visits")
-                    .update({ total_amount: Math.max(0, Number(oldVisit.total_amount || 0) - cost) })
-                    .eq("id", oldVisitId);
-                }
-              }
-            }
-
-            // Find or create invoice for the target visit
-            const targetVisitId = openVisit?.id || oldVisitId;
-            if (targetVisitId) {
-              let invoiceId: string | undefined;
-              const { data: existingInvoice } = await supabase
-                .from("invoices")
-                .select("id")
-                .eq("visit_id", targetVisitId)
-                .maybeSingle();
-              if (existingInvoice) {
-                invoiceId = existingInvoice.id;
-              } else {
-                const { data: newInvoice } = await supabase
-                  .from("invoices")
-                  .insert({
-                    visit_id: targetVisitId,
-                    patient_id: patientId,
-                    hospital_id: hospitalId,
-                    total_amount: cost,
-                  })
-                  .select("id")
-                  .single();
-                invoiceId = newInvoice?.id;
-              }
-              if (invoiceId) {
-                const { data: existingItem } = await supabase
-                  .from("invoice_items")
-                  .select("id")
-                  .eq("visit_service_id", existingVisitServiceId)
-                  .maybeSingle();
-                if (!existingItem) {
-                  await supabase.from("invoice_items").insert({
-                    invoice_id: invoiceId,
-                    visit_service_id: existingVisitServiceId,
-                    amount: cost,
-                  });
-                }
-              }
-            }
-          }
-        } catch (mergeErr: any) {
-          console.error("Visit merge failed:", mergeErr);
-        }
-      }
 
       onBooked({
         visitServiceId: existingVisitServiceId || visitServiceId,
@@ -503,7 +405,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
           !waitlist && !disabled && "bg-card hover:bg-muted"
         )}
       >
-        <span>{toLocal(s.slot_datetime, timezone, "HH:mm")}</span>
+        <span>{toLocal(s.slot_datetime, tz, "HH:mm")}</span>
         {blocked ? (
           <Lock className="h-3 w-3" />
         ) : (
@@ -537,7 +439,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
             <Button
               size="icon"
               variant="ghost"
-              disabled={isPastDate || dateStr <= todayStr}
+              disabled={dateStr <= todayStr}
               onClick={() => setDate((d) => addDays(d, -1))}
             >
               <ChevronLeft className="h-4 w-4" />
@@ -695,7 +597,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
             <div className="text-sm">
               <span className="text-muted-foreground">Selected:</span>{" "}
               <span className="font-medium">
-                {selectedLabel} · {toLocal(selected.slot.slot_datetime, timezone, "MMM d, HH:mm")}
+                {selectedLabel} · {toLocal(selected.slot.slot_datetime, tz, "MMM d, HH:mm")}
               </span>
             </div>
             <div className="flex gap-2">
