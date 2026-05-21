@@ -27,6 +27,7 @@ export default function DocumentWorkspace(props: Props) {
 
   const { data: existingDoc } = useQuery({
     queryKey: ["doc-ws-existing", visitServiceId, hospitalId],
+    ...queryDefaults,
     queryFn: async () => {
       const { data } = await supabase
         .from("patient_documents")
@@ -40,6 +41,7 @@ export default function DocumentWorkspace(props: Props) {
 
   const { data: sectionsData } = useQuery({
     queryKey: ["doc-ws-sections", documentTypeId],
+    ...queryDefaults,
     queryFn: async () => {
       const { data } = await supabase
         .from("document_type_sections")
@@ -55,6 +57,7 @@ export default function DocumentWorkspace(props: Props) {
 
   const { data: fieldsData } = useQuery({
     queryKey: ["doc-ws-fields", documentTypeId],
+    ...queryDefaults,
     queryFn: async () => {
       const { data } = await supabase
         .from("document_type_fields")
@@ -73,6 +76,7 @@ export default function DocumentWorkspace(props: Props) {
 
   const { data: existingValues } = useQuery({
     queryKey: ["doc-ws-values", existingDoc?.id],
+    ...queryDefaults,
     enabled: !!existingDoc?.id,
     queryFn: async () => {
       const { data } = await supabase
@@ -85,6 +89,7 @@ export default function DocumentWorkspace(props: Props) {
 
   const { data: patient } = useQuery({
     queryKey: ["doc-ws-patient", patientId],
+    ...queryDefaults,
     queryFn: async () => {
       const { data } = await supabase
         .from("patients")
@@ -97,6 +102,7 @@ export default function DocumentWorkspace(props: Props) {
 
   const { data: documentType } = useQuery({
     queryKey: ["doc-ws-type", documentTypeId],
+    ...queryDefaults,
     queryFn: async () => {
       const { data } = await supabase
         .from("document_types")
@@ -109,6 +115,7 @@ export default function DocumentWorkspace(props: Props) {
 
   const { data: visit } = useQuery({
     queryKey: ["doc-ws-visit", visitId],
+    ...queryDefaults,
     queryFn: async () => {
       const { data } = await supabase
         .from("visits")
@@ -121,6 +128,7 @@ export default function DocumentWorkspace(props: Props) {
 
   const { data: mainServices = [] } = useQuery({
     queryKey: ["doc-ws-main", visitId, hospitalId],
+    ...queryDefaults,
     queryFn: async () => {
       const { data } = await supabase
         .from("visit_services")
@@ -141,6 +149,7 @@ export default function DocumentWorkspace(props: Props) {
 
   const { data: childServices = [] } = useQuery({
     queryKey: ["doc-ws-child", visitId, hospitalId],
+    ...queryDefaults,
     queryFn: async () => {
       const { data } = await supabase
         .from("visit_services")
@@ -162,6 +171,7 @@ export default function DocumentWorkspace(props: Props) {
 
   const { data: pendingOrders = [] } = useQuery({
     queryKey: ["doc-ws-pending", visitServiceId, hospitalId],
+    ...queryDefaults,
     queryFn: async () => {
       const { data } = await supabase
         .from("visit_services")
@@ -191,6 +201,7 @@ export default function DocumentWorkspace(props: Props) {
 
   const { data: physicianNames = [] } = useQuery({
     queryKey: ["physician-names", allPhysicianIds],
+    ...queryDefaults,
     enabled: allPhysicianIds.length > 0,
     queryFn: async () => {
       const { data } = await supabase
@@ -211,6 +222,7 @@ export default function DocumentWorkspace(props: Props) {
 
   const { data: completedByProfile } = useQuery({
     queryKey: ["doc-ws-completedby", existingDoc?.completed_by],
+    ...queryDefaults,
     enabled: !!existingDoc?.completed_by,
     queryFn: async () => {
       const { data } = await supabase
@@ -226,7 +238,10 @@ export default function DocumentWorkspace(props: Props) {
     !!sectionsData && !!fieldsData && !!patient && !!documentType &&
     (!existingDoc?.id || !!existingValues);
 
-  if (!isReady) {
+  const hasBeenReady = useRef(false);
+  if (isReady) hasBeenReady.current = true;
+
+  if (!isReady && !hasBeenReady.current) {
     return (
       <div className="flex h-64 items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
