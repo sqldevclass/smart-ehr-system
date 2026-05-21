@@ -301,12 +301,8 @@ export default function DocumentWorkspaceInner({
       {/* A4 Document Area */}
       <div className="document-page-bg flex-1 overflow-y-auto bg-muted/30 p-6 document-print-area">
         <div className="document-a4-card mx-auto max-w-[210mm] bg-card rounded-md shadow-sm border p-8">
-          <DocumentPatientHeader
-            patient={patient}
-            documentType={documentType}
-            hospitalName={hospitalName}
-            visitDate={visitDate}
-          />
+          <DocumentPatientHeader />
+
 
           {sections.map((s, i) => (
             <div
