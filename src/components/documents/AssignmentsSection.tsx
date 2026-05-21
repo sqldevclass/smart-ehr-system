@@ -123,7 +123,7 @@ export default function AssignmentsSection({
     );
   };
 
-  const renderTable = (list: any[]) => (
+  const renderTable = (list: any[], groupKey?: string) => (
     <div className="rounded-md border">
       <Table>
         <TableHeader>
@@ -133,6 +133,7 @@ export default function AssignmentsSection({
             <TableHead>Врач</TableHead>
             <TableHead>Время</TableHead>
             <TableHead>Завершено</TableHead>
+            {groupKey === "laboratory" && <TableHead>Действия</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -161,6 +162,16 @@ export default function AssignmentsSection({
                   ? format(new Date(vs.completed_at), "dd.MM.yyyy HH:mm")
                   : "—"}
               </TableCell>
+              {groupKey === "laboratory" && (
+                <TableCell>
+                  {vs.service_statuses?.code === "completed" && (
+                    <LabResultsButton
+                      visitServiceId={vs.id}
+                      variant="indicator"
+                    />
+                  )}
+                </TableCell>
+              )}
             </TableRow>
           ))}
         </TableBody>
