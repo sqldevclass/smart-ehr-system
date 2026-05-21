@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { Outlet, useNavigate, useLocation, useOutletContext } from "react-router-dom";
+
 import { CalendarDays, UserCircle, LogOut } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
@@ -34,15 +35,25 @@ const roleTitles: Record<string, string> = {
 
 type Mode = "ambulatory" | "inpatient";
 
+interface PhysicianOutletContext {
+  setPatientContext: (node: React.ReactNode | null) => void;
+}
+
+export function usePhysicianLayoutContext() {
+  return useOutletContext<PhysicianOutletContext>();
+}
+
 export default function PhysicianLayout() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [patientContext, setPatientContext] = useState<React.ReactNode | null>(null);
 
   const [mode, setMode] = useState<Mode>(() => {
     const stored = typeof window !== "undefined" ? localStorage.getItem("physician_mode") : null;
     return (stored as Mode) || "ambulatory";
   });
+
 
   // Sync mode from URL on initial load
   useEffect(() => {
@@ -130,6 +141,12 @@ export default function PhysicianLayout() {
                   {user.hospitalName}
                 </span>
               )}
+              {patientContext && (
+                <>
+                  <span className="text-muted-foreground">&nbsp;|&nbsp;</span>
+                  {patientContext}
+                </>
+              )}
             </div>
             {user && (
               <div className="flex items-center gap-3 text-sm text-muted-foreground">
@@ -141,8 +158,9 @@ export default function PhysicianLayout() {
             )}
           </header>
           <main className="flex-1 p-6">
-            <Outlet />
+            <Outlet context={{ setPatientContext } satisfies PhysicianOutletContext} />
           </main>
+
         </div>
       </div>
     </SidebarProvider>

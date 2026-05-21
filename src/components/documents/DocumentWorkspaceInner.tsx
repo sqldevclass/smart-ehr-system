@@ -42,7 +42,9 @@ export default function DocumentWorkspaceInner({
   completedByProfile, visitDate, hospitalName,
 }: InnerProps) {
   const { user } = useAuth();
+  const isPhysician = user?.roles?.includes("physician") ?? false;
   const queryClient = useQueryClient();
+
 
   const [documentId, setDocumentId] = useState<string | null>(() => existingDoc?.id ?? null);
   const [values, setValues] = useState<Record<string, string>>(() => {
@@ -170,7 +172,12 @@ export default function DocumentWorkspaceInner({
         return;
       }
       toast.success("Документ подтверждён");
+      queryClient.invalidateQueries({
+        queryKey: ["doc-ws-existing", visitServiceId, hospitalId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["physician-schedule"] });
       onClose();
+
     } finally {
       setIsConfirming(false);
     }
@@ -259,11 +266,12 @@ export default function DocumentWorkspaceInner({
           <Button variant="outline" size="sm" onClick={() => window.print()}>
             <Printer className="h-4 w-4 mr-1" /> Печать
           </Button>
-          {!isReadOnly && (
+          {!isReadOnly && isPhysician && (
             <Button size="sm" onClick={handleConfirm} disabled={!canConfirm}>
               {isConfirming ? "..." : "Подтвердить"}
             </Button>
           )}
+
         </div>
       </div>
 
@@ -301,12 +309,8 @@ export default function DocumentWorkspaceInner({
       {/* A4 Document Area */}
       <div className="document-page-bg flex-1 overflow-y-auto bg-muted/30 p-6 document-print-area">
         <div className="document-a4-card mx-auto max-w-[210mm] bg-card rounded-md shadow-sm border p-8">
-          <DocumentPatientHeader
-            patient={patient}
-            documentType={documentType}
-            hospitalName={hospitalName}
-            visitDate={visitDate}
-          />
+          <DocumentPatientHeader />
+
 
           {sections.map((s, i) => (
             <div
@@ -317,6 +321,49 @@ export default function DocumentWorkspaceInner({
                   : "document-print-section document-section-hidden-for-print hidden print:block"
               }
             >
+              {i === 0 ? (
+                <div className="hidden print:block mb-4 pb-4 border-b border-gray-200">
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
+                    <div>
+                      <span className="text-gray-500">Пациент: </span>
+                      <span className="font-medium">
+                        {patient.last_name} {patient.first_name} {patient.middle_name}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">П#: </span>
+                      <span>{patient.patient_number}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">ДР: </span>
+                      <span>
+                        {patient.date_of_birth
+                          ? format(new Date(patient.date_of_birth), "dd.MM.yyyy")
+                          : "—"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Пол: </span>
+                      <span>{patient.gender || "—"}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Телефон: </span>
+                      <span>{patient.phone || "—"}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Визит: </span>
+                      <span>{format(visitDate, "dd.MM.yyyy")}</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="hidden print:block text-xs text-gray-400 mb-3">
+                  {patient.last_name} {patient.first_name} | ДР:{" "}
+                  {patient.date_of_birth
+                    ? format(new Date(patient.date_of_birth), "dd.MM.yyyy")
+                    : "—"}
+                </div>
+              )}
               <DocumentSection
                 section={s}
                 values={values}
@@ -325,6 +372,7 @@ export default function DocumentWorkspaceInner({
               />
             </div>
           ))}
+
           <div
             className={
               activeTab === "assignments"
