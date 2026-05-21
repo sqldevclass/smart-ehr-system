@@ -191,8 +191,11 @@ export default function DocumentWorkspaceInner({
     if (!isDirty || isReadOnly) return;
     const timer = setTimeout(async () => {
       if (isReadOnly) return;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const authClient = supabase;
       if (!documentId) {
-        const { data: doc, error } = await supabase
+        const { data: doc, error } = await authClient
           .from("patient_documents")
           .insert({
             patient_id: patientId,
@@ -200,13 +203,13 @@ export default function DocumentWorkspaceInner({
             document_type_id: documentTypeId,
             visit_service_id: visitServiceId,
             status: "preliminary",
-            created_by: user!.id,
+            created_by: session.user.id,
           })
           .select("id")
           .single();
         if (error || !doc) return;
         setDocumentId(doc.id);
-        await supabase
+        await authClient
           .from("patient_document_field_values")
           .upsert(
             Object.entries(values).map(([fieldId, value]) => ({
@@ -214,12 +217,12 @@ export default function DocumentWorkspaceInner({
               field_definition_id: fieldId,
               hospital_id: hospitalId,
               value,
-              recorded_by: user!.id,
+              recorded_by: session.user.id,
             })),
             { onConflict: "patient_document_id,field_definition_id" }
           );
       } else {
-        await supabase
+        await authClient
           .from("patient_document_field_values")
           .upsert(
             Object.entries(values).map(([fieldId, value]) => ({
@@ -227,7 +230,7 @@ export default function DocumentWorkspaceInner({
               field_definition_id: fieldId,
               hospital_id: hospitalId,
               value,
-              recorded_by: user!.id,
+              recorded_by: session.user.id,
             })),
             { onConflict: "patient_document_id,field_definition_id" }
           );
