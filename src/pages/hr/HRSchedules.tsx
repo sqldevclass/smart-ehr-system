@@ -592,11 +592,11 @@ function ScheduleDialog({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>Valid from</Label>
-              <Input type="date" value={validFrom} onChange={(e) => setValidFrom(e.target.value)} />
+              <Input type="date" min={today} value={validFrom} onChange={(e) => setValidFrom(e.target.value)} />
             </div>
             <div className="space-y-1.5">
               <Label>Valid to (optional)</Label>
-              <Input type="date" value={validTo} onChange={(e) => setValidTo(e.target.value)} />
+              <Input type="date" min={validFrom || today} value={validTo} onChange={(e) => setValidTo(e.target.value)} />
             </div>
           </div>
 
@@ -735,11 +735,11 @@ function BlockDialog({
           </p>
           <div className="space-y-1.5">
             <Label>From</Label>
-            <Input type="datetime-local" value={from} onChange={(e) => setFrom(e.target.value)} />
+            <Input type="datetime-local" min={new Date().toISOString().slice(0, 16)} value={from} onChange={(e) => setFrom(e.target.value)} />
           </div>
           <div className="space-y-1.5">
             <Label>To</Label>
-            <Input type="datetime-local" value={to} onChange={(e) => setTo(e.target.value)} />
+            <Input type="datetime-local" min={from || new Date().toISOString().slice(0, 16)} value={to} onChange={(e) => setTo(e.target.value)} />
           </div>
           <div className="space-y-1.5">
             <Label>Reason</Label>

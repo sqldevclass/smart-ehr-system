@@ -112,34 +112,45 @@ export function PhysicianCalendar({
           {DAY_LABELS.map((d) => <div key={d}>{d}</div>)}
         </div>
         <div className="grid grid-cols-7 gap-1">
-          {days.map((d) => {
-            const key = format(d, "yyyy-MM-dd");
-            const dot = dotMap.get(key);
-            const inMonth = isSameMonth(d, month);
-            const isSelected = isSameDay(d, selectedDate);
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => handlePickDay(d)}
-                className={cn(
-                  "relative flex h-10 flex-col items-center justify-center rounded text-xs transition",
-                  !inMonth && "text-muted-foreground/40",
-                  isSelected ? "bg-primary text-primary-foreground" : "hover:bg-accent",
-                )}
-              >
-                <span>{format(d, "d")}</span>
-                {dot && (
-                  <span
-                    className={cn(
-                      "absolute bottom-1 h-1.5 w-1.5 rounded-full",
-                      dot === "green" ? "bg-emerald-500" : "bg-amber-500",
-                    )}
-                  />
-                )}
-              </button>
-            );
-          })}
+          {(() => {
+            const todayStr = new Date().toLocaleDateString(
+              "en-CA", { timeZone: timezone });
+            return days.map((d) => {
+              const key = format(d, "yyyy-MM-dd");
+              const dot = dotMap.get(key);
+              const inMonth = isSameMonth(d, month);
+              const isSelected = isSameDay(d, selectedDate);
+              const dayStr = format(d, "yyyy-MM-dd");
+              const isPast = dayStr < todayStr;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  disabled={isPast}
+                  onClick={() => !isPast && handlePickDay(d)}
+                  className={cn(
+                    "relative flex h-10 flex-col items-center justify-center rounded text-xs transition",
+                    !inMonth && "text-muted-foreground/40",
+                    isPast
+                      ? "opacity-30 cursor-not-allowed"
+                      : isSelected
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-accent",
+                  )}
+                >
+                  <span>{format(d, "d")}</span>
+                  {dot && (
+                    <span
+                      className={cn(
+                        "absolute bottom-1 h-1.5 w-1.5 rounded-full",
+                        dot === "green" ? "bg-emerald-500" : "bg-amber-500",
+                      )}
+                    />
+                  )}
+                </button>
+              );
+            });
+          })()}
         </div>
       </div>
 
