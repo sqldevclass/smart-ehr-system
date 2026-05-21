@@ -141,6 +141,12 @@ export default function PhysicianLayout() {
                   {user.hospitalName}
                 </span>
               )}
+              {patientContext && (
+                <>
+                  <span className="text-muted-foreground">&nbsp;|&nbsp;</span>
+                  {patientContext}
+                </>
+              )}
             </div>
             {user && (
               <div className="flex items-center gap-3 text-sm text-muted-foreground">
@@ -152,8 +158,9 @@ export default function PhysicianLayout() {
             )}
           </header>
           <main className="flex-1 p-6">
-            <Outlet />
+            <Outlet context={{ setPatientContext } satisfies PhysicianOutletContext} />
           </main>
+
         </div>
       </div>
     </SidebarProvider>
