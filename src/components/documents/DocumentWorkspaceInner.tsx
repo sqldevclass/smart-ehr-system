@@ -441,6 +441,23 @@ export default function DocumentWorkspaceInner({
             </div>
           )}
         </div>
+        {(!isReadOnly || (physicianId !== null)) && (
+          <div className="w-56 shrink-0 print:hidden">
+            <TemplatePanel
+              documentTypeId={documentTypeId}
+              hospitalId={hospitalId}
+              physicianId={physicianId}
+              values={values}
+              sections={sections}
+              onApply={(templateValues) => {
+                setValues((prev) => ({ ...prev, ...templateValues }));
+                setIsDirty(true);
+              }}
+              isReadOnly={isReadOnly}
+            />
+          </div>
+        )}
+        </div>
       </div>
     </div>
   );
