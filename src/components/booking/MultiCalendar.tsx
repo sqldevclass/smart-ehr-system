@@ -59,7 +59,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
   const { service, hospitalId, timezone, mode, patientId, hospitalizationId, officeRoomId, existingVisitServiceId, onBooked } = props;
   const { user } = useAuth();
   const tz = timezone || user?.timezone || "Asia/Tashkent";
-  const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: timezone });
+  const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: tz });
   const todayInTz = useMemo(() => {
     const [y, m, d] = todayStr.split("-").map(Number);
     return new Date(y, (m ?? 1) - 1, d ?? 1);
