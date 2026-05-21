@@ -10,6 +10,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { LabResultsButton } from "@/components/lab/LabResultsButton";
 
 interface Props {
   mainServices: any[];
