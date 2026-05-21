@@ -250,11 +250,8 @@ export function BookingModal(props: BookingModalProps) {
             p_physician_id: physician.id,
           });
           if (qErr) throw qErr;
-          if (Array.isArray(qData) && qData.length > 0) {
-            queueNumber = (qData[0] as any)?.queue_number;
-          } else if (qData) {
-            queueNumber = (qData as any)?.queue_number;
-          }
+          const row = Array.isArray(qData) ? qData[0] : qData;
+          queueNumber = (row as any)?.queue_number;
         }
 
         lastResult = {
