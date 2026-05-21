@@ -537,7 +537,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
             <Button
               size="icon"
               variant="ghost"
-              disabled={isPastDate || dateStr <= todayStr}
+              disabled={dateStr <= todayStr}
               onClick={() => setDate((d) => addDays(d, -1))}
             >
               <ChevronLeft className="h-4 w-4" />
