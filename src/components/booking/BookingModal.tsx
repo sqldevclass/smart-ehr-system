@@ -270,8 +270,10 @@ export function BookingModal(props: BookingModalProps) {
             p_hospital_id: hospitalId,
           });
           if (qErr) throw qErr;
-          queueNumber = (qData as any)?.queue_number
-            ?? (Array.isArray(qData) ? (qData as any)[0]?.queue_number : undefined);
+          if (qData) {
+            const row = Array.isArray(qData) ? qData[0] : qData;
+            queueNumber = (row as any)?.queue_number;
+          }
         }
 
         lastResult = {
