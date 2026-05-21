@@ -447,6 +447,8 @@ export default function DocumentWorkspaceInner({
               documentTypeId={documentTypeId}
               hospitalId={hospitalId}
               physicianId={physicianId}
+              patientId={patientId}
+              currentDocumentId={documentId}
               values={values}
               sections={sections}
               onApply={(templateValues) => {

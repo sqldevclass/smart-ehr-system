@@ -4,11 +4,21 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 interface Props {
   documentTypeId: string;
   hospitalId: string;
   physicianId: string | null;
+  patientId: string;
+  currentDocumentId: string | null;
   values: Record<string, string>;
   sections: any[];
   onApply: (values: Record<string, string>) => void;
