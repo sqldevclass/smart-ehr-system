@@ -45,10 +45,7 @@ export default function DocumentWorkspace(props: Props) {
     queryFn: async () => {
       const { data } = await supabase
         .from("document_type_sections")
-        .select(`
-          sort_order,
-          document_sections!inner(id, code, name_ru)
-        `)
+        .select("sort_order, document_sections!inner(id, code, name_ru)")
         .eq("document_type_id", documentTypeId)
         .order("sort_order");
       return data || [];
