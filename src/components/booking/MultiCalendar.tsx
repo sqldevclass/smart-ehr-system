@@ -503,7 +503,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
           !waitlist && !disabled && "bg-card hover:bg-muted"
         )}
       >
-        <span>{toLocal(s.slot_datetime, timezone, "HH:mm")}</span>
+        <span>{toLocal(s.slot_datetime, tz, "HH:mm")}</span>
         {blocked ? (
           <Lock className="h-3 w-3" />
         ) : (
