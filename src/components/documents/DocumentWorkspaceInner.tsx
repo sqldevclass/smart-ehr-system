@@ -300,7 +300,8 @@ export default function DocumentWorkspaceInner({
 
       {/* A4 Document Area */}
       <div className="document-page-bg flex-1 overflow-y-auto bg-muted/30 p-6 document-print-area">
-        <div className="document-a4-card mx-auto max-w-[210mm] bg-card rounded-md shadow-sm border p-8">
+        <div className="flex gap-4 justify-center items-start">
+        <div className="document-a4-card max-w-[210mm] w-full bg-card rounded-md shadow-sm border p-8">
           <DocumentPatientHeader />
 
 
