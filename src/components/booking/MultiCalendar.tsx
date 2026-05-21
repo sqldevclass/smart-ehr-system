@@ -59,7 +59,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
   const { service, hospitalId, timezone, mode, patientId, hospitalizationId, officeRoomId, existingVisitServiceId, onBooked } = props;
   const { user } = useAuth();
   const tz = timezone || user?.timezone || "Asia/Tashkent";
-  const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: tz });
+  const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: timezone });
   const todayInTz = useMemo(() => {
     const [y, m, d] = todayStr.split("-").map(Number);
     return new Date(y, (m ?? 1) - 1, d ?? 1);
@@ -482,10 +482,11 @@ export function MultiCalendar(props: MultiCalendarProps) {
 
   const renderSlotButton = (s: SlotRow, col: Col) => {
     const isSelected = selected?.slot.id === s.id;
+    const isPastDate = dateStr < todayStr;
     const full = s.booking_count >= 2;
     const waitlist = s.booking_count === 1;
     const blocked = s.is_blocked;
-    const disabled = full || blocked;
+    const disabled = full || blocked || isPastDate;
     const button = (
       <button
         key={s.id}
@@ -497,6 +498,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
           isSelected && "ring-2 ring-primary border-primary",
           blocked && "bg-muted text-muted-foreground cursor-not-allowed",
           full && !blocked && "bg-muted text-muted-foreground cursor-not-allowed",
+          isPastDate && "opacity-50 cursor-not-allowed",
           waitlist && !disabled && "bg-amber-50 border-amber-200 hover:bg-amber-100 dark:bg-amber-950/30 dark:border-amber-900",
           !waitlist && !disabled && "bg-card hover:bg-muted"
         )}
@@ -584,12 +586,16 @@ export function MultiCalendar(props: MultiCalendarProps) {
                         {col.scheduleType === "queue" ? (
                           <div
                             className={cn(
-                              "cursor-pointer rounded-lg border-2 p-4 text-center transition",
+                              "rounded-lg border-2 p-4 text-center transition",
+                              dateStr < todayStr
+                                ? "opacity-50 cursor-not-allowed bg-muted/30"
+                                : "cursor-pointer hover:border-primary/50 hover:bg-muted/30",
                               selected?.col.id === col.id
                                 ? "border-primary bg-primary/5"
-                                : "border-dashed border-muted-foreground/30 hover:border-primary/50 hover:bg-muted/30"
+                                : "border-dashed border-muted-foreground/30"
                             )}
                             onClick={() => {
+                              if (dateStr < todayStr) return;
                               const queueSelection: SlotRow = {
                                 id: `queue-${col.id}`,
                                 slot_datetime: new Date().toISOString(),
@@ -604,7 +610,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
                               Queue #{(queueConfigs?.[col.id] ?? 0) + 1}
                             </div>
                             <div className="mt-1 text-xs text-muted-foreground">
-                              Click to select queue
+                              {dateStr < todayStr ? "Past date" : "Click to select queue"}
                             </div>
                             {selected?.col.id === col.id && (
                               <div className="mt-2 text-xs font-medium text-primary">✓ Selected</div>
@@ -639,12 +645,16 @@ export function MultiCalendar(props: MultiCalendarProps) {
                       {col.scheduleType === "queue" ? (
                         <div
                           className={cn(
-                            "cursor-pointer rounded-lg border-2 p-4 text-center transition",
+                            "rounded-lg border-2 p-4 text-center transition",
+                            dateStr < todayStr
+                              ? "opacity-50 cursor-not-allowed bg-muted/30"
+                              : "cursor-pointer hover:border-primary/50 hover:bg-muted/30",
                             selected?.col.id === col.id
                               ? "border-primary bg-primary/5"
-                              : "border-dashed border-muted-foreground/30 hover:border-primary/50 hover:bg-muted/30"
+                              : "border-dashed border-muted-foreground/30"
                           )}
                           onClick={() => {
+                            if (dateStr < todayStr) return;
                             const queueSelection: SlotRow = {
                               id: `queue-room-${col.id}`,
                               slot_datetime: new Date().toISOString(),
@@ -659,7 +669,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
                             Queue #{(roomQueueConfigs?.[col.id] ?? 0) + 1}
                           </div>
                           <div className="mt-1 text-xs text-muted-foreground">
-                            Click to select queue
+                            {dateStr < todayStr ? "Past date" : "Click to select queue"}
                           </div>
                           {selected?.col.id === col.id && (
                             <div className="mt-2 text-xs font-medium text-primary">✓ Selected</div>
