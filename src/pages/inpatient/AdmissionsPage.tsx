@@ -51,17 +51,24 @@ export default function AdmissionsPage() {
 
   const bounds = getDateBounds(periodState);
 
-  const { data: recommended, isLoading: loadingRec } = useQuery({
+  const { data: recommended = [], isLoading: loadingRec } = useQuery({
     queryKey: ["hospitalization-recommended", user?.hospitalId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("visit_services")
-        .select("id, patient_id, created_at, visits(visit_date), patients(first_name, last_name, patient_number)")
+      const { data } = await supabase
+        .from("visits")
+        .select(`
+          id, created_at,
+          hosp_recommended_department_id,
+          hosp_recommended_urgency,
+          hosp_recommended_notes,
+          hosp_recommended_at,
+          departments!hosp_recommended_department_id(name),
+          patients!inner(id, first_name, last_name, patient_number)
+        `)
         .eq("hospital_id", user!.hospitalId)
         .eq("hospitalization_recommended", true)
         .is("hospitalization_id", null)
-        .order("created_at", { ascending: true });
-      if (error) throw error;
+        .order("hosp_recommended_at", { ascending: true });
       return data || [];
     },
     enabled: !!user?.hospitalId,
@@ -132,7 +139,7 @@ export default function AdmissionsPage() {
   const { data: urgencies } = useQuery({
     queryKey: ["hospitalization-urgencies"],
     queryFn: async () => {
-      const { data } = await supabase.from("hospitalization_urgency").select("id, name_ru");
+      const { data } = await supabase.from("hospitalization_urgency").select("id, name_ru, code");
       return data || [];
     },
   });
@@ -162,11 +169,13 @@ export default function AdmissionsPage() {
     enabled: !!user?.hospitalId,
   });
 
-  const openAdmitDialog = (vs: any) => {
-    setSelectedVs(vs);
+  const openAdmitDialog = (v: any) => {
+    setSelectedVs(v);
     setTypeId("");
-    setUrgencyId("");
-    setDepartmentId("");
+    const urgCode = v?.hosp_recommended_urgency;
+    const matchedUrg = urgencies?.find((u: any) => u.code === urgCode);
+    setUrgencyId(matchedUrg?.id ?? "");
+    setDepartmentId(v?.hosp_recommended_department_id ?? "");
     setPhysicianId("");
     setAdmitDialogOpen(true);
   };
@@ -175,10 +184,11 @@ export default function AdmissionsPage() {
     if (!typeId || !urgencyId || !departmentId || !selectedVs) return;
     setSubmitting(true);
     try {
+      const patientId = selectedVs.patients?.id ?? selectedVs.patient_id;
       const { data: hosp, error } = await supabase
         .from("hospitalizations")
         .insert({
-          patient_id: selectedVs.patient_id,
+          patient_id: patientId,
           hospital_id: user!.hospitalId,
           hospitalization_type_id: typeId,
           urgency_id: urgencyId,
@@ -186,15 +196,14 @@ export default function AdmissionsPage() {
           primary_physician_id: physicianId || null,
           admitted_by: user!.id,
           admitted_at: new Date().toISOString(),
-          created_from_visit_service_id: selectedVs.id,
         })
         .select("id, hospitalization_number")
         .single();
       if (error) throw error;
 
-      // Link visit_service to the new hospitalization
+      // Link source visit to the new hospitalization
       await supabase
-        .from("visit_services")
+        .from("visits")
         .update({ hospitalization_id: hosp.id })
         .eq("id", selectedVs.id);
 
@@ -235,21 +244,37 @@ export default function AdmissionsPage() {
                 <TableRow>
                   <TableHead>Patient Name</TableHead>
                   <TableHead>Patient #</TableHead>
-                  <TableHead>Referred Date</TableHead>
+                  <TableHead>Department</TableHead>
+                  <TableHead>Urgency</TableHead>
+                  <TableHead>Notes</TableHead>
+                  <TableHead>Recommended At</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {recommended.map((vs: any) => (
-                  <TableRow key={vs.id}>
+                {recommended.map((v: any) => (
+                  <TableRow key={v.id}>
                     <TableCell>
-                      {vs.patients?.last_name} {vs.patients?.first_name}
+                      {v.patients?.last_name} {v.patients?.first_name}
                     </TableCell>
-                    <TableCell>{vs.patients?.patient_number}</TableCell>
-                    <TableCell>{format(new Date(vs.created_at), "MMM d, yyyy HH:mm")}</TableCell>
+                    <TableCell>{v.patients?.patient_number}</TableCell>
+                    <TableCell>{v.departments?.name ?? "—"}</TableCell>
                     <TableCell>
-                      <Button size="sm" onClick={() => openAdmitDialog(vs)}>
-                        Admit
+                      {v.hosp_recommended_urgency === "emergency" ? (
+                        <Badge className="bg-red-600 text-white hover:bg-red-700">Экстренная</Badge>
+                      ) : (
+                        <Badge className="bg-blue-600 text-white hover:bg-blue-700">Плановая</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="max-w-xs truncate">{v.hosp_recommended_notes ?? "—"}</TableCell>
+                    <TableCell>
+                      {v.hosp_recommended_at
+                        ? format(new Date(v.hosp_recommended_at), "MMM d, yyyy HH:mm")
+                        : "—"}
+                    </TableCell>
+                    <TableCell>
+                      <Button size="sm" onClick={() => openAdmitDialog(v)}>
+                        Госпитализировать
                       </Button>
                     </TableCell>
                   </TableRow>
