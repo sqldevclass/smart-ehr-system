@@ -244,21 +244,37 @@ export default function AdmissionsPage() {
                 <TableRow>
                   <TableHead>Patient Name</TableHead>
                   <TableHead>Patient #</TableHead>
-                  <TableHead>Referred Date</TableHead>
+                  <TableHead>Department</TableHead>
+                  <TableHead>Urgency</TableHead>
+                  <TableHead>Notes</TableHead>
+                  <TableHead>Recommended At</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {recommended.map((vs: any) => (
-                  <TableRow key={vs.id}>
+                {recommended.map((v: any) => (
+                  <TableRow key={v.id}>
                     <TableCell>
-                      {vs.patients?.last_name} {vs.patients?.first_name}
+                      {v.patients?.last_name} {v.patients?.first_name}
                     </TableCell>
-                    <TableCell>{vs.patients?.patient_number}</TableCell>
-                    <TableCell>{format(new Date(vs.created_at), "MMM d, yyyy HH:mm")}</TableCell>
+                    <TableCell>{v.patients?.patient_number}</TableCell>
+                    <TableCell>{v.departments?.name ?? "—"}</TableCell>
                     <TableCell>
-                      <Button size="sm" onClick={() => openAdmitDialog(vs)}>
-                        Admit
+                      {v.hosp_recommended_urgency === "emergency" ? (
+                        <Badge className="bg-red-600 text-white hover:bg-red-700">Экстренная</Badge>
+                      ) : (
+                        <Badge className="bg-blue-600 text-white hover:bg-blue-700">Плановая</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="max-w-xs truncate">{v.hosp_recommended_notes ?? "—"}</TableCell>
+                    <TableCell>
+                      {v.hosp_recommended_at
+                        ? format(new Date(v.hosp_recommended_at), "MMM d, yyyy HH:mm")
+                        : "—"}
+                    </TableCell>
+                    <TableCell>
+                      <Button size="sm" onClick={() => openAdmitDialog(v)}>
+                        Госпитализировать
                       </Button>
                     </TableCell>
                   </TableRow>
