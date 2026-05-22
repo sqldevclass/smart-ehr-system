@@ -1,5 +1,5 @@
-import { useMemo, useRef } from "react";
-import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef } from "react";
+import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 
 const queryDefaults = {
   staleTime: Infinity,
