@@ -12,6 +12,8 @@ import DocumentPatientHeader from "./DocumentPatientHeader";
 import DocumentSection from "./DocumentSection";
 import AssignmentsSection from "./AssignmentsSection";
 import TemplatePanel from "./TemplatePanel";
+import HospRecommendationSection from "./HospRecommendationSection";
+
 
 interface InnerProps {
   visitServiceId: string;
