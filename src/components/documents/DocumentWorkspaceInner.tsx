@@ -57,15 +57,13 @@ export default function DocumentWorkspaceInner({
     return m;
   });
   const [isDirty, setIsDirty] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [activeTab, setActiveTab] = useState("0");
 
+  // Refs always hold latest values for async callbacks
   const valuesRef = useRef(values);
-  useEffect(() => {
-    valuesRef.current = values;
-  }, [values]);
-  const documentIdRef = useRef(documentId);
+  const documentIdRef = useRef<string | null>(documentId);
+  useEffect(() => { valuesRef.current = values; }, [values]);
   useEffect(() => {
     documentIdRef.current = documentId;
   }, [documentId]);
