@@ -76,7 +76,6 @@ export default function DocumentWorkspace(props: Props) {
     queryKey: ["doc-ws-values", existingDoc?.id],
     staleTime: Infinity,
     refetchOnWindowFocus: false,
-    refetchOnMount: true,
     enabled: !!existingDoc?.id,
     queryFn: async () => {
       const { data } = await supabase
@@ -87,15 +86,19 @@ export default function DocumentWorkspace(props: Props) {
     },
   });
 
+  // Invalidate on mount to force fresh fetch and on unmount to clear cache
   useEffect(() => {
+    // Force fresh fetch on every mount
+    queryClient.invalidateQueries({
+      queryKey: ["doc-ws-values"]
+    });
+    // Cleanup on unmount
     return () => {
-      if (existingDoc?.id) {
-        queryClient.invalidateQueries({
-          queryKey: ["doc-ws-values", existingDoc.id]
-        });
-      }
+      queryClient.invalidateQueries({
+        queryKey: ["doc-ws-values"]
+      });
     };
-  }, [existingDoc?.id, queryClient]);
+  }, []);
 
   const { data: patient } = useQuery({
     queryKey: ["doc-ws-patient", patientId],
