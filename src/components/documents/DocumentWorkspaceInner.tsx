@@ -216,7 +216,7 @@ export default function DocumentWorkspaceInner({
   };
 
   const canConfirm =
-    !isReadOnly && allMandatoryFilled && documentId !== null && !isSaving && !isConfirming;
+    !isReadOnly && allMandatoryFilled && documentId !== null && !isConfirming;
 
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)]">
