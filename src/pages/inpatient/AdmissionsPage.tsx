@@ -169,17 +169,8 @@ export default function AdmissionsPage() {
     enabled: !!user?.hospitalId,
   });
 
-  const { data: physicians } = useQuery({
-    queryKey: ["physicians-list", user?.hospitalId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("physicians")
-        .select("id, profiles(first_name, last_name)")
-        .eq("hospital_id", user!.hospitalId);
-      return data || [];
-    },
-    enabled: !!user?.hospitalId,
-  });
+
+
 
   const openAdmitDialog = (v: any) => {
     setSelectedVs(v);
