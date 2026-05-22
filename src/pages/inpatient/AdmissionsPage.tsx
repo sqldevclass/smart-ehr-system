@@ -169,11 +169,13 @@ export default function AdmissionsPage() {
     enabled: !!user?.hospitalId,
   });
 
-  const openAdmitDialog = (vs: any) => {
-    setSelectedVs(vs);
+  const openAdmitDialog = (v: any) => {
+    setSelectedVs(v);
     setTypeId("");
-    setUrgencyId("");
-    setDepartmentId("");
+    const urgCode = v?.hosp_recommended_urgency;
+    const matchedUrg = urgencies?.find((u: any) => u.code === urgCode);
+    setUrgencyId(matchedUrg?.id ?? "");
+    setDepartmentId(v?.hosp_recommended_department_id ?? "");
     setPhysicianId("");
     setAdmitDialogOpen(true);
   };
