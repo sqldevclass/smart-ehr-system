@@ -76,6 +76,7 @@ export default function DocumentWorkspace(props: Props) {
     queryKey: ["doc-ws-values", existingDoc?.id],
     staleTime: Infinity,
     refetchOnWindowFocus: false,
+    placeholderData: undefined,
     enabled: !!existingDoc?.id,
     queryFn: async () => {
       const { data } = await supabase
