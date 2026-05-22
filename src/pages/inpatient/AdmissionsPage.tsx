@@ -42,7 +42,6 @@ export default function AdmissionsPage() {
   const [typeId, setTypeId] = useState("");
   const [urgencyId, setUrgencyId] = useState("");
   const [departmentId, setDepartmentId] = useState("");
-  const [physicianId, setPhysicianId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [periodState, setPeriodState] = useState<PeriodState>({ period: "today" });
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "discharged">("all");
@@ -170,18 +169,6 @@ export default function AdmissionsPage() {
     enabled: !!user?.hospitalId,
   });
 
-  const { data: physicians } = useQuery({
-    queryKey: ["physicians-list", user?.hospitalId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("physicians")
-        .select("id, profiles(first_name, last_name)")
-        .eq("hospital_id", user!.hospitalId);
-      return data || [];
-    },
-    enabled: !!user?.hospitalId,
-  });
-
   const openAdmitDialog = (v: any) => {
     setSelectedVs(v);
     setTypeId("");
@@ -189,7 +176,6 @@ export default function AdmissionsPage() {
     const matchedUrg = urgencies?.find((u: any) => u.code === urgCode);
     setUrgencyId(matchedUrg?.id ?? "");
     setDepartmentId(v?.hosp_recommended_department_id ?? "");
-    setPhysicianId("");
     setAdmitDialogOpen(true);
   };
 
@@ -206,7 +192,6 @@ export default function AdmissionsPage() {
           hospitalization_type_id: typeId,
           urgency_id: urgencyId,
           department_id: departmentId,
-          primary_physician_id: physicianId || null,
           admitted_by: user!.id,
           admitted_at: new Date().toISOString(),
         })
@@ -431,19 +416,6 @@ export default function AdmissionsPage() {
                 <SelectContent>
                   {departments?.map((d: any) => (
                     <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Primary Physician (optional)</Label>
-              <Select value={physicianId} onValueChange={setPhysicianId}>
-                <SelectTrigger><SelectValue placeholder="Select physician" /></SelectTrigger>
-                <SelectContent>
-                  {physicians?.map((p: any) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.profiles?.last_name} {p.profiles?.first_name}
-                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
