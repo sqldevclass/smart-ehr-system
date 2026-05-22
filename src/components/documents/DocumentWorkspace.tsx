@@ -75,8 +75,8 @@ export default function DocumentWorkspace(props: Props) {
   const { data: existingValues } = useQuery({
     queryKey: ["doc-ws-values", existingDoc?.id],
     staleTime: Infinity,
-    refetchOnMount: "always",
     refetchOnWindowFocus: false,
+    refetchOnMount: true,
     enabled: !!existingDoc?.id,
     queryFn: async () => {
       const { data } = await supabase
@@ -86,6 +86,16 @@ export default function DocumentWorkspace(props: Props) {
       return data || [];
     },
   });
+
+  useEffect(() => {
+    return () => {
+      if (existingDoc?.id) {
+        queryClient.invalidateQueries({
+          queryKey: ["doc-ws-values", existingDoc.id]
+        });
+      }
+    };
+  }, [existingDoc?.id, queryClient]);
 
   const { data: patient } = useQuery({
     queryKey: ["doc-ws-patient", patientId],
