@@ -51,17 +51,24 @@ export default function AdmissionsPage() {
 
   const bounds = getDateBounds(periodState);
 
-  const { data: recommended, isLoading: loadingRec } = useQuery({
+  const { data: recommended = [], isLoading: loadingRec } = useQuery({
     queryKey: ["hospitalization-recommended", user?.hospitalId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("visit_services")
-        .select("id, patient_id, created_at, visits(visit_date), patients(first_name, last_name, patient_number)")
+      const { data } = await supabase
+        .from("visits")
+        .select(`
+          id, created_at,
+          hosp_recommended_department_id,
+          hosp_recommended_urgency,
+          hosp_recommended_notes,
+          hosp_recommended_at,
+          departments!hosp_recommended_department_id(name),
+          patients!inner(id, first_name, last_name, patient_number)
+        `)
         .eq("hospital_id", user!.hospitalId)
         .eq("hospitalization_recommended", true)
         .is("hospitalization_id", null)
-        .order("created_at", { ascending: true });
-      if (error) throw error;
+        .order("hosp_recommended_at", { ascending: true });
       return data || [];
     },
     enabled: !!user?.hospitalId,
