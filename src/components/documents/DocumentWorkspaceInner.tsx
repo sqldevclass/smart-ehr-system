@@ -37,6 +37,9 @@ interface InnerProps {
   visitDate: Date;
   hospitalName: string;
   physicianId: string | null;
+  isConsultation: boolean;
+  visitData: any;
+  refetchVisit: () => void;
 }
 
 export default function DocumentWorkspaceInner({
@@ -44,7 +47,9 @@ export default function DocumentWorkspaceInner({
   existingDoc, sectionsData, fieldsData, existingValues, patient,
   documentType, mainServices, childServices, pendingOrders, physicianNameMap,
   completedByProfile, visitDate, hospitalName, physicianId,
+  isConsultation, visitData, refetchVisit,
 }: InnerProps) {
+
   const { user } = useAuth();
   const isPhysician = user?.roles?.includes("physician") ?? false;
   const queryClient = useQueryClient();
