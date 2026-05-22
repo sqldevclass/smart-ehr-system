@@ -324,6 +324,10 @@ export default function DocumentWorkspace(props: Props) {
       visitDate={visitDate}
       hospitalName={user?.hospitalName || ""}
       physicianId={physicianData?.id ?? null}
+      isConsultation={isConsultation}
+      visitData={visitData ?? null}
+      refetchVisit={refetchVisit}
     />
+
   );
 }
