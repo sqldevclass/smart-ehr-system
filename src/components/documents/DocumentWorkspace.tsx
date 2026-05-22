@@ -23,6 +23,7 @@ interface Props {
 
 export default function DocumentWorkspace(props: Props) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const { visitServiceId, patientId, visitId, hospitalId, documentTypeId } = props;
 
   const { data: existingDoc } = useQuery({
