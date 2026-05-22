@@ -120,12 +120,34 @@ export default function DocumentWorkspace(props: Props) {
     queryFn: async () => {
       const { data } = await supabase
         .from("document_types")
-        .select("id, name_ru, color, requires_second_sig")
+        .select("id, code, name_ru, color, requires_second_sig")
         .eq("id", documentTypeId)
         .single();
       return data;
     },
   });
+
+  const isConsultation = (documentType as any)?.code === "consultation";
+
+  const { data: visitData, refetch: refetchVisit } = useQuery({
+    queryKey: ["visit-hosp-rec", visitId],
+    enabled: !!visitId && isConsultation,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("visits")
+        .select(`
+          id,
+          hosp_recommended_department_id,
+          hosp_recommended_urgency,
+          hosp_recommended_notes,
+          hospitalization_recommended
+        `)
+        .eq("id", visitId)
+        .single();
+      return data;
+    },
+  });
+
 
   const { data: visit } = useQuery({
     queryKey: ["doc-ws-visit", visitId],
@@ -302,6 +324,10 @@ export default function DocumentWorkspace(props: Props) {
       visitDate={visitDate}
       hospitalName={user?.hospitalName || ""}
       physicianId={physicianData?.id ?? null}
+      isConsultation={isConsultation}
+      visitData={visitData ?? null}
+      refetchVisit={refetchVisit}
     />
+
   );
 }

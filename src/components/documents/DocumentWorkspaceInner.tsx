@@ -12,6 +12,8 @@ import DocumentPatientHeader from "./DocumentPatientHeader";
 import DocumentSection from "./DocumentSection";
 import AssignmentsSection from "./AssignmentsSection";
 import TemplatePanel from "./TemplatePanel";
+import HospRecommendationSection from "./HospRecommendationSection";
+
 
 interface InnerProps {
   visitServiceId: string;
@@ -35,6 +37,9 @@ interface InnerProps {
   visitDate: Date;
   hospitalName: string;
   physicianId: string | null;
+  isConsultation: boolean;
+  visitData: any;
+  refetchVisit: () => void;
 }
 
 export default function DocumentWorkspaceInner({
@@ -42,7 +47,9 @@ export default function DocumentWorkspaceInner({
   existingDoc, sectionsData, fieldsData, existingValues, patient,
   documentType, mainServices, childServices, pendingOrders, physicianNameMap,
   completedByProfile, visitDate, hospitalName, physicianId,
+  isConsultation, visitData, refetchVisit,
 }: InnerProps) {
+
   const { user } = useAuth();
   const isPhysician = user?.roles?.includes("physician") ?? false;
   const queryClient = useQueryClient();
@@ -381,8 +388,18 @@ export default function DocumentWorkspaceInner({
                         queryClient.invalidateQueries({ queryKey: ["doc-ws-pending", visitServiceId, hospitalId] });
                       }}
                     />
+                    {isConsultation && (
+                      <HospRecommendationSection
+                        visitId={visitId}
+                        hospitalId={hospitalId}
+                        isReadOnly={isReadOnly}
+                        visitData={visitData}
+                        onSaved={refetchVisit}
+                      />
+                    )}
                   </div>
                 )}
+
               </div>
             );
           })}
