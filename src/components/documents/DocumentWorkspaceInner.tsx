@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -57,15 +57,13 @@ export default function DocumentWorkspaceInner({
     return m;
   });
   const [isDirty, setIsDirty] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [activeTab, setActiveTab] = useState("0");
 
+  // Refs always hold latest values for async callbacks
   const valuesRef = useRef(values);
-  useEffect(() => {
-    valuesRef.current = values;
-  }, [values]);
-  const documentIdRef = useRef(documentId);
+  const documentIdRef = useRef<string | null>(documentId);
+  useEffect(() => { valuesRef.current = values; }, [values]);
   useEffect(() => {
     documentIdRef.current = documentId;
   }, [documentId]);
@@ -112,55 +110,78 @@ export default function DocumentWorkspaceInner({
     setIsDirty(true);
   };
 
-  const handleSave = async (silent = false): Promise<string | null> => {
-    if (!user) return null;
-    setIsSaving(true);
-    try {
-      let docId = documentId;
-      if (!docId) {
-        const { data: doc, error } = await supabase
-          .from("patient_documents")
-          .insert({
-            patient_id: patientId,
-            hospital_id: hospitalId,
-            document_type_id: documentTypeId,
-            visit_service_id: visitServiceId,
-            status: "preliminary",
-            created_by: user.id,
-          })
-          .select("id")
-          .single();
-        if (error) { if (!silent) toast.error(error.message); return null; }
-        docId = doc!.id;
-        setDocumentId(docId);
-      }
+  // Save field values to DB
+  const persistValues = useCallback(async (
+    docId: string,
+    vals: Record<string, string>
+  ) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    await supabase
+      .from("patient_document_field_values")
+      .upsert(
+        Object.entries(vals).map(([fieldId, value]) => ({
+          patient_document_id: docId,
+          field_definition_id: fieldId,
+          hospital_id: hospitalId,
+          value,
+          recorded_by: session.user.id,
+        })),
+        { onConflict: "patient_document_id,field_definition_id" }
+      );
+  }, [hospitalId]);
 
-      const rows = Object.entries(values).map(([fieldId, value]) => ({
-        patient_document_id: docId!,
-        field_definition_id: fieldId,
-        hospital_id: hospitalId,
-        value,
-        recorded_by: user.id,
-      }));
-      if (rows.length > 0) {
-        const { error: upErr } = await supabase
-          .from("patient_document_field_values")
-          .upsert(rows, { onConflict: "patient_document_id,field_definition_id" });
-        if (upErr) { if (!silent) toast.error(upErr.message); return null; }
-      }
-      setIsDirty(false);
-      if (!silent) toast.success("Сохранено");
-      return docId;
-    } finally {
-      setIsSaving(false);
+  // Create document row if it doesn't exist yet
+  const ensureDocument = useCallback(async (): Promise<string | null> => {
+    if (documentIdRef.current) {
+      return documentIdRef.current;
     }
-  };
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return null;
+    const { data: doc, error } = await supabase
+      .from("patient_documents")
+      .insert({
+        patient_id: patientId,
+        hospital_id: hospitalId,
+        document_type_id: documentTypeId,
+        visit_service_id: visitServiceId,
+        status: "preliminary",
+        created_by: session.user.id,
+      })
+      .select("id")
+      .single();
+    if (error || !doc) return null;
+    setDocumentId(doc.id);
+    documentIdRef.current = doc.id;
+    return doc.id;
+  }, [patientId, hospitalId, documentTypeId, visitServiceId]);
+
+  // Debounced autosave — 2s after last change
+  useEffect(() => {
+    if (!isDirty || isReadOnly) return;
+    const timer = setTimeout(async () => {
+      const vals = valuesRef.current;
+      let docId = documentIdRef.current;
+      if (!docId) {
+        docId = await ensureDocument();
+        if (!docId) return;
+      }
+      await persistValues(docId, vals);
+      setIsDirty(false);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [values, isDirty, isReadOnly, ensureDocument, persistValues]);
 
   const handleConfirm = async () => {
     setIsConfirming(true);
     try {
-      const docId = await handleSave(true);
-      if (!docId) return;
+      let docId = documentIdRef.current;
+      if (!docId) {
+        docId = await ensureDocument();
+        if (!docId) return;
+      }
+      await persistValues(docId, valuesRef.current);
+      setIsDirty(false);
       const { error } = await supabase.rpc("complete_document", { p_document_id: docId });
       if (error) {
         const raw = error.message || "";
@@ -189,73 +210,13 @@ export default function DocumentWorkspaceInner({
       });
       queryClient.invalidateQueries({ queryKey: ["physician-schedule"] });
       onClose();
-
     } finally {
       setIsConfirming(false);
     }
   };
 
-  // Debounced autosave — fires 2s after last change
-  useEffect(() => {
-    if (!isDirty || isReadOnly) return;
-    const timer = setTimeout(async () => {
-      const currentValues = valuesRef.current;
-      const currentDocId = documentIdRef.current;
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-      if (!currentDocId) {
-        const { data: doc, error } = await supabase
-          .from("patient_documents")
-          .insert({
-            patient_id: patientId,
-            hospital_id: hospitalId,
-            document_type_id: documentTypeId,
-            visit_service_id: visitServiceId,
-            status: "preliminary",
-            created_by: session.user.id,
-          })
-          .select("id")
-          .single();
-        if (error || !doc) return;
-        setDocumentId(doc.id);
-        documentIdRef.current = doc.id;
-        await supabase
-          .from("patient_document_field_values")
-          .upsert(
-            Object.entries(currentValues).map(([fieldId, value]) => ({
-              patient_document_id: doc.id,
-              field_definition_id: fieldId,
-              hospital_id: hospitalId,
-              value,
-              recorded_by: session.user.id,
-            })),
-            { onConflict: "patient_document_id,field_definition_id" }
-          );
-      } else {
-        await supabase
-          .from("patient_document_field_values")
-          .upsert(
-            Object.entries(currentValues).map(([fieldId, value]) => ({
-              patient_document_id: currentDocId,
-              field_definition_id: fieldId,
-              hospital_id: hospitalId,
-              value,
-              recorded_by: session.user.id,
-            })),
-            { onConflict: "patient_document_id,field_definition_id" }
-          );
-      }
-      setIsDirty(false);
-      queryClient.invalidateQueries({
-        queryKey: ["doc-ws-values", documentIdRef.current]
-      });
-    }, 2000);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [values, isReadOnly]);
-
   const canConfirm =
-    !isReadOnly && allMandatoryFilled && documentId !== null && !isSaving && !isConfirming;
+    !isReadOnly && allMandatoryFilled && documentId !== null && !isConfirming;
 
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)]">
@@ -282,6 +243,16 @@ export default function DocumentWorkspaceInner({
           )}
         </div>
         <div className="flex items-center gap-2">
+          {isDirty && !isReadOnly && (
+            <span className="text-xs text-muted-foreground">
+              Сохранение...
+            </span>
+          )}
+          {!isDirty && documentId && !isReadOnly && (
+            <span className="text-xs text-muted-foreground">
+              Сохранено
+            </span>
+          )}
           <Button variant="outline" size="sm" onClick={() => window.print()}>
             <Printer className="h-4 w-4 mr-1" /> Печать
           </Button>
