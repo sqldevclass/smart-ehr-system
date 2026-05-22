@@ -67,9 +67,22 @@ export default function AdmissionsPage() {
         `)
         .eq("hospital_id", user!.hospitalId)
         .eq("hospitalization_recommended", true)
-        .is("hospitalization_id", null)
         .order("hosp_recommended_at", { ascending: true });
-      return data || [];
+
+      const activeHospPatients = await supabase
+        .from("hospitalizations")
+        .select("patient_id")
+        .eq("hospital_id", user!.hospitalId)
+        .is("discharged_at", null);
+
+      const activePatientIds = new Set(
+        (activeHospPatients.data || [])
+          .map((h: any) => h.patient_id)
+      );
+
+      return (data || []).filter(
+        (v: any) => !activePatientIds.has(v.patients?.id)
+      );
     },
     enabled: !!user?.hospitalId,
   });
