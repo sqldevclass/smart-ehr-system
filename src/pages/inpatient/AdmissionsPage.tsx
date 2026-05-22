@@ -184,10 +184,11 @@ export default function AdmissionsPage() {
     if (!typeId || !urgencyId || !departmentId || !selectedVs) return;
     setSubmitting(true);
     try {
+      const patientId = selectedVs.patients?.id ?? selectedVs.patient_id;
       const { data: hosp, error } = await supabase
         .from("hospitalizations")
         .insert({
-          patient_id: selectedVs.patient_id,
+          patient_id: patientId,
           hospital_id: user!.hospitalId,
           hospitalization_type_id: typeId,
           urgency_id: urgencyId,
@@ -195,15 +196,14 @@ export default function AdmissionsPage() {
           primary_physician_id: physicianId || null,
           admitted_by: user!.id,
           admitted_at: new Date().toISOString(),
-          created_from_visit_service_id: selectedVs.id,
         })
         .select("id, hospitalization_number")
         .single();
       if (error) throw error;
 
-      // Link visit_service to the new hospitalization
+      // Link source visit to the new hospitalization
       await supabase
-        .from("visit_services")
+        .from("visits")
         .update({ hospitalization_id: hosp.id })
         .eq("id", selectedVs.id);
 
