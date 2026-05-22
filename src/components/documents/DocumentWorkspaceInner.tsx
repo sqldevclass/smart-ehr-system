@@ -388,8 +388,18 @@ export default function DocumentWorkspaceInner({
                         queryClient.invalidateQueries({ queryKey: ["doc-ws-pending", visitServiceId, hospitalId] });
                       }}
                     />
+                    {isConsultation && (
+                      <HospRecommendationSection
+                        visitId={visitId}
+                        hospitalId={hospitalId}
+                        isReadOnly={isReadOnly}
+                        visitData={visitData}
+                        onSaved={refetchVisit}
+                      />
+                    )}
                   </div>
                 )}
+
               </div>
             );
           })}
