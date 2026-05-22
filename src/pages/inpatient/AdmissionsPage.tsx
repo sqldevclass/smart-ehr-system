@@ -139,7 +139,7 @@ export default function AdmissionsPage() {
   const { data: urgencies } = useQuery({
     queryKey: ["hospitalization-urgencies"],
     queryFn: async () => {
-      const { data } = await supabase.from("hospitalization_urgency").select("id, name_ru");
+      const { data } = await supabase.from("hospitalization_urgency").select("id, name_ru, code");
       return data || [];
     },
   });
