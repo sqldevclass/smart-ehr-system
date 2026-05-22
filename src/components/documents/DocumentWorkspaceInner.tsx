@@ -243,6 +243,16 @@ export default function DocumentWorkspaceInner({
           )}
         </div>
         <div className="flex items-center gap-2">
+          {isDirty && !isReadOnly && (
+            <span className="text-xs text-muted-foreground">
+              Сохранение...
+            </span>
+          )}
+          {!isDirty && documentId && !isReadOnly && (
+            <span className="text-xs text-muted-foreground">
+              Сохранено
+            </span>
+          )}
           <Button variant="outline" size="sm" onClick={() => window.print()}>
             <Printer className="h-4 w-4 mr-1" /> Печать
           </Button>
