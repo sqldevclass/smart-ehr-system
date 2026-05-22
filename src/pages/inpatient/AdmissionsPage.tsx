@@ -169,9 +169,6 @@ export default function AdmissionsPage() {
     enabled: !!user?.hospitalId,
   });
 
-
-
-
   const openAdmitDialog = (v: any) => {
     setSelectedVs(v);
     setTypeId("");
