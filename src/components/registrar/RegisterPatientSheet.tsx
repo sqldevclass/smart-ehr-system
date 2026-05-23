@@ -53,10 +53,9 @@ export default function RegisterPatientSheet({ open, onOpenChange, hospitalId, u
     queryFn: async () => {
       const { data, error } = await supabase
         .from("physicians")
-        .select("id, full_name, specialization")
+        .select("id, profiles!inner(full_name), specializations!specialization_id(name)")
         .eq("hospital_id", hospitalId)
-        .eq("is_active", true)
-        .order("full_name");
+        .eq("is_active", true);
       console.log("Physicians query result:", data, "Error:", error, "Hospital ID:", hospitalId);
       return data || [];
     },
@@ -236,8 +235,8 @@ export default function RegisterPatientSheet({ open, onOpenChange, hospitalId, u
                   <SelectValue placeholder="Select physician" />
                 </SelectTrigger>
                 <SelectContent>
-                  {physicians.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.full_name} — {p.specialization}</SelectItem>
+                  {physicians.map((p: any) => (
+                    <SelectItem key={p.id} value={p.id}>{p.profiles?.full_name} — {p.specializations?.name || "—"}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

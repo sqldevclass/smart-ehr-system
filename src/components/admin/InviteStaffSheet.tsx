@@ -23,7 +23,6 @@ export default function InviteStaffSheet({ open, onOpenChange, onSuccess }: Prop
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [roleCodes, setRoleCodes] = useState<Set<string>>(new Set());
-  const [specialization, setSpecialization] = useState("");
   const [phone, setPhone] = useState("");
   const [allRoles, setAllRoles] = useState<Role[]>([]);
   const [loadingRoles, setLoadingRoles] = useState(false);
@@ -43,7 +42,7 @@ export default function InviteStaffSheet({ open, onOpenChange, onSuccess }: Prop
   }, [open]);
 
   const reset = () => {
-    setFullName(""); setEmail(""); setRoleCodes(new Set()); setSpecialization(""); setPhone("");
+    setFullName(""); setEmail(""); setRoleCodes(new Set()); setPhone("");
   };
 
   const toggleRole = (code: string) => {
@@ -61,10 +60,6 @@ export default function InviteStaffSheet({ open, onOpenChange, onSuccess }: Prop
       toast.error("Name, email and at least one role are required.");
       return;
     }
-    if (roleCodes.has("physician") && !specialization) {
-      toast.error("Specialization is required for physicians.");
-      return;
-    }
 
     setSubmitting(true);
     try {
@@ -74,7 +69,6 @@ export default function InviteStaffSheet({ open, onOpenChange, onSuccess }: Prop
         full_name: fullName,
         role_codes: Array.from(roleCodes),
       };
-      if (roleCodes.has("physician")) body.specialization = specialization;
       if (phone) body.phone = phone;
 
       const { data, error } = await supabase.functions.invoke("invite-staff-user", {
@@ -132,12 +126,6 @@ export default function InviteStaffSheet({ open, onOpenChange, onSuccess }: Prop
               )}
             </div>
           </div>
-          {roleCodes.has("physician") && (
-            <div className="space-y-2">
-              <Label htmlFor="inv-spec">Specialization *</Label>
-              <Input id="inv-spec" value={specialization} onChange={(e) => setSpecialization(e.target.value)} required />
-            </div>
-          )}
           <div className="space-y-2">
             <Label htmlFor="inv-phone">Phone</Label>
             <Input id="inv-phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
