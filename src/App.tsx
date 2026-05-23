@@ -39,6 +39,7 @@ import HRLayout from "./components/hr/HRLayout.tsx";
 import HRSchedules from "./pages/hr/HRSchedules.tsx";
 import HREmployees from "./pages/hr/HREmployees.tsx";
 import HRProfile from "./pages/hr/HRProfile.tsx";
+import HRSettings from "./pages/hr/HRSettings.tsx";
 import QueueDisplay from "./pages/QueueDisplay.tsx";
 import AuthCallback from "./pages/auth/AuthCallback.tsx";
 import SetPassword from "./pages/auth/SetPassword.tsx";
@@ -126,9 +127,10 @@ const App = () => (
             <Route path="profile" element={<RegistrarProfile />} />
           </Route>
           <Route path="/hr" element={<ProtectedRoute allowedRoles={["hr"]}><HRLayout /></ProtectedRoute>}>
-            <Route index element={<HRSchedules />} />
+            <Route index element={<HREmployees />} />
             <Route path="schedules" element={<HRSchedules />} />
             <Route path="employees" element={<HREmployees />} />
+            <Route path="settings" element={<HRSettings />} />
             <Route path="profile" element={<HRProfile />} />
           </Route>
           <Route path="/cashier" element={<ProtectedRoute allowedRoles={["cashier"]}><CashierLayout /></ProtectedRoute>}>
