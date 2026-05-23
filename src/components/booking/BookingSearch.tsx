@@ -72,7 +72,7 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
     queryFn: async () => {
       const { data, error } = await supabase
         .from("physicians")
-        .select("id, specialization, profiles!inner(full_name), physician_schedules(schedule_type, valid_from, valid_to, days_of_week)")
+        .select("id, profiles!inner(full_name), specializations!specialization_id(name), physician_schedules(schedule_type, valid_from, valid_to, days_of_week)")
         .eq("hospital_id", hospitalId)
         .eq("is_active", true)
         .ilike("profiles.full_name", `%${debounced}%`)
@@ -81,7 +81,7 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
       return (data || []).map((p: any): PhysicianResult => ({
         id: p.id,
         fullName: p.profiles?.full_name || "—",
-        specialization: p.specialization,
+        specialization: p.specializations?.name ?? null,
         scheduleType: deriveScheduleType(p.physician_schedules),
       }));
     },
@@ -115,7 +115,7 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
       const { data, error } = await supabase
         .from("physician_service_privileges")
         .select(
-          "physician_id, services!inner(id, name, cost_with_vat, service_types(name_en)), physicians!inner(id, specialization, is_active, profiles!inner(full_name), physician_schedules(schedule_type, valid_from, valid_to, days_of_week))"
+          "physician_id, services!inner(id, name, cost_with_vat, service_types(name_en)), physicians!inner(id, specializations!specialization_id(name), is_active, profiles!inner(full_name), physician_schedules(schedule_type, valid_from, valid_to, days_of_week))"
         )
         .eq("hospital_id", hospitalId)
         .ilike("services.name", `%${debounced}%`)
@@ -127,7 +127,7 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
           physician: {
             id: r.physician_id,
             fullName: r.physicians?.profiles?.full_name || "—",
-            specialization: r.physicians?.specialization ?? null,
+            specialization: r.physicians?.specializations?.name ?? null,
             scheduleType: deriveScheduleType(r.physicians?.physician_schedules),
           } as PhysicianResult,
           service: {

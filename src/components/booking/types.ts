@@ -27,7 +27,8 @@ export interface BookingResult {
 export interface PhysicianResult {
   id: string;
   fullName: string;
-  specialization: string | null;
+  specialization: string | null; // keep for display,
+  // now sourced from specializations join
   scheduleType: "slots" | "queue" | null;
 }
 

@@ -90,7 +90,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
         // Step 2: fetch physician details + schedules directly
         const { data: phRows, error: phErr } = await supabase
           .from("physicians")
-          .select("id, specialization, is_active, profiles!inner(full_name), physician_schedules(schedule_type, valid_from, valid_to, days_of_week)")
+          .select("id, is_active, profiles!inner(full_name), specializations!specialization_id(name), physician_schedules(schedule_type, valid_from, valid_to, days_of_week)")
           .in("id", physicianIds)
           .eq("is_active", true);
         if (phErr) throw phErr;
@@ -98,7 +98,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
           kind: "physician",
           id: p.id,
           fullName: p.profiles?.full_name || "—",
-          specialization: p.specialization ?? null,
+          specialization: p.specializations?.name ?? null,
           scheduleType: deriveScheduleType(p.physician_schedules, date),
         }));
       }
@@ -107,7 +107,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
       const { data, error } = await supabase
         .from("physician_service_privileges")
         .select(
-          "physician_id, physicians!inner(id, specialization, is_active, profiles!inner(full_name), physician_schedules(schedule_type, valid_from, valid_to, days_of_week))"
+          "physician_id, physicians!inner(id, is_active, profiles!inner(full_name), specializations!specialization_id(name), physician_schedules(schedule_type, valid_from, valid_to, days_of_week))"
         )
         .eq("service_id", service.id)
         .eq("hospital_id", hospitalId);
@@ -118,7 +118,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
           kind: "physician",
           id: r.physician_id,
           fullName: r.physicians?.profiles?.full_name || "—",
-          specialization: r.physicians?.specialization ?? null,
+          specialization: r.physicians?.specializations?.name ?? null,
           scheduleType: deriveScheduleType(r.physicians?.physician_schedules, date),
         }));
     },
