@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
         user_id: newUserId,
         role_id: r.id,
         hospital_id: invitation.hospital_id,
-        granted_by: null, // system grant
+        granted_by: null,
       }));
 
       const { error: rolesError } = await supabaseAdmin
@@ -141,7 +141,33 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Step 5: If physician role, create physicians record
+    // Step 5: Create employees record for all staff
+    const nameParts = (invitation.full_name || "").trim().split(" ");
+    const firstName = nameParts[0] || invitation.full_name;
+    const lastName = nameParts.slice(1).join(" ") || "";
+
+    let employeeId: string | null = null;
+    const { data: empData, error: empError } = await supabaseAdmin
+      .from("employees")
+      .insert({
+        hospital_id: invitation.hospital_id,
+        profile_id: newUserId,
+        first_name: firstName,
+        last_name: lastName || firstName,
+        phone: invitation.phone || null,
+        is_active: true,
+      })
+      .select("id")
+      .single();
+
+    if (empError) {
+      console.error("Employee record failed:", empError.message);
+      // Non-fatal — HR can fix via HR module
+    } else {
+      employeeId = empData.id;
+    }
+
+    // Step 6: If physician role, create physicians record linked to employee
     if (roleCodes.includes("physician")) {
       const { error: physicianError } = await supabaseAdmin
         .from("physicians")
@@ -149,15 +175,16 @@ Deno.serve(async (req) => {
           profile_id: newUserId,
           hospital_id: invitation.hospital_id,
           dashboard_type: "clinical",
+          employee_id: employeeId,
         });
 
       if (physicianError) {
         console.error("Physician record failed:", physicianError.message);
-        // Non-fatal — admin can fix via physician management page
+        // Non-fatal — admin can fix via HR module
       }
     }
 
-    // Step 6: Mark invitation as accepted
+    // Step 7: Mark invitation as accepted
     await supabaseAdmin
       .from("staff_invitations")
       .update({
