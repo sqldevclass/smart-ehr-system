@@ -28,7 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const initialLoadDone = useRef(false);
-  const currentUserIdRef = useRef<string | null>(null);
+  
 
   const loadUser = useCallback(async () => {
     if (!initialLoadDone.current) {
@@ -86,12 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         timezone: (settings as any)?.timezone || "Asia/Tashkent",
       };
 
-      // Only update state if user identity changed
-      // Prevents unnecessary re-renders on token refresh
-      if (currentUserIdRef.current !== session.user.id) {
-        currentUserIdRef.current = session.user.id;
-        setUser(newUser);
-      }
+      setUser(newUser);
     } catch {
       setUser(null);
       setLoading(false);
