@@ -38,6 +38,7 @@ import PhysicianSchedule from "./pages/physician/PhysicianSchedule.tsx";
 import HRLayout from "./components/hr/HRLayout.tsx";
 import HRSchedules from "./pages/hr/HRSchedules.tsx";
 import HREmployees from "./pages/hr/HREmployees.tsx";
+import HRRooms from "./pages/hr/HRRooms.tsx";
 import HRProfile from "./pages/hr/HRProfile.tsx";
 import HRSettings from "./pages/hr/HRSettings.tsx";
 import QueueDisplay from "./pages/QueueDisplay.tsx";
@@ -130,6 +131,7 @@ const App = () => (
             <Route index element={<HREmployees />} />
             <Route path="schedules" element={<HRSchedules />} />
             <Route path="employees" element={<HREmployees />} />
+            <Route path="rooms" element={<HRRooms />} />
             <Route path="settings" element={<HRSettings />} />
             <Route path="profile" element={<HRProfile />} />
           </Route>
