@@ -163,7 +163,7 @@ export default function MyPatientsList() {
     const { data: vs, error: vsErr } = await supabase
       .from("visit_services")
       .select(
-        "id, scheduled_at, queue_number, cost_at_time, visit_id, slot_id, is_waitlist, created_at, completed_by, assigned_room_id, created_by, service_statuses(code, name_ru), services(id, name, linked_document_type_id), profiles!visit_services_created_by_fkey(full_name), profiles!completed_by(full_name), visits!visit_id(patient_id, visit_date, patients(first_name, last_name, patient_number, date_of_birth))"
+        "id, scheduled_at, queue_number, cost_at_time, visit_id, slot_id, is_waitlist, created_at, completed_by, assigned_room_id, created_by, service_statuses(code, name_ru), services(id, name, linked_document_type_id), profiles!visit_services_created_by_fkey(full_name), visits!visit_id(patient_id, visit_date, patients(first_name, last_name, patient_number, date_of_birth))"
       )
       .eq("assigned_physician_id", (phys as Physician).id)
       .eq("hospital_id", user.hospitalId)
@@ -193,7 +193,7 @@ export default function MyPatientsList() {
       const { data: rs, error: rsErr } = await supabase
         .from("visit_services")
         .select(
-          "id, scheduled_at, queue_number, cost_at_time, visit_id, slot_id, is_waitlist, created_at, completed_by, assigned_room_id, service_statuses(code, name_ru), services(id, name, linked_document_type_id), profiles!completed_by(full_name), visits!visit_id(patient_id, visit_date, patients(first_name, last_name, patient_number, date_of_birth))"
+          "id, scheduled_at, queue_number, cost_at_time, visit_id, slot_id, is_waitlist, created_at, completed_by, assigned_room_id, service_statuses(code, name_ru), services(id, name, linked_document_type_id), visits!visit_id(patient_id, visit_date, patients(first_name, last_name, patient_number, date_of_birth))"
         )
         .eq("hospital_id", user.hospitalId)
         .in("assigned_room_id", myRoomIds)
@@ -383,7 +383,7 @@ export default function MyPatientsList() {
             )}
             {r.service_statuses?.code === "completed" && (
               <span className="text-xs text-muted-foreground">
-                {r.profiles?.full_name ?? "—"}
+                {completedByNames[r.completed_by ?? ""] ?? "—"}
               </span>
             )}
           </div>
