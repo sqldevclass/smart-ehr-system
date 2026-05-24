@@ -381,7 +381,7 @@ function ConsultationTab({
     queryFn: async () => {
       let q = supabase
         .from("physicians")
-        .select("id, specialization, profiles!inner(full_name)")
+        .select("id, profiles!inner(full_name), specializations!specialization_id(name)")
         .eq("hospital_id", user!.hospitalId)
         .eq("is_active", true);
       if (currentPhysicianId) q = q.neq("id", currentPhysicianId);
@@ -480,7 +480,7 @@ function ConsultationTab({
                   {physicians.map((p: any) => (
                     <SelectItem key={p.id} value={p.id}>
                       {p.profiles?.full_name}
-                      {p.specialization ? ` — ${p.specialization}` : ""}
+                      {(p as any).specializations?.name ? ` — ${(p as any).specializations.name}` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
