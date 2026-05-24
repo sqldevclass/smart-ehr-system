@@ -13,6 +13,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { toLocal } from "@/lib/timezone";
 import DocumentWorkspace from "@/components/documents/DocumentWorkspace";
 import { usePhysicianLayoutContext } from "@/components/physician/PhysicianLayout";
+import { cn } from "@/lib/utils";
 
 
 interface Physician {
