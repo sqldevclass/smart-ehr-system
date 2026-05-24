@@ -174,7 +174,6 @@ export default function InpatientPatientsList() {
                 <TableHead>Лечащий Врач</TableHead>
                 <TableHead>Дней в стационаре</TableHead>
                 <TableHead>ШРПУ</TableHead>
-                <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -183,7 +182,11 @@ export default function InpatientPatientsList() {
                 const ra = h.room_assignments?.[0];
                 const days = differenceInDays(new Date(), new Date(h.admitted_at));
                 return (
-                  <TableRow key={h.id}>
+                  <TableRow
+                    key={h.id}
+                    onClick={() => navigate(`/physician/inpatient/${h.id}`)}
+                    className="cursor-pointer hover:bg-muted/50"
+                  >
                     <TableCell>{format(new Date(h.admitted_at), "dd.MM.yyyy")}</TableCell>
                     <TableCell>{h.departments?.name || "—"}</TableCell>
                     <TableCell>
@@ -196,11 +199,6 @@ export default function InpatientPatientsList() {
                     <TableCell>{physMap[h.primary_physician_id] || "—"}</TableCell>
                     <TableCell>{days}</TableCell>
                     <TableCell>—</TableCell>
-                    <TableCell>
-                      <Button size="sm" variant="outline" onClick={() => navigate(`/physician/inpatient/${h.id}`)}>
-                        View
-                      </Button>
-                    </TableCell>
                   </TableRow>
                 );
               })}
