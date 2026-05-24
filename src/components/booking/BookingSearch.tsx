@@ -78,13 +78,13 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
         .ilike("profiles.full_name", `%${debounced}%`)
         .limit(8);
       if (error) throw error;
-      return (data || []).map((p: any): PhysicianResult => ({
+      return (data || []).map((p: any) => ({
         id: p.id,
         fullName: p.profiles?.full_name || "—",
         specialization: (p as any).specializations?.name ?? null,
         specializations: p.specializations,
         scheduleType: deriveScheduleType(p.physician_schedules),
-      }));
+      })) as PhysicianResult[];
     },
     enabled,
   });
@@ -131,7 +131,7 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
             specialization: (r.physicians as any)?.specializations?.name ?? null,
             specializations: r.physicians?.specializations,
             scheduleType: deriveScheduleType(r.physicians?.physician_schedules),
-          } as PhysicianResult,
+          } as any as PhysicianResult,
           service: {
             id: r.services?.id,
             name: r.services?.name,
