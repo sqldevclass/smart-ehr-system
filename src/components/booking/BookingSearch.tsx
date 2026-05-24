@@ -81,7 +81,8 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
       return (data || []).map((p: any): PhysicianResult => ({
         id: p.id,
         fullName: p.profiles?.full_name || "—",
-        specialization: p.specializations?.name ?? null,
+        specialization: (p as any).specializations?.name ?? null,
+        specializations: p.specializations,
         scheduleType: deriveScheduleType(p.physician_schedules),
       }));
     },
@@ -127,7 +128,8 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
           physician: {
             id: r.physician_id,
             fullName: r.physicians?.profiles?.full_name || "—",
-            specialization: r.physicians?.specializations?.name ?? null,
+            specialization: (r.physicians as any)?.specializations?.name ?? null,
+            specializations: r.physicians?.specializations,
             scheduleType: deriveScheduleType(r.physicians?.physician_schedules),
           } as PhysicianResult,
           service: {
@@ -207,7 +209,7 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
                       <div className="font-medium truncate">{p.fullName}</div>
-                      <div className="text-xs text-muted-foreground truncate">{p.specialization || "—"}</div>
+                      <div className="text-xs text-muted-foreground truncate">{(p as any).specializations?.name || "—"}</div>
                     </div>
                     {p.scheduleType && (
                       <Badge variant={p.scheduleType === "slots" ? "default" : "secondary"} className="shrink-0 capitalize">
@@ -254,7 +256,7 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
                     <div className="min-w-0">
                       <div className="font-medium truncate">{r.physician.fullName}</div>
                       <div className="text-xs text-muted-foreground truncate">
-                        {r.service.name} · {r.physician.specialization || "—"}
+                        {r.service.name} · {(r.physician as any).specializations?.name || "—"}
                       </div>
                     </div>
                     {r.physician.scheduleType && (
