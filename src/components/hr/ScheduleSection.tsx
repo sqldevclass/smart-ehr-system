@@ -24,22 +24,23 @@ const DAYS = [
   { value: 0, short: "Sun", long: "Sunday" },
 ];
 
-export type Selection = { kind: "physician"; id: string };
+export type Selection =
+  | { kind: "physician"; id: string }
+  | { kind: "room"; id: string };
 
 export function SchedulesPanel({
   selection, onAdd, onEdit,
 }: { selection: Selection; onAdd: () => void; onEdit: (s: any) => void }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const physicianId = selection.id;
+  const isRoom = selection.kind === "room";
   const { data: schedules = [] } = useQuery({
     queryKey: ["physician-schedules", selection.kind, selection.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("physician_schedules")
-        .select("*")
-        .eq("physician_id", physicianId)
-        .order("valid_from", { ascending: false });
+      let q = supabase.from("physician_schedules").select("*");
+      if (isRoom) q = q.eq("room_id", selection.id);
+      else q = q.eq("physician_id", selection.id);
+      const { data, error } = await q.order("valid_from", { ascending: false });
       if (error) throw error;
       return data || [];
     },
@@ -123,14 +124,14 @@ export function BlocksPanel({
 }: { selection: Selection; onAdd: () => void }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const physicianId = selection.id;
+  const isRoom = selection.kind === "room";
   const { data: blocks = [] } = useQuery({
     queryKey: ["physician-blocks", selection.kind, selection.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("physician_schedule_blocks")
-        .select("*")
-        .eq("physician_id", physicianId)
+      let q = supabase.from("physician_schedule_blocks").select("*");
+      if (isRoom) q = q.eq("room_id", selection.id);
+      else q = q.eq("physician_id", selection.id);
+      const { data, error } = await q
         .or(`blocked_to.gte.${new Date().toISOString()},is_recurring.eq.true`)
         .order("blocked_from");
       if (error) throw error;
@@ -198,16 +199,20 @@ export function BlocksPanel({
 }
 
 export function ScheduleDialog({
-  open, onOpenChange, physicianId, editing,
+  open, onOpenChange, selection, editing,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  physicianId: string;
+  selection: Selection;
   editing: any | null;
 }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const today = new Date().toISOString().split("T")[0];
+  const isRoom = selection.kind === "room";
+  const idFilter = isRoom
+    ? { room_id: selection.id, physician_id: null }
+    : { physician_id: selection.id, room_id: null };
 
   const tz = user?.timezone || "Asia/Tashkent";
   const [scheduleType, setScheduleType] = useState<"slots" | "queue">(editing?.schedule_type || "slots");
@@ -252,8 +257,8 @@ export function ScheduleDialog({
     setSaving(true);
     try {
       const payload: any = {
+        ...idFilter,
         hospital_id: user!.hospitalId,
-        physician_id: physicianId,
         schedule_type: scheduleType,
         days_of_week: days,
         work_start: localTimeToUTC(workStart, tz),
@@ -297,16 +302,18 @@ export function ScheduleDialog({
 
         const blockRows: any[] = [];
         for (const c of candidates) {
-          const { data: existing } = await supabase
+          let existQ = supabase
             .from("physician_schedule_blocks")
             .select("id")
             .eq("is_recurring", true)
             .eq("recur_time_from", c.recur_time_from)
-            .eq("recur_time_to", c.recur_time_to)
-            .eq("physician_id", physicianId);
+            .eq("recur_time_to", c.recur_time_to);
+          if (isRoom) existQ = existQ.eq("room_id", selection.id);
+          else existQ = existQ.eq("physician_id", selection.id);
+          const { data: existing } = await existQ;
           if (!existing || existing.length === 0) {
             blockRows.push({
-              physician_id: physicianId,
+              ...idFilter,
               hospital_id: user!.hospitalId,
               is_recurring: true,
               recur_days: c.recur_days,
@@ -324,13 +331,15 @@ export function ScheduleDialog({
         if (blockRows.length > 0) {
           const { error: blockErr } = await supabase.from("physician_schedule_blocks").insert(blockRows);
           if (blockErr) throw blockErr;
-          await supabase.rpc("apply_block_to_existing_slots", {
-            p_physician_id: physicianId, p_hospital_id: user!.hospitalId,
-          });
+          if (!isRoom) {
+            await supabase.rpc("apply_block_to_existing_slots", {
+              p_physician_id: selection.id, p_hospital_id: user!.hospitalId,
+            });
+          }
         }
-        queryClient.invalidateQueries({ queryKey: ["physician-blocks", "physician", physicianId] });
+        queryClient.invalidateQueries({ queryKey: ["physician-blocks", selection.kind, selection.id] });
       }
-      queryClient.invalidateQueries({ queryKey: ["physician-schedules", "physician", physicianId] });
+      queryClient.invalidateQueries({ queryKey: ["physician-schedules", selection.kind, selection.id] });
       onOpenChange(false);
     } catch (err: any) {
       toast.error(err.message || "Failed to save schedule.");
@@ -468,11 +477,11 @@ export function ScheduleDialog({
 }
 
 export function BlockDialog({
-  open, onOpenChange, physicianId,
+  open, onOpenChange, selection,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  physicianId: string;
+  selection: Selection;
 }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -480,6 +489,10 @@ export function BlockDialog({
   const [to, setTo] = useState("");
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
+  const isRoom = selection.kind === "room";
+  const idFilter = isRoom
+    ? { room_id: selection.id, physician_id: null }
+    : { physician_id: selection.id, room_id: null };
 
   const submit = async () => {
     if (!from || !to) { toast.error("Set start and end times."); return; }
@@ -488,19 +501,21 @@ export function BlockDialog({
     try {
       const tz = user!.timezone || "Asia/Tashkent";
       const { error } = await supabase.from("physician_schedule_blocks").insert({
+        ...idFilter,
         hospital_id: user!.hospitalId,
-        physician_id: physicianId,
         blocked_from: toUTC(new Date(from), tz).toISOString(),
         blocked_to: toUTC(new Date(to), tz).toISOString(),
         reason: reason.trim() || null,
         blocked_by: user!.id,
       });
       if (error) throw error;
-      await supabase.rpc("apply_block_to_existing_slots", {
-        p_physician_id: physicianId, p_hospital_id: user!.hospitalId,
-      });
+      if (!isRoom) {
+        await supabase.rpc("apply_block_to_existing_slots", {
+          p_physician_id: selection.id, p_hospital_id: user!.hospitalId,
+        });
+      }
       toast.success("Time blocked.");
-      queryClient.invalidateQueries({ queryKey: ["physician-blocks", "physician", physicianId] });
+      queryClient.invalidateQueries({ queryKey: ["physician-blocks", selection.kind, selection.id] });
       onOpenChange(false);
     } catch (err: any) {
       toast.error(err.message || "Failed to block time.");
@@ -539,11 +554,19 @@ export function BlockDialog({
   );
 }
 
-export default function ScheduleSection({ physicianId }: { physicianId: string }) {
+export default function ScheduleSection({
+  physicianId,
+  roomId,
+}: {
+  physicianId?: string;
+  roomId?: string;
+}) {
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [blockOpen, setBlockOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<any>(null);
-  const selection: Selection = { kind: "physician", id: physicianId };
+  const selection: Selection = physicianId
+    ? { kind: "physician", id: physicianId }
+    : { kind: "room", id: roomId! };
 
   return (
     <div className="space-y-6">
@@ -557,12 +580,12 @@ export default function ScheduleSection({ physicianId }: { physicianId: string }
         <ScheduleDialog
           open={scheduleOpen}
           onOpenChange={setScheduleOpen}
-          physicianId={physicianId}
+          selection={selection}
           editing={editingSchedule}
         />
       )}
       {blockOpen && (
-        <BlockDialog open={blockOpen} onOpenChange={setBlockOpen} physicianId={physicianId} />
+        <BlockDialog open={blockOpen} onOpenChange={setBlockOpen} selection={selection} />
       )}
     </div>
   );
