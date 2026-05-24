@@ -22,6 +22,7 @@ interface PhysicianRow {
   id: string;
   full_name: string;
   specialization: string | null;
+  specializations?: { name: string | null } | null;
   dashboard_type: string | null;
   is_active: boolean;
 }
