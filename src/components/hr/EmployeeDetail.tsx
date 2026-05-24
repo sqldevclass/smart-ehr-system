@@ -258,8 +258,8 @@ function EmployeeForm({
             <Select value={form.gender || undefined} onValueChange={(v) => setField("gender", v)}>
               <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="Мужской">Мужской</SelectItem>
-                <SelectItem value="Женский">Женский</SelectItem>
+                <SelectItem value="male">Мужской</SelectItem>
+                <SelectItem value="female">Женский</SelectItem>
               </SelectContent>
             </Select>
           </div>
