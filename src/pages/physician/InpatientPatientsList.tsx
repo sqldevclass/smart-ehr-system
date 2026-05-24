@@ -174,7 +174,7 @@ export default function InpatientPatientsList() {
                 <TableHead>Лечащий Врач</TableHead>
                 <TableHead>Дней в стационаре</TableHead>
                 <TableHead>ШРПУ</TableHead>
-                <TableHead></TableHead>
+                
               </TableRow>
             </TableHeader>
             <TableBody>
