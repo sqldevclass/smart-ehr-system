@@ -43,13 +43,13 @@ export default function PhysiciansPage() {
       if (!user) return [];
       const { data, error } = await supabase
         .from("physicians")
-        .select("id, specialization, dashboard_type, is_active, profile_id, profiles!inner(full_name)")
+        .select("id, dashboard_type, is_active, profile_id, profiles!inner(full_name), specializations!specialization_id(name)")
         .eq("hospital_id", user.hospitalId);
       if (error) throw error;
       return (data || []).map((p: any) => ({
         id: p.id,
         full_name: p.profiles?.full_name || "Unknown",
-        specialization: p.specialization,
+        specialization: p.specializations?.name ?? null,
         dashboard_type: p.dashboard_type,
         is_active: p.is_active,
       })) as PhysicianRow[];
