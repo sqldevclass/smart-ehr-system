@@ -84,7 +84,7 @@ export default function HREmployees() {
                   {e.last_name} {e.first_name} {e.middle_name || ""}
                 </TableCell>
                 <TableCell>{e.job_titles?.name || "—"}</TableCell>
-                <TableCell>{e.gender || "—"}</TableCell>
+                <TableCell>{e.gender === "male" ? "Мужской" : e.gender === "female" ? "Женский" : "—"}</TableCell>
                 <TableCell>{e.departments?.name || "—"}</TableCell>
               </TableRow>
             ))}
