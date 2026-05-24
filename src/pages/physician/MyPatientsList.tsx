@@ -13,6 +13,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { toLocal } from "@/lib/timezone";
 import DocumentWorkspace from "@/components/documents/DocumentWorkspace";
 import { usePhysicianLayoutContext } from "@/components/physician/PhysicianLayout";
+import { cn } from "@/lib/utils";
 
 
 interface Physician {
@@ -31,6 +32,7 @@ interface VisitServiceRow {
   completed_by?: string | null;
   assigned_room_id?: string | null;
   created_by?: string | null;
+  profiles?: { full_name: string | null } | null;
   ordering_physician?: { full_name: string | null } | null;
   service_statuses: { code: string | null; name_ru: string | null } | null;
   services: { id?: string; name: string | null; linked_document_type_id?: string | null } | null;
@@ -161,7 +163,7 @@ export default function MyPatientsList() {
     const { data: vs, error: vsErr } = await supabase
       .from("visit_services")
       .select(
-        "id, scheduled_at, queue_number, cost_at_time, visit_id, slot_id, is_waitlist, created_at, completed_by, assigned_room_id, created_by, service_statuses(code, name_ru), services(id, name, linked_document_type_id), profiles!visit_services_created_by_fkey(full_name), visits!visit_id(patient_id, visit_date, patients(first_name, last_name, patient_number, date_of_birth))"
+        "id, scheduled_at, queue_number, cost_at_time, visit_id, slot_id, is_waitlist, created_at, completed_by, assigned_room_id, created_by, service_statuses(code, name_ru), services(id, name, linked_document_type_id), profiles!visit_services_created_by_fkey(full_name), profiles!completed_by(full_name), visits!visit_id(patient_id, visit_date, patients(first_name, last_name, patient_number, date_of_birth))"
       )
       .eq("assigned_physician_id", (phys as Physician).id)
       .eq("hospital_id", user.hospitalId)
@@ -176,7 +178,8 @@ export default function MyPatientsList() {
       .from("office_room_physicians")
       .select("room_id, rooms(id, name)")
       .eq("physician_id", (phys as Physician).id)
-      .eq("hospital_id", user.hospitalId);
+      .eq("hospital_id", user.hospitalId)
+      .filter("rooms.is_active", "eq", true);
 
     const myRoomIds = (myRooms || []).map((r: any) => r.room_id);
     const rMap: Record<string, string> = {};
@@ -189,8 +192,8 @@ export default function MyPatientsList() {
     if (myRoomIds.length > 0) {
       const { data: rs, error: rsErr } = await supabase
         .from("visit_services")
-      .select(
-          "id, scheduled_at, queue_number, cost_at_time, visit_id, slot_id, is_waitlist, created_at, completed_by, assigned_room_id, service_statuses(code, name_ru), services(id, name, linked_document_type_id), visits!visit_id(patient_id, visit_date, patients(first_name, last_name, patient_number, date_of_birth))"
+        .select(
+          "id, scheduled_at, queue_number, cost_at_time, visit_id, slot_id, is_waitlist, created_at, completed_by, assigned_room_id, service_statuses(code, name_ru), services(id, name, linked_document_type_id), profiles!completed_by(full_name), visits!visit_id(patient_id, visit_date, patients(first_name, last_name, patient_number, date_of_birth))"
         )
         .eq("hospital_id", user.hospitalId)
         .in("assigned_room_id", myRoomIds)
@@ -342,16 +345,22 @@ export default function MyPatientsList() {
     return (
       <TableRow
         key={r.id}
-        className="cursor-pointer hover:bg-muted/50"
+        className={cn(
+          "hover:bg-muted/50",
+          r.service_statuses?.code !== "preliminary" &&
+            "cursor-pointer"
+        )}
         onClick={() => {
+          const statusCode =
+            r.service_statuses?.code ?? "preliminary";
+          if (statusCode === "preliminary") return;
           if (linkedDocTypeId && pid && r.visit_id) {
             setActiveDocument({
               visitServiceId: r.id,
               patientId: pid,
               visitId: r.visit_id,
               documentTypeId: linkedDocTypeId,
-              serviceStatusCode:
-                r.service_statuses?.code ?? "preliminary",
+              serviceStatusCode: statusCode,
             });
           } else if (pid) {
             navigate(`/physician/patients/${pid}`);
@@ -372,9 +381,9 @@ export default function MyPatientsList() {
                 Ordered by: {r.ordering_physician.full_name}
               </span>
             )}
-            {r.service_statuses?.code === "completed" && r.completed_by && completedByNames[r.completed_by] && (
-              <span className="text-[11px] text-muted-foreground">
-                Completed by: {completedByNames[r.completed_by]}
+            {r.service_statuses?.code === "completed" && (
+              <span className="text-xs text-muted-foreground">
+                {r.profiles?.full_name ?? "—"}
               </span>
             )}
           </div>
