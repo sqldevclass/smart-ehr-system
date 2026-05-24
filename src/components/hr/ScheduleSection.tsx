@@ -24,22 +24,22 @@ const DAYS = [
   { value: 0, short: "Sun", long: "Sunday" },
 ];
 
-export type Selection = { kind: "physician"; id: string } | { kind: "room"; id: string };
+export type Selection = { kind: "physician"; id: string };
 
 export function SchedulesPanel({
   selection, onAdd, onEdit,
 }: { selection: Selection; onAdd: () => void; onEdit: (s: any) => void }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const physicianId = selection.kind === "physician" ? selection.id : null;
-  const roomId = selection.kind === "room" ? selection.id : null;
+  const physicianId = selection.id;
   const { data: schedules = [] } = useQuery({
     queryKey: ["physician-schedules", selection.kind, selection.id],
     queryFn: async () => {
-      let q = supabase.from("physician_schedules").select("*");
-      if (physicianId) q = q.eq("physician_id", physicianId);
-      else if (roomId) q = q.eq("room_id", roomId);
-      const { data, error } = await q.order("valid_from", { ascending: false });
+      const { data, error } = await supabase
+        .from("physician_schedules")
+        .select("*")
+        .eq("physician_id", physicianId)
+        .order("valid_from", { ascending: false });
       if (error) throw error;
       return data || [];
     },
@@ -123,15 +123,14 @@ export function BlocksPanel({
 }: { selection: Selection; onAdd: () => void }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const physicianId = selection.kind === "physician" ? selection.id : null;
-  const roomId = selection.kind === "room" ? selection.id : null;
+  const physicianId = selection.id;
   const { data: blocks = [] } = useQuery({
     queryKey: ["physician-blocks", selection.kind, selection.id],
     queryFn: async () => {
-      let q = supabase.from("physician_schedule_blocks").select("*");
-      if (physicianId) q = q.eq("physician_id", physicianId);
-      else if (roomId) q = q.eq("room_id", roomId);
-      const { data, error } = await q
+      const { data, error } = await supabase
+        .from("physician_schedule_blocks")
+        .select("*")
+        .eq("physician_id", physicianId)
         .or(`blocked_to.gte.${new Date().toISOString()},is_recurring.eq.true`)
         .order("blocked_from");
       if (error) throw error;
@@ -199,12 +198,11 @@ export function BlocksPanel({
 }
 
 export function ScheduleDialog({
-  open, onOpenChange, physicianId, roomId, editing,
+  open, onOpenChange, physicianId, editing,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  physicianId?: string;
-  roomId?: string;
+  physicianId: string;
   editing: any | null;
 }) {
   const { user } = useAuth();
@@ -255,8 +253,7 @@ export function ScheduleDialog({
     try {
       const payload: any = {
         hospital_id: user!.hospitalId,
-        physician_id: roomId ? null : physicianId,
-        room_id: roomId || null,
+        physician_id: physicianId,
         schedule_type: scheduleType,
         days_of_week: days,
         work_start: localTimeToUTC(workStart, tz),
@@ -300,19 +297,16 @@ export function ScheduleDialog({
 
         const blockRows: any[] = [];
         for (const c of candidates) {
-          let existQ = supabase
+          const { data: existing } = await supabase
             .from("physician_schedule_blocks")
             .select("id")
             .eq("is_recurring", true)
             .eq("recur_time_from", c.recur_time_from)
-            .eq("recur_time_to", c.recur_time_to);
-          if (roomId) existQ = existQ.eq("room_id", roomId);
-          else existQ = existQ.eq("physician_id", physicianId!);
-          const { data: existing } = await existQ;
+            .eq("recur_time_to", c.recur_time_to)
+            .eq("physician_id", physicianId);
           if (!existing || existing.length === 0) {
             blockRows.push({
-              physician_id: roomId ? null : physicianId,
-              room_id: roomId || null,
+              physician_id: physicianId,
               hospital_id: user!.hospitalId,
               is_recurring: true,
               recur_days: c.recur_days,
@@ -328,15 +322,13 @@ export function ScheduleDialog({
         if (blockRows.length > 0) {
           const { error: blockErr } = await supabase.from("physician_schedule_blocks").insert(blockRows);
           if (blockErr) throw blockErr;
-          if (physicianId) {
-            await supabase.rpc("apply_block_to_existing_slots", {
-              p_physician_id: physicianId, p_hospital_id: user!.hospitalId,
-            });
-          }
+          await supabase.rpc("apply_block_to_existing_slots", {
+            p_physician_id: physicianId, p_hospital_id: user!.hospitalId,
+          });
         }
-        queryClient.invalidateQueries({ queryKey: ["physician-blocks", roomId ? "room" : "physician", roomId || physicianId] });
+        queryClient.invalidateQueries({ queryKey: ["physician-blocks", "physician", physicianId] });
       }
-      queryClient.invalidateQueries({ queryKey: ["physician-schedules", roomId ? "room" : "physician", roomId || physicianId] });
+      queryClient.invalidateQueries({ queryKey: ["physician-schedules", "physician", physicianId] });
       onOpenChange(false);
     } catch (err: any) {
       toast.error(err.message || "Failed to save schedule.");
@@ -349,7 +341,7 @@ export function ScheduleDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{editing ? "Edit Schedule" : roomId ? "Add Room Schedule" : "Add Schedule"}</DialogTitle>
+          <DialogTitle>{editing ? "Edit Schedule" : "Add Schedule"}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-5">
@@ -474,12 +466,11 @@ export function ScheduleDialog({
 }
 
 export function BlockDialog({
-  open, onOpenChange, physicianId, roomId,
+  open, onOpenChange, physicianId,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  physicianId?: string;
-  roomId?: string;
+  physicianId: string;
 }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -496,21 +487,18 @@ export function BlockDialog({
       const tz = user!.timezone || "Asia/Tashkent";
       const { error } = await supabase.from("physician_schedule_blocks").insert({
         hospital_id: user!.hospitalId,
-        physician_id: roomId ? null : physicianId,
-        room_id: roomId || null,
+        physician_id: physicianId,
         blocked_from: toUTC(new Date(from), tz).toISOString(),
         blocked_to: toUTC(new Date(to), tz).toISOString(),
         reason: reason.trim() || null,
         blocked_by: user!.id,
       });
       if (error) throw error;
-      if (physicianId) {
-        await supabase.rpc("apply_block_to_existing_slots", {
-          p_physician_id: physicianId, p_hospital_id: user!.hospitalId,
-        });
-      }
+      await supabase.rpc("apply_block_to_existing_slots", {
+        p_physician_id: physicianId, p_hospital_id: user!.hospitalId,
+      });
       toast.success("Time blocked.");
-      queryClient.invalidateQueries({ queryKey: ["physician-blocks", roomId ? "room" : "physician", roomId || physicianId] });
+      queryClient.invalidateQueries({ queryKey: ["physician-blocks", "physician", physicianId] });
       onOpenChange(false);
     } catch (err: any) {
       toast.error(err.message || "Failed to block time.");
