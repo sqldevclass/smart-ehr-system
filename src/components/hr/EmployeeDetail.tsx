@@ -49,7 +49,7 @@ export default function EmployeeDetail({ employeeId, onClose }: Props) {
       const { data } = await supabase
         .from("physicians")
         .select(`
-          id, specialization_id, department_id, schedule_type, is_active,
+          id, specialization_id, department_id, is_active,
           specializations!specialization_id(id, name)
         `)
         .eq("employee_id", employeeId)
