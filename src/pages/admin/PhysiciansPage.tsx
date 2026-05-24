@@ -22,6 +22,7 @@ interface PhysicianRow {
   id: string;
   full_name: string;
   specialization: string | null;
+  specializations?: { name: string | null } | null;
   dashboard_type: string | null;
   is_active: boolean;
 }
@@ -49,7 +50,8 @@ export default function PhysiciansPage() {
       return (data || []).map((p: any) => ({
         id: p.id,
         full_name: p.profiles?.full_name || "Unknown",
-        specialization: p.specializations?.name ?? null,
+        specialization: (p as any).specializations?.name ?? null,
+        specializations: p.specializations,
         dashboard_type: p.dashboard_type,
         is_active: p.is_active,
       })) as PhysicianRow[];
@@ -59,7 +61,7 @@ export default function PhysiciansPage() {
 
   const openEdit = (p: PhysicianRow) => {
     setEditing(p);
-    setSpecialization(p.specialization || "");
+    setSpecialization((p as any).specializations?.name || "");
     setDashboardType(p.dashboard_type || "clinical");
     setIsActive(p.is_active);
     setDialogOpen(true);
@@ -117,7 +119,7 @@ export default function PhysiciansPage() {
               {physicians.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell className="font-medium">{p.full_name}</TableCell>
-                  <TableCell>{p.specialization || "—"}</TableCell>
+                  <TableCell>{(p as any).specializations?.name || "—"}</TableCell>
                   <TableCell className="capitalize">{p.dashboard_type || "—"}</TableCell>
                   <TableCell>
                     <span className={`rounded px-2 py-0.5 text-xs font-medium ${p.is_active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
