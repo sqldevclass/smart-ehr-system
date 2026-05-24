@@ -297,9 +297,124 @@ function EmployeeForm({
         </section>
       )}
 
+      {physician && <AssignedRoomsSection physicianId={physician.id} />}
+
       <div className="flex justify-end">
         <Button onClick={save} disabled={saving}>{saving ? "Сохранение…" : "Сохранить"}</Button>
       </div>
     </div>
+  );
+}
+
+function AssignedRoomsSection({ physicianId }: { physicianId: string }) {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [showAssign, setShowAssign] = useState(false);
+  const [selectedRoomId, setSelectedRoomId] = useState("");
+
+  const { data: assigned = [], refetch } = useQuery({
+    queryKey: ["physician-rooms", physicianId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("office_room_physicians")
+        .select("room_id, rooms!inner(id, name)")
+        .eq("physician_id", physicianId)
+        .eq("hospital_id", user!.hospitalId);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: officeRooms = [] } = useQuery({
+    queryKey: ["office-rooms-all", user?.hospitalId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("rooms")
+        .select("id, name, room_types!inner(is_office_room)")
+        .eq("hospital_id", user!.hospitalId)
+        .filter("room_types.is_office_room", "eq", true)
+        .order("name");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const assignedIds = new Set(assigned.map((a: any) => a.room_id));
+  const available = (officeRooms as any[]).filter((r) => !assignedIds.has(r.id));
+
+  const invalidate = () => {
+    refetch();
+    queryClient.invalidateQueries({ queryKey: ["hr-room", undefined] });
+  };
+
+  const handleAssign = async () => {
+    if (!selectedRoomId) return;
+    const { error } = await supabase.from("office_room_physicians").insert({
+      room_id: selectedRoomId,
+      physician_id: physicianId,
+      hospital_id: user!.hospitalId,
+      granted_by: user!.id,
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success("Кабинет назначен");
+    setSelectedRoomId("");
+    setShowAssign(false);
+    invalidate();
+  };
+
+  const handleRemove = async (roomId: string) => {
+    const { error } = await supabase.from("office_room_physicians").delete()
+      .eq("physician_id", physicianId)
+      .eq("room_id", roomId);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Кабинет удалён");
+    invalidate();
+  };
+
+  return (
+    <section className="rounded-lg border bg-card p-5 space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold">Назначенные кабинеты</h3>
+        {!showAssign && (
+          <Button size="sm" variant="outline" className="gap-1" onClick={() => setShowAssign(true)}>
+            <Plus className="h-3 w-3" /> Назначить кабинет
+          </Button>
+        )}
+      </div>
+
+      {showAssign && (
+        <div className="flex items-center gap-2 rounded-md border p-2 bg-muted/30">
+          <Select value={selectedRoomId || undefined} onValueChange={setSelectedRoomId}>
+            <SelectTrigger className="flex-1"><SelectValue placeholder="Выберите кабинет" /></SelectTrigger>
+            <SelectContent>
+              {available.length === 0 ? (
+                <div className="px-2 py-1.5 text-sm text-muted-foreground">Нет доступных кабинетов</div>
+              ) : (
+                available.map((r: any) => (
+                  <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                ))
+              )}
+            </SelectContent>
+          </Select>
+          <Button size="sm" onClick={handleAssign} disabled={!selectedRoomId}>Назначить</Button>
+          <Button size="sm" variant="ghost" onClick={() => { setShowAssign(false); setSelectedRoomId(""); }}>Отмена</Button>
+        </div>
+      )}
+
+      {assigned.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Нет назначенных кабинетов.</p>
+      ) : (
+        <ul className="space-y-1">
+          {assigned.map((a: any) => (
+            <li key={a.room_id} className="flex items-center justify-between rounded-md border p-2">
+              <span className="text-sm">{a.rooms?.name}</span>
+              <Button size="sm" variant="outline" className="text-destructive gap-1" onClick={() => handleRemove(a.room_id)}>
+                <Minus className="h-3 w-3" />
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
