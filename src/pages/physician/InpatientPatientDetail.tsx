@@ -34,7 +34,7 @@ export default function InpatientPatientDetail() {
           patients!inner(
             id, first_name, last_name, middle_name,
             patient_number, date_of_birth, gender, phone,
-            patient_allergies(allergy_name, severity)
+            patient_allergies(allergy_type, severity)
           ),
           room_assignments(bed_number, rooms!inner(name))
         `)
@@ -119,7 +119,7 @@ export default function InpatientPatientDetail() {
             </div>
             {allergies.length > 0 && (
               <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-red-700 font-semibold text-sm">
-                АЛЛЕРГИЯ: {allergies.map((a: any) => a.allergy_name).join(", ")}
+                АЛЛЕРГИЯ: {allergies.map((a: any) => a.allergy_type).join(", ")}
               </div>
             )}
           </div>
