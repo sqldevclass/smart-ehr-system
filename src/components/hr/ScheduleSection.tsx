@@ -315,7 +315,9 @@ export function ScheduleDialog({
               reason: c.reason,
               blocked_by: user!.id,
               blocked_from: validFrom,
-              blocked_to: validTo || null,
+              blocked_to: validTo
+                ? new Date(validTo).toISOString()
+                : new Date("2099-12-31").toISOString(),
             });
           }
         }
