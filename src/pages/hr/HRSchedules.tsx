@@ -38,7 +38,7 @@ export default function HRSchedules() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("physicians")
-        .select("id, specialization, profiles!inner(full_name)")
+        .select("id, profiles!inner(full_name), specializations!specialization_id(name)")
         .eq("hospital_id", user!.hospitalId)
         .eq("is_active", true);
       if (error) throw error;
@@ -89,7 +89,7 @@ export default function HRSchedules() {
               }`}
             >
               <div className="font-medium">{p.profiles?.full_name || "—"}</div>
-              <div className="text-xs text-muted-foreground">{p.specialization || "—"}</div>
+              <div className="text-xs text-muted-foreground">{p.specializations?.name || "—"}</div>
             </button>
           ))}
 

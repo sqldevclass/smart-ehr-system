@@ -10,8 +10,8 @@ import { toast } from "sonner";
 
 interface Physician {
   id: string;
-  specialization: string | null;
   profiles: { full_name: string | null } | null;
+  specializations: { name: string | null } | null;
 }
 
 interface ServiceRow {
@@ -37,7 +37,7 @@ export default function PhysicianPrivilegesPage() {
       if (!user) return [];
       const { data, error } = await supabase
         .from("physicians")
-        .select("id, specialization, profiles!inner(full_name)")
+        .select("id, profiles!inner(full_name), specializations!specialization_id(name)")
         .eq("hospital_id", user.hospitalId)
         .eq("is_active", true);
       if (error) throw error;
@@ -247,8 +247,8 @@ export default function PhysicianPrivilegesPage() {
                     )}
                   >
                     <div>{p.profiles?.full_name || "Unknown"}</div>
-                    {p.specialization && (
-                      <div className="text-xs text-muted-foreground">{p.specialization}</div>
+                    {p.specializations?.name && (
+                      <div className="text-xs text-muted-foreground">{p.specializations.name}</div>
                     )}
                   </button>
                 </li>
@@ -266,8 +266,8 @@ export default function PhysicianPrivilegesPage() {
                 <h2 className="text-lg font-semibold text-foreground">
                   {selected.profiles?.full_name}
                 </h2>
-                {selected.specialization && (
-                  <p className="text-sm text-muted-foreground">{selected.specialization}</p>
+                {selected.specializations?.name && (
+                  <p className="text-sm text-muted-foreground">{selected.specializations.name}</p>
                 )}
               </div>
 
