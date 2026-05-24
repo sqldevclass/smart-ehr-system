@@ -29,6 +29,7 @@ export interface PhysicianResult {
   fullName: string;
   specialization: string | null; // keep for display,
   // now sourced from specializations join
+  specializations?: { name: string | null } | null;
   scheduleType: "slots" | "queue" | null;
 }
 
