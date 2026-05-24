@@ -181,10 +181,11 @@ export default function MyPatientsList() {
       .eq("hospital_id", user.hospitalId)
       .filter("rooms.is_active", "eq", true);
 
-    const myRoomIds = (myRooms || []).map((r: any) => r.room_id);
+    const activeRooms = (myRooms || []).filter((r: any) => r.rooms !== null);
+    const myRoomIds = activeRooms.map((r: any) => r.room_id);
     const rMap: Record<string, string> = {};
-    for (const r of myRooms || []) {
-      rMap[(r as any).room_id] = (r as any).rooms?.name || "Room";
+    for (const r of activeRooms) {
+      rMap[(r as any).room_id] = (r as any).rooms?.name || "—";
     }
     setRoomMap(rMap);
 
