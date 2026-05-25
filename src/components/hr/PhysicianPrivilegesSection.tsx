@@ -17,6 +17,8 @@ interface ServiceRow {
 export default function PhysicianPrivilegesSection({
   physicianId, hospitalId,
 }: { physicianId: string; hospitalId: string }) {
+  const { user } = useAuth();
+  const selectedId = physicianId;
   const queryClient = useQueryClient();
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
