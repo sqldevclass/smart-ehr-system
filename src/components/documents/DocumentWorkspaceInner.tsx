@@ -40,6 +40,7 @@ interface InnerProps {
   isConsultation: boolean;
   visitData: any;
   refetchVisit: () => void;
+  hospitalizationId?: string;
 }
 
 export default function DocumentWorkspaceInner({
@@ -47,8 +48,9 @@ export default function DocumentWorkspaceInner({
   existingDoc, sectionsData, fieldsData, existingValues, patient,
   documentType, mainServices, childServices, pendingOrders, physicianNameMap,
   completedByProfile, visitDate, hospitalName, physicianId,
-  isConsultation, visitData, refetchVisit,
+  isConsultation, visitData, refetchVisit, hospitalizationId,
 }: InnerProps) {
+
 
   const { user } = useAuth();
   const isPhysician = user?.roles?.includes("physician") ?? false;
@@ -77,8 +79,12 @@ export default function DocumentWorkspaceInner({
 
   const isReadOnly =
     existingDoc?.status === "completed" ||
-    (serviceStatusCode !== "ready_for_execution" &&
-     serviceStatusCode !== "completed");
+    (existingDoc?.status === "preliminary" &&
+      existingDoc?.created_by && existingDoc?.created_by !== user?.id) ||
+    (!hospitalizationId &&
+      serviceStatusCode !== "ready_for_execution" &&
+      serviceStatusCode !== "completed");
+
 
   const sections = useMemo(() => {
     return [...sectionsData]
@@ -151,7 +157,8 @@ export default function DocumentWorkspaceInner({
         patient_id: patientId,
         hospital_id: hospitalId,
         document_type_id: documentTypeId,
-        visit_service_id: visitServiceId,
+        visit_service_id: visitServiceId || null,
+        hospitalization_id: hospitalizationId || null,
         status: "preliminary",
         created_by: session.user.id,
       })
@@ -161,7 +168,8 @@ export default function DocumentWorkspaceInner({
     setDocumentId(doc.id);
     documentIdRef.current = doc.id;
     return doc.id;
-  }, [patientId, hospitalId, documentTypeId, visitServiceId]);
+  }, [patientId, hospitalId, documentTypeId, visitServiceId, hospitalizationId]);
+
 
   // Debounced autosave — 2s after last change
   useEffect(() => {
