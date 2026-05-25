@@ -19,26 +19,34 @@ interface Props {
   documentTypeId: string;
   serviceStatusCode: string;
   onClose: () => void;
+  hospitalizationId?: string;
 }
 
 export default function DocumentWorkspace(props: Props) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const { visitServiceId, patientId, visitId, hospitalId, documentTypeId } = props;
+  const { visitServiceId, patientId, visitId, hospitalId, documentTypeId, hospitalizationId } = props;
 
   const { data: existingDoc } = useQuery({
-    queryKey: ["doc-ws-existing", visitServiceId, hospitalId],
+    queryKey: ["doc-ws-existing", visitServiceId || hospitalizationId, hospitalId],
     ...queryDefaults,
+    enabled: !!(visitServiceId || hospitalizationId),
     queryFn: async () => {
-      const { data } = await supabase
+      let q = supabase
         .from("patient_documents")
-        .select("id, status, completed_by, completed_at, document_type_id")
-        .eq("visit_service_id", visitServiceId)
+        .select("id, status, completed_by, completed_at, document_type_id, created_by")
         .eq("hospital_id", hospitalId)
-        .maybeSingle();
+        .eq("document_type_id", documentTypeId);
+      if (visitServiceId) {
+        q = q.eq("visit_service_id", visitServiceId);
+      } else if (hospitalizationId) {
+        q = q.eq("hospitalization_id", hospitalizationId);
+      }
+      const { data } = await q.maybeSingle();
       return data ?? null;
     },
   });
+
 
   const { data: sectionsData } = useQuery({
     queryKey: ["doc-ws-sections", documentTypeId],
@@ -327,7 +335,9 @@ export default function DocumentWorkspace(props: Props) {
       isConsultation={isConsultation}
       visitData={visitData ?? null}
       refetchVisit={refetchVisit}
+      hospitalizationId={hospitalizationId}
     />
 
   );
 }
+
