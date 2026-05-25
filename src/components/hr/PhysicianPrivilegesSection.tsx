@@ -258,6 +258,37 @@ export default function PhysicianPrivilegesSection({
         )}
       </TabsContent>
 
+      <TabsContent value="documents" className="mt-4">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-medium">Документы</h3>
+            <span className="text-xs text-muted-foreground">
+              {grantedDocTypeIds.size} из {allDocTypes.length}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 gap-2">
+            {allDocTypes.map((dt: any) => (
+              <div
+                key={dt.id}
+                className="flex items-center gap-3 p-2 rounded hover:bg-muted"
+              >
+                <Checkbox
+                  checked={grantedDocTypeIds.has(dt.id)}
+                  onCheckedChange={(checked) =>
+                    toggleDocPrivilege(dt.id, checked as boolean)
+                  }
+                />
+                <span
+                  className="w-3 h-3 rounded-full shrink-0"
+                  style={{ backgroundColor: dt.color || "gray" }}
+                />
+                <span className="text-sm">{dt.name_ru}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </TabsContent>
+
       <TabsContent value="rooms" className="mt-4">
         {officeRooms.length === 0 ? (
           <p className="text-sm text-muted-foreground">No office rooms configured for this hospital.</p>
