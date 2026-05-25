@@ -39,6 +39,7 @@ export default function InpatientPatientDetail() {
   const { hospId } = useParams<{ hospId: string }>();
   const hospitalizationId = hospId!;
   const { user } = useAuth();
+  const { physicianId } = usePhysicianId();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
