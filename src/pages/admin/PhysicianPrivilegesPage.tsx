@@ -145,6 +145,43 @@ export default function PhysicianPrivilegesPage() {
     enabled: !!selectedId,
   });
 
+  const { data: allDocTypes = [] } = useQuery({
+    queryKey: ["all-document-types"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("document_types")
+        .select("id, name_ru, color")
+        .eq("is_active", true)
+        .order("name_ru");
+      return data || [];
+    },
+  });
+
+  const grantedDocTypeIds = new Set(
+    documentPrivileges.map((p: any) => p.document_type_id)
+  );
+
+  const toggleDocPrivilege = async (docTypeId: string, granted: boolean) => {
+    if (!selectedId || !user) return;
+    if (granted) {
+      await supabase.from("physician_document_privileges").insert({
+        physician_id: selectedId,
+        document_type_id: docTypeId,
+        hospital_id: user.hospitalId,
+        granted_by: user.id,
+      });
+    } else {
+      await supabase
+        .from("physician_document_privileges")
+        .delete()
+        .eq("physician_id", selectedId)
+        .eq("document_type_id", docTypeId);
+    }
+    queryClient.invalidateQueries({
+      queryKey: ["physician-document-privileges", selectedId],
+    });
+  };
+
   const { data: officeRooms = [] } = useQuery({
     queryKey: ["office-rooms-active", user?.hospitalId],
     queryFn: async () => {
