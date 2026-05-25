@@ -194,24 +194,30 @@ export default function InpatientPatientDetail() {
                   <Button size="sm">+ Создать</Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                  {documentTypes.map((dt: any) => (
-                    <DropdownMenuItem
-                      key={dt.id}
-                      onClick={() =>
-                        setActiveView({
-                          type: "document",
-                          documentId: null,
-                          documentTypeId: dt.id,
-                        })
-                      }
-                    >
-                      <span
-                        className="w-3 h-3 rounded-full mr-2 inline-block"
-                        style={{ backgroundColor: dt.color }}
-                      />
-                      {dt.name_ru}
+                  {allowedDocTypes.length === 0 ? (
+                    <DropdownMenuItem disabled>
+                      Нет доступных документов. Обратитесь к администратору.
                     </DropdownMenuItem>
-                  ))}
+                  ) : (
+                    allowedDocTypes.map((dt: any) => (
+                      <DropdownMenuItem
+                        key={dt.id}
+                        onClick={() =>
+                          setActiveView({
+                            type: "document",
+                            documentId: null,
+                            documentTypeId: dt.id,
+                          })
+                        }
+                      >
+                        <span
+                          className="w-3 h-3 rounded-full mr-2 inline-block"
+                          style={{ backgroundColor: dt.color }}
+                        />
+                        {dt.name_ru}
+                      </DropdownMenuItem>
+                    ))
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
               <button
