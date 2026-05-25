@@ -107,18 +107,36 @@ export default function InpatientPatientDetail() {
   });
 
   const { data: documentTypes = [] } = useQuery({
-    queryKey: ["doc-types-active", user?.hospitalId],
+    queryKey: ["doc-types-active"],
     queryFn: async () => {
       const { data } = await supabase
         .from("document_types")
         .select("id, name_ru, color")
-        .eq("hospital_id", user!.hospitalId)
         .eq("is_active", true)
         .order("name_ru");
       return data || [];
     },
-    enabled: !!user?.hospitalId,
   });
+
+  const { data: docPrivileges = [] } = useQuery({
+    queryKey: ["physician-doc-privileges", physicianId],
+    enabled: !!physicianId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("physician_document_privileges")
+        .select("document_type_id")
+        .eq("physician_id", physicianId!)
+        .eq("hospital_id", user!.hospitalId);
+      return data || [];
+    },
+  });
+
+  const allowedDocTypeIds = new Set(
+    docPrivileges.map((p: any) => p.document_type_id)
+  );
+  const allowedDocTypes = documentTypes.filter(
+    (dt: any) => allowedDocTypeIds.has(dt.id)
+  );
 
   if (isLoading) return <p className="text-muted-foreground">Loading…</p>;
   if (!hosp) return <p className="text-destructive">Hospitalization not found.</p>;
