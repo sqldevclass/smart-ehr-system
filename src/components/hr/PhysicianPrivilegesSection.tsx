@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,8 @@ interface ServiceRow {
 export default function PhysicianPrivilegesSection({
   physicianId, hospitalId,
 }: { physicianId: string; hospitalId: string }) {
+  const { user } = useAuth();
+  const selectedId = physicianId;
   const queryClient = useQueryClient();
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
@@ -165,10 +168,60 @@ export default function PhysicianPrivilegesSection({
     }
   };
 
+  const { data: allDocTypes = [] } = useQuery({
+    queryKey: ["all-document-types"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("document_types")
+        .select("id, name_ru, color")
+        .eq("is_active", true)
+        .order("name_ru");
+      return data || [];
+    },
+  });
+
+  const { data: documentPrivileges = [] } = useQuery({
+    queryKey: ["physician-document-privileges", selectedId],
+    enabled: !!selectedId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("physician_document_privileges")
+        .select("document_type_id")
+        .eq("physician_id", selectedId);
+      return data || [];
+    },
+  });
+
+  const grantedDocTypeIds = new Set(
+    documentPrivileges.map((p: any) => p.document_type_id)
+  );
+
+  const toggleDocPrivilege = async (docTypeId: string, granted: boolean) => {
+    if (!user) return;
+    if (granted) {
+      await supabase.from("physician_document_privileges").insert({
+        physician_id: selectedId,
+        document_type_id: docTypeId,
+        hospital_id: hospitalId,
+        granted_by: user.id,
+      });
+    } else {
+      await supabase
+        .from("physician_document_privileges")
+        .delete()
+        .eq("physician_id", selectedId)
+        .eq("document_type_id", docTypeId);
+    }
+    queryClient.invalidateQueries({
+      queryKey: ["physician-document-privileges", selectedId],
+    });
+  };
+
   return (
     <Tabs defaultValue="services">
       <TabsList>
         <TabsTrigger value="services">Service Privileges</TabsTrigger>
+        <TabsTrigger value="documents">Document Privileges</TabsTrigger>
         <TabsTrigger value="rooms">Office Room Assignments</TabsTrigger>
       </TabsList>
 
@@ -203,6 +256,37 @@ export default function PhysicianPrivilegesSection({
             </div>
           </div>
         )}
+      </TabsContent>
+
+      <TabsContent value="documents" className="mt-4">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-medium">Документы</h3>
+            <span className="text-xs text-muted-foreground">
+              {grantedDocTypeIds.size} из {allDocTypes.length}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 gap-2">
+            {allDocTypes.map((dt: any) => (
+              <div
+                key={dt.id}
+                className="flex items-center gap-3 p-2 rounded hover:bg-muted"
+              >
+                <Checkbox
+                  checked={grantedDocTypeIds.has(dt.id)}
+                  onCheckedChange={(checked) =>
+                    toggleDocPrivilege(dt.id, checked as boolean)
+                  }
+                />
+                <span
+                  className="w-3 h-3 rounded-full shrink-0"
+                  style={{ backgroundColor: dt.color || "gray" }}
+                />
+                <span className="text-sm">{dt.name_ru}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </TabsContent>
 
       <TabsContent value="rooms" className="mt-4">

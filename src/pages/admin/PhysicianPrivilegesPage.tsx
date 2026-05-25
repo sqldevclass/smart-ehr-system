@@ -145,6 +145,43 @@ export default function PhysicianPrivilegesPage() {
     enabled: !!selectedId,
   });
 
+  const { data: allDocTypes = [] } = useQuery({
+    queryKey: ["all-document-types"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("document_types")
+        .select("id, name_ru, color")
+        .eq("is_active", true)
+        .order("name_ru");
+      return data || [];
+    },
+  });
+
+  const grantedDocTypeIds = new Set(
+    documentPrivileges.map((p: any) => p.document_type_id)
+  );
+
+  const toggleDocPrivilege = async (docTypeId: string, granted: boolean) => {
+    if (!selectedId || !user) return;
+    if (granted) {
+      await supabase.from("physician_document_privileges").insert({
+        physician_id: selectedId,
+        document_type_id: docTypeId,
+        hospital_id: user.hospitalId,
+        granted_by: user.id,
+      });
+    } else {
+      await supabase
+        .from("physician_document_privileges")
+        .delete()
+        .eq("physician_id", selectedId)
+        .eq("document_type_id", docTypeId);
+    }
+    queryClient.invalidateQueries({
+      queryKey: ["physician-document-privileges", selectedId],
+    });
+  };
+
   const { data: officeRooms = [] } = useQuery({
     queryKey: ["office-rooms-active", user?.hospitalId],
     queryFn: async () => {
@@ -327,18 +364,34 @@ export default function PhysicianPrivilegesPage() {
                 </TabsContent>
 
                 <TabsContent value="documents" className="mt-4">
-                  {/* TODO Phase 7: replace with document types checkbox list */}
-                  {documentPrivileges.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      No document types configured yet. Document types will be available after documents are set up.
-                    </p>
-                  ) : (
-                    <ul className="space-y-2">
-                      {documentPrivileges.map((dp: any) => (
-                        <li key={dp.id} className="text-sm">{dp.document_type_id}</li>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-medium">Документы</h3>
+                      <span className="text-xs text-muted-foreground">
+                        {grantedDocTypeIds.size} из {allDocTypes.length}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 gap-2">
+                      {allDocTypes.map((dt: any) => (
+                        <div
+                          key={dt.id}
+                          className="flex items-center gap-3 p-2 rounded hover:bg-muted"
+                        >
+                          <Checkbox
+                            checked={grantedDocTypeIds.has(dt.id)}
+                            onCheckedChange={(checked) =>
+                              toggleDocPrivilege(dt.id, checked as boolean)
+                            }
+                          />
+                          <span
+                            className="w-3 h-3 rounded-full shrink-0"
+                            style={{ backgroundColor: dt.color || "gray" }}
+                          />
+                          <span className="text-sm">{dt.name_ru}</span>
+                        </div>
                       ))}
-                    </ul>
-                  )}
+                    </div>
+                  </div>
                 </TabsContent>
 
                 <TabsContent value="rooms" className="mt-4">

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { usePhysicianId } from "@/hooks/usePhysicianId";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -38,6 +39,7 @@ export default function InpatientPatientDetail() {
   const { hospId } = useParams<{ hospId: string }>();
   const hospitalizationId = hospId!;
   const { user } = useAuth();
+  const { physicianId } = usePhysicianId();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -105,18 +107,36 @@ export default function InpatientPatientDetail() {
   });
 
   const { data: documentTypes = [] } = useQuery({
-    queryKey: ["doc-types-active", user?.hospitalId],
+    queryKey: ["doc-types-active"],
     queryFn: async () => {
       const { data } = await supabase
         .from("document_types")
         .select("id, name_ru, color")
-        .eq("hospital_id", user!.hospitalId)
         .eq("is_active", true)
         .order("name_ru");
       return data || [];
     },
-    enabled: !!user?.hospitalId,
   });
+
+  const { data: docPrivileges = [] } = useQuery({
+    queryKey: ["physician-doc-privileges", physicianId],
+    enabled: !!physicianId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("physician_document_privileges")
+        .select("document_type_id")
+        .eq("physician_id", physicianId!)
+        .eq("hospital_id", user!.hospitalId);
+      return data || [];
+    },
+  });
+
+  const allowedDocTypeIds = new Set(
+    docPrivileges.map((p: any) => p.document_type_id)
+  );
+  const allowedDocTypes = documentTypes.filter(
+    (dt: any) => allowedDocTypeIds.has(dt.id)
+  );
 
   if (isLoading) return <p className="text-muted-foreground">Loading…</p>;
   if (!hosp) return <p className="text-destructive">Hospitalization not found.</p>;
@@ -174,24 +194,30 @@ export default function InpatientPatientDetail() {
                   <Button size="sm">+ Создать</Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                  {documentTypes.map((dt: any) => (
-                    <DropdownMenuItem
-                      key={dt.id}
-                      onClick={() =>
-                        setActiveView({
-                          type: "document",
-                          documentId: null,
-                          documentTypeId: dt.id,
-                        })
-                      }
-                    >
-                      <span
-                        className="w-3 h-3 rounded-full mr-2 inline-block"
-                        style={{ backgroundColor: dt.color }}
-                      />
-                      {dt.name_ru}
+                  {allowedDocTypes.length === 0 ? (
+                    <DropdownMenuItem disabled>
+                      Нет доступных документов. Обратитесь к администратору.
                     </DropdownMenuItem>
-                  ))}
+                  ) : (
+                    allowedDocTypes.map((dt: any) => (
+                      <DropdownMenuItem
+                        key={dt.id}
+                        onClick={() =>
+                          setActiveView({
+                            type: "document",
+                            documentId: null,
+                            documentTypeId: dt.id,
+                          })
+                        }
+                      >
+                        <span
+                          className="w-3 h-3 rounded-full mr-2 inline-block"
+                          style={{ backgroundColor: dt.color }}
+                        />
+                        {dt.name_ru}
+                      </DropdownMenuItem>
+                    ))
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
               <button
