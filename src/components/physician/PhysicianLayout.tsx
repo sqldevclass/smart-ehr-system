@@ -149,28 +149,30 @@ export default function PhysicianLayout() {
         </Sidebar>
 
         <div className="flex-1 flex flex-col">
-          <header className="h-14 flex items-center justify-between border-b bg-card px-4">
-            <div className="flex items-center gap-2">
+          <header className="h-14 flex items-center justify-between border-b bg-card px-4 gap-3">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
               <SidebarTrigger />
               {user && (
-                <span className="text-sm font-semibold text-foreground">
+                <span className="text-sm font-semibold text-foreground shrink-0">
                   {user.hospitalName}
                 </span>
               )}
-              {isInpatient && physician && user && (
-                <InpatientToolbox
-                  physicianId={physician.id}
-                  hospitalId={user.hospitalId}
-                />
-              )}
-              {!isInpatient && patientContext && (
-                <div className="flex items-center gap-3">
+              {patientContext && (
+                <div className="flex items-center gap-2 text-sm border-l pl-3 shrink-0">
                   {patientContext}
+                </div>
+              )}
+              {isInpatient && physician && user && (
+                <div className="flex-1 flex items-center gap-2 min-w-0">
+                  <InpatientToolbox
+                    physicianId={physician.id}
+                    hospitalId={user.hospitalId}
+                  />
                 </div>
               )}
             </div>
             {user && (
-              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <div className="flex items-center gap-3 text-sm text-muted-foreground ml-auto shrink-0">
                 <span>{user.fullName}</span>
                 <span className="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                   {user.roles.map((r) => roleTitles[r] || r).join(", ")}
