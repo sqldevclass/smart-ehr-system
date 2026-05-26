@@ -43,6 +43,7 @@ export default function InpatientPatientDetail() {
   const { physicianId } = usePhysicianId();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { setPatientContext } = usePhysicianLayoutContext();
 
   const [showAll, setShowAll] = useState(false);
   const [activeView, setActiveView] = useState<ActiveView>(null);
