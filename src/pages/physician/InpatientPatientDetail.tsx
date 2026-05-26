@@ -560,139 +560,126 @@ function ServiceTab({
 }
 
 /* --- Diagnoses tab --- */
-function DiagnosisTab({
-  showForm, setShowForm, hospitalizationId, patientId, hospitalId, userId,
-}: TabProps) {
-  const queryClient = useQueryClient();
-  const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState<any>(null);
-  const [diagType, setDiagType] = useState("main");
-  const [submitting, setSubmitting] = useState(false);
+const DIAG_TYPE_LABELS: Record<string, string> = {
+  main: "Основной",
+  complication: "Осложнение",
+  competing: "Конкурирующий",
+  concurrent: "Сопутствующий",
+  background: "Фоновый",
+  comorbid: "Сопутствующий",
+};
+function diagTypeLabel(t: string) {
+  return DIAG_TYPE_LABELS[t] ?? t;
+}
 
-  const { data: diagnoses = [] } = useQuery({
-    queryKey: ["inpatient-diagnoses", hospitalizationId],
+function DiagnosisTab({
+  hospitalizationId, patientId, hospitalId, userId,
+}: TabProps) {
+  const { data: currentDiagnoses = [], refetch: refetchCurrentDiagnoses } = useQuery({
+    queryKey: ["inpatient-diagnoses-current", hospitalizationId],
     queryFn: async () => {
       const { data } = await supabase
         .from("patient_diagnoses")
-        .select("id, icd10_code, diagnosis_type, recorded_at, icd10_codes(code, name_ru)")
-        .eq("hospitalization_id", hospitalizationId)
+        .select(`
+          id, icd10_code, diagnosis_type, notes, recorded_at,
+          icd10_codes!icd10_code(code, name_ru),
+          profiles!recorded_by(full_name)
+        `)
         .eq("hospital_id", hospitalId)
+        .eq("hospitalization_id", hospitalizationId)
+        .order("recorded_at");
+      return data || [];
+    },
+  });
+
+  const { data: historyDiagnoses = [] } = useQuery({
+    queryKey: ["inpatient-diagnoses-history", patientId, hospitalizationId],
+    enabled: !!patientId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("patient_diagnoses")
+        .select(`
+          id, icd10_code, diagnosis_type, notes, recorded_at,
+          icd10_codes!icd10_code(code, name_ru),
+          profiles!recorded_by(full_name),
+          hospitalizations!hospitalization_id(hospitalization_number, admitted_at)
+        `)
+        .eq("hospital_id", hospitalId)
+        .eq("patient_id", patientId)
+        .neq("hospitalization_id", hospitalizationId)
         .order("recorded_at", { ascending: false });
       return data || [];
     },
   });
 
-  const { data: searchResults = [] } = useQuery({
-    queryKey: ["icd10-search-inp", search],
-    queryFn: async () => {
-      if (search.trim().length < 1) return [];
-      const { data } = await supabase
-        .from("icd10_codes")
-        .select("id, code, name_ru")
-        .eq("is_leaf", true)
-        .or(`name_ru.ilike.%${search.trim()}%,code.ilike.%${search.trim()}%`)
-        .limit(20);
-      return data || [];
-    },
-    enabled: showForm && search.trim().length >= 1,
-  });
-
-  const handleSave = async () => {
-    if (!selected) return;
-    setSubmitting(true);
-    try {
-      const { error } = await supabase.from("patient_diagnoses").insert({
-        patient_id: patientId,
-        hospitalization_id: hospitalizationId,
-        hospital_id: hospitalId,
-        icd10_code: selected.code,
-        diagnosis_type: diagType,
-        recorded_by: userId,
-        recorded_at: new Date().toISOString(),
-      });
-      if (error) {
-        toast.error(error.message);
-        return;
-      }
-      toast.success("Диагноз добавлен");
-      setShowForm(false);
-      setSelected(null);
-      setSearch("");
-      setDiagType("main");
-      queryClient.invalidateQueries({ queryKey: ["inpatient-diagnoses", hospitalizationId] });
-    } finally {
-      setSubmitting(false);
-    }
+  const handleCopyDiagnosis = async (d: any) => {
+    await supabase.from("patient_diagnoses").insert({
+      patient_id: patientId,
+      hospital_id: hospitalId,
+      hospitalization_id: hospitalizationId,
+      icd10_code: d.icd10_code,
+      diagnosis_type: d.diagnosis_type,
+      notes: d.notes || null,
+      recorded_by: userId,
+    });
+    refetchCurrentDiagnoses();
   };
 
   return (
-    <div className="p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="font-semibold">Диагнозы</h3>
-        {!showForm && (
-          <Button size="sm" onClick={() => setShowForm(true)} className="gap-1">
-            <Plus className="h-4 w-4" /> Добавить
-          </Button>
-        )}
+    <div className="grid grid-cols-2 gap-4 p-4 h-full overflow-hidden">
+      <div className="overflow-y-auto">
+        <h3 className="font-semibold text-sm mb-3">Текущая госпитализация</h3>
+        {currentDiagnoses.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Диагнозов нет</p>
+        ) : currentDiagnoses.map((d: any) => (
+          <div key={d.id} className="p-3 rounded border mb-2">
+            <span className="text-xs text-muted-foreground uppercase">
+              {diagTypeLabel(d.diagnosis_type)}
+            </span>
+            <div className="text-sm font-medium">
+              {d.icd10_codes?.code} — {d.icd10_codes?.name_ru}
+            </div>
+            {d.notes && (
+              <div className="text-xs text-muted-foreground mt-1">{d.notes}</div>
+            )}
+            <div className="text-xs text-muted-foreground mt-1">
+              {d.profiles?.full_name} · {format(new Date(d.recorded_at), "dd.MM.yyyy HH:mm")}
+            </div>
+          </div>
+        ))}
       </div>
 
-      {showForm && (
-        <div className="border rounded p-3 space-y-3 bg-muted/30">
-          <div className="relative">
-            <Input
-              value={selected ? `${selected.code} — ${selected.name_ru}` : search}
-              onChange={(e) => { setSearch(e.target.value); setSelected(null); }}
-              placeholder="Поиск по МКБ-10..."
-            />
-            {!selected && searchResults.length > 0 && (
-              <div className="absolute z-50 w-full bg-card border rounded-md shadow-lg max-h-48 overflow-y-auto mt-1">
-                {searchResults.map((r: any) => (
-                  <div
-                    key={r.id}
-                    className="px-3 py-2 text-sm hover:bg-muted cursor-pointer"
-                    onClick={() => { setSelected(r); setSearch(""); }}
-                  >
-                    <span className="font-medium">{r.code}</span> — {r.name_ru}
-                  </div>
-                ))}
-              </div>
+      <div className="overflow-y-auto border-l pl-4">
+        <h3 className="font-semibold text-sm mb-3">История пациента</h3>
+        {historyDiagnoses.length === 0 ? (
+          <p className="text-sm text-muted-foreground">История пуста</p>
+        ) : historyDiagnoses.map((d: any) => (
+          <div key={d.id} className="p-3 rounded border mb-2 group relative">
+            <span className="text-xs text-muted-foreground uppercase">
+              {diagTypeLabel(d.diagnosis_type)}
+            </span>
+            <div className="text-sm font-medium">
+              {d.icd10_codes?.code} — {d.icd10_codes?.name_ru}
+            </div>
+            {d.notes && (
+              <div className="text-xs text-muted-foreground mt-1">{d.notes}</div>
             )}
+            <div className="text-xs text-muted-foreground mt-1">
+              {d.profiles?.full_name} · {format(new Date(d.recorded_at), "dd.MM.yyyy HH:mm")}
+              {d.hospitalizations && (
+                <span className="ml-1">· {d.hospitalizations?.hospitalization_number}</span>
+              )}
+            </div>
+            <button
+              onClick={() => handleCopyDiagnosis(d)}
+              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-primary text-xs border rounded px-2 py-0.5 bg-white hover:bg-primary hover:text-white transition-all"
+            >
+              + Добавить
+            </button>
           </div>
-          <Select value={diagType} onValueChange={setDiagType}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="main">Основной</SelectItem>
-              <SelectItem value="complication">Осложнение</SelectItem>
-              <SelectItem value="concurrent">Сопутствующий</SelectItem>
-              <SelectItem value="background">Фоновый</SelectItem>
-            </SelectContent>
-          </Select>
-          <div className="flex gap-2">
-            <Button size="sm" onClick={handleSave} disabled={!selected || submitting}>
-              {submitting ? "..." : "Сохранить"}
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => { setShowForm(false); setSelected(null); setSearch(""); }}>
-              Отмена
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {diagnoses.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Диагнозов пока нет.</p>
-      ) : (
-        <ul className="space-y-2">
-          {diagnoses.map((d: any) => (
-            <li key={d.id} className="border rounded p-2 text-sm flex items-center justify-between">
-              <div>
-                <span className="font-medium">{d.icd10_codes?.code || d.icd10_code}</span>{" "}
-                — {d.icd10_codes?.name_ru || ""}
-              </div>
-              <span className="text-xs px-2 py-1 rounded bg-muted">{d.diagnosis_type}</span>
-            </li>
-          ))}
-        </ul>
-      )}
+        ))}
+      </div>
     </div>
   );
 }
+
