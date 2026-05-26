@@ -109,6 +109,26 @@ export default function InpatientToolbox({ physicianId, hospitalId }: Props) {
     enabled: !!hospitalId,
   });
 
+  const { data: physicianDept } = useQuery({
+    queryKey: ["toolbox-physician-dept", physicianId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("physicians")
+        .select("department_id")
+        .eq("id", physicianId)
+        .maybeSingle();
+      return data?.department_id || null;
+    },
+    enabled: !!physicianId,
+  });
+
+  useEffect(() => {
+    if (physicianDept && selectedDeptIds.length === 0) {
+      setSelectedDeptIds([physicianDept]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [physicianDept]);
+
   const { data: recentPatients = [] } = useQuery({
     queryKey: ["recent-patients", physicianId, hospitalId],
     queryFn: async () => {
