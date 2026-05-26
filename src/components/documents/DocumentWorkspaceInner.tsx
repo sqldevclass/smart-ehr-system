@@ -323,8 +323,17 @@ export default function DocumentWorkspaceInner({
   const canConfirm =
     !isReadOnly && allMandatoryFilled && documentId !== null && !isConfirming;
 
+  if (sessionLoading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)]">
+
       {serviceStatusCode === "preliminary" && (
         <div className="flex items-center gap-2 px-4 py-2 bg-yellow-50 border-b border-yellow-200 text-yellow-800 text-sm">
           <span>⏳</span>
