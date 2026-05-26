@@ -1,58 +1,18 @@
-import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import {
-  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem,
-} from "@/components/ui/dropdown-menu";
 import { format, differenceInDays } from "date-fns";
+import { useInpatientContext } from "@/contexts/InpatientContext";
 
 export default function InpatientPatientsList() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [selectedDeptIds, setSelectedDeptIds] = useState<string[]>([]);
-  const [nameSearch, setNameSearch] = useState("");
-  const [idSearch, setIdSearch] = useState("");
-
-  const { data: physician } = useQuery({
-    queryKey: ["physician-dept", user?.id],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("physicians")
-        .select("id, department_id")
-        .eq("profile_id", user!.id)
-        .maybeSingle();
-      return data;
-    },
-    enabled: !!user,
-  });
-
-  const { data: departments = [] } = useQuery({
-    queryKey: ["departments-active", user?.hospitalId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("departments")
-        .select("id, name")
-        .eq("hospital_id", user!.hospitalId)
-        .eq("is_active", true)
-        .order("name");
-      return data || [];
-    },
-    enabled: !!user?.hospitalId,
-  });
-
-  useEffect(() => {
-    if (physician?.department_id && selectedDeptIds.length === 0) {
-      setSelectedDeptIds([physician.department_id]);
-    }
-  }, [physician?.department_id]);
+  const { selectedDeptIds, nameSearch, idSearch } = useInpatientContext();
 
   const { data: hospitalizations = [], isLoading } = useQuery({
     queryKey: ["inpatient-list", user?.hospitalId, selectedDeptIds],
@@ -114,51 +74,6 @@ export default function InpatientPatientsList() {
         <CardTitle>Стационарные пациенты</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex items-center gap-3 mb-4">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">Отделения ▼</Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuCheckboxItem
-                checked={selectedDeptIds.length === departments.length && departments.length > 0}
-                onCheckedChange={(checked) =>
-                  setSelectedDeptIds(checked
-                    ? departments.map((d: any) => d.id)
-                    : physician?.department_id ? [physician.department_id] : [])
-                }
-              >
-                Все отделения
-              </DropdownMenuCheckboxItem>
-              {departments.map((d: any) => (
-                <DropdownMenuCheckboxItem
-                  key={d.id}
-                  checked={selectedDeptIds.includes(d.id)}
-                  onCheckedChange={(checked) =>
-                    setSelectedDeptIds(prev =>
-                      checked ? [...prev, d.id] : prev.filter(id => id !== d.id)
-                    )
-                  }
-                >
-                  {d.name}
-                </DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Input
-            placeholder="Поиск по ФИО..."
-            value={nameSearch}
-            onChange={e => setNameSearch(e.target.value)}
-            className="w-48"
-          />
-          <Input
-            placeholder="Поиск по ID..."
-            value={idSearch}
-            onChange={e => setIdSearch(e.target.value)}
-            className="w-36"
-          />
-        </div>
-
         {isLoading ? (
           <p className="text-muted-foreground text-sm">Loading…</p>
         ) : !filtered.length ? (
