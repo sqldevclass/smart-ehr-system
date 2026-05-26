@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Outlet, useNavigate, useLocation, useOutletContext } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 
 import { CalendarDays, UserCircle, LogOut } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
@@ -7,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { InpatientProvider } from "@/contexts/InpatientContext";
+import InpatientToolbox from "@/components/inpatient/InpatientToolbox";
 import {
   Sidebar,
   SidebarContent,
@@ -54,8 +57,21 @@ export default function PhysicianLayout() {
     return (stored as Mode) || "ambulatory";
   });
 
+  const isInpatient = location.pathname.startsWith("/physician/inpatient");
 
-  // Sync mode from URL on initial load
+  const { data: physician } = useQuery({
+    queryKey: ["layout-physician", user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("physicians")
+        .select("id, department_id")
+        .eq("profile_id", user!.id)
+        .maybeSingle();
+      return data;
+    },
+  });
+
   useEffect(() => {
     if (location.pathname.startsWith("/physician/inpatient") && mode !== "inpatient") {
       setMode("inpatient");
@@ -75,7 +91,7 @@ export default function PhysicianLayout() {
     navigate(m === "ambulatory" ? "/physician" : "/physician/inpatient");
   };
 
-  return (
+  const content = (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <Sidebar collapsible="icon">
@@ -141,7 +157,13 @@ export default function PhysicianLayout() {
                   {user.hospitalName}
                 </span>
               )}
-              {patientContext && (
+              {isInpatient && physician && user && (
+                <InpatientToolbox
+                  physicianId={physician.id}
+                  hospitalId={user.hospitalId}
+                />
+              )}
+              {!isInpatient && patientContext && (
                 <div className="flex items-center gap-3">
                   {patientContext}
                 </div>
@@ -164,4 +186,6 @@ export default function PhysicianLayout() {
       </div>
     </SidebarProvider>
   );
+
+  return isInpatient ? <InpatientProvider>{content}</InpatientProvider> : content;
 }
