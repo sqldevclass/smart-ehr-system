@@ -20,6 +20,7 @@ interface Props {
   serviceStatusCode: string;
   onClose: () => void;
   hospitalizationId?: string;
+  existingDocumentId?: string;
 }
 
 export default function DocumentWorkspace(props: Props) {
