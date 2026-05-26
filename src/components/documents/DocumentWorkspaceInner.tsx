@@ -41,6 +41,7 @@ interface InnerProps {
   visitData: any;
   refetchVisit: () => void;
   hospitalizationId?: string;
+  existingDocumentId?: string;
 }
 
 export default function DocumentWorkspaceInner({
@@ -48,7 +49,7 @@ export default function DocumentWorkspaceInner({
   existingDoc, sectionsData, fieldsData, existingValues, patient,
   documentType, mainServices, childServices, pendingOrders, physicianNameMap,
   completedByProfile, visitDate, hospitalName, physicianId,
-  isConsultation, visitData, refetchVisit, hospitalizationId,
+  isConsultation, visitData, refetchVisit, hospitalizationId, existingDocumentId,
 }: InnerProps) {
 
 
@@ -77,13 +78,14 @@ export default function DocumentWorkspaceInner({
     documentIdRef.current = documentId;
   }, [documentId]);
 
-  const isReadOnly =
-    existingDoc?.status === "completed" ||
-    (existingDoc?.status === "preliminary" &&
-      existingDoc?.created_by && existingDoc?.created_by !== user?.id) ||
-    (!hospitalizationId &&
-      serviceStatusCode !== "ready_for_execution" &&
-      serviceStatusCode !== "completed");
+  const isReadOnly = (() => {
+    if (existingDoc?.status === "completed") return true;
+    if (existingDoc?.status === "preliminary" && existingDoc?.created_by !== user?.id) return true;
+    if (!hospitalizationId &&
+        serviceStatusCode !== "ready_for_execution" &&
+        serviceStatusCode !== "completed") return true;
+    return false;
+  })();
 
 
   const sections = useMemo(() => {
@@ -157,7 +159,7 @@ export default function DocumentWorkspaceInner({
         patient_id: patientId,
         hospital_id: hospitalId,
         document_type_id: documentTypeId,
-        visit_service_id: visitServiceId || null,
+        visit_service_id: visitServiceId && visitServiceId.length > 0 ? visitServiceId : null,
         hospitalization_id: hospitalizationId || null,
         status: "preliminary",
         created_by: session.user.id,

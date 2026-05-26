@@ -321,7 +321,7 @@ export default function InpatientPatientDetail() {
             {activeView?.type === "document" ? (
               <InpatientDocumentWorkspace
                 hospitalizationId={hospitalizationId}
-                documentId={activeView.documentId}
+                existingDocumentId={activeView.documentId ?? undefined}
                 documentTypeId={activeView.documentTypeId}
                 patientId={patientId}
                 hospitalId={user!.hospitalId}
