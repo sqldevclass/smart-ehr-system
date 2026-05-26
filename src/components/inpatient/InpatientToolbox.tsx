@@ -131,6 +131,8 @@ export default function InpatientToolbox({ physicianId, hospitalId }: Props) {
 
   const { data: recentPatients = [] } = useQuery({
     queryKey: ["recent-patients", physicianId, hospitalId],
+    staleTime: 0,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       const { data } = await supabase
         .from("physician_recent_patients")
