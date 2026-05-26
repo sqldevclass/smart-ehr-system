@@ -198,70 +198,65 @@ export default function InpatientPatientDetail() {
   };
 
   return (
-    <div className="space-y-2">
-      <Button variant="ghost" size="sm" onClick={() => navigate("/physician/inpatient")}>
-        <ArrowLeft className="mr-1 h-4 w-4" /> Назад
-      </Button>
-      <div className="flex gap-4 border rounded-lg overflow-hidden bg-card min-h-[calc(100vh-10rem)]">
+    <div>
+      <div className="flex gap-4 border rounded-lg overflow-hidden bg-card min-h-[calc(100vh-8rem)]">
         {/* LEFT */}
         <div className="w-72 shrink-0 border-r flex flex-col">
-          <div className="p-4 border-b">
-            <div className="font-semibold">
-              {patient.last_name} {patient.first_name} {patient.middle_name || ""}
+          {allergies.length > 0 && (
+            <div className="m-3 p-2 bg-red-50 border border-red-200 rounded text-red-700 font-semibold text-xs">
+              АЛЛЕРГИЯ: {allergies.map((a: any) => a.allergy_type).join(", ")}
             </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              П#: {patient.patient_number}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              ДР: {patient.date_of_birth ? format(new Date(patient.date_of_birth), "dd.MM.yyyy") : "—"}
-            </div>
-            {allergies.length > 0 && (
-              <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-red-700 font-semibold text-xs">
-                АЛЛЕРГИЯ: {allergies.map((a: any) => a.allergy_type).join(", ")}
-              </div>
-            )}
+          )}
+
+          <div className="flex items-center gap-2 p-3 border-b">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/physician/inpatient")}
+            >
+              <ArrowLeft className="mr-1 h-4 w-4" /> Назад
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm">+ Создать</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {allowedDocTypes.length === 0 ? (
+                  <DropdownMenuItem disabled>
+                    Нет доступных документов. Обратитесь к администратору.
+                  </DropdownMenuItem>
+                ) : (
+                  allowedDocTypes.map((dt: any) => (
+                    <DropdownMenuItem
+                      key={dt.id}
+                      onClick={() =>
+                        setActiveView({
+                          type: "document",
+                          documentId: null,
+                          documentTypeId: dt.id,
+                        })
+                      }
+                    >
+                      <span
+                        className="w-3 h-3 rounded-full mr-2 inline-block"
+                        style={{ backgroundColor: dt.color }}
+                      />
+                      {dt.name_ru}
+                    </DropdownMenuItem>
+                  ))
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <button
+              onClick={() => setShowAll(!showAll)}
+              className="text-xs text-primary underline ml-auto"
+            >
+              {showAll ? "Этот визит" : "Показать всё"}
+            </button>
           </div>
 
           <div className="p-3 flex-1 overflow-y-auto">
-            <div className="flex items-center justify-between mb-3">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button size="sm">+ Создать</Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  {allowedDocTypes.length === 0 ? (
-                    <DropdownMenuItem disabled>
-                      Нет доступных документов. Обратитесь к администратору.
-                    </DropdownMenuItem>
-                  ) : (
-                    allowedDocTypes.map((dt: any) => (
-                      <DropdownMenuItem
-                        key={dt.id}
-                        onClick={() =>
-                          setActiveView({
-                            type: "document",
-                            documentId: null,
-                            documentTypeId: dt.id,
-                          })
-                        }
-                      >
-                        <span
-                          className="w-3 h-3 rounded-full mr-2 inline-block"
-                          style={{ backgroundColor: dt.color }}
-                        />
-                        {dt.name_ru}
-                      </DropdownMenuItem>
-                    ))
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <button
-                onClick={() => setShowAll(!showAll)}
-                className="text-xs text-primary underline"
-              >
-                {showAll ? "Только этот визит" : "Показать всё"}
-              </button>
-            </div>
+
 
             {docsToShow.map((doc: any) => {
               const isOther = showAll && doc.hospitalization_id !== hospitalizationId;
