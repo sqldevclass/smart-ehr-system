@@ -242,6 +242,7 @@ export default function DocumentWorkspace(props: Props) {
 
   return (
     <DocumentWorkspaceInner
+      key={existingDocumentId ?? visitServiceId ?? "new"}
       visitServiceId={visitServiceId}
       patientId={patientId}
       visitId={visitId}

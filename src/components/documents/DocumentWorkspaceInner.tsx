@@ -59,7 +59,8 @@ export default function DocumentWorkspaceInner({
 
   const [documentId, setDocumentId] = useState<string | null>(null);
   const [values, setValues] = useState<Record<string, string>>({});
-  const [sessionLoading, setSessionLoading] = useState(true);
+  const [statusLoading, setStatusLoading] = useState(true);
+  const [fieldsLoading, setFieldsLoading] = useState(true);
   const [completedBy, setCompletedBy] = useState<string | null>(null);
   const [docCreatedBy, setDocCreatedBy] = useState<string | null>(null);
   const [docStatus, setDocStatus] = useState<string | null>(null);
@@ -76,47 +77,15 @@ export default function DocumentWorkspaceInner({
     documentIdRef.current = documentId;
   }, [documentId]);
 
-  // Load document session data once on mount
+  // Two-phase load: status first (establishes read-only), then field values
   useEffect(() => {
-    const loadDocument = async () => {
-      setSessionLoading(true);
+    const loadDocumentStatus = async () => {
       try {
-        let docId: string | null = existingDocumentId ?? null;
-
-        if (!docId) {
-          if (visitServiceId && visitServiceId.length > 0) {
-            const { data: doc } = await supabase
-              .from("patient_documents")
-              .select("id, status, completed_by, completed_at, created_by, document_type_id")
-              .eq("hospital_id", hospitalId)
-              .eq("document_type_id", documentTypeId)
-              .eq("visit_service_id", visitServiceId)
-              .maybeSingle();
-            if (doc) {
-              docId = doc.id;
-              setDocumentId(doc.id);
-              documentIdRef.current = doc.id;
-              setDocStatus(doc.status);
-              setDocCreatedBy(doc.created_by);
-              setCompletedAt(doc.completed_at);
-              if (doc.completed_by) {
-                const { data: profile } = await supabase
-                  .from("profiles")
-                  .select("full_name")
-                  .eq("id", doc.completed_by)
-                  .single();
-                setCompletedBy(profile?.full_name ?? null);
-              }
-            }
-          } else if (hospitalizationId) {
-            setSessionLoading(false);
-            return;
-          }
-        } else {
+        if (existingDocumentId) {
           const { data: doc } = await supabase
             .from("patient_documents")
             .select("id, status, completed_by, completed_at, created_by")
-            .eq("id", docId)
+            .eq("id", existingDocumentId)
             .single();
           if (doc) {
             setDocumentId(doc.id);
@@ -133,25 +102,57 @@ export default function DocumentWorkspaceInner({
               setCompletedBy(profile?.full_name ?? null);
             }
           }
-        }
-
-        if (docId) {
-          const { data: fieldValues } = await supabase
-            .from("patient_document_field_values")
-            .select("field_definition_id, value")
-            .eq("patient_document_id", docId);
-          const map: Record<string, string> = {};
-          (fieldValues || []).forEach((v: any) => {
-            map[v.field_definition_id] = v.value ?? "";
-          });
-          setValues(map);
-          valuesRef.current = map;
+        } else if (visitServiceId && visitServiceId.length > 0) {
+          const { data: doc } = await supabase
+            .from("patient_documents")
+            .select("id, status, completed_by, completed_at, created_by")
+            .eq("hospital_id", hospitalId)
+            .eq("document_type_id", documentTypeId)
+            .eq("visit_service_id", visitServiceId)
+            .maybeSingle();
+          if (doc) {
+            setDocumentId(doc.id);
+            documentIdRef.current = doc.id;
+            setDocStatus(doc.status);
+            setDocCreatedBy(doc.created_by);
+            setCompletedAt(doc.completed_at);
+            if (doc.completed_by) {
+              const { data: profile } = await supabase
+                .from("profiles")
+                .select("full_name")
+                .eq("id", doc.completed_by)
+                .single();
+              setCompletedBy(profile?.full_name ?? null);
+            }
+          }
         }
       } finally {
-        setSessionLoading(false);
+        setStatusLoading(false);
       }
     };
-    loadDocument();
+
+    const loadDocumentFields = async () => {
+      try {
+        const docId = documentIdRef.current;
+        if (!docId) return;
+        const { data: fieldValues } = await supabase
+          .from("patient_document_field_values")
+          .select("field_definition_id, value")
+          .eq("patient_document_id", docId);
+        const map: Record<string, string> = {};
+        (fieldValues || []).forEach((v: any) => {
+          map[v.field_definition_id] = v.value ?? "";
+        });
+        setValues(map);
+        valuesRef.current = map;
+      } finally {
+        setFieldsLoading(false);
+      }
+    };
+
+    loadDocumentStatus().then(() => {
+      loadDocumentFields();
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -323,7 +324,7 @@ export default function DocumentWorkspaceInner({
   const canConfirm =
     !isReadOnly && allMandatoryFilled && documentId !== null && !isConfirming;
 
-  if (sessionLoading) {
+  if (statusLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
