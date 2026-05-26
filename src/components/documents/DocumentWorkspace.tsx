@@ -85,7 +85,7 @@ export default function DocumentWorkspace(props: Props) {
 
   const { data: existingValues } = useQuery({
     queryKey: ["doc-ws-values", existingDoc?.id],
-    staleTime: Infinity,
+    staleTime: 0,
     refetchOnWindowFocus: false,
     placeholderData: undefined,
     enabled: !!existingDoc?.id,
@@ -98,19 +98,15 @@ export default function DocumentWorkspace(props: Props) {
     },
   });
 
-  // Invalidate on mount to force fresh fetch and on unmount to clear cache
   useEffect(() => {
-    // Force fresh fetch on every mount
-    queryClient.invalidateQueries({
-      queryKey: ["doc-ws-values"]
-    });
-    // Cleanup on unmount
     return () => {
-      queryClient.invalidateQueries({
-        queryKey: ["doc-ws-values"]
-      });
+      if (existingDoc?.id) {
+        queryClient.invalidateQueries({
+          queryKey: ["doc-ws-values", existingDoc.id]
+        });
+      }
     };
-  }, []);
+  }, [existingDoc?.id]);
 
   const { data: patient } = useQuery({
     queryKey: ["doc-ws-patient", patientId],
@@ -314,6 +310,7 @@ export default function DocumentWorkspace(props: Props) {
 
   return (
     <DocumentWorkspaceInner
+      key={existingDoc?.id ?? "new-document"}
       visitServiceId={visitServiceId}
       patientId={patientId}
       visitId={visitId}
