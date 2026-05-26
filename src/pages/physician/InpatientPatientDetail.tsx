@@ -73,6 +73,29 @@ export default function InpatientPatientDetail() {
   });
 
   const patientId = (hosp as any)?.patients?.id;
+  const patientForCtx = (hosp as any)?.patients;
+
+  useEffect(() => {
+    if (hosp && patientForCtx) {
+      setPatientContext(
+        <div className="flex items-center gap-2 text-sm">
+          <span className="font-semibold">
+            {patientForCtx.last_name} {patientForCtx.first_name}
+          </span>
+          {patientForCtx.date_of_birth && (
+            <span className="text-muted-foreground">
+              ДР: {format(new Date(patientForCtx.date_of_birth), "dd.MM.yyyy")}
+            </span>
+          )}
+          <span className="text-muted-foreground">
+            П#: {patientForCtx.patient_number}
+          </span>
+        </div>
+      );
+    }
+    return () => setPatientContext(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [(hosp as any)?.id]);
 
   useEffect(() => {
     if (!physicianId || !patientId || !user?.hospitalId) return;
