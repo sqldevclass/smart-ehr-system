@@ -104,7 +104,9 @@ export default function InpatientPatientDetail() {
       p_hospital_id: user.hospitalId,
       p_patient_id: patientId,
       p_hospitalization_id: hospitalizationId,
-    } as any);
+    } as any).then(({ error }) => {
+      if (error) console.error("track_recent_patient error:", error);
+    });
   }, [physicianId, patientId, user?.hospitalId, hospitalizationId]);
 
   const { data: thisDocs = [], refetch: refetchDocs } = useQuery({
