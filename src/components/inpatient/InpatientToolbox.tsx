@@ -208,6 +208,7 @@ export default function InpatientToolbox({ physicianId, hospitalId }: Props) {
                     onClick={() => {
                       navigate(`/physician/inpatient/${r.hospitalization_id}`);
                       setShowRecent(false);
+                      setRecentShowAll(false);
                     }}
                   >
                     <div>
