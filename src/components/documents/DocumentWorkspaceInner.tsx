@@ -302,9 +302,17 @@ export default function DocumentWorkspaceInner({
         return;
       }
       toast.success("Документ подтверждён");
-      queryClient.invalidateQueries({
-        queryKey: ["doc-ws-existing", visitServiceId, hospitalId],
-      });
+      setDocStatus("completed");
+      setCompletedAt(new Date().toISOString());
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", session.user.id)
+          .single();
+        setCompletedBy(profile?.full_name ?? null);
+      }
       queryClient.invalidateQueries({ queryKey: ["physician-schedule"] });
       onClose();
     } finally {
