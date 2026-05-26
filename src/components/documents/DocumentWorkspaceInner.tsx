@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Printer } from "lucide-react";
+import { ArrowLeft, Loader2, Printer } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import DocumentPatientHeader from "./DocumentPatientHeader";
@@ -23,17 +23,14 @@ interface InnerProps {
   documentTypeId: string;
   serviceStatusCode: string;
   onClose: () => void;
-  existingDoc: any;
   sectionsData: any[];
   fieldsData: any[];
-  existingValues: any[];
   patient: any;
   documentType: any;
   mainServices: any[];
   childServices: any[];
   pendingOrders: any[];
   physicianNameMap: Record<string, string>;
-  completedByProfile: any;
   visitDate: Date;
   hospitalName: string;
   physicianId: string | null;
@@ -47,9 +44,9 @@ interface InnerProps {
 
 export default function DocumentWorkspaceInner({
   visitServiceId, patientId, visitId, hospitalId, documentTypeId, serviceStatusCode, onClose,
-  existingDoc, sectionsData, fieldsData, existingValues, patient,
+  sectionsData, fieldsData, patient,
   documentType, mainServices, childServices, pendingOrders, physicianNameMap,
-  completedByProfile, visitDate, hospitalName, physicianId,
+  visitDate, hospitalName, physicianId,
   isConsultation, visitData, refetchVisit, hospitalizationId, existingDocumentId,
   onDocumentCreated,
 }: InnerProps) {
@@ -60,14 +57,13 @@ export default function DocumentWorkspaceInner({
   const queryClient = useQueryClient();
 
 
-  const [documentId, setDocumentId] = useState<string | null>(() => existingDoc?.id ?? null);
-  const [values, setValues] = useState<Record<string, string>>(() => {
-    const m: Record<string, string> = {};
-    (existingValues || []).forEach((v: any) => {
-      m[v.field_definition_id] = v.value ?? "";
-    });
-    return m;
-  });
+  const [documentId, setDocumentId] = useState<string | null>(null);
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [sessionLoading, setSessionLoading] = useState(true);
+  const [completedBy, setCompletedBy] = useState<string | null>(null);
+  const [docCreatedBy, setDocCreatedBy] = useState<string | null>(null);
+  const [docStatus, setDocStatus] = useState<string | null>(null);
+  const [completedAt, setCompletedAt] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [activeTab, setActiveTab] = useState("0");
@@ -80,14 +76,95 @@ export default function DocumentWorkspaceInner({
     documentIdRef.current = documentId;
   }, [documentId]);
 
+  // Load document session data once on mount
+  useEffect(() => {
+    const loadDocument = async () => {
+      setSessionLoading(true);
+      try {
+        let docId: string | null = existingDocumentId ?? null;
+
+        if (!docId) {
+          if (visitServiceId && visitServiceId.length > 0) {
+            const { data: doc } = await supabase
+              .from("patient_documents")
+              .select("id, status, completed_by, completed_at, created_by, document_type_id")
+              .eq("hospital_id", hospitalId)
+              .eq("document_type_id", documentTypeId)
+              .eq("visit_service_id", visitServiceId)
+              .maybeSingle();
+            if (doc) {
+              docId = doc.id;
+              setDocumentId(doc.id);
+              documentIdRef.current = doc.id;
+              setDocStatus(doc.status);
+              setDocCreatedBy(doc.created_by);
+              setCompletedAt(doc.completed_at);
+              if (doc.completed_by) {
+                const { data: profile } = await supabase
+                  .from("profiles")
+                  .select("full_name")
+                  .eq("id", doc.completed_by)
+                  .single();
+                setCompletedBy(profile?.full_name ?? null);
+              }
+            }
+          } else if (hospitalizationId) {
+            setSessionLoading(false);
+            return;
+          }
+        } else {
+          const { data: doc } = await supabase
+            .from("patient_documents")
+            .select("id, status, completed_by, completed_at, created_by")
+            .eq("id", docId)
+            .single();
+          if (doc) {
+            setDocumentId(doc.id);
+            documentIdRef.current = doc.id;
+            setDocStatus(doc.status);
+            setDocCreatedBy(doc.created_by);
+            setCompletedAt(doc.completed_at);
+            if (doc.completed_by) {
+              const { data: profile } = await supabase
+                .from("profiles")
+                .select("full_name")
+                .eq("id", doc.completed_by)
+                .single();
+              setCompletedBy(profile?.full_name ?? null);
+            }
+          }
+        }
+
+        if (docId) {
+          const { data: fieldValues } = await supabase
+            .from("patient_document_field_values")
+            .select("field_definition_id, value")
+            .eq("patient_document_id", docId);
+          const map: Record<string, string> = {};
+          (fieldValues || []).forEach((v: any) => {
+            map[v.field_definition_id] = v.value ?? "";
+          });
+          setValues(map);
+          valuesRef.current = map;
+        }
+      } finally {
+        setSessionLoading(false);
+      }
+    };
+    loadDocument();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const isReadOnly = (() => {
-    if (existingDoc?.status === "completed") return true;
-    if (existingDoc?.status === "preliminary" && existingDoc?.created_by !== user?.id) return true;
+    if (docStatus === "completed") return true;
+    if (docStatus === "preliminary" && docCreatedBy !== user?.id) return true;
     if (!hospitalizationId &&
         serviceStatusCode !== "ready_for_execution" &&
         serviceStatusCode !== "completed") return true;
     return false;
   })();
+
+
 
 
   const sections = useMemo(() => {
