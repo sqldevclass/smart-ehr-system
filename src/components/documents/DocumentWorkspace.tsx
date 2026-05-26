@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef } from "react";
-import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import { useMemo } from "react";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 
 const queryDefaults = {
   staleTime: Infinity,
@@ -26,30 +26,7 @@ interface Props {
 
 export default function DocumentWorkspace(props: Props) {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
   const { visitServiceId, patientId, visitId, hospitalId, documentTypeId, hospitalizationId, existingDocumentId } = props;
-
-  const { data: existingDoc } = useQuery({
-    queryKey: ["doc-ws-existing", existingDocumentId || visitServiceId || hospitalizationId, hospitalId],
-    ...queryDefaults,
-    enabled: !!(existingDocumentId || visitServiceId || hospitalizationId),
-    queryFn: async () => {
-      let q = supabase
-        .from("patient_documents")
-        .select("id, status, completed_by, completed_at, document_type_id, created_by")
-        .eq("hospital_id", hospitalId);
-      if (existingDocumentId) {
-        q = q.eq("id", existingDocumentId);
-      } else if (visitServiceId) {
-        q = q.eq("visit_service_id", visitServiceId).eq("document_type_id", documentTypeId);
-      } else if (hospitalizationId) {
-        return null;
-      }
-      const { data } = await q.maybeSingle();
-      return data ?? null;
-    },
-  });
-
 
   const { data: sectionsData } = useQuery({
     queryKey: ["doc-ws-sections", documentTypeId],
@@ -82,31 +59,6 @@ export default function DocumentWorkspace(props: Props) {
       return data || [];
     },
   });
-
-  const { data: existingValues } = useQuery({
-    queryKey: ["doc-ws-values", existingDoc?.id],
-    staleTime: 0,
-    refetchOnWindowFocus: false,
-    placeholderData: undefined,
-    enabled: !!existingDoc?.id,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("patient_document_field_values")
-        .select("field_definition_id, value")
-        .eq("patient_document_id", existingDoc!.id);
-      return data || [];
-    },
-  });
-
-  useEffect(() => {
-    return () => {
-      if (existingDoc?.id) {
-        queryClient.invalidateQueries({
-          queryKey: ["doc-ws-values", existingDoc.id]
-        });
-      }
-    };
-  }, [existingDoc?.id]);
 
   const { data: patient } = useQuery({
     queryKey: ["doc-ws-patient", patientId],
@@ -154,7 +106,6 @@ export default function DocumentWorkspace(props: Props) {
       return data;
     },
   });
-
 
   const { data: visit } = useQuery({
     queryKey: ["doc-ws-visit", visitId],
@@ -263,20 +214,6 @@ export default function DocumentWorkspace(props: Props) {
     return map;
   }, [physicianNames]);
 
-  const { data: completedByProfile } = useQuery({
-    queryKey: ["doc-ws-completedby", existingDoc?.completed_by],
-    ...queryDefaults,
-    enabled: !!existingDoc?.completed_by,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("id", existingDoc!.completed_by!)
-        .single();
-      return data;
-    },
-  });
-
   const { data: physicianData } = useQuery({
     queryKey: ["my-physician-id", user?.id],
     ...queryDefaults,
@@ -291,14 +228,9 @@ export default function DocumentWorkspace(props: Props) {
     },
   });
 
-  const isReady =
-    !!sectionsData && !!fieldsData && !!patient && !!documentType &&
-    (!existingDoc?.id || !!existingValues);
+  const isReady = !!sectionsData && !!fieldsData && !!patient && !!documentType;
 
-  const hasBeenReady = useRef(false);
-  if (isReady) hasBeenReady.current = true;
-
-  if (!isReady && !hasBeenReady.current) {
+  if (!isReady) {
     return (
       <div className="flex h-64 items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -310,7 +242,6 @@ export default function DocumentWorkspace(props: Props) {
 
   return (
     <DocumentWorkspaceInner
-      key={existingDoc?.id ?? "new-document"}
       visitServiceId={visitServiceId}
       patientId={patientId}
       visitId={visitId}
@@ -318,17 +249,14 @@ export default function DocumentWorkspace(props: Props) {
       documentTypeId={documentTypeId}
       serviceStatusCode={props.serviceStatusCode}
       onClose={props.onClose}
-      existingDoc={existingDoc}
       sectionsData={sectionsData}
       fieldsData={fieldsData}
-      existingValues={existingValues || []}
       patient={patient}
       documentType={documentType}
       mainServices={mainServices}
       childServices={childServices}
       pendingOrders={pendingOrders}
       physicianNameMap={physicianNameMap}
-      completedByProfile={completedByProfile}
       visitDate={visitDate}
       hospitalName={user?.hospitalName || ""}
       physicianId={physicianData?.id ?? null}
@@ -339,7 +267,5 @@ export default function DocumentWorkspace(props: Props) {
       existingDocumentId={existingDocumentId}
       onDocumentCreated={props.onDocumentCreated}
     />
-
   );
 }
-
