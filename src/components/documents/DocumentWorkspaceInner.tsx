@@ -41,6 +41,7 @@ interface InnerProps {
   visitData: any;
   refetchVisit: () => void;
   hospitalizationId?: string;
+  existingDocumentId?: string;
 }
 
 export default function DocumentWorkspaceInner({
@@ -48,7 +49,7 @@ export default function DocumentWorkspaceInner({
   existingDoc, sectionsData, fieldsData, existingValues, patient,
   documentType, mainServices, childServices, pendingOrders, physicianNameMap,
   completedByProfile, visitDate, hospitalName, physicianId,
-  isConsultation, visitData, refetchVisit, hospitalizationId,
+  isConsultation, visitData, refetchVisit, hospitalizationId, existingDocumentId,
 }: InnerProps) {
 
 
