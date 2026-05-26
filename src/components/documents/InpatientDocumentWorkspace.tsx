@@ -21,6 +21,7 @@ export default function InpatientDocumentWorkspace(props: Props) {
     existingDocumentId: props.existingDocumentId,
     serviceStatusCode: "ready_for_execution",
     onClose: props.onClose,
+    onDocumentCreated: props.onDocumentCreated,
   };
   return <DocumentWorkspace {...extra} />;
 }

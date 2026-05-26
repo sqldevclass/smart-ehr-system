@@ -340,6 +340,7 @@ export default function DocumentWorkspace(props: Props) {
       refetchVisit={refetchVisit}
       hospitalizationId={hospitalizationId}
       existingDocumentId={existingDocumentId}
+      onDocumentCreated={props.onDocumentCreated}
     />
 
   );
