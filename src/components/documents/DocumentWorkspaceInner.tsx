@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import DocumentPatientHeader from "./DocumentPatientHeader";
 import DocumentSection from "./DocumentSection";
+import DiagnosisTab from "./DiagnosisTab";
 import AssignmentsSection from "./AssignmentsSection";
 import TemplatePanel from "./TemplatePanel";
 import HospRecommendationSection from "./HospRecommendationSection";
