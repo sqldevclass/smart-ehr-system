@@ -7,6 +7,7 @@ interface Props {
   patientId: string;
   hospitalId: string;
   onClose: () => void;
+  onDocumentCreated?: (documentId: string) => void;
 }
 
 export default function InpatientDocumentWorkspace(props: Props) {
@@ -20,6 +21,7 @@ export default function InpatientDocumentWorkspace(props: Props) {
     existingDocumentId: props.existingDocumentId,
     serviceStatusCode: "ready_for_execution",
     onClose: props.onClose,
+    onDocumentCreated: props.onDocumentCreated,
   };
   return <DocumentWorkspace {...extra} />;
 }

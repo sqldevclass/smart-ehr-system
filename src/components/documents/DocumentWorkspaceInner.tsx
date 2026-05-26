@@ -42,6 +42,7 @@ interface InnerProps {
   refetchVisit: () => void;
   hospitalizationId?: string;
   existingDocumentId?: string;
+  onDocumentCreated?: (documentId: string) => void;
 }
 
 export default function DocumentWorkspaceInner({
@@ -50,6 +51,7 @@ export default function DocumentWorkspaceInner({
   documentType, mainServices, childServices, pendingOrders, physicianNameMap,
   completedByProfile, visitDate, hospitalName, physicianId,
   isConsultation, visitData, refetchVisit, hospitalizationId, existingDocumentId,
+  onDocumentCreated,
 }: InnerProps) {
 
 
@@ -169,8 +171,9 @@ export default function DocumentWorkspaceInner({
     if (error || !doc) return null;
     setDocumentId(doc.id);
     documentIdRef.current = doc.id;
+    onDocumentCreated?.(doc.id);
     return doc.id;
-  }, [patientId, hospitalId, documentTypeId, visitServiceId, hospitalizationId]);
+  }, [patientId, hospitalId, documentTypeId, visitServiceId, hospitalizationId, onDocumentCreated]);
 
 
   // Debounced autosave — 2s after last change
