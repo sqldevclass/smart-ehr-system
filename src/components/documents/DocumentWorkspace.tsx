@@ -21,6 +21,7 @@ interface Props {
   onClose: () => void;
   hospitalizationId?: string;
   existingDocumentId?: string;
+  onDocumentCreated?: (documentId: string) => void;
 }
 
 export default function DocumentWorkspace(props: Props) {

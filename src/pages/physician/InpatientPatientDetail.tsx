@@ -326,6 +326,16 @@ export default function InpatientPatientDetail() {
                 patientId={patientId}
                 hospitalId={user!.hospitalId}
                 onClose={closeView}
+                onDocumentCreated={(newDocId) => {
+                  setActiveView((prev) =>
+                    prev?.type === "document"
+                      ? { ...prev, documentId: newDocId }
+                      : prev
+                  );
+                  queryClient.invalidateQueries({
+                    queryKey: ["inpatient-docs", hospitalizationId],
+                  });
+                }}
               />
             ) : activeView?.type === "tab" ? (
               <TabPanel

@@ -7,6 +7,7 @@ interface Props {
   patientId: string;
   hospitalId: string;
   onClose: () => void;
+  onDocumentCreated?: (documentId: string) => void;
 }
 
 export default function InpatientDocumentWorkspace(props: Props) {

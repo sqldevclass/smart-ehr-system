@@ -42,6 +42,7 @@ interface InnerProps {
   refetchVisit: () => void;
   hospitalizationId?: string;
   existingDocumentId?: string;
+  onDocumentCreated?: (documentId: string) => void;
 }
 
 export default function DocumentWorkspaceInner({
