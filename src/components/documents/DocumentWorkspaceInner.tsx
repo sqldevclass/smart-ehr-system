@@ -529,16 +529,16 @@ export default function DocumentWorkspaceInner({
             </div>
           )}
 
-          {isReadOnly && existingDoc?.completed_at && (
+          {isReadOnly && completedAt && (
             <div className="mt-8 pt-4 border-t flex items-end justify-between text-sm">
               <div>
                 <span className="text-muted-foreground">Подтверждено: </span>
                 <span className="font-medium">
-                  {completedByProfile?.full_name ?? "—"}
+                  {completedBy ?? "—"}
                 </span>
               </div>
               <div className="text-muted-foreground">
-                {format(new Date(existingDoc.completed_at), "dd.MM.yyyy HH:mm")}
+                {format(new Date(completedAt), "dd.MM.yyyy HH:mm")}
               </div>
             </div>
           )}
