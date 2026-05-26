@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import DocumentPatientHeader from "./DocumentPatientHeader";
 import DocumentSection from "./DocumentSection";
+import DiagnosisTab from "./DiagnosisTab";
 import AssignmentsSection from "./AssignmentsSection";
 import TemplatePanel from "./TemplatePanel";
 import HospRecommendationSection from "./HospRecommendationSection";
@@ -472,12 +473,34 @@ export default function DocumentWorkspaceInner({
                       : "—"}
                   </div>
                 )}
-                <DocumentSection
-                  section={s}
-                  values={values}
-                  setVal={setVal}
-                  isReadOnly={isReadOnly}
-                />
+                {s.code === "diagnosis" ? (() => {
+                  const mainDiagFieldId =
+                    s.fields.find((f: any) => f.def.attribute_code === "diag.main")?.def.id ?? null;
+                  return (
+                    <DiagnosisTab
+                      hospitalizationId={hospitalizationId}
+                      visitId={visitId}
+                      patientId={patientId}
+                      hospitalId={hospitalId}
+                      documentId={documentId}
+                      documentTypeId={documentTypeId}
+                      isReadOnly={isReadOnly}
+                      currentUserId={user!.id}
+                      mainDiagnosisFieldId={mainDiagFieldId}
+                      mainDiagnosisValue={mainDiagFieldId ? (values[mainDiagFieldId] ?? "") : ""}
+                      onMainDiagnosisChange={(val) => {
+                        if (mainDiagFieldId) setVal(mainDiagFieldId, val);
+                      }}
+                    />
+                  );
+                })() : (
+                  <DocumentSection
+                    section={s}
+                    values={values}
+                    setVal={setVal}
+                    isReadOnly={isReadOnly}
+                  />
+                )}
                 {s.code === "treatment_plan" && (
                   <div className="mt-8 pt-6 border-t border-gray-200">
                     <AssignmentsSection
