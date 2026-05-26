@@ -92,7 +92,7 @@ export default function PhysicianLayout() {
   };
 
   const content = (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={false}>
       <div className="min-h-screen flex w-full">
         <Sidebar collapsible="icon">
           <SidebarContent>
