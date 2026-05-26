@@ -72,6 +72,16 @@ export default function InpatientPatientDetail() {
 
   const patientId = (hosp as any)?.patients?.id;
 
+  useEffect(() => {
+    if (!physicianId || !patientId || !user?.hospitalId) return;
+    supabase.rpc("track_recent_patient", {
+      p_physician_id: physicianId,
+      p_hospital_id: user.hospitalId,
+      p_patient_id: patientId,
+      p_hospitalization_id: hospitalizationId,
+    } as any);
+  }, [physicianId, patientId, user?.hospitalId, hospitalizationId]);
+
   const { data: thisDocs = [], refetch: refetchDocs } = useQuery({
     queryKey: ["inpatient-docs", hospitalizationId],
     queryFn: async () => {
