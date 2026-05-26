@@ -159,7 +159,7 @@ export default function DocumentWorkspaceInner({
         patient_id: patientId,
         hospital_id: hospitalId,
         document_type_id: documentTypeId,
-        visit_service_id: visitServiceId || null,
+        visit_service_id: visitServiceId && visitServiceId.length > 0 ? visitServiceId : null,
         hospitalization_id: hospitalizationId || null,
         status: "preliminary",
         created_by: session.user.id,
