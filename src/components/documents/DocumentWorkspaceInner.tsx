@@ -78,13 +78,14 @@ export default function DocumentWorkspaceInner({
     documentIdRef.current = documentId;
   }, [documentId]);
 
-  const isReadOnly =
-    existingDoc?.status === "completed" ||
-    (existingDoc?.status === "preliminary" &&
-      existingDoc?.created_by && existingDoc?.created_by !== user?.id) ||
-    (!hospitalizationId &&
-      serviceStatusCode !== "ready_for_execution" &&
-      serviceStatusCode !== "completed");
+  const isReadOnly = (() => {
+    if (existingDoc?.status === "completed") return true;
+    if (existingDoc?.status === "preliminary" && existingDoc?.created_by !== user?.id) return true;
+    if (!hospitalizationId &&
+        serviceStatusCode !== "ready_for_execution" &&
+        serviceStatusCode !== "completed") return true;
+    return false;
+  })();
 
 
   const sections = useMemo(() => {
