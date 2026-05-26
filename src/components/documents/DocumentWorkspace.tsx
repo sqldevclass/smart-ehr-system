@@ -338,6 +338,7 @@ export default function DocumentWorkspace(props: Props) {
       visitData={visitData ?? null}
       refetchVisit={refetchVisit}
       hospitalizationId={hospitalizationId}
+      existingDocumentId={existingDocumentId}
     />
 
   );
