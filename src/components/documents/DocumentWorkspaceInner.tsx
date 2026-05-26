@@ -59,7 +59,8 @@ export default function DocumentWorkspaceInner({
 
   const [documentId, setDocumentId] = useState<string | null>(null);
   const [values, setValues] = useState<Record<string, string>>({});
-  const [sessionLoading, setSessionLoading] = useState(true);
+  const [statusLoading, setStatusLoading] = useState(true);
+  const [fieldsLoading, setFieldsLoading] = useState(true);
   const [completedBy, setCompletedBy] = useState<string | null>(null);
   const [docCreatedBy, setDocCreatedBy] = useState<string | null>(null);
   const [docStatus, setDocStatus] = useState<string | null>(null);
