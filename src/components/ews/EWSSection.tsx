@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -186,6 +186,19 @@ export default function EWSSection({
   const escalationLevel =
     totalScore === 0 ? 0 : totalScore <= 2 ? 1 : totalScore <= 6 ? 2 : 3;
 
+  const isDue = ewsSchedule && new Date(ewsSchedule.next_due_at) <= new Date();
+  const isDueSoon = ewsSchedule && !isDue && (new Date(ewsSchedule.next_due_at).getTime() - Date.now()) <= 30 * 60 * 1000;
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      queryClient.invalidateQueries({
+        queryKey: ["ews-schedule", hospitalizationId],
+      });
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [hospitalizationId, queryClient]);
+
+
   const handleSubmitEWS = async () => {
     if (!scale) return;
     setSubmitting(true);
@@ -254,6 +267,25 @@ export default function EWSSection({
           </Button>
         )}
       </div>
+
+      {!isReadOnly && (isDue || isDueSoon) && (
+        <div className={cn(
+          "flex items-center gap-2 p-2 rounded text-sm mb-3",
+          isDue
+            ? "bg-red-50 text-red-700 border border-red-200"
+            : "bg-yellow-50 text-yellow-700 border border-yellow-200"
+        )}>
+          <span className={cn(
+            "w-2.5 h-2.5 rounded-full shrink-0",
+            isDue
+              ? "bg-red-500 animate-ping"
+              : "bg-yellow-400 animate-pulse"
+          )} />
+          {isDue
+            ? "Необходимо внести показатели ШРПУ"
+            : "Скоро время вносить показатели ШРПУ"}
+        </div>
+      )}
 
       {ewsSchedule && (
         <div

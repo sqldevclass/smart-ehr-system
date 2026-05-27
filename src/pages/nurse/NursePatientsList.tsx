@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/dialog";
 import { RoomBedSelector, RoomBedValue } from "@/components/inpatient/RoomBedSelector";
 import { toast } from "sonner";
+import { useEWSSchedule } from "@/hooks/useEWSSchedule";
+import EWSStatusDot from "@/components/ews/EWSStatusDot";
 
 export default function NursePatientsList() {
   const { user } = useAuth();
@@ -29,6 +31,7 @@ export default function NursePatientsList() {
     tabletMode,
     setTabletMode,
   } = useNurseContext();
+  const { getStatus, scheduleMap } = useEWSSchedule(user?.hospitalId);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [assignTarget, setAssignTarget] = useState<any>(null);
   const [roomBed, setRoomBed] = useState<RoomBedValue>({ roomId: "", bedNumber: null });
@@ -227,8 +230,11 @@ export default function NursePatientsList() {
                           <td className="px-3 py-2 text-center text-xs">
                             {days}
                           </td>
-                          <td className="px-3 py-2 text-center text-xs text-muted-foreground">
-                            —
+                          <td className="px-3 py-2 text-center text-xs">
+                            <EWSStatusDot
+                              status={getStatus(h.id)}
+                              score={scheduleMap[h.id]?.last_score}
+                            />
                           </td>
                         </tr>
                       );
@@ -281,7 +287,12 @@ export default function NursePatientsList() {
                         {(h as any).physicians?.profiles?.full_name || "—"}
                       </TableCell>
                       <TableCell className="text-sm">{days} дн.</TableCell>
-                      <TableCell className="text-muted-foreground">—</TableCell>
+                      <TableCell>
+                        <EWSStatusDot
+                          status={getStatus(h.id)}
+                          score={scheduleMap[h.id]?.last_score}
+                        />
+                      </TableCell>
                       <TableCell className="text-muted-foreground">—</TableCell>
                       <TableCell className="text-muted-foreground">—</TableCell>
                       <TableCell className="text-muted-foreground">—</TableCell>
