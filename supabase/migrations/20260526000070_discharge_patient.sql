@@ -1,6 +1,6 @@
 -- Migration 070: Discharge patient
--- Add discharged_by to hospitalizations
--- Add discharge RPC
+-- Add discharged_by and discharge_notes to hospitalizations
+-- Add discharge_patient RPC
 
 ALTER TABLE public.hospitalizations
   ADD COLUMN IF NOT EXISTS discharged_by
@@ -34,8 +34,7 @@ BEGIN
 
   IF NOT public.has_permission(
     'hospitalizations.discharge') THEN
-    RAISE EXCEPTION
-      'Permission denied';
+    RAISE EXCEPTION 'Permission denied';
   END IF;
 
   IF p_discharge_type NOT IN (
@@ -60,10 +59,10 @@ BEGIN
 
   -- 1. Discharge hospitalization
   UPDATE public.hospitalizations
-  SET discharged_at    = now(),
-      discharge_type   = p_discharge_type,
-      discharged_by    = v_caller_id,
-      discharge_notes  = p_discharge_notes
+  SET discharged_at   = now(),
+      discharge_type  = p_discharge_type,
+      discharged_by   = v_caller_id,
+      discharge_notes = p_discharge_notes
   WHERE id = p_hospitalization_id;
 
   -- 2. Close room assignment
@@ -72,8 +71,13 @@ BEGIN
   WHERE hospitalization_id = p_hospitalization_id
     AND discharged_at IS NULL;
 
-  -- 3. Invoice stays unpaid until cashier
-  -- processes final payment at discharge
+  -- 3. Reset hospitalization recommendation
+  -- so patient doesn't reappear in admission queue
+  UPDATE public.visits
+  SET hospitalization_recommended = false
+  WHERE patient_id = v_hosp.patient_id
+    AND hospital_id = v_hospital_id
+    AND hospitalization_recommended = true;
 
   -- 4. Audit log
   INSERT INTO public.audit_logs (
