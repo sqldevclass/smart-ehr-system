@@ -628,7 +628,7 @@ function diagTypeLabel(t: string) {
 }
 
 function DiagnosisTab({
-  hospitalizationId, patientId, hospitalId, userId,
+  hospitalizationId, patientId, hospitalId, userId, readOnly,
 }: TabProps) {
   const { data: currentDiagnoses = [], refetch: refetchCurrentDiagnoses } = useQuery({
     queryKey: ["inpatient-diagnoses-current", hospitalizationId],
