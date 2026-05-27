@@ -419,7 +419,7 @@ function TabPanel(props: TabProps) {
     case "imaging":
       return <Placeholder text="Инструментальные — Фаза 8 — в разработке" />;
     case "care":
-      return <Placeholder text="Уход — Фаза 9 — в разработке" />;
+      return <CareTab {...props} />;
     case "ews":
       return <Placeholder text="ШРПУ — Фаза 8 — в разработке" />;
   }
