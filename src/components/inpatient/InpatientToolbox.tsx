@@ -77,7 +77,13 @@ function SearchResultsDropdown({ search, type, hospitalId, selectedDeptIds, onSe
   );
 }
 
-export default function InpatientToolbox({ physicianId, hospitalId }: Props) {
+export default function InpatientToolbox({
+  physicianId,
+  hospitalId,
+  showRecentPatients = true,
+  listPath = "/physician/inpatient",
+  detailPathPrefix = "/physician/inpatient/",
+}: Props) {
   const navigate = useNavigate();
   const location = useLocation();
   const {
@@ -95,8 +101,8 @@ export default function InpatientToolbox({ physicianId, hospitalId }: Props) {
   const [showSearchResults, setShowSearchResults] = useState(false);
 
   const isDetailPage =
-    location.pathname.includes("/inpatient/") &&
-    location.pathname !== "/physician/inpatient";
+    location.pathname.startsWith(detailPathPrefix) &&
+    location.pathname !== listPath;
 
   const { data: departments = [] } = useQuery({
     queryKey: ["toolbox-departments", hospitalId],
