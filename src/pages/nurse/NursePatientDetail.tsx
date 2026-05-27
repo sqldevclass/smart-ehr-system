@@ -319,11 +319,21 @@ export default function NursePatientDetail() {
           </div>
         </div>
 
-        <div className="p-4 border-l">
+        <div className="p-4 border-l h-full overflow-y-auto">
           <h3 className="font-semibold mb-4">Уход и назначения</h3>
-          <p className="text-sm text-muted-foreground">
-            Фаза 9 — в разработке. Здесь будут отображаться инструкции по уходу от лечащего врача.
-          </p>
+          {careOrders.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Назначений нет</p>
+          ) : careOrders.map((o: any) => (
+            <div key={o.id} className="border rounded p-3 space-y-1 mb-2">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                {ORDER_TYPE_LABELS[o.order_type as keyof typeof ORDER_TYPE_LABELS] ?? o.order_type}
+              </span>
+              <p className="text-sm">{o.order_value}</p>
+              <div className="text-xs text-muted-foreground">
+                {o.profiles?.full_name} · {format(new Date(o.ordered_at), "dd.MM.yyyy HH:mm")}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
