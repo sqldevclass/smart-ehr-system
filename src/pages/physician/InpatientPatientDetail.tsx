@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import InpatientDocumentWorkspace from "@/components/documents/InpatientDocumentWorkspace";
 import DischargeDialog from "@/components/inpatient/DischargeDialog";
+import EWSSection from "@/components/ews/EWSSection";
 import { usePhysicianLayoutContext } from "@/components/physician/PhysicianLayout";
 
 type TabKey = "medication" | "imaging" | "lab" | "consultation" | "care" | "diagnosis" | "ews";
@@ -421,6 +422,8 @@ export default function InpatientPatientDetail() {
                 hospitalId={user!.hospitalId}
                 userId={user!.id}
                 readOnly={isHospDischarged}
+                patientDateOfBirth={(hosp as any)?.patients?.date_of_birth}
+                admittedAt={(hosp as any)?.admitted_at}
               />
             ) : (
               <div className="p-10 text-center text-muted-foreground text-sm">
@@ -458,6 +461,8 @@ interface TabProps {
   hospitalId: string;
   userId: string;
   readOnly?: boolean;
+  patientDateOfBirth?: string;
+  admittedAt?: string;
 }
 
 function TabPanel(props: TabProps) {
@@ -476,7 +481,18 @@ function TabPanel(props: TabProps) {
     case "care":
       return <CareTab {...props} />;
     case "ews":
-      return <Placeholder text="ШРПУ — Фаза 8 — в разработке" />;
+      return (
+        <div className="p-4">
+          <EWSSection
+            hospitalizationId={props.hospitalizationId}
+            patientId={props.patientId}
+            hospitalId={props.hospitalId}
+            patientDateOfBirth={props.patientDateOfBirth!}
+            admittedAt={props.admittedAt!}
+            isReadOnly={true}
+          />
+        </div>
+      );
   }
 }
 
