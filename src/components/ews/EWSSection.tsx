@@ -19,6 +19,7 @@ interface Props {
   patientDateOfBirth: string;
   admittedAt: string;
   isReadOnly?: boolean;
+  canOverride?: boolean;
 }
 
 const bgColor: Record<string, string> = {
