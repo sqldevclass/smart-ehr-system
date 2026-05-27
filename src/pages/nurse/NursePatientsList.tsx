@@ -3,14 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useNurseContext } from "@/contexts/NurseContext";
 import { format, differenceInDays } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -18,21 +16,24 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { RoomBedSelector, RoomBedValue } from "@/components/inpatient/RoomBedSelector";
 import { toast } from "sonner";
 
 export default function NursePatientsList() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [deptFilter, setDeptFilter] = useState<string>("all");
+  const {
+    selectedDeptIds,
+    nameSearch,
+    idSearch,
+    tabletMode,
+    setTabletMode,
+  } = useNurseContext();
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [assignTarget, setAssignTarget] = useState<any>(null);
   const [roomBed, setRoomBed] = useState<RoomBedValue>({ roomId: "", bedNumber: null });
   const [submitting, setSubmitting] = useState(false);
-  const [tabletMode, setTabletMode] = useState(false);
-  const [nameSearch, setNameSearch] = useState("");
-  const [idSearch, setIdSearch] = useState("");
+
 
   const { data: departments = [] } = useQuery({
     queryKey: ["nurse-departments", user?.hospitalId],
