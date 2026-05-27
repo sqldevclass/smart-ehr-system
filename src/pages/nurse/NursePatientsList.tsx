@@ -152,6 +152,18 @@ export default function NursePatientsList() {
               ))}
             </SelectContent>
           </Select>
+          <Input
+            placeholder="Поиск по ФИО..."
+            value={nameSearch}
+            onChange={(e) => setNameSearch(e.target.value)}
+            className="w-44 h-8 text-sm"
+          />
+          <Input
+            placeholder="Поиск по ID..."
+            value={idSearch}
+            onChange={(e) => setIdSearch(e.target.value)}
+            className="w-36 h-8 text-sm"
+          />
           <div className="flex items-center gap-2">
             <Switch
               id="tablet-toggle"
