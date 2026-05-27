@@ -197,9 +197,47 @@ export default function EWSSection({
   const handleSaveOverrides = async () => {
     setSavingOverrides(true);
     for (const param of parameters as any[]) {
-      const val = overrideValues[param.id];
-      const hasOverride = val?.min || val?.max;
-      if (hasOverride) {
+      if (param.input_type === "enum") continue;
+      const paramZones = thresholds
+        .filter((t: any) => t.parameter_id === param.id)
+        .sort((a: any, b: any) => {
+          const aMin = a.min_value ?? -999999;
+          const bMin = b.min_value ?? -999999;
+          return aMin - bMin;
+        });
+      const whiteIdx = paramZones.findIndex((z: any) => z.score === 0);
+
+      const lowUpperBoundaries: number[] = [];
+      const highLowerBoundaries: number[] = [];
+      let edited = false;
+
+      paramZones.forEach((zone: any, idx: number) => {
+        if (zone.score === 0) return;
+        const zoneKey = `${param.id}_${idx}`;
+        const v = overrideValues[zoneKey];
+        const isLow = whiteIdx === -1 ? idx < paramZones.length / 2 : idx < whiteIdx;
+        if (isLow) {
+          const raw = v?.max ?? zone.max_value?.toString() ?? "";
+          const num = raw === "" ? null : parseFloat(raw);
+          if (v?.max !== undefined && v.max !== "" && parseFloat(v.max) !== zone.max_value) edited = true;
+          if (num !== null && !isNaN(num)) lowUpperBoundaries.push(num);
+        } else {
+          const raw = v?.min ?? zone.min_value?.toString() ?? "";
+          const num = raw === "" ? null : parseFloat(raw);
+          if (v?.min !== undefined && v.min !== "" && parseFloat(v.min) !== zone.min_value) edited = true;
+          if (num !== null && !isNaN(num)) highLowerBoundaries.push(num);
+        }
+      });
+
+      const overrideMin = lowUpperBoundaries.length
+        ? Math.max(...lowUpperBoundaries) + 1
+        : null;
+      const overrideMax = highLowerBoundaries.length
+        ? Math.min(...highLowerBoundaries) - 1
+        : null;
+      const reason = overrideValues[param.id]?.reason || null;
+
+      if (edited && (overrideMin !== null || overrideMax !== null)) {
         await supabase
           .from("ews_patient_overrides")
           .upsert(
@@ -208,9 +246,9 @@ export default function EWSSection({
               patient_id: patientId,
               hospital_id: hospitalId,
               parameter_id: param.id,
-              override_min: val.min ? parseFloat(val.min) : null,
-              override_max: val.max ? parseFloat(val.max) : null,
-              reason: val.reason || null,
+              override_min: overrideMin,
+              override_max: overrideMax,
+              reason,
               overridden_by: user!.id,
               is_active: true,
             },
