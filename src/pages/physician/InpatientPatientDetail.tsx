@@ -371,7 +371,7 @@ export default function InpatientPatientDetail() {
                     >
                       {t.label}
                     </button>
-                    {t.hasPlus && (
+                    {t.hasPlus && !isHospDischarged && (
                       <button
                         onClick={() => tabPlus(t.key)}
                         className="p-1 text-muted-foreground hover:text-primary"
