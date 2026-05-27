@@ -181,6 +181,8 @@ export default function InpatientPatientDetail() {
   if (isLoading) return <p className="text-muted-foreground">Loading…</p>;
   if (!hosp) return <p className="text-destructive">Hospitalization not found.</p>;
 
+  const isHospDischarged = !!(hosp as any)?.discharged_at;
+
   const patient = (hosp as any).patients;
   const allergies = patient?.patient_allergies || [];
   const docsToShow = showAll ? allDocs : thisDocs;
@@ -198,6 +200,7 @@ export default function InpatientPatientDetail() {
   };
 
   const tabPlus = (tab: TabKey) => {
+    if (isHospDischarged) return;
     setActiveView({ type: "tab", tab });
     setShowInlineForm(true);
   };
