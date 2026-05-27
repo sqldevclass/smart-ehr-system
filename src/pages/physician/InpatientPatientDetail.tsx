@@ -486,7 +486,7 @@ function Placeholder({ text }: { text: string }) {
 
 /* --- Lab / Consultation tab --- */
 function ServiceTab({
-  showForm, setShowForm, hospitalizationId, patientId, hospitalId, userId, typeCode, title,
+  showForm, setShowForm, hospitalizationId, patientId, hospitalId, userId, typeCode, title, readOnly,
 }: TabProps & { typeCode: "laboratory" | "consultation"; title: string }) {
   const queryClient = useQueryClient();
   const [selectedServiceId, setSelectedServiceId] = useState("");
