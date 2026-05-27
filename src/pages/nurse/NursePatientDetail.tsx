@@ -27,6 +27,12 @@ const EMPTY_VITALS = {
   notes: "",
 };
 
+const ORDER_TYPE_LABELS: Record<string, string> = {
+  diet: "Диета",
+  activity_mode: "Режим активности",
+  care: "Уход",
+};
+
 export default function NursePatientDetail() {
   const { hospId } = useParams<{ hospId: string }>();
   const { user } = useAuth();
@@ -113,6 +119,27 @@ export default function NursePatientDetail() {
       setSaving(false);
     }
   };
+
+  const { data: careOrders = [] } = useQuery({
+    queryKey: ["nurse-care-orders", hospId],
+    staleTime: 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hospitalization_orders")
+        .select(`
+          id, order_type, order_value,
+          ordered_at,
+          profiles!ordered_by(full_name)
+        `)
+        .eq("hospitalization_id", hospId!)
+        .eq("hospital_id", user!.hospitalId)
+        .eq("is_active", true)
+        .order("ordered_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!hospId && !!user?.hospitalId,
+  });
 
   if (isLoading) return <p className="text-muted-foreground">Загрузка…</p>;
   if (!hosp) return <p className="text-destructive">Госпитализация не найдена.</p>;
@@ -292,11 +319,21 @@ export default function NursePatientDetail() {
           </div>
         </div>
 
-        <div className="p-4 border-l">
+        <div className="p-4 border-l h-full overflow-y-auto">
           <h3 className="font-semibold mb-4">Уход и назначения</h3>
-          <p className="text-sm text-muted-foreground">
-            Фаза 9 — в разработке. Здесь будут отображаться инструкции по уходу от лечащего врача.
-          </p>
+          {careOrders.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Назначений нет</p>
+          ) : careOrders.map((o: any) => (
+            <div key={o.id} className="border rounded p-3 space-y-1 mb-2">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                {ORDER_TYPE_LABELS[o.order_type as keyof typeof ORDER_TYPE_LABELS] ?? o.order_type}
+              </span>
+              <p className="text-sm">{o.order_value}</p>
+              <div className="text-xs text-muted-foreground">
+                {o.profiles?.full_name} · {format(new Date(o.ordered_at), "dd.MM.yyyy HH:mm")}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
