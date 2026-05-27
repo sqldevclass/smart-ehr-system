@@ -54,8 +54,10 @@ export default function NursePatientsList() {
         .from("hospitalizations")
         .select(`
           id, hospitalization_number, admitted_at,
-          department_id,
+          department_id, primary_physician_id,
           departments!department_id(name),
+          physicians!primary_physician_id(
+            profiles!inner(full_name)),
           patients!inner(
             id, first_name, last_name,
             patient_number, date_of_birth),
