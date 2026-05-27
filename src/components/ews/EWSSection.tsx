@@ -159,6 +159,78 @@ export default function EWSSection({
     },
   });
 
+  const { data: overrides = [], refetch: refetchOverrides } = useQuery({
+    queryKey: ["ews-overrides", hospitalizationId],
+    enabled: !!hospitalizationId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("ews_patient_overrides")
+        .select("parameter_id, override_min, override_max, reason")
+        .eq("hospitalization_id", hospitalizationId)
+        .eq("is_active", true);
+      return data || [];
+    },
+  });
+
+  const overrideMap = useMemo(() => {
+    const map: Record<string, any> = {};
+    overrides.forEach((o: any) => {
+      map[o.parameter_id] = o;
+    });
+    return map;
+  }, [overrides]);
+
+  useEffect(() => {
+    if (!parameters.length) return;
+    const init: Record<string, { min: string; max: string; reason: string }> = {};
+    parameters.forEach((p: any) => {
+      const existing = overrideMap[p.id];
+      init[p.id] = {
+        min: existing?.override_min?.toString() ?? "",
+        max: existing?.override_max?.toString() ?? "",
+        reason: existing?.reason ?? "",
+      };
+    });
+    setOverrideValues(init);
+  }, [overrides, parameters]);
+
+  const handleSaveOverrides = async () => {
+    setSavingOverrides(true);
+    for (const param of parameters as any[]) {
+      const val = overrideValues[param.id];
+      const hasOverride = val?.min || val?.max;
+      if (hasOverride) {
+        await supabase
+          .from("ews_patient_overrides")
+          .upsert(
+            {
+              hospitalization_id: hospitalizationId,
+              patient_id: patientId,
+              hospital_id: hospitalId,
+              parameter_id: param.id,
+              override_min: val.min ? parseFloat(val.min) : null,
+              override_max: val.max ? parseFloat(val.max) : null,
+              reason: val.reason || null,
+              overridden_by: user!.id,
+              is_active: true,
+            },
+            { onConflict: "hospitalization_id,parameter_id" },
+          );
+      } else {
+        await supabase
+          .from("ews_patient_overrides")
+          .update({ is_active: false })
+          .eq("hospitalization_id", hospitalizationId)
+          .eq("parameter_id", param.id);
+      }
+    }
+    toast.success("Границы нормы обновлены");
+    setSavingOverrides(false);
+    setShowOverridePanel(false);
+    refetchOverrides();
+  };
+
+
   const calculateScore = (
     paramId: string,
     value: string,
