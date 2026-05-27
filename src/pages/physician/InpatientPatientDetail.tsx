@@ -748,7 +748,7 @@ const ORDER_TYPE_LABELS: Record<string, string> = {
 };
 
 function CareTab({
-  hospitalizationId, hospitalId, userId,
+  hospitalizationId, hospitalId, userId, readOnly,
 }: TabProps) {
   const queryClient = useQueryClient();
   const [showCareForm, setShowCareForm] = useState(false);
