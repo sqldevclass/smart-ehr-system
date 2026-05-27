@@ -18,6 +18,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { RoomBedSelector, RoomBedValue } from "@/components/inpatient/RoomBedSelector";
 import { toast } from "sonner";
 
