@@ -38,6 +38,7 @@ export default function NursePatientDetail() {
   const { hospId } = useParams<{ hospId: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { setPatientContext } = useNurseLayoutContext();
   const [showVitalsForm, setShowVitalsForm] = useState(false);
   const [vitals, setVitals] = useState<Record<string, string>>(EMPTY_VITALS);
   const [saving, setSaving] = useState(false);
