@@ -145,6 +145,13 @@ export default function NursePatientsList() {
               ))}
             </SelectContent>
           </Select>
+          <Button
+            variant={tabletMode ? "default" : "outline"}
+            size="sm"
+            onClick={() => setTabletMode(!tabletMode)}
+          >
+            Планшет
+          </Button>
         </div>
 
         {isLoading ? (
