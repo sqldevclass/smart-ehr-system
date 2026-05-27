@@ -72,11 +72,8 @@ BEGIN
   WHERE hospitalization_id = p_hospitalization_id
     AND discharged_at IS NULL;
 
-  -- 3. Finalize hospitalization invoice
-  UPDATE public.invoices
-  SET status = 'pending_payment'
-  WHERE hospitalization_id = p_hospitalization_id
-    AND status = 'active';
+  -- 3. Invoice stays unpaid until cashier
+  -- processes final payment at discharge
 
   -- 4. Audit log
   INSERT INTO public.audit_logs (
