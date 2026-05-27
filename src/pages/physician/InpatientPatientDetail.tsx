@@ -457,6 +457,7 @@ interface TabProps {
   patientId: string;
   hospitalId: string;
   userId: string;
+  readOnly?: boolean;
 }
 
 function TabPanel(props: TabProps) {
