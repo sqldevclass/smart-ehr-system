@@ -6,6 +6,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { format, differenceInDays } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -145,13 +147,16 @@ export default function NursePatientsList() {
               ))}
             </SelectContent>
           </Select>
-          <Button
-            variant={tabletMode ? "default" : "outline"}
-            size="sm"
-            onClick={() => setTabletMode(!tabletMode)}
-          >
-            Планшет
-          </Button>
+          <div className="flex items-center gap-2">
+            <Switch
+              id="tablet-toggle"
+              checked={tabletMode}
+              onCheckedChange={(v) => setTabletMode(v)}
+            />
+            <Label htmlFor="tablet-toggle" className="text-sm cursor-pointer">
+              Планшет
+            </Label>
+          </div>
         </div>
 
         {isLoading ? (
