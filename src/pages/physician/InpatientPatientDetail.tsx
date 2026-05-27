@@ -418,6 +418,17 @@ export default function InpatientPatientDetail() {
           </div>
         </div>
       </div>
+
+      <DischargeDialog
+        open={dischargeOpen}
+        onOpenChange={setDischargeOpen}
+        hospitalizationId={hospitalizationId}
+        patientName={`${patient?.last_name ?? ""} ${patient?.first_name ?? ""}`}
+        onSuccess={() => {
+          refetch();
+          navigate("/physician/inpatient");
+        }}
+      />
     </div>
   );
 }
