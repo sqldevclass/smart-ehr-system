@@ -395,6 +395,7 @@ export default function InpatientPatientDetail() {
                 documentTypeId={activeView.documentTypeId}
                 patientId={patientId}
                 hospitalId={user!.hospitalId}
+                forceReadOnly={isHospDischarged}
                 onClose={closeView}
                 onDocumentCreated={(newDocId) => {
                   setActiveView((prev) =>
@@ -411,11 +412,15 @@ export default function InpatientPatientDetail() {
               <TabPanel
                 tab={activeView.tab}
                 showForm={showInlineForm}
-                setShowForm={setShowInlineForm}
+                setShowForm={(b) => {
+                  if (b && isHospDischarged) return;
+                  setShowInlineForm(b);
+                }}
                 hospitalizationId={hospitalizationId}
                 patientId={patientId}
                 hospitalId={user!.hospitalId}
                 userId={user!.id}
+                readOnly={isHospDischarged}
               />
             ) : (
               <div className="p-10 text-center text-muted-foreground text-sm">
