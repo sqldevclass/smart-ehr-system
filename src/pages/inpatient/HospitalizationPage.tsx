@@ -131,11 +131,44 @@ export default function HospitalizationPage() {
       {/* Header */}
       <Card>
         <CardHeader>
-          <CardTitle>
-            {patient?.last_name} {patient?.first_name}
-            <span className="ml-2 text-sm font-normal text-muted-foreground">
-              #{patient?.patient_number}
+          <CardTitle className="flex items-center justify-between gap-4">
+            <span>
+              {patient?.last_name} {patient?.first_name}
+              <span className="ml-2 text-sm font-normal text-muted-foreground">
+                #{patient?.patient_number}
+              </span>
             </span>
+            {!hosp.discharged_at ? (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setDischargeOpen(true)}
+              >
+                Выписать
+              </Button>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span
+                  className={cn(
+                    "px-2 py-0.5 rounded text-xs font-medium",
+                    (hosp as any).discharge_type === "deceased"
+                      ? "bg-gray-100 text-gray-700"
+                      : (hosp as any).discharge_type === "transferred"
+                      ? "bg-blue-50 text-blue-700"
+                      : "bg-green-50 text-green-700"
+                  )}
+                >
+                  {(hosp as any).discharge_type === "discharged"
+                    ? "Выписан"
+                    : (hosp as any).discharge_type === "transferred"
+                    ? "Переведён"
+                    : "Летальный исход"}
+                </span>
+                <span>
+                  {format(new Date(hosp.discharged_at), "dd.MM.yyyy HH:mm")}
+                </span>
+              </div>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent>
