@@ -181,6 +181,8 @@ export default function InpatientPatientDetail() {
   if (isLoading) return <p className="text-muted-foreground">Loading…</p>;
   if (!hosp) return <p className="text-destructive">Hospitalization not found.</p>;
 
+  const isHospDischarged = !!(hosp as any)?.discharged_at;
+
   const patient = (hosp as any).patients;
   const allergies = patient?.patient_allergies || [];
   const docsToShow = showAll ? allDocs : thisDocs;
@@ -198,6 +200,7 @@ export default function InpatientPatientDetail() {
   };
 
   const tabPlus = (tab: TabKey) => {
+    if (isHospDischarged) return;
     setActiveView({ type: "tab", tab });
     setShowInlineForm(true);
   };
@@ -232,49 +235,53 @@ export default function InpatientPatientDetail() {
             </div>
           )}
 
-          <div className="flex items-center gap-2 p-3 border-b">
+          <div className="flex items-center gap-1.5 p-3 border-b flex-wrap">
             <Button
               variant="ghost"
               size="sm"
+              className="h-7 px-2 text-xs"
               onClick={() => navigate("/physician/inpatient")}
             >
-              <ArrowLeft className="mr-1 h-4 w-4" /> Назад
+              ← Назад
             </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="sm">+ Создать</Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                {allowedDocTypes.length === 0 ? (
-                  <DropdownMenuItem disabled>
-                    Нет доступных документов. Обратитесь к администратору.
-                  </DropdownMenuItem>
-                ) : (
-                  allowedDocTypes.map((dt: any) => (
-                    <DropdownMenuItem
-                      key={dt.id}
-                      onClick={() =>
-                        setActiveView({
-                          type: "document",
-                          documentId: null,
-                          documentTypeId: dt.id,
-                        })
-                      }
-                    >
-                      <span
-                        className="w-3 h-3 rounded-full mr-2 inline-block"
-                        style={{ backgroundColor: dt.color }}
-                      />
-                      {dt.name_ru}
+            {!isHospDischarged && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" className="h-7 px-2 text-xs">+ Создать</Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  {allowedDocTypes.length === 0 ? (
+                    <DropdownMenuItem disabled>
+                      Нет доступных документов. Обратитесь к администратору.
                     </DropdownMenuItem>
-                  ))
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            {!(hosp as any).discharged_at && (
+                  ) : (
+                    allowedDocTypes.map((dt: any) => (
+                      <DropdownMenuItem
+                        key={dt.id}
+                        onClick={() =>
+                          setActiveView({
+                            type: "document",
+                            documentId: null,
+                            documentTypeId: dt.id,
+                          })
+                        }
+                      >
+                        <span
+                          className="w-3 h-3 rounded-full mr-2 inline-block"
+                          style={{ backgroundColor: dt.color }}
+                        />
+                        {dt.name_ru}
+                      </DropdownMenuItem>
+                    ))
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            {!isHospDischarged && (
               <Button
                 variant="destructive"
                 size="sm"
+                className="h-7 px-2 text-xs"
                 onClick={() => setDischargeOpen(true)}
               >
                 Выписать
@@ -364,7 +371,7 @@ export default function InpatientPatientDetail() {
                     >
                       {t.label}
                     </button>
-                    {t.hasPlus && (
+                    {t.hasPlus && !isHospDischarged && (
                       <button
                         onClick={() => tabPlus(t.key)}
                         className="p-1 text-muted-foreground hover:text-primary"
@@ -388,6 +395,7 @@ export default function InpatientPatientDetail() {
                 documentTypeId={activeView.documentTypeId}
                 patientId={patientId}
                 hospitalId={user!.hospitalId}
+                forceReadOnly={isHospDischarged}
                 onClose={closeView}
                 onDocumentCreated={(newDocId) => {
                   setActiveView((prev) =>
@@ -404,11 +412,15 @@ export default function InpatientPatientDetail() {
               <TabPanel
                 tab={activeView.tab}
                 showForm={showInlineForm}
-                setShowForm={setShowInlineForm}
+                setShowForm={(b) => {
+                  if (b && isHospDischarged) return;
+                  setShowInlineForm(b);
+                }}
                 hospitalizationId={hospitalizationId}
                 patientId={patientId}
                 hospitalId={user!.hospitalId}
                 userId={user!.id}
+                readOnly={isHospDischarged}
               />
             ) : (
               <div className="p-10 text-center text-muted-foreground text-sm">
@@ -445,6 +457,7 @@ interface TabProps {
   patientId: string;
   hospitalId: string;
   userId: string;
+  readOnly?: boolean;
 }
 
 function TabPanel(props: TabProps) {
@@ -473,7 +486,7 @@ function Placeholder({ text }: { text: string }) {
 
 /* --- Lab / Consultation tab --- */
 function ServiceTab({
-  showForm, setShowForm, hospitalizationId, patientId, hospitalId, userId, typeCode, title,
+  showForm, setShowForm, hospitalizationId, patientId, hospitalId, userId, typeCode, title, readOnly,
 }: TabProps & { typeCode: "laboratory" | "consultation"; title: string }) {
   const queryClient = useQueryClient();
   const [selectedServiceId, setSelectedServiceId] = useState("");
@@ -548,7 +561,7 @@ function ServiceTab({
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold">{title}</h3>
-        {!showForm && (
+        {!showForm && !readOnly && (
           <Button size="sm" onClick={() => setShowForm(true)} className="gap-1">
             <Plus className="h-4 w-4" /> Назначить
           </Button>
@@ -615,7 +628,7 @@ function diagTypeLabel(t: string) {
 }
 
 function DiagnosisTab({
-  hospitalizationId, patientId, hospitalId, userId,
+  hospitalizationId, patientId, hospitalId, userId, readOnly,
 }: TabProps) {
   const { data: currentDiagnoses = [], refetch: refetchCurrentDiagnoses } = useQuery({
     queryKey: ["inpatient-diagnoses-current", hospitalizationId],
@@ -712,12 +725,14 @@ function DiagnosisTab({
                 <span className="ml-1">· {d.hospitalizations?.hospitalization_number}</span>
               )}
             </div>
-            <button
-              onClick={() => handleCopyDiagnosis(d)}
-              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-primary text-xs border rounded px-2 py-0.5 bg-white hover:bg-primary hover:text-white transition-all"
-            >
-              + Добавить
-            </button>
+            {!readOnly && (
+              <button
+                onClick={() => handleCopyDiagnosis(d)}
+                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-primary text-xs border rounded px-2 py-0.5 bg-white hover:bg-primary hover:text-white transition-all"
+              >
+                + Добавить
+              </button>
+            )}
           </div>
         ))}
       </div>
@@ -733,7 +748,7 @@ const ORDER_TYPE_LABELS: Record<string, string> = {
 };
 
 function CareTab({
-  hospitalizationId, hospitalId, userId,
+  hospitalizationId, hospitalId, userId, readOnly,
 }: TabProps) {
   const queryClient = useQueryClient();
   const [showCareForm, setShowCareForm] = useState(false);
@@ -802,9 +817,11 @@ function CareTab({
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold">Назначения по уходу</h3>
-        <Button size="sm" onClick={() => setShowCareForm(!showCareForm)}>
-          + Добавить
-        </Button>
+        {!readOnly && (
+          <Button size="sm" onClick={() => setShowCareForm(!showCareForm)}>
+            + Добавить
+          </Button>
+        )}
       </div>
 
       {showCareForm && (
