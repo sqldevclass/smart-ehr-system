@@ -186,8 +186,8 @@ export default function EWSSection({
     parameters.forEach((p: any) => {
       const existing = overrideMap[p.id];
       init[p.id] = {
-        min: existing?.override_min?.toString() ?? "",
-        max: existing?.override_max?.toString() ?? "",
+        min: "",
+        max: "",
         reason: existing?.reason ?? "",
       };
     });
