@@ -221,7 +221,12 @@ export default function InpatientPatientsList() {
                       </Popover>
                     </TableCell>
                     <TableCell>{days}</TableCell>
-                    <TableCell>—</TableCell>
+                    <TableCell>
+                      <EWSStatusDot
+                        status={getStatus(h.id)}
+                        score={scheduleMap[h.id]?.last_score}
+                      />
+                    </TableCell>
                   </>
                 );
 
