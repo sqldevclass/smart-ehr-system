@@ -18,14 +18,14 @@ import {
 } from "@/components/ui/sidebar";
 
 const navItems = [
-  { title: "Patients", url: "/nurse", icon: Users },
-  { title: "Profile", url: "/nurse/profile", icon: UserCircle },
+  { title: "Пациенты", url: "/nurse", icon: Users },
+  { title: "Профиль", url: "/nurse/profile", icon: UserCircle },
 ];
 
 const roleTitles: Record<string, string> = {
   admin: "Administrator",
-  inpatient_nurse: "Inpatient Nurse",
-  head_nurse: "Head Nurse",
+  inpatient_nurse: "Медсестра",
+  head_nurse: "Старшая медсестра",
 };
 
 export default function NurseLayout() {
@@ -34,17 +34,17 @@ export default function NurseLayout() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    toast.success("Logged out.");
+    toast.success("Вы вышли.");
     navigate("/login");
   };
 
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={false}>
       <div className="min-h-screen flex w-full">
         <Sidebar collapsible="icon">
           <SidebarContent>
             <SidebarGroup>
-              <SidebarGroupLabel>Menu</SidebarGroupLabel>
+              <SidebarGroupLabel>Меню</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
                   {navItems.map((item) => (
@@ -65,7 +65,7 @@ export default function NurseLayout() {
                   <SidebarMenuItem>
                     <SidebarMenuButton onClick={handleLogout} className="hover:bg-sidebar-accent cursor-pointer">
                       <LogOut className="mr-2 h-4 w-4" />
-                      <span>Logout</span>
+                      <span>Выйти</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 </SidebarMenu>
