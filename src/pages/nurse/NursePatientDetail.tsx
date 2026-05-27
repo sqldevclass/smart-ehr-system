@@ -114,6 +114,27 @@ export default function NursePatientDetail() {
     }
   };
 
+  const { data: careOrders = [] } = useQuery({
+    queryKey: ["nurse-care-orders", hospId],
+    staleTime: 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hospitalization_orders")
+        .select(`
+          id, order_type, order_value,
+          ordered_at,
+          profiles!ordered_by(full_name)
+        `)
+        .eq("hospitalization_id", hospId!)
+        .eq("hospital_id", user!.hospitalId)
+        .eq("is_active", true)
+        .order("ordered_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!hospId && !!user?.hospitalId,
+  });
+
   if (isLoading) return <p className="text-muted-foreground">Загрузка…</p>;
   if (!hosp) return <p className="text-destructive">Госпитализация не найдена.</p>;
 
