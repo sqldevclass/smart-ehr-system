@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -19,6 +19,7 @@ interface Props {
   patientDateOfBirth: string;
   admittedAt: string;
   isReadOnly?: boolean;
+  canOverride?: boolean;
 }
 
 const bgColor: Record<string, string> = {
@@ -42,6 +43,7 @@ export default function EWSSection({
   patientDateOfBirth,
   admittedAt,
   isReadOnly = false,
+  canOverride = false,
 }: Props) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -53,6 +55,11 @@ export default function EWSSection({
   const [glucoseValue, setGlucoseValue] = useState("");
   const [glucoseNotes, setGlucoseNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [showOverridePanel, setShowOverridePanel] = useState(false);
+  const [overrideValues, setOverrideValues] = useState<
+    Record<string, { min: string; max: string; reason: string }>
+  >({});
+  const [savingOverrides, setSavingOverrides] = useState(false);
 
   const ageMonths = differenceInMonths(
     new Date(admittedAt),
@@ -151,6 +158,78 @@ export default function EWSSection({
       return data || [];
     },
   });
+
+  const { data: overrides = [], refetch: refetchOverrides } = useQuery({
+    queryKey: ["ews-overrides", hospitalizationId],
+    enabled: !!hospitalizationId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("ews_patient_overrides")
+        .select("parameter_id, override_min, override_max, reason")
+        .eq("hospitalization_id", hospitalizationId)
+        .eq("is_active", true);
+      return data || [];
+    },
+  });
+
+  const overrideMap = useMemo(() => {
+    const map: Record<string, any> = {};
+    overrides.forEach((o: any) => {
+      map[o.parameter_id] = o;
+    });
+    return map;
+  }, [overrides]);
+
+  useEffect(() => {
+    if (!parameters.length) return;
+    const init: Record<string, { min: string; max: string; reason: string }> = {};
+    parameters.forEach((p: any) => {
+      const existing = overrideMap[p.id];
+      init[p.id] = {
+        min: existing?.override_min?.toString() ?? "",
+        max: existing?.override_max?.toString() ?? "",
+        reason: existing?.reason ?? "",
+      };
+    });
+    setOverrideValues(init);
+  }, [overrides, parameters]);
+
+  const handleSaveOverrides = async () => {
+    setSavingOverrides(true);
+    for (const param of parameters as any[]) {
+      const val = overrideValues[param.id];
+      const hasOverride = val?.min || val?.max;
+      if (hasOverride) {
+        await supabase
+          .from("ews_patient_overrides")
+          .upsert(
+            {
+              hospitalization_id: hospitalizationId,
+              patient_id: patientId,
+              hospital_id: hospitalId,
+              parameter_id: param.id,
+              override_min: val.min ? parseFloat(val.min) : null,
+              override_max: val.max ? parseFloat(val.max) : null,
+              reason: val.reason || null,
+              overridden_by: user!.id,
+              is_active: true,
+            },
+            { onConflict: "hospitalization_id,parameter_id" },
+          );
+      } else {
+        await supabase
+          .from("ews_patient_overrides")
+          .update({ is_active: false })
+          .eq("hospitalization_id", hospitalizationId)
+          .eq("parameter_id", param.id);
+      }
+    }
+    toast.success("Границы нормы обновлены");
+    setSavingOverrides(false);
+    setShowOverridePanel(false);
+    refetchOverrides();
+  };
+
 
   const calculateScore = (
     paramId: string,
@@ -313,6 +392,128 @@ export default function EWSSection({
           )}
         </div>
       )}
+
+      {canOverride && (
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowOverridePanel(!showOverridePanel)}
+          >
+            {showOverridePanel ? "Скрыть границы" : "Изменить границы нормы"}
+          </Button>
+        </div>
+      )}
+
+      {showOverridePanel && canOverride && (
+        <div className="border rounded-md p-4 space-y-3 bg-blue-50/30">
+          <p className="text-xs text-muted-foreground">
+            Измените границы нормы для этого пациента. Оставьте поля пустыми для
+            стандартных значений.
+          </p>
+          {parameters.map((p: any) => {
+            const val =
+              overrideValues[p.id] ?? { min: "", max: "", reason: "" };
+            const hasOverride = overrideMap[p.id];
+            return (
+              <div
+                key={p.id}
+                className={cn(
+                  "p-3 rounded border bg-white",
+                  hasOverride && "border-blue-300 bg-blue-50",
+                )}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium">
+                    {p.name_ru}
+                    {p.unit && (
+                      <span className="text-xs text-muted-foreground ml-1">
+                        ({p.unit})
+                      </span>
+                    )}
+                  </span>
+                  {hasOverride && (
+                    <span className="text-xs text-blue-600 font-medium">
+                      Изменено
+                    </span>
+                  )}
+                </div>
+                {p.input_type !== "enum" ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-xs">Мин.</Label>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        value={val.min}
+                        onChange={(e) =>
+                          setOverrideValues((prev) => ({
+                            ...prev,
+                            [p.id]: { ...prev[p.id], min: e.target.value },
+                          }))
+                        }
+                        className="h-7 text-sm mt-1"
+                        placeholder="стандарт"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Макс.</Label>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        value={val.max}
+                        onChange={(e) =>
+                          setOverrideValues((prev) => ({
+                            ...prev,
+                            [p.id]: { ...prev[p.id], max: e.target.value },
+                          }))
+                        }
+                        className="h-7 text-sm mt-1"
+                        placeholder="стандарт"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Input
+                        value={val.reason}
+                        onChange={(e) =>
+                          setOverrideValues((prev) => ({
+                            ...prev,
+                            [p.id]: { ...prev[p.id], reason: e.target.value },
+                          }))
+                        }
+                        className="h-7 text-xs mt-1"
+                        placeholder="Причина изменения"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Переопределение недоступно для перечисляемых параметров
+                  </p>
+                )}
+              </div>
+            );
+          })}
+          <div className="flex gap-2 pt-2">
+            <Button
+              size="sm"
+              disabled={savingOverrides}
+              onClick={handleSaveOverrides}
+            >
+              {savingOverrides ? "Сохранение..." : "Сохранить"}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setShowOverridePanel(false)}
+            >
+              Отмена
+            </Button>
+          </div>
+        </div>
+      )}
+
+
 
       {showEWSForm && (
         <div className="border rounded-md p-4 space-y-3 bg-muted/30">
