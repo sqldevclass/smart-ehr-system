@@ -154,12 +154,12 @@ export default function InpatientToolbox({
         .limit(50);
       return data || [];
     },
-    enabled: !!physicianId && !!hospitalId,
+    enabled: showRecentPatients && !!physicianId && !!hospitalId,
   });
 
   const handleDeptChange = (ids: string[]) => {
     setSelectedDeptIds(ids);
-    if (isDetailPage) navigate("/physician/inpatient");
+    if (isDetailPage) navigate(listPath);
   };
 
   return (
