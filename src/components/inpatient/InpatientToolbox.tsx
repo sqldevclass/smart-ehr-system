@@ -200,6 +200,7 @@ export default function InpatientToolbox({
         </DropdownMenuContent>
       </DropdownMenu>
 
+      {showRecentPatients && (
       <DropdownMenu open={showRecent} onOpenChange={setShowRecent}>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" className="gap-1">
@@ -217,7 +218,7 @@ export default function InpatientToolbox({
                   <DropdownMenuItem
                     key={`${r.patient_id}-${r.hospitalization_id}`}
                     onClick={() => {
-                      navigate(`/physician/inpatient/${r.hospitalization_id}`);
+                      navigate(`${detailPathPrefix}${r.hospitalization_id}`);
                       setShowRecent(false);
                       setRecentShowAll(false);
                     }}
@@ -245,6 +246,7 @@ export default function InpatientToolbox({
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+      )}
 
       <div className="relative">
         <Input
