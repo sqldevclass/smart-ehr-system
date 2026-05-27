@@ -17,6 +17,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import InpatientDocumentWorkspace from "@/components/documents/InpatientDocumentWorkspace";
+import DischargeDialog from "@/components/inpatient/DischargeDialog";
 import { usePhysicianLayoutContext } from "@/components/physician/PhysicianLayout";
 
 type TabKey = "medication" | "imaging" | "lab" | "consultation" | "care" | "diagnosis" | "ews";
@@ -48,14 +49,16 @@ export default function InpatientPatientDetail() {
   const [showAll, setShowAll] = useState(false);
   const [activeView, setActiveView] = useState<ActiveView>(null);
   const [showInlineForm, setShowInlineForm] = useState(false);
+  const [dischargeOpen, setDischargeOpen] = useState(false);
 
-  const { data: hosp, isLoading } = useQuery({
+  const { data: hosp, isLoading, refetch } = useQuery({
     queryKey: ["inpatient-detail", hospitalizationId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("hospitalizations")
         .select(`
           id, hospitalization_number, admitted_at, department_id,
+          discharged_at, discharge_type,
           departments!department_id(name),
           patients!inner(
             id, first_name, last_name, middle_name,
@@ -210,6 +213,25 @@ export default function InpatientPatientDetail() {
             </div>
           )}
 
+          {(hosp as any).discharged_at && (
+            <div
+              className={cn(
+                "mx-3 mt-2 px-3 py-2 rounded text-sm font-medium text-center",
+                (hosp as any).discharge_type === "deceased"
+                  ? "bg-gray-100 text-gray-700"
+                  : "bg-green-50 text-green-700"
+              )}
+            >
+              {(hosp as any).discharge_type === "discharged"
+                ? "Выписан"
+                : (hosp as any).discharge_type === "transferred"
+                ? "Переведён"
+                : "Летальный исход"}
+              {" · "}
+              {format(new Date((hosp as any).discharged_at), "dd.MM.yyyy")}
+            </div>
+          )}
+
           <div className="flex items-center gap-2 p-3 border-b">
             <Button
               variant="ghost"
@@ -249,6 +271,15 @@ export default function InpatientPatientDetail() {
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
+            {!(hosp as any).discharged_at && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setDischargeOpen(true)}
+              >
+                Выписать
+              </Button>
+            )}
             <button
               onClick={() => setShowAll(!showAll)}
               className="text-xs text-primary underline ml-auto"
@@ -387,6 +418,17 @@ export default function InpatientPatientDetail() {
           </div>
         </div>
       </div>
+
+      <DischargeDialog
+        open={dischargeOpen}
+        onOpenChange={setDischargeOpen}
+        hospitalizationId={hospitalizationId}
+        patientName={`${patient?.last_name ?? ""} ${patient?.first_name ?? ""}`}
+        onSuccess={() => {
+          refetch();
+          navigate("/physician/inpatient");
+        }}
+      />
     </div>
   );
 }
