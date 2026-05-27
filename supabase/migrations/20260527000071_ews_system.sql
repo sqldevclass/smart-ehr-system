@@ -629,13 +629,16 @@ CREATE POLICY "ews_thresholds_select" ON public.ews_thresholds
 
 -- ============================================================
 -- 12. submit_ews_reading RPC
+
+-- ============================================================
+-- 12. submit_ews_reading RPC
 -- ============================================================
 CREATE OR REPLACE FUNCTION public.submit_ews_reading(
   p_hospitalization_id  uuid,
   p_hospital_id         uuid,
   p_patient_id          uuid,
   p_scale_id            uuid,
-  p_values              jsonb, -- [{parameter_id, numeric_value, text_value}]
+  p_values              jsonb,
   p_notes               text DEFAULT NULL
 )
 RETURNS jsonb
@@ -652,7 +655,6 @@ DECLARE
   v_next_due        timestamptz;
   v_param_score     integer;
   v_val             jsonb;
-  v_threshold       record;
   v_override        record;
   v_param_min       numeric;
   v_param_max       numeric;
@@ -668,7 +670,7 @@ BEGIN
   LOOP
     v_param_score := 0;
 
-    -- Check if physician override exists for this parameter
+    -- Check if physician override exists
     SELECT * INTO v_override
     FROM public.ews_patient_overrides
     WHERE hospitalization_id = p_hospitalization_id
@@ -676,35 +678,58 @@ BEGIN
       AND is_active = true;
 
     IF FOUND THEN
-      -- Use override thresholds
-      v_param_min := v_override.override_min;
-      v_param_max := v_override.override_max;
-      -- Score 0 if within override range, 1 otherwise
+      -- Override only shifts the normal zone
+      -- Values within override range = score 0
+      -- Values outside = use standard thresholds
       IF (v_val->>'numeric_value') IS NOT NULL THEN
+        v_param_min := v_override.override_min;
+        v_param_max := v_override.override_max;
         IF (v_val->>'numeric_value')::numeric
            BETWEEN COALESCE(v_param_min, -999999)
            AND COALESCE(v_param_max, 999999) THEN
           v_param_score := 0;
         ELSE
-          v_param_score := 1;
+          SELECT score INTO v_param_score
+          FROM public.ews_thresholds
+          WHERE parameter_id =
+            (v_val->>'parameter_id')::uuid
+            AND (min_value IS NULL OR
+              (v_val->>'numeric_value')::numeric
+              >= min_value)
+            AND (max_value IS NULL OR
+              (v_val->>'numeric_value')::numeric
+              <= max_value)
+          ORDER BY score DESC
+          LIMIT 1;
         END IF;
+      ELSIF (v_val->>'text_value') IS NOT NULL THEN
+        SELECT score INTO v_param_score
+        FROM public.ews_thresholds
+        WHERE parameter_id =
+          (v_val->>'parameter_id')::uuid
+          AND text_value = (v_val->>'text_value')
+        LIMIT 1;
       END IF;
     ELSE
-      -- Use standard thresholds
+      -- Standard thresholds
       IF (v_val->>'numeric_value') IS NOT NULL THEN
         SELECT score INTO v_param_score
         FROM public.ews_thresholds
-        WHERE parameter_id = (v_val->>'parameter_id')::uuid
+        WHERE parameter_id =
+          (v_val->>'parameter_id')::uuid
           AND (min_value IS NULL OR
-               (v_val->>'numeric_value')::numeric >= min_value)
+            (v_val->>'numeric_value')::numeric
+            >= min_value)
           AND (max_value IS NULL OR
-               (v_val->>'numeric_value')::numeric <= max_value)
+            (v_val->>'numeric_value')::numeric
+            <= max_value)
         ORDER BY score DESC
         LIMIT 1;
       ELSIF (v_val->>'text_value') IS NOT NULL THEN
         SELECT score INTO v_param_score
         FROM public.ews_thresholds
-        WHERE parameter_id = (v_val->>'parameter_id')::uuid
+        WHERE parameter_id =
+          (v_val->>'parameter_id')::uuid
           AND text_value = (v_val->>'text_value')
         LIMIT 1;
       END IF;
@@ -715,7 +740,7 @@ BEGIN
     v_max_single  := GREATEST(v_max_single, v_param_score);
   END LOOP;
 
-  -- Determine escalation level and next due time
+  -- Escalation level
   IF v_total_score = 0 THEN
     v_escalation := 0;
     v_next_due := now() + interval '12 hours';
@@ -726,12 +751,11 @@ BEGIN
      OR v_max_single >= 3 THEN
     v_escalation := 2;
     v_next_due := now() + interval '1 hour';
-  ELSE -- ≥7
+  ELSE
     v_escalation := 3;
     v_next_due := now() + interval '15 minutes';
   END IF;
 
-  -- Insert reading
   INSERT INTO public.ews_readings (
     hospital_id, hospitalization_id, patient_id,
     scale_id, total_score, escalation_level,
@@ -743,24 +767,26 @@ BEGIN
   )
   RETURNING id INTO v_reading_id;
 
-  -- Insert parameter values with scores
   FOR v_val IN SELECT * FROM jsonb_array_elements(p_values)
   LOOP
-    -- Recalculate score for this value
     IF (v_val->>'numeric_value') IS NOT NULL THEN
       SELECT score INTO v_param_score
       FROM public.ews_thresholds
-      WHERE parameter_id = (v_val->>'parameter_id')::uuid
+      WHERE parameter_id =
+        (v_val->>'parameter_id')::uuid
         AND (min_value IS NULL OR
-             (v_val->>'numeric_value')::numeric >= min_value)
+          (v_val->>'numeric_value')::numeric
+          >= min_value)
         AND (max_value IS NULL OR
-             (v_val->>'numeric_value')::numeric <= max_value)
+          (v_val->>'numeric_value')::numeric
+          <= max_value)
       ORDER BY score DESC
       LIMIT 1;
     ELSIF (v_val->>'text_value') IS NOT NULL THEN
       SELECT score INTO v_param_score
       FROM public.ews_thresholds
-      WHERE parameter_id = (v_val->>'parameter_id')::uuid
+      WHERE parameter_id =
+        (v_val->>'parameter_id')::uuid
         AND text_value = (v_val->>'text_value')
       LIMIT 1;
     END IF;
@@ -777,7 +803,6 @@ BEGIN
     );
   END LOOP;
 
-  -- Upsert ews_schedule (triggers Realtime)
   INSERT INTO public.ews_schedule (
     hospital_id, hospitalization_id,
     scale_id, last_reading_id,
@@ -803,6 +828,7 @@ BEGIN
 
 EXCEPTION
   WHEN OTHERS THEN
-    RAISE EXCEPTION 'submit_ews_reading failed: %', SQLERRM;
+    RAISE EXCEPTION 'submit_ews_reading failed: %',
+      SQLERRM;
 END;
 $$;
