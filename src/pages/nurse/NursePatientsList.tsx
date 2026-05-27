@@ -69,6 +69,37 @@ export default function NursePatientsList() {
     enabled: !!user?.hospitalId,
   });
 
+  const { data: allVitals = [] } = useQuery({
+    queryKey: ["nurse-vitals-tablet", user?.hospitalId],
+    staleTime: 0,
+    refetchInterval: 60000,
+    enabled: tabletMode && !!user?.hospitalId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("patient_vitals")
+        .select(`
+          id, hospitalization_id, recorded_at,
+          bp_systolic, bp_diastolic, pulse,
+          spo2, temperature,
+          fluid_intake_ml, fluid_output_ml
+        `)
+        .eq("hospital_id", user!.hospitalId)
+        .order("recorded_at", { ascending: false })
+        .limit(500);
+      return data || [];
+    },
+  });
+
+  const latestVitals = useMemo(() => {
+    const map: Record<string, any> = {};
+    for (const v of allVitals) {
+      if (!map[v.hospitalization_id]) {
+        map[v.hospitalization_id] = v;
+      }
+    }
+    return map;
+  }, [allVitals]);
+
   const openAssignDialog = (h: any) => {
     setAssignTarget(h);
     setRoomBed({ roomId: "", bedNumber: null });
