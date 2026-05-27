@@ -27,6 +27,7 @@ export default function NursePatientsList() {
   const [assignTarget, setAssignTarget] = useState<any>(null);
   const [roomBed, setRoomBed] = useState<RoomBedValue>({ roomId: "", bedNumber: null });
   const [submitting, setSubmitting] = useState(false);
+  const [tabletMode, setTabletMode] = useState(false);
 
   const { data: departments = [] } = useQuery({
     queryKey: ["nurse-departments", user?.hospitalId],
