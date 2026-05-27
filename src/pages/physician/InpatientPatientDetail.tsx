@@ -213,6 +213,25 @@ export default function InpatientPatientDetail() {
             </div>
           )}
 
+          {(hosp as any).discharged_at && (
+            <div
+              className={cn(
+                "mx-3 mt-2 px-3 py-2 rounded text-sm font-medium text-center",
+                (hosp as any).discharge_type === "deceased"
+                  ? "bg-gray-100 text-gray-700"
+                  : "bg-green-50 text-green-700"
+              )}
+            >
+              {(hosp as any).discharge_type === "discharged"
+                ? "Выписан"
+                : (hosp as any).discharge_type === "transferred"
+                ? "Переведён"
+                : "Летальный исход"}
+              {" · "}
+              {format(new Date((hosp as any).discharged_at), "dd.MM.yyyy")}
+            </div>
+          )}
+
           <div className="flex items-center gap-2 p-3 border-b">
             <Button
               variant="ghost"
@@ -252,6 +271,15 @@ export default function InpatientPatientDetail() {
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
+            {!(hosp as any).discharged_at && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setDischargeOpen(true)}
+              >
+                Выписать
+              </Button>
+            )}
             <button
               onClick={() => setShowAll(!showAll)}
               className="text-xs text-primary underline ml-auto"
