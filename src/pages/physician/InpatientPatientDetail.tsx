@@ -51,13 +51,14 @@ export default function InpatientPatientDetail() {
   const [showInlineForm, setShowInlineForm] = useState(false);
   const [dischargeOpen, setDischargeOpen] = useState(false);
 
-  const { data: hosp, isLoading } = useQuery({
+  const { data: hosp, isLoading, refetch } = useQuery({
     queryKey: ["inpatient-detail", hospitalizationId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("hospitalizations")
         .select(`
           id, hospitalization_number, admitted_at, department_id,
+          discharged_at, discharge_type,
           departments!department_id(name),
           patients!inner(
             id, first_name, last_name, middle_name,
