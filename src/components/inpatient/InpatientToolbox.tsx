@@ -17,6 +17,9 @@ import { useInpatientContext } from "@/contexts/InpatientContext";
 interface Props {
   physicianId: string;
   hospitalId: string;
+  showRecentPatients?: boolean;
+  listPath?: string;
+  detailPathPrefix?: string;
 }
 
 interface SearchProps {
