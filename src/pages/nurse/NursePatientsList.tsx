@@ -143,38 +143,15 @@ export default function NursePatientsList() {
         <CardTitle>Пациенты</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <Select value={deptFilter} onValueChange={setDeptFilter}>
-            <SelectTrigger className="h-9 w-[220px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Все отделения</SelectItem>
-              {departments.map((d: any) => (
-                <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Input
-            placeholder="Поиск по ФИО..."
-            value={nameSearch}
-            onChange={(e) => setNameSearch(e.target.value)}
-            className="w-44 h-8 text-sm"
+        <div className="flex items-center justify-end gap-2">
+          <Switch
+            id="tablet-toggle"
+            checked={tabletMode}
+            onCheckedChange={(v) => setTabletMode(v)}
           />
-          <Input
-            placeholder="Поиск по ID..."
-            value={idSearch}
-            onChange={(e) => setIdSearch(e.target.value)}
-            className="w-36 h-8 text-sm"
-          />
-          <div className="flex items-center gap-2">
-            <Switch
-              id="tablet-toggle"
-              checked={tabletMode}
-              onCheckedChange={(v) => setTabletMode(v)}
-            />
-            <Label htmlFor="tablet-toggle" className="text-sm cursor-pointer">
-              Планшет
-            </Label>
-          </div>
+          <Label htmlFor="tablet-toggle" className="text-sm cursor-pointer">
+            Планшет
+          </Label>
         </div>
 
         {(() => {
