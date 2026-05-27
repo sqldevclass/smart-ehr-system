@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { toast } from "sonner";
+import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -12,15 +12,21 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { differenceInDays } from "date-fns";
-import { PeriodFilter, PeriodState, getDateBounds, getTodayBounds, SummaryCard, MetricTile } from "@/components/shared/PeriodFilter";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+  DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
+import { RoomBedSelector, RoomBedValue } from "@/components/inpatient/RoomBedSelector";
+import { toast } from "sonner";
 
 export default function NursePatientsList() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [periodState, setPeriodState] = useState<PeriodState>({ period: "today" });
   const [deptFilter, setDeptFilter] = useState<string>("all");
-  const bounds = getDateBounds(periodState);
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [assignTarget, setAssignTarget] = useState<any>(null);
+  const [roomBed, setRoomBed] = useState<RoomBedValue>({ roomId: "", bedNumber: null });
+  const [submitting, setSubmitting] = useState(false);
 
   const { data: departments = [] } = useQuery({
     queryKey: ["nurse-departments", user?.hospitalId],
@@ -35,15 +41,24 @@ export default function NursePatientsList() {
     enabled: !!user?.hospitalId,
   });
 
-  const { data: hospitalizations = [], isLoading } = useQuery({
-    queryKey: ["nurse-active-hosp", user?.hospitalId, bounds.from, bounds.to, deptFilter],
+  const { data: hospitalizations = [], isLoading, refetch } = useQuery({
+    queryKey: ["nurse-active-hosp", user?.hospitalId, deptFilter],
     queryFn: async () => {
       let q = supabase
         .from("hospitalizations")
-        .select("id, hospitalization_number, admitted_at, department_id, departments(name), patients(first_name, last_name, patient_number, date_of_birth), room_assignments(bed_number, rooms(name)), primary_physician_id, physicians(profiles(full_name))")
+        .select(`
+          id, hospitalization_number, admitted_at,
+          department_id,
+          departments!department_id(name),
+          patients!inner(
+            id, first_name, last_name,
+            patient_number, date_of_birth),
+          room_assignments(
+            id, bed_number,
+            rooms!inner(name))
+        `)
         .eq("hospital_id", user!.hospitalId)
-        .gte("admitted_at", bounds.from)
-        .lte("admitted_at", bounds.to)
+        .is("discharged_at", null)
         .order("admitted_at", { ascending: false });
       if (deptFilter !== "all") q = q.eq("department_id", deptFilter);
       const { data, error } = await q;
@@ -53,62 +68,46 @@ export default function NursePatientsList() {
     enabled: !!user?.hospitalId,
   });
 
-  const { data: summary } = useQuery({
-    queryKey: ["nurse-summary", user?.hospitalId],
-    queryFn: async () => {
-      const today = getTodayBounds();
-      const [activeRes, todayRes] = await Promise.all([
-        supabase.from("hospitalizations")
-          .select("id, department_id, departments(name)")
-          .eq("hospital_id", user!.hospitalId)
-          .is("discharged_at", null),
-        supabase.from("hospitalizations")
-          .select("id", { count: "exact", head: true })
-          .eq("hospital_id", user!.hospitalId)
-          .gte("admitted_at", today.from).lte("admitted_at", today.to),
-      ]);
-      const activeRows = activeRes.data || [];
-      const byDept = new Map<string, number>();
-      for (const r of activeRows as any[]) {
-        const name = r.departments?.name || "—";
-        byDept.set(name, (byDept.get(name) || 0) + 1);
-      }
-      const top3 = Array.from(byDept.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 3);
-      return {
-        active: activeRows.length,
-        admittedToday: todayRes.count || 0,
-        top3,
-      };
-    },
-    enabled: !!user?.hospitalId,
-  });
+  const openAssignDialog = (h: any) => {
+    setAssignTarget(h);
+    setRoomBed({ roomId: "", bedNumber: null });
+    setAssignDialogOpen(true);
+  };
 
-  const handleView = () => {
-    toast.info("Patient view coming in Phase 9.");
+  const handleAssign = async () => {
+    if (!roomBed.roomId || !roomBed.bedNumber) return;
+    setSubmitting(true);
+    try {
+      const { error } = await supabase.from("room_assignments").insert({
+        hospitalization_id: assignTarget.id,
+        room_id: roomBed.roomId,
+        bed_number: String(roomBed.bedNumber),
+        assigned_at: new Date().toISOString(),
+        hospital_id: user!.hospitalId,
+        assigned_by: user!.id,
+      });
+      if (error) throw error;
+      setAssignDialogOpen(false);
+      await refetch();
+      navigate(`/nurse/${assignTarget.id}`);
+    } catch (err: any) {
+      toast.error(err.message || "Не удалось разместить");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Inpatients</CardTitle>
+        <CardTitle>Пациенты</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <SummaryCard>
-          <MetricTile label="Total Active" value={summary?.active ?? "—"} highlight />
-          <MetricTile label="Admitted Today" value={summary?.admittedToday ?? "—"} />
-          {(summary?.top3 || []).map(([name, count]) => (
-            <MetricTile key={name} label={`Dept: ${name}`} value={count} />
-          ))}
-        </SummaryCard>
-
         <div className="flex flex-wrap items-center gap-3">
-          <PeriodFilter value={periodState} onChange={setPeriodState} />
           <Select value={deptFilter} onValueChange={setDeptFilter}>
-            <SelectTrigger className="h-9 w-[180px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-9 w-[220px]"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Departments</SelectItem>
+              <SelectItem value="all">Все отделения</SelectItem>
               {departments.map((d: any) => (
                 <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
               ))}
@@ -117,41 +116,62 @@ export default function NursePatientsList() {
         </div>
 
         {isLoading ? (
-          <p className="text-muted-foreground text-sm">Loading…</p>
+          <p className="text-muted-foreground text-sm">Загрузка…</p>
         ) : !hospitalizations.length ? (
-          <p className="text-muted-foreground text-sm">No active inpatients.</p>
+          <p className="text-muted-foreground text-sm">Нет активных госпитализаций.</p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-12">#</TableHead>
-                <TableHead>Patient Name</TableHead>
-                <TableHead>Patient #</TableHead>
-                <TableHead>Department</TableHead>
-                <TableHead>Room / Bed</TableHead>
-                <TableHead>Physician</TableHead>
-                <TableHead>Days</TableHead>
-                <TableHead></TableHead>
+                <TableHead>Дата поступления</TableHead>
+                <TableHead>Отделение</TableHead>
+                <TableHead>ФИО / ДОБ</TableHead>
+                <TableHead>Палата / Кровать</TableHead>
+                <TableHead>Статус</TableHead>
+                <TableHead className="text-right">Действие</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {hospitalizations.map((h: any, i: number) => {
+              {hospitalizations.map((h: any) => {
                 const p = h.patients;
                 const ra = h.room_assignments?.[0];
-                const days = differenceInDays(new Date(), new Date(h.admitted_at));
+                const hasRoom = !!ra;
                 return (
                   <TableRow key={h.id}>
-                    <TableCell className="text-muted-foreground">{i + 1}</TableCell>
-                    <TableCell className="font-medium">{p?.last_name} {p?.first_name}</TableCell>
-                    <TableCell className="font-mono text-xs">{p?.patient_number}</TableCell>
+                    <TableCell className="text-sm">
+                      {format(new Date(h.admitted_at), "dd.MM.yyyy HH:mm")}
+                    </TableCell>
                     <TableCell>{h.departments?.name || "—"}</TableCell>
-                    <TableCell>{ra ? `${ra.rooms?.name} / Bed ${ra.bed_number}` : "—"}</TableCell>
-                    <TableCell>{h.physicians?.profiles?.full_name || "—"}</TableCell>
-                    <TableCell>{days}</TableCell>
                     <TableCell>
-                      <Button size="sm" variant="outline" onClick={handleView}>
-                        View
-                      </Button>
+                      <div className="font-medium">{p?.last_name} {p?.first_name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {p?.date_of_birth ? format(new Date(p.date_of_birth), "dd.MM.yyyy") : "—"}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {hasRoom ? `${ra.rooms?.name} / ${ra.bed_number}` : "—"}
+                    </TableCell>
+                    <TableCell>
+                      {hasRoom ? (
+                        <span className="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-700">
+                          Размещён
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700">
+                          Ожидает размещения
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {hasRoom ? (
+                        <Button size="sm" variant="ghost" onClick={() => navigate(`/nurse/${h.id}`)}>
+                          Открыть
+                        </Button>
+                      ) : (
+                        <Button size="sm" variant="outline" onClick={() => openAssignDialog(h)}>
+                          Принять
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 );
@@ -159,6 +179,31 @@ export default function NursePatientsList() {
             </TableBody>
           </Table>
         )}
+
+        <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Разместить пациента</DialogTitle>
+              <DialogDescription>
+                {assignTarget?.patients?.last_name} {assignTarget?.patients?.first_name}
+              </DialogDescription>
+            </DialogHeader>
+            <RoomBedSelector
+              hospitalId={user!.hospitalId}
+              departmentId={assignTarget?.department_id ?? ""}
+              value={roomBed}
+              onChange={setRoomBed}
+            />
+            <DialogFooter>
+              <Button
+                disabled={!roomBed.roomId || !roomBed.bedNumber || submitting}
+                onClick={handleAssign}
+              >
+                {submitting ? "Размещение…" : "Разместить"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );

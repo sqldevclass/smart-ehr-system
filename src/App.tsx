@@ -54,6 +54,7 @@ import InpatientPatientsList from "./pages/physician/InpatientPatientsList.tsx";
 import InpatientPatientDetail from "./pages/physician/InpatientPatientDetail.tsx";
 import NurseLayout from "./components/nurse/NurseLayout.tsx";
 import NursePatientsList from "./pages/nurse/NursePatientsList.tsx";
+import NursePatientDetail from "./pages/nurse/NursePatientDetail.tsx";
 import NurseProfile from "./pages/nurse/NurseProfile.tsx";
 import LabLayout from "./components/lab/LabLayout.tsx";
 import BloodDrawPage from "./pages/lab/BloodDrawPage.tsx";
@@ -146,6 +147,7 @@ const App = () => (
           </Route>
           <Route path="/nurse" element={<ProtectedRoute allowedRoles={["inpatient_nurse", "head_nurse"]}><NurseLayout /></ProtectedRoute>}>
             <Route index element={<NursePatientsList />} />
+            <Route path=":hospId" element={<NursePatientDetail />} />
             <Route path="profile" element={<NurseProfile />} />
           </Route>
           <Route path="/lab" element={<ProtectedRoute allowedRoles={["lab_physician", "blood_draw_nurse"]}><LabLayout /></ProtectedRoute>}>
