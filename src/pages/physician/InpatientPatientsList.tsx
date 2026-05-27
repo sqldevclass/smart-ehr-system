@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useEWSSchedule } from "@/hooks/useEWSSchedule";
+import EWSStatusDot from "@/components/ews/EWSStatusDot";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
