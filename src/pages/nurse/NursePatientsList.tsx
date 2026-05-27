@@ -49,7 +49,7 @@ export default function NursePatientsList() {
   });
 
   const { data: hospitalizations = [], isLoading, refetch } = useQuery({
-    queryKey: ["nurse-active-hosp", user?.hospitalId, deptFilter],
+    queryKey: ["nurse-active-hosp", user?.hospitalId, selectedDeptIds],
     queryFn: async () => {
       let q = supabase
         .from("hospitalizations")
@@ -69,7 +69,7 @@ export default function NursePatientsList() {
         .eq("hospital_id", user!.hospitalId)
         .is("discharged_at", null)
         .order("admitted_at", { ascending: false });
-      if (deptFilter !== "all") q = q.eq("department_id", deptFilter);
+      if (selectedDeptIds.length > 0) q = q.in("department_id", selectedDeptIds);
       const { data, error } = await q;
       if (error) throw error;
       return data || [];
