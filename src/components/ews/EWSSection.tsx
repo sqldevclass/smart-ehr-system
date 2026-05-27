@@ -125,6 +125,8 @@ export default function EWSSection({
 
   const { data: ewsSchedule } = useQuery({
     queryKey: ["ews-schedule", hospitalizationId],
+    staleTime: 0,
+    refetchInterval: 60000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("ews_schedule")
