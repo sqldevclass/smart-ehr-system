@@ -17,6 +17,9 @@ import { useInpatientContext } from "@/contexts/InpatientContext";
 interface Props {
   physicianId: string;
   hospitalId: string;
+  showRecentPatients?: boolean;
+  listPath?: string;
+  detailPathPrefix?: string;
 }
 
 interface SearchProps {
@@ -74,7 +77,13 @@ function SearchResultsDropdown({ search, type, hospitalId, selectedDeptIds, onSe
   );
 }
 
-export default function InpatientToolbox({ physicianId, hospitalId }: Props) {
+export default function InpatientToolbox({
+  physicianId,
+  hospitalId,
+  showRecentPatients = true,
+  listPath = "/physician/inpatient",
+  detailPathPrefix = "/physician/inpatient/",
+}: Props) {
   const navigate = useNavigate();
   const location = useLocation();
   const {
@@ -92,8 +101,8 @@ export default function InpatientToolbox({ physicianId, hospitalId }: Props) {
   const [showSearchResults, setShowSearchResults] = useState(false);
 
   const isDetailPage =
-    location.pathname.includes("/inpatient/") &&
-    location.pathname !== "/physician/inpatient";
+    location.pathname.startsWith(detailPathPrefix) &&
+    location.pathname !== listPath;
 
   const { data: departments = [] } = useQuery({
     queryKey: ["toolbox-departments", hospitalId],
@@ -145,12 +154,12 @@ export default function InpatientToolbox({ physicianId, hospitalId }: Props) {
         .limit(50);
       return data || [];
     },
-    enabled: !!physicianId && !!hospitalId,
+    enabled: showRecentPatients && !!physicianId && !!hospitalId,
   });
 
   const handleDeptChange = (ids: string[]) => {
     setSelectedDeptIds(ids);
-    if (isDetailPage) navigate("/physician/inpatient");
+    if (isDetailPage) navigate(listPath);
   };
 
   return (
@@ -191,6 +200,7 @@ export default function InpatientToolbox({ physicianId, hospitalId }: Props) {
         </DropdownMenuContent>
       </DropdownMenu>
 
+      {showRecentPatients && (
       <DropdownMenu open={showRecent} onOpenChange={setShowRecent}>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" className="gap-1">
@@ -208,7 +218,7 @@ export default function InpatientToolbox({ physicianId, hospitalId }: Props) {
                   <DropdownMenuItem
                     key={`${r.patient_id}-${r.hospitalization_id}`}
                     onClick={() => {
-                      navigate(`/physician/inpatient/${r.hospitalization_id}`);
+                      navigate(`${detailPathPrefix}${r.hospitalization_id}`);
                       setShowRecent(false);
                       setRecentShowAll(false);
                     }}
@@ -236,6 +246,7 @@ export default function InpatientToolbox({ physicianId, hospitalId }: Props) {
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+      )}
 
       <div className="relative">
         <Input
@@ -255,7 +266,7 @@ export default function InpatientToolbox({ physicianId, hospitalId }: Props) {
             hospitalId={hospitalId}
             selectedDeptIds={selectedDeptIds}
             onSelect={(hospId) => {
-              navigate(`/physician/inpatient/${hospId}`);
+              navigate(`${detailPathPrefix}${hospId}`);
               setShowSearchResults(false);
               setNameSearch("");
             }}
@@ -281,7 +292,7 @@ export default function InpatientToolbox({ physicianId, hospitalId }: Props) {
             hospitalId={hospitalId}
             selectedDeptIds={selectedDeptIds}
             onSelect={(hospId) => {
-              navigate(`/physician/inpatient/${hospId}`);
+              navigate(`${detailPathPrefix}${hospId}`);
               setShowSearchResults(false);
               setIdSearch("");
             }}

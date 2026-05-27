@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useNurseLayoutContext } from "@/components/nurse/NurseLayout";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,7 @@ export default function NursePatientDetail() {
   const { hospId } = useParams<{ hospId: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { setPatientContext } = useNurseLayoutContext();
   const [showVitalsForm, setShowVitalsForm] = useState(false);
   const [vitals, setVitals] = useState<Record<string, string>>(EMPTY_VITALS);
   const [saving, setSaving] = useState(false);
@@ -141,12 +143,39 @@ export default function NursePatientDetail() {
     enabled: !!hospId && !!user?.hospitalId,
   });
 
+  const patient = (hosp as any)?.patients;
+  const ra = (hosp as any)?.room_assignments?.[0];
+  const allergies = patient?.patient_allergies || [];
+
+  useEffect(() => {
+    if (!hosp || !patient) {
+      setPatientContext(null);
+      return;
+    }
+    setPatientContext(
+      <div className="flex items-center gap-2 text-sm">
+        <span className="font-semibold">
+          {patient.last_name} {patient.first_name}
+        </span>
+        <span className="text-muted-foreground">
+          ДР: {patient.date_of_birth ? format(new Date(patient.date_of_birth), "dd.MM.yyyy") : "—"}
+        </span>
+        <span className="text-muted-foreground">
+          П#: {patient.patient_number}
+        </span>
+        {ra && (
+          <span className="text-muted-foreground">
+            {ra.rooms?.name} / {ra.bed_number}
+          </span>
+        )}
+      </div>
+    );
+    return () => setPatientContext(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [(hosp as any)?.id]);
+
   if (isLoading) return <p className="text-muted-foreground">Загрузка…</p>;
   if (!hosp) return <p className="text-destructive">Госпитализация не найдена.</p>;
-
-  const patient = hosp.patients as any;
-  const ra = (hosp.room_assignments as any[])?.[0];
-  const allergies = patient?.patient_allergies || [];
 
   return (
     <div className="-m-6">
@@ -154,20 +183,6 @@ export default function NursePatientDetail() {
         <Button variant="ghost" size="sm" onClick={() => navigate("/nurse")}>
           ← Назад
         </Button>
-        <div>
-          <span className="font-semibold">
-            {patient.last_name} {patient.first_name}
-          </span>
-          <span className="text-sm text-muted-foreground ml-2">
-            П#: {patient.patient_number}
-          </span>
-          <span className="text-sm text-muted-foreground ml-2">
-            ДР: {patient.date_of_birth ? format(new Date(patient.date_of_birth), "dd.MM.yyyy") : "—"}
-          </span>
-        </div>
-        <div className="ml-auto text-sm">
-          {ra ? `${ra.rooms?.name} / Кровать ${ra.bed_number}` : "Без палаты"}
-        </div>
       </div>
 
       {allergies.length > 0 && (
