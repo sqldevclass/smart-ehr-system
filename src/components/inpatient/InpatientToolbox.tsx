@@ -292,7 +292,7 @@ export default function InpatientToolbox({
             hospitalId={hospitalId}
             selectedDeptIds={selectedDeptIds}
             onSelect={(hospId) => {
-              navigate(`/physician/inpatient/${hospId}`);
+              navigate(`${detailPathPrefix}${hospId}`);
               setShowSearchResults(false);
               setIdSearch("");
             }}
