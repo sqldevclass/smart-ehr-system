@@ -561,7 +561,7 @@ function ServiceTab({
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold">{title}</h3>
-        {!showForm && (
+        {!showForm && !props.readOnly && (
           <Button size="sm" onClick={() => setShowForm(true)} className="gap-1">
             <Plus className="h-4 w-4" /> Назначить
           </Button>
