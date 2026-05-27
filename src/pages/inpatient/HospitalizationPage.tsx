@@ -313,6 +313,17 @@ export default function HospitalizationPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <DischargeDialog
+        open={dischargeOpen}
+        onOpenChange={setDischargeOpen}
+        hospitalizationId={hosp.id}
+        patientName={`${patient?.last_name ?? ""} ${patient?.first_name ?? ""}`}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["hospitalization", hosp.id] });
+          navigate("/inpatient");
+        }}
+      />
     </div>
   );
 }
