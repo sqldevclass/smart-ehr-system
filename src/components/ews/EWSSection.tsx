@@ -186,8 +186,8 @@ export default function EWSSection({
     parameters.forEach((p: any) => {
       const existing = overrideMap[p.id];
       init[p.id] = {
-        min: existing?.override_min?.toString() ?? "",
-        max: existing?.override_max?.toString() ?? "",
+        min: "",
+        max: "",
         reason: existing?.reason ?? "",
       };
     });
@@ -197,9 +197,47 @@ export default function EWSSection({
   const handleSaveOverrides = async () => {
     setSavingOverrides(true);
     for (const param of parameters as any[]) {
-      const val = overrideValues[param.id];
-      const hasOverride = val?.min || val?.max;
-      if (hasOverride) {
+      if (param.input_type === "enum") continue;
+      const paramZones = thresholds
+        .filter((t: any) => t.parameter_id === param.id)
+        .sort((a: any, b: any) => {
+          const aMin = a.min_value ?? -999999;
+          const bMin = b.min_value ?? -999999;
+          return aMin - bMin;
+        });
+      const whiteIdx = paramZones.findIndex((z: any) => z.score === 0);
+
+      const lowUpperBoundaries: number[] = [];
+      const highLowerBoundaries: number[] = [];
+      let edited = false;
+
+      paramZones.forEach((zone: any, idx: number) => {
+        if (zone.score === 0) return;
+        const zoneKey = `${param.id}_${idx}`;
+        const v = overrideValues[zoneKey];
+        const isLow = whiteIdx === -1 ? idx < paramZones.length / 2 : idx < whiteIdx;
+        if (isLow) {
+          const raw = v?.max ?? zone.max_value?.toString() ?? "";
+          const num = raw === "" ? null : parseFloat(raw);
+          if (v?.max !== undefined && v.max !== "" && parseFloat(v.max) !== zone.max_value) edited = true;
+          if (num !== null && !isNaN(num)) lowUpperBoundaries.push(num);
+        } else {
+          const raw = v?.min ?? zone.min_value?.toString() ?? "";
+          const num = raw === "" ? null : parseFloat(raw);
+          if (v?.min !== undefined && v.min !== "" && parseFloat(v.min) !== zone.min_value) edited = true;
+          if (num !== null && !isNaN(num)) highLowerBoundaries.push(num);
+        }
+      });
+
+      const overrideMin = lowUpperBoundaries.length
+        ? Math.max(...lowUpperBoundaries) + 1
+        : null;
+      const overrideMax = highLowerBoundaries.length
+        ? Math.min(...highLowerBoundaries) - 1
+        : null;
+      const reason = overrideValues[param.id]?.reason || null;
+
+      if (edited && (overrideMin !== null || overrideMax !== null)) {
         await supabase
           .from("ews_patient_overrides")
           .upsert(
@@ -208,9 +246,9 @@ export default function EWSSection({
               patient_id: patientId,
               hospital_id: hospitalId,
               parameter_id: param.id,
-              override_min: val.min ? parseFloat(val.min) : null,
-              override_max: val.max ? parseFloat(val.max) : null,
-              reason: val.reason || null,
+              override_min: overrideMin,
+              override_max: overrideMax,
+              reason,
               overridden_by: user!.id,
               is_active: true,
             },
@@ -485,8 +523,46 @@ export default function EWSSection({
                           )}
                         </div>
                         <div className="divide-y">
-                          {zones.map((zone: any, idx: number) => {
+                          {(() => {
+                            const whiteIdx = zones.findIndex(
+                              (z: any) => z.score === 0,
+                            );
+                            // Compute normal range dynamically from edited
+                            // yellow/pink boundaries
+                            const lowUppers: number[] = [];
+                            const highLowers: number[] = [];
+                            zones.forEach((z: any, i: number) => {
+                              if (z.score === 0) return;
+                              const zk = `${p.id}_${i}`;
+                              const isLow =
+                                whiteIdx === -1
+                                  ? i < zones.length / 2
+                                  : i < whiteIdx;
+                              if (isLow) {
+                                const raw =
+                                  overrideValues[zk]?.max ??
+                                  z.max_value?.toString() ??
+                                  "";
+                                const n = parseFloat(raw);
+                                if (!isNaN(n)) lowUppers.push(n);
+                              } else {
+                                const raw =
+                                  overrideValues[zk]?.min ??
+                                  z.min_value?.toString() ??
+                                  "";
+                                const n = parseFloat(raw);
+                                if (!isNaN(n)) highLowers.push(n);
+                              }
+                            });
+                            const computedNormalMin = lowUppers.length
+                              ? Math.max(...lowUppers) + 1
+                              : null;
+                            const computedNormalMax = highLowers.length
+                              ? Math.min(...highLowers) - 1
+                              : null;
+                            return zones.map((zone: any, idx: number) => {
                             const isNormalZone = zone.score === 0;
+                            const zoneKey = `${p.id}_${idx}`;
                             return (
                               <div
                                 key={idx}
@@ -527,13 +603,24 @@ export default function EWSSection({
                                   </div>
                                 </div>
                                 <div className="flex-1 text-xs text-muted-foreground">
-                                  {zone.min_value === null
-                                    ? `≤ ${zone.max_value}`
-                                    : zone.max_value === null
-                                      ? `≥ ${zone.min_value}`
-                                      : `${zone.min_value} – ${zone.max_value}`}
+                                  {isNormalZone &&
+                                  (computedNormalMin !== null ||
+                                    computedNormalMax !== null) ? (
+                                    <span className="text-sm text-blue-600 font-medium">
+                                      {computedNormalMin ?? "—"} – {computedNormalMax ?? "—"}
+                                      <span className="text-xs ml-1 text-muted-foreground">
+                                        (авто)
+                                      </span>
+                                    </span>
+                                  ) : zone.min_value === null ? (
+                                    `≤ ${zone.max_value}`
+                                  ) : zone.max_value === null ? (
+                                    `≥ ${zone.min_value}`
+                                  ) : (
+                                    `${zone.min_value} – ${zone.max_value}`
+                                  )}
                                 </div>
-                                {isNormalZone && canOverride && (
+                                {zone.score > 0 && canOverride && (
                                   <div className="flex items-center gap-1.5 shrink-0">
                                     <div className="flex items-center gap-1">
                                       <span className="text-xs text-muted-foreground">от</span>
@@ -541,16 +628,21 @@ export default function EWSSection({
                                         type="number"
                                         step="0.1"
                                         value={
-                                          overrideValues[p.id]?.min ??
-                                          zone.min_value ??
+                                          overrideValues[zoneKey]?.min ??
+                                          zone.min_value?.toString() ??
                                           ""
                                         }
                                         onChange={(e) =>
                                           setOverrideValues((prev) => ({
                                             ...prev,
-                                            [p.id]: {
-                                              ...prev[p.id],
+                                            [zoneKey]: {
+                                              ...prev[zoneKey],
                                               min: e.target.value,
+                                              max:
+                                                prev[zoneKey]?.max ??
+                                                zone.max_value?.toString() ??
+                                                "",
+                                              reason: prev[zoneKey]?.reason ?? "",
                                             },
                                           }))
                                         }
@@ -564,16 +656,21 @@ export default function EWSSection({
                                         type="number"
                                         step="0.1"
                                         value={
-                                          overrideValues[p.id]?.max ??
-                                          zone.max_value ??
+                                          overrideValues[zoneKey]?.max ??
+                                          zone.max_value?.toString() ??
                                           ""
                                         }
                                         onChange={(e) =>
                                           setOverrideValues((prev) => ({
                                             ...prev,
-                                            [p.id]: {
-                                              ...prev[p.id],
+                                            [zoneKey]: {
+                                              ...prev[zoneKey],
+                                              min:
+                                                prev[zoneKey]?.min ??
+                                                zone.min_value?.toString() ??
+                                                "",
                                               max: e.target.value,
+                                              reason: prev[zoneKey]?.reason ?? "",
                                             },
                                           }))
                                         }
@@ -587,7 +684,8 @@ export default function EWSSection({
                                 )}
                               </div>
                             );
-                          })}
+                            });
+                          })()}
                         </div>
                         {canOverride && (
                           <div className="px-3 py-2 bg-gray-50 border-t">
