@@ -158,6 +158,69 @@ export default function NursePatientsList() {
           <p className="text-muted-foreground text-sm">Загрузка…</p>
         ) : !hospitalizations.length ? (
           <p className="text-muted-foreground text-sm">Нет активных госпитализаций.</p>
+        ) : tabletMode ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="bg-muted text-left">
+                  <th className="px-3 py-2 font-medium text-xs">Пациент</th>
+                  <th className="px-3 py-2 font-medium text-xs">Палата</th>
+                  <th className="px-3 py-2 font-medium text-xs text-center">АД</th>
+                  <th className="px-3 py-2 font-medium text-xs text-center">Пульс</th>
+                  <th className="px-3 py-2 font-medium text-xs text-center">SpO2</th>
+                  <th className="px-3 py-2 font-medium text-xs text-center">Темп.</th>
+                  <th className="px-3 py-2 font-medium text-xs text-center">Баланс</th>
+                  <th className="px-3 py-2 font-medium text-xs text-center">Дней</th>
+                  <th className="px-3 py-2 font-medium text-xs text-center">ШРПУ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {hospitalizations.map((h: any) => {
+                  const v = latestVitals[h.id];
+                  const ra = h.room_assignments?.[0];
+                  const days = differenceInDays(new Date(), new Date(h.admitted_at));
+                  const balance = v ? (v.fluid_intake_ml ?? 0) - (v.fluid_output_ml ?? 0) : null;
+                  return (
+                    <tr key={h.id} className="border-b hover:bg-muted/50">
+                      <td className="px-3 py-2">
+                        <div className="font-medium">{h.patients?.last_name} {h.patients?.first_name}</div>
+                        <div className="text-xs text-muted-foreground">{h.patients?.patient_number}</div>
+                      </td>
+                      <td className="px-3 py-2 text-xs">
+                        {ra ? `${ra.rooms?.name} / ${ra.bed_number}` : "—"}
+                      </td>
+                      <td className="px-3 py-2 text-center text-xs">
+                        {v?.bp_systolic ? `${v.bp_systolic}/${v.bp_diastolic}` : "—"}
+                      </td>
+                      <td className="px-3 py-2 text-center text-xs">
+                        {v?.pulse ?? "—"}
+                      </td>
+                      <td className="px-3 py-2 text-center text-xs">
+                        {v?.spo2 ? `${v.spo2}%` : "—"}
+                      </td>
+                      <td className="px-3 py-2 text-center text-xs">
+                        {v?.temperature ? `${v.temperature}°` : "—"}
+                      </td>
+                      <td className="px-3 py-2 text-center text-xs">
+                        {balance !== null ? `${balance > 0 ? "+" : ""}${balance} мл` : "—"}
+                      </td>
+                      <td className="px-3 py-2 text-center text-xs">
+                        {days}
+                      </td>
+                      <td className="px-3 py-2 text-center text-xs text-muted-foreground">
+                        —
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {hospitalizations.length === 0 && (
+              <div className="text-center py-8 text-sm text-muted-foreground">
+                Нет активных пациентов
+              </div>
+            )}
+          </div>
         ) : (
           <Table>
             <TableHeader>
