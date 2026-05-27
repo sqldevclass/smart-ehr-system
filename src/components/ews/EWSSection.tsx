@@ -43,6 +43,7 @@ export default function EWSSection({
   patientDateOfBirth,
   admittedAt,
   isReadOnly = false,
+  canOverride = false,
 }: Props) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -54,6 +55,11 @@ export default function EWSSection({
   const [glucoseValue, setGlucoseValue] = useState("");
   const [glucoseNotes, setGlucoseNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [showOverridePanel, setShowOverridePanel] = useState(false);
+  const [overrideValues, setOverrideValues] = useState<
+    Record<string, { min: string; max: string; reason: string }>
+  >({});
+  const [savingOverrides, setSavingOverrides] = useState(false);
 
   const ageMonths = differenceInMonths(
     new Date(admittedAt),
