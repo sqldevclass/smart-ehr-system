@@ -31,6 +31,7 @@ export default function NursePatientsList() {
     tabletMode,
     setTabletMode,
   } = useNurseContext();
+  const { getStatus, scheduleMap } = useEWSSchedule(user?.hospitalId);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [assignTarget, setAssignTarget] = useState<any>(null);
   const [roomBed, setRoomBed] = useState<RoomBedValue>({ roomId: "", bedNumber: null });
