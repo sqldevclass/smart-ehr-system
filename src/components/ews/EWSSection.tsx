@@ -433,89 +433,235 @@ export default function EWSSection({
             Измените границы нормы для этого пациента. Оставьте поля пустыми для
             стандартных значений.
           </p>
-          {parameters.map((p: any) => {
-            const val =
-              overrideValues[p.id] ?? { min: "", max: "", reason: "" };
-            const hasOverride = overrideMap[p.id];
+          {(() => {
+            const getZones = (paramId: string) => {
+              return thresholds
+                .filter((t: any) => t.parameter_id === paramId)
+                .sort((a: any, b: any) => {
+                  const aMin = a.min_value ?? -999999;
+                  const bMin = b.min_value ?? -999999;
+                  return aMin - bMin;
+                });
+            };
+            const colorLabel: Record<string, string> = {
+              white: "Норма",
+              yellow: "Внимание",
+              pink: "Критично",
+            };
             return (
-              <div
-                key={p.id}
-                className={cn(
-                  "p-3 rounded border bg-white",
-                  hasOverride && "border-blue-300 bg-blue-50",
-                )}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium">
-                    {p.name_ru}
-                    {p.unit && (
-                      <span className="text-xs text-muted-foreground ml-1">
-                        ({p.unit})
-                      </span>
-                    )}
-                  </span>
-                  {hasOverride && (
-                    <span className="text-xs text-blue-600 font-medium">
-                      Изменено
-                    </span>
-                  )}
-                </div>
-                {p.input_type !== "enum" ? (
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <Label className="text-xs">Мин.</Label>
-                      <Input
-                        type="number"
-                        step="0.1"
-                        value={val.min}
-                        onChange={(e) =>
-                          setOverrideValues((prev) => ({
-                            ...prev,
-                            [p.id]: { ...prev[p.id], min: e.target.value },
-                          }))
-                        }
-                        className="h-7 text-sm mt-1"
-                        placeholder="стандарт"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs">Макс.</Label>
-                      <Input
-                        type="number"
-                        step="0.1"
-                        value={val.max}
-                        onChange={(e) =>
-                          setOverrideValues((prev) => ({
-                            ...prev,
-                            [p.id]: { ...prev[p.id], max: e.target.value },
-                          }))
-                        }
-                        className="h-7 text-sm mt-1"
-                        placeholder="стандарт"
-                      />
-                    </div>
-                    <div className="col-span-2">
-                      <Input
-                        value={val.reason}
-                        onChange={(e) =>
-                          setOverrideValues((prev) => ({
-                            ...prev,
-                            [p.id]: { ...prev[p.id], reason: e.target.value },
-                          }))
-                        }
-                        className="h-7 text-xs mt-1"
-                        placeholder="Причина изменения"
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    Переопределение недоступно для перечисляемых параметров
-                  </p>
-                )}
-              </div>
+              <>
+                {parameters
+                  .filter((p: any) => p.input_type !== "enum")
+                  .map((p: any) => {
+                    const zones = getZones(p.id);
+                    const override = overrideMap[p.id];
+                    const hasOverride = !!override;
+                    return (
+                      <div
+                        key={p.id}
+                        className={cn(
+                          "rounded-lg border overflow-hidden",
+                          hasOverride ? "border-blue-300" : "border-gray-200",
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            "flex items-center justify-between px-3 py-2 bg-gray-50 border-b",
+                            hasOverride && "bg-blue-50 border-blue-200",
+                          )}
+                        >
+                          <span className="text-sm font-medium">
+                            {p.name_ru}
+                            {p.unit && (
+                              <span className="text-xs text-muted-foreground ml-1">
+                                ({p.unit})
+                              </span>
+                            )}
+                          </span>
+                          {hasOverride && (
+                            <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
+                              Изменено
+                            </span>
+                          )}
+                        </div>
+                        <div className="divide-y">
+                          {zones.map((zone: any, idx: number) => {
+                            const isNormalZone = zone.score === 0;
+                            return (
+                              <div
+                                key={idx}
+                                className={cn(
+                                  "flex items-center gap-3 px-3 py-2",
+                                  zone.color === "white"
+                                    ? "bg-white"
+                                    : zone.color === "yellow"
+                                      ? "bg-yellow-50"
+                                      : "bg-pink-50",
+                                )}
+                              >
+                                <div
+                                  className={cn(
+                                    "w-1.5 h-8 rounded-full shrink-0",
+                                    zone.color === "white"
+                                      ? "bg-gray-300"
+                                      : zone.color === "yellow"
+                                        ? "bg-yellow-400"
+                                        : "bg-pink-500",
+                                  )}
+                                />
+                                <div className="w-20 shrink-0">
+                                  <span
+                                    className={cn(
+                                      "text-xs font-medium",
+                                      zone.color === "white"
+                                        ? "text-gray-600"
+                                        : zone.color === "yellow"
+                                          ? "text-yellow-700"
+                                          : "text-pink-700",
+                                    )}
+                                  >
+                                    {colorLabel[zone.color as keyof typeof colorLabel]}
+                                  </span>
+                                  <div className="text-xs text-muted-foreground">
+                                    {zone.score > 0 && `+${zone.score} балл`}
+                                  </div>
+                                </div>
+                                <div className="flex-1 text-xs text-muted-foreground">
+                                  {zone.min_value === null
+                                    ? `≤ ${zone.max_value}`
+                                    : zone.max_value === null
+                                      ? `≥ ${zone.min_value}`
+                                      : `${zone.min_value} – ${zone.max_value}`}
+                                </div>
+                                {isNormalZone && canOverride && (
+                                  <div className="flex items-center gap-1.5 shrink-0">
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-xs text-muted-foreground">от</span>
+                                      <Input
+                                        type="number"
+                                        step="0.1"
+                                        value={
+                                          overrideValues[p.id]?.min ??
+                                          zone.min_value ??
+                                          ""
+                                        }
+                                        onChange={(e) =>
+                                          setOverrideValues((prev) => ({
+                                            ...prev,
+                                            [p.id]: {
+                                              ...prev[p.id],
+                                              min: e.target.value,
+                                            },
+                                          }))
+                                        }
+                                        className="w-16 h-7 text-xs text-center border-blue-200 focus:border-blue-400"
+                                        placeholder={
+                                          zone.min_value?.toString() ?? "—"
+                                        }
+                                      />
+                                      <span className="text-xs text-muted-foreground">до</span>
+                                      <Input
+                                        type="number"
+                                        step="0.1"
+                                        value={
+                                          overrideValues[p.id]?.max ??
+                                          zone.max_value ??
+                                          ""
+                                        }
+                                        onChange={(e) =>
+                                          setOverrideValues((prev) => ({
+                                            ...prev,
+                                            [p.id]: {
+                                              ...prev[p.id],
+                                              max: e.target.value,
+                                            },
+                                          }))
+                                        }
+                                        className="w-16 h-7 text-xs text-center border-blue-200 focus:border-blue-400"
+                                        placeholder={
+                                          zone.max_value?.toString() ?? "—"
+                                        }
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {canOverride && (
+                          <div className="px-3 py-2 bg-gray-50 border-t">
+                            <Input
+                              value={overrideValues[p.id]?.reason ?? ""}
+                              onChange={(e) =>
+                                setOverrideValues((prev) => ({
+                                  ...prev,
+                                  [p.id]: {
+                                    ...prev[p.id],
+                                    reason: e.target.value,
+                                  },
+                                }))
+                              }
+                              className="h-7 text-xs"
+                              placeholder="Причина изменения..."
+                            />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                {parameters
+                  .filter((p: any) => p.input_type === "enum")
+                  .map((p: any) => {
+                    const zones = getZones(p.id);
+                    return (
+                      <div
+                        key={p.id}
+                        className="rounded-lg border border-gray-200 overflow-hidden opacity-60"
+                      >
+                        <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b">
+                          <span className="text-sm font-medium">{p.name_ru}</span>
+                          <span className="text-xs text-muted-foreground">
+                            Нельзя изменить
+                          </span>
+                        </div>
+                        <div className="divide-y">
+                          {zones.map((zone: any, idx: number) => (
+                            <div
+                              key={idx}
+                              className={cn(
+                                "flex items-center gap-3 px-3 py-2",
+                                zone.color === "white"
+                                  ? "bg-white"
+                                  : zone.color === "yellow"
+                                    ? "bg-yellow-50"
+                                    : "bg-pink-50",
+                              )}
+                            >
+                              <div
+                                className={cn(
+                                  "w-1.5 h-6 rounded-full shrink-0",
+                                  zone.color === "white"
+                                    ? "bg-gray-300"
+                                    : zone.color === "yellow"
+                                      ? "bg-yellow-400"
+                                      : "bg-pink-500",
+                                )}
+                              />
+                              <span className="text-xs text-muted-foreground w-20">
+                                {colorLabel[zone.color as keyof typeof colorLabel]}
+                              </span>
+                              <span className="text-xs">{zone.text_value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </>
             );
-          })}
+          })()}
+
           <div className="flex gap-2 pt-2">
             <Button
               size="sm"
