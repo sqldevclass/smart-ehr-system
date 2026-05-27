@@ -817,9 +817,11 @@ function CareTab({
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold">Назначения по уходу</h3>
-        <Button size="sm" onClick={() => setShowCareForm(!showCareForm)}>
-          + Добавить
-        </Button>
+        {!readOnly && (
+          <Button size="sm" onClick={() => setShowCareForm(!showCareForm)}>
+            + Добавить
+          </Button>
+        )}
       </div>
 
       {showCareForm && (
