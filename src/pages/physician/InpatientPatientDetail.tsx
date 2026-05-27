@@ -422,6 +422,8 @@ export default function InpatientPatientDetail() {
                 hospitalId={user!.hospitalId}
                 userId={user!.id}
                 readOnly={isHospDischarged}
+                patientDateOfBirth={(hosp as any)?.patients?.date_of_birth}
+                admittedAt={(hosp as any)?.admitted_at}
               />
             ) : (
               <div className="p-10 text-center text-muted-foreground text-sm">
