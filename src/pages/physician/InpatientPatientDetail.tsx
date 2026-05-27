@@ -461,6 +461,8 @@ interface TabProps {
   hospitalId: string;
   userId: string;
   readOnly?: boolean;
+  patientDateOfBirth?: string;
+  admittedAt?: string;
 }
 
 function TabPanel(props: TabProps) {
@@ -479,7 +481,18 @@ function TabPanel(props: TabProps) {
     case "care":
       return <CareTab {...props} />;
     case "ews":
-      return <Placeholder text="ШРПУ — Фаза 8 — в разработке" />;
+      return (
+        <div className="p-4">
+          <EWSSection
+            hospitalizationId={props.hospitalizationId}
+            patientId={props.patientId}
+            hospitalId={props.hospitalId}
+            patientDateOfBirth={props.patientDateOfBirth!}
+            admittedAt={props.admittedAt!}
+            isReadOnly={true}
+          />
+        </div>
+      );
   }
 }
 
