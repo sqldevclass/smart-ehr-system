@@ -393,6 +393,128 @@ export default function EWSSection({
         </div>
       )}
 
+      {canOverride && (
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowOverridePanel(!showOverridePanel)}
+          >
+            {showOverridePanel ? "Скрыть границы" : "Изменить границы нормы"}
+          </Button>
+        </div>
+      )}
+
+      {showOverridePanel && canOverride && (
+        <div className="border rounded-md p-4 space-y-3 bg-blue-50/30">
+          <p className="text-xs text-muted-foreground">
+            Измените границы нормы для этого пациента. Оставьте поля пустыми для
+            стандартных значений.
+          </p>
+          {parameters.map((p: any) => {
+            const val =
+              overrideValues[p.id] ?? { min: "", max: "", reason: "" };
+            const hasOverride = overrideMap[p.id];
+            return (
+              <div
+                key={p.id}
+                className={cn(
+                  "p-3 rounded border bg-white",
+                  hasOverride && "border-blue-300 bg-blue-50",
+                )}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium">
+                    {p.name_ru}
+                    {p.unit && (
+                      <span className="text-xs text-muted-foreground ml-1">
+                        ({p.unit})
+                      </span>
+                    )}
+                  </span>
+                  {hasOverride && (
+                    <span className="text-xs text-blue-600 font-medium">
+                      Изменено
+                    </span>
+                  )}
+                </div>
+                {p.input_type !== "enum" ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-xs">Мин.</Label>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        value={val.min}
+                        onChange={(e) =>
+                          setOverrideValues((prev) => ({
+                            ...prev,
+                            [p.id]: { ...prev[p.id], min: e.target.value },
+                          }))
+                        }
+                        className="h-7 text-sm mt-1"
+                        placeholder="стандарт"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Макс.</Label>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        value={val.max}
+                        onChange={(e) =>
+                          setOverrideValues((prev) => ({
+                            ...prev,
+                            [p.id]: { ...prev[p.id], max: e.target.value },
+                          }))
+                        }
+                        className="h-7 text-sm mt-1"
+                        placeholder="стандарт"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Input
+                        value={val.reason}
+                        onChange={(e) =>
+                          setOverrideValues((prev) => ({
+                            ...prev,
+                            [p.id]: { ...prev[p.id], reason: e.target.value },
+                          }))
+                        }
+                        className="h-7 text-xs mt-1"
+                        placeholder="Причина изменения"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Переопределение недоступно для перечисляемых параметров
+                  </p>
+                )}
+              </div>
+            );
+          })}
+          <div className="flex gap-2 pt-2">
+            <Button
+              size="sm"
+              disabled={savingOverrides}
+              onClick={handleSaveOverrides}
+            >
+              {savingOverrides ? "Сохранение..." : "Сохранить"}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setShowOverridePanel(false)}
+            >
+              Отмена
+            </Button>
+          </div>
+        </div>
+      )}
+
+
+
       {showEWSForm && (
         <div className="border rounded-md p-4 space-y-3 bg-muted/30">
           <div className="flex items-center justify-between mb-2">
