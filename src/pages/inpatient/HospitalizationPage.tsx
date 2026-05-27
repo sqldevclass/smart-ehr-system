@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ArrowLeft, BedDouble } from "lucide-react";
+import DischargeDialog from "@/components/inpatient/DischargeDialog";
 import { cn } from "@/lib/utils";
 
 export default function HospitalizationPage() {
