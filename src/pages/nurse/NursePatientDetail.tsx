@@ -27,6 +27,12 @@ const EMPTY_VITALS = {
   notes: "",
 };
 
+const ORDER_TYPE_LABELS: Record<string, string> = {
+  diet: "Диета",
+  activity_mode: "Режим активности",
+  care: "Уход",
+};
+
 export default function NursePatientDetail() {
   const { hospId } = useParams<{ hospId: string }>();
   const { user } = useAuth();
