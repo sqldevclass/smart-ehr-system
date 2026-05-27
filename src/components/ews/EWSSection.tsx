@@ -130,7 +130,7 @@ export default function EWSSection({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("ews_schedule")
-        .select("next_due_at, last_score, escalation_level")
+        .select("next_due_at, last_score")
         .eq("hospitalization_id", hospitalizationId)
         .maybeSingle();
       if (error) throw error;
@@ -293,7 +293,15 @@ export default function EWSSection({
         <div
           className={cn(
             "p-3 rounded-md border text-sm",
-            escalationColors[ewsSchedule.escalation_level ?? 0],
+            escalationColors[
+              (ewsSchedule.last_score ?? 0) === 0
+                ? 0
+                : (ewsSchedule.last_score ?? 0) <= 2
+                ? 1
+                : (ewsSchedule.last_score ?? 0) <= 6
+                ? 2
+                : 3
+            ],
           )}
         >
           <div className="font-semibold">Балл: {ewsSchedule.last_score ?? 0}</div>
