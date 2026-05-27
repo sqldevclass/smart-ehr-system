@@ -235,49 +235,53 @@ export default function InpatientPatientDetail() {
             </div>
           )}
 
-          <div className="flex items-center gap-2 p-3 border-b">
+          <div className="flex items-center gap-1.5 p-3 border-b flex-wrap">
             <Button
               variant="ghost"
               size="sm"
+              className="h-7 px-2 text-xs"
               onClick={() => navigate("/physician/inpatient")}
             >
-              <ArrowLeft className="mr-1 h-4 w-4" /> Назад
+              ← Назад
             </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="sm">+ Создать</Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                {allowedDocTypes.length === 0 ? (
-                  <DropdownMenuItem disabled>
-                    Нет доступных документов. Обратитесь к администратору.
-                  </DropdownMenuItem>
-                ) : (
-                  allowedDocTypes.map((dt: any) => (
-                    <DropdownMenuItem
-                      key={dt.id}
-                      onClick={() =>
-                        setActiveView({
-                          type: "document",
-                          documentId: null,
-                          documentTypeId: dt.id,
-                        })
-                      }
-                    >
-                      <span
-                        className="w-3 h-3 rounded-full mr-2 inline-block"
-                        style={{ backgroundColor: dt.color }}
-                      />
-                      {dt.name_ru}
+            {!isHospDischarged && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" className="h-7 px-2 text-xs">+ Создать</Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  {allowedDocTypes.length === 0 ? (
+                    <DropdownMenuItem disabled>
+                      Нет доступных документов. Обратитесь к администратору.
                     </DropdownMenuItem>
-                  ))
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            {!(hosp as any).discharged_at && (
+                  ) : (
+                    allowedDocTypes.map((dt: any) => (
+                      <DropdownMenuItem
+                        key={dt.id}
+                        onClick={() =>
+                          setActiveView({
+                            type: "document",
+                            documentId: null,
+                            documentTypeId: dt.id,
+                          })
+                        }
+                      >
+                        <span
+                          className="w-3 h-3 rounded-full mr-2 inline-block"
+                          style={{ backgroundColor: dt.color }}
+                        />
+                        {dt.name_ru}
+                      </DropdownMenuItem>
+                    ))
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            {!isHospDischarged && (
               <Button
                 variant="destructive"
                 size="sm"
+                className="h-7 px-2 text-xs"
                 onClick={() => setDischargeOpen(true)}
               >
                 Выписать
