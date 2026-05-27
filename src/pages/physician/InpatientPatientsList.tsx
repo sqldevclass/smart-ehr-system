@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useEWSSchedule } from "@/hooks/useEWSSchedule";
+import EWSStatusDot from "@/components/ews/EWSStatusDot";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,6 +28,8 @@ export default function InpatientPatientsList() {
   const queryClient = useQueryClient();
   const { selectedDeptIds, nameSearch, idSearch } = useInpatientContext();
   const { physicianId: currentPhysicianId } = usePhysicianId();
+
+  const { getStatus, scheduleMap } = useEWSSchedule(user?.hospitalId);
 
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
   const [physicianSearch, setPhysicianSearch] = useState("");
@@ -217,7 +221,12 @@ export default function InpatientPatientsList() {
                       </Popover>
                     </TableCell>
                     <TableCell>{days}</TableCell>
-                    <TableCell>—</TableCell>
+                    <TableCell>
+                      <EWSStatusDot
+                        status={getStatus(h.id)}
+                        score={scheduleMap[h.id]?.last_score}
+                      />
+                    </TableCell>
                   </>
                 );
 
