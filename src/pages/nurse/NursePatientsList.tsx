@@ -18,6 +18,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { RoomBedSelector, RoomBedValue } from "@/components/inpatient/RoomBedSelector";
 import { toast } from "sonner";
 
@@ -30,6 +31,8 @@ export default function NursePatientsList() {
   const [roomBed, setRoomBed] = useState<RoomBedValue>({ roomId: "", bedNumber: null });
   const [submitting, setSubmitting] = useState(false);
   const [tabletMode, setTabletMode] = useState(false);
+  const [nameSearch, setNameSearch] = useState("");
+  const [idSearch, setIdSearch] = useState("");
 
   const { data: departments = [] } = useQuery({
     queryKey: ["nurse-departments", user?.hospitalId],
@@ -51,8 +54,10 @@ export default function NursePatientsList() {
         .from("hospitalizations")
         .select(`
           id, hospitalization_number, admitted_at,
-          department_id,
+          department_id, primary_physician_id,
           departments!department_id(name),
+          physicians!primary_physician_id(
+            profiles!inner(full_name)),
           patients!inner(
             id, first_name, last_name,
             patient_number, date_of_birth),
@@ -147,6 +152,18 @@ export default function NursePatientsList() {
               ))}
             </SelectContent>
           </Select>
+          <Input
+            placeholder="Поиск по ФИО..."
+            value={nameSearch}
+            onChange={(e) => setNameSearch(e.target.value)}
+            className="w-44 h-8 text-sm"
+          />
+          <Input
+            placeholder="Поиск по ID..."
+            value={idSearch}
+            onChange={(e) => setIdSearch(e.target.value)}
+            className="w-36 h-8 text-sm"
+          />
           <div className="flex items-center gap-2">
             <Switch
               id="tablet-toggle"
@@ -159,133 +176,166 @@ export default function NursePatientsList() {
           </div>
         </div>
 
-        {isLoading ? (
-          <p className="text-muted-foreground text-sm">Загрузка…</p>
-        ) : !hospitalizations.length ? (
-          <p className="text-muted-foreground text-sm">Нет активных госпитализаций.</p>
-        ) : tabletMode ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm border-collapse">
-              <thead>
-                <tr className="bg-muted text-left">
-                  <th className="px-3 py-2 font-medium text-xs">Пациент</th>
-                  <th className="px-3 py-2 font-medium text-xs">Палата</th>
-                  <th className="px-3 py-2 font-medium text-xs text-center">АД</th>
-                  <th className="px-3 py-2 font-medium text-xs text-center">Пульс</th>
-                  <th className="px-3 py-2 font-medium text-xs text-center">SpO2</th>
-                  <th className="px-3 py-2 font-medium text-xs text-center">Темп.</th>
-                  <th className="px-3 py-2 font-medium text-xs text-center">Баланс</th>
-                  <th className="px-3 py-2 font-medium text-xs text-center">Дней</th>
-                  <th className="px-3 py-2 font-medium text-xs text-center">ШРПУ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {hospitalizations.map((h: any) => {
-                  const v = latestVitals[h.id];
-                  const ra = h.room_assignments?.[0];
-                  const days = differenceInDays(new Date(), new Date(h.admitted_at));
-                  const balance = v ? (v.fluid_intake_ml ?? 0) - (v.fluid_output_ml ?? 0) : null;
-                  return (
-                    <tr key={h.id} className="border-b hover:bg-muted/50">
-                      <td className="px-3 py-2">
-                        <div className="font-medium">{h.patients?.last_name} {h.patients?.first_name}</div>
-                        <div className="text-xs text-muted-foreground">{h.patients?.patient_number}</div>
-                      </td>
-                      <td className="px-3 py-2 text-xs">
-                        {ra ? `${ra.rooms?.name} / ${ra.bed_number}` : "—"}
-                      </td>
-                      <td className="px-3 py-2 text-center text-xs">
-                        {v?.bp_systolic ? `${v.bp_systolic}/${v.bp_diastolic}` : "—"}
-                      </td>
-                      <td className="px-3 py-2 text-center text-xs">
-                        {v?.pulse ?? "—"}
-                      </td>
-                      <td className="px-3 py-2 text-center text-xs">
-                        {v?.spo2 ? `${v.spo2}%` : "—"}
-                      </td>
-                      <td className="px-3 py-2 text-center text-xs">
-                        {v?.temperature ? `${v.temperature}°` : "—"}
-                      </td>
-                      <td className="px-3 py-2 text-center text-xs">
-                        {balance !== null ? `${balance > 0 ? "+" : ""}${balance} мл` : "—"}
-                      </td>
-                      <td className="px-3 py-2 text-center text-xs">
-                        {days}
-                      </td>
-                      <td className="px-3 py-2 text-center text-xs text-muted-foreground">
-                        —
-                      </td>
+        {(() => {
+          const filtered = hospitalizations.filter((h: any) => {
+            const p = h.patients;
+            const name = `${p?.last_name} ${p?.first_name}`.toLowerCase();
+            const matchName = nameSearch
+              ? name.includes(nameSearch.toLowerCase())
+              : true;
+            const matchId = idSearch
+              ? p?.patient_number?.toLowerCase().includes(idSearch.toLowerCase())
+              : true;
+            return matchName && matchId;
+          });
+
+          if (isLoading) {
+            return <p className="text-muted-foreground text-sm">Загрузка…</p>;
+          }
+          if (!filtered.length) {
+            return <p className="text-muted-foreground text-sm">Нет активных госпитализаций.</p>;
+          }
+          if (tabletMode) {
+            return (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="bg-muted text-left">
+                      <th className="px-3 py-2 font-medium text-xs">Пациент</th>
+                      <th className="px-3 py-2 font-medium text-xs">Палата</th>
+                      <th className="px-3 py-2 font-medium text-xs">Лечащий Врач</th>
+                      <th className="px-3 py-2 font-medium text-xs text-center">АД</th>
+                      <th className="px-3 py-2 font-medium text-xs text-center">Пульс</th>
+                      <th className="px-3 py-2 font-medium text-xs text-center">SpO2</th>
+                      <th className="px-3 py-2 font-medium text-xs text-center">Темп.</th>
+                      <th className="px-3 py-2 font-medium text-xs text-center">Баланс</th>
+                      <th className="px-3 py-2 font-medium text-xs text-center">Дней</th>
+                      <th className="px-3 py-2 font-medium text-xs text-center">ШРПУ</th>
                     </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((h: any) => {
+                      const v = latestVitals[h.id];
+                      const ra = h.room_assignments?.[0];
+                      const days = differenceInDays(new Date(), new Date(h.admitted_at));
+                      const balance = v ? (v.fluid_intake_ml ?? 0) - (v.fluid_output_ml ?? 0) : null;
+                      return (
+                        <tr key={h.id} className="border-b hover:bg-muted/50">
+                          <td className="px-3 py-2">
+                            <div className="font-medium">{h.patients?.last_name} {h.patients?.first_name}</div>
+                            <div className="text-xs text-muted-foreground">{h.patients?.patient_number}</div>
+                          </td>
+                          <td className="px-3 py-2 text-xs">
+                            {ra ? `${ra.rooms?.name} / ${ra.bed_number}` : "—"}
+                          </td>
+                          <td className="px-3 py-2 text-xs">
+                            {(h as any).physicians?.profiles?.full_name || "—"}
+                          </td>
+                          <td className="px-3 py-2 text-center text-xs">
+                            {v?.bp_systolic ? `${v.bp_systolic}/${v.bp_diastolic}` : "—"}
+                          </td>
+                          <td className="px-3 py-2 text-center text-xs">
+                            {v?.pulse ?? "—"}
+                          </td>
+                          <td className="px-3 py-2 text-center text-xs">
+                            {v?.spo2 ? `${v.spo2}%` : "—"}
+                          </td>
+                          <td className="px-3 py-2 text-center text-xs">
+                            {v?.temperature ? `${v.temperature}°` : "—"}
+                          </td>
+                          <td className="px-3 py-2 text-center text-xs">
+                            {balance !== null ? `${balance > 0 ? "+" : ""}${balance} мл` : "—"}
+                          </td>
+                          <td className="px-3 py-2 text-center text-xs">
+                            {days}
+                          </td>
+                          <td className="px-3 py-2 text-center text-xs text-muted-foreground">
+                            —
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            );
+          }
+          return (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Дата поступления</TableHead>
+                  <TableHead>Отделение</TableHead>
+                  <TableHead>ФИО / ДОБ</TableHead>
+                  <TableHead>№Палаты / Кровать</TableHead>
+                  <TableHead>Лечащий Врач</TableHead>
+                  <TableHead>Который день</TableHead>
+                  <TableHead>ШРПУ</TableHead>
+                  <TableHead>Операция</TableHead>
+                  <TableHead>Лист назначения</TableHead>
+                  <TableHead>Приход/списание</TableHead>
+                  <TableHead>Статус</TableHead>
+                  <TableHead className="text-right">Действие</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((h: any) => {
+                  const p = h.patients;
+                  const ra = h.room_assignments?.[0];
+                  const hasRoom = !!ra;
+                  const days = differenceInDays(new Date(), new Date(h.admitted_at));
+                  return (
+                    <TableRow key={h.id}>
+                      <TableCell className="text-sm">
+                        {format(new Date(h.admitted_at), "dd.MM.yyyy HH:mm")}
+                      </TableCell>
+                      <TableCell>{h.departments?.name || "—"}</TableCell>
+                      <TableCell>
+                        <div className="font-medium">{p?.last_name} {p?.first_name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {p?.date_of_birth ? format(new Date(p.date_of_birth), "dd.MM.yyyy") : "—"}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {hasRoom ? `${ra.rooms?.name} / ${ra.bed_number}` : "—"}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {(h as any).physicians?.profiles?.full_name || "—"}
+                      </TableCell>
+                      <TableCell className="text-sm">{days} дн.</TableCell>
+                      <TableCell className="text-muted-foreground">—</TableCell>
+                      <TableCell className="text-muted-foreground">—</TableCell>
+                      <TableCell className="text-muted-foreground">—</TableCell>
+                      <TableCell className="text-muted-foreground">—</TableCell>
+                      <TableCell>
+                        {hasRoom ? (
+                          <span className="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-700">
+                            Размещён
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700">
+                            Ожидает размещения
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {hasRoom ? (
+                          <Button size="sm" variant="ghost" onClick={() => navigate(`/nurse/${h.id}`)}>
+                            Открыть
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="outline" onClick={() => openAssignDialog(h)}>
+                            Принять
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
-              </tbody>
-            </table>
-            {hospitalizations.length === 0 && (
-              <div className="text-center py-8 text-sm text-muted-foreground">
-                Нет активных пациентов
-              </div>
-            )}
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Дата поступления</TableHead>
-                <TableHead>Отделение</TableHead>
-                <TableHead>ФИО / ДОБ</TableHead>
-                <TableHead>Палата / Кровать</TableHead>
-                <TableHead>Статус</TableHead>
-                <TableHead className="text-right">Действие</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {hospitalizations.map((h: any) => {
-                const p = h.patients;
-                const ra = h.room_assignments?.[0];
-                const hasRoom = !!ra;
-                return (
-                  <TableRow key={h.id}>
-                    <TableCell className="text-sm">
-                      {format(new Date(h.admitted_at), "dd.MM.yyyy HH:mm")}
-                    </TableCell>
-                    <TableCell>{h.departments?.name || "—"}</TableCell>
-                    <TableCell>
-                      <div className="font-medium">{p?.last_name} {p?.first_name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {p?.date_of_birth ? format(new Date(p.date_of_birth), "dd.MM.yyyy") : "—"}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {hasRoom ? `${ra.rooms?.name} / ${ra.bed_number}` : "—"}
-                    </TableCell>
-                    <TableCell>
-                      {hasRoom ? (
-                        <span className="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-700">
-                          Размещён
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700">
-                          Ожидает размещения
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {hasRoom ? (
-                        <Button size="sm" variant="ghost" onClick={() => navigate(`/nurse/${h.id}`)}>
-                          Открыть
-                        </Button>
-                      ) : (
-                        <Button size="sm" variant="outline" onClick={() => openAssignDialog(h)}>
-                          Принять
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        )}
+              </TableBody>
+            </Table>
+          );
+        })()}
 
         <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
           <DialogContent className="max-w-3xl">
