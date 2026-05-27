@@ -29,6 +29,8 @@ export default function InpatientPatientsList() {
   const { selectedDeptIds, nameSearch, idSearch } = useInpatientContext();
   const { physicianId: currentPhysicianId } = usePhysicianId();
 
+  const { getStatus, scheduleMap } = useEWSSchedule(user?.hospitalId);
+
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
   const [physicianSearch, setPhysicianSearch] = useState("");
 
