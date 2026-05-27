@@ -49,6 +49,7 @@ export default function InpatientPatientDetail() {
   const [showAll, setShowAll] = useState(false);
   const [activeView, setActiveView] = useState<ActiveView>(null);
   const [showInlineForm, setShowInlineForm] = useState(false);
+  const [dischargeOpen, setDischargeOpen] = useState(false);
 
   const { data: hosp, isLoading } = useQuery({
     queryKey: ["inpatient-detail", hospitalizationId],
