@@ -244,18 +244,40 @@ export default function EWSSection({
       const match = paramThresholds.find(
         (t: any) => t.text_value === value,
       );
-      return { score: match?.score ?? 0, color: match?.color ?? "white" };
+      return {
+        score: match?.score ?? 0,
+        color: match?.color ?? "white"
+      };
     }
 
     const num = parseFloat(value);
-    if (isNaN(num)) return { score: 0, color: "white" };
+    if (isNaN(num)) return {
+      score: 0, color: "white" };
+
+    // Check physician override first
+    const override = overrideMap[paramId];
+    if (override) {
+      const min = override.override_min ?? -999999;
+      const max = override.override_max ?? 999999;
+      if (num >= min && num <= max) {
+        return { score: 0, color: "white" };
+      }
+      // Outside override range — use standard
+      // thresholds for abnormal scoring
+    }
 
     const match = paramThresholds.find(
       (t: any) =>
-        (t.min_value === null || num >= t.min_value) &&
-        (t.max_value === null || num <= t.max_value),
+        (t.min_value === null ||
+          num >= t.min_value) &&
+        (t.max_value === null ||
+          num <= t.max_value)
     );
-    return { score: match?.score ?? 0, color: match?.color ?? "white" };
+
+    return {
+      score: match?.score ?? 0,
+      color: match?.color ?? "white"
+    };
   };
 
   const totalScore = parameters.reduce((sum: number, p: any) => {
