@@ -725,12 +725,14 @@ function DiagnosisTab({
                 <span className="ml-1">· {d.hospitalizations?.hospitalization_number}</span>
               )}
             </div>
-            <button
-              onClick={() => handleCopyDiagnosis(d)}
-              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-primary text-xs border rounded px-2 py-0.5 bg-white hover:bg-primary hover:text-white transition-all"
-            >
-              + Добавить
-            </button>
+            {!readOnly && (
+              <button
+                onClick={() => handleCopyDiagnosis(d)}
+                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-primary text-xs border rounded px-2 py-0.5 bg-white hover:bg-primary hover:text-white transition-all"
+              >
+                + Добавить
+              </button>
+            )}
           </div>
         ))}
       </div>
