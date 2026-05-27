@@ -29,6 +29,7 @@ export default function HospitalizationPage() {
   const [roomDialogOpen, setRoomDialogOpen] = useState(false);
   const [selected, setSelected] = useState<{ roomId: string; bed: number } | null>(null);
   const [roomSubmitting, setRoomSubmitting] = useState(false);
+  const [dischargeOpen, setDischargeOpen] = useState(false);
 
   const { data: hosp, isLoading } = useQuery({
     queryKey: ["hospitalization", hospId],
