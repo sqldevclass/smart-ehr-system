@@ -523,8 +523,46 @@ export default function EWSSection({
                           )}
                         </div>
                         <div className="divide-y">
-                          {zones.map((zone: any, idx: number) => {
+                          {(() => {
+                            const whiteIdx = zones.findIndex(
+                              (z: any) => z.score === 0,
+                            );
+                            // Compute normal range dynamically from edited
+                            // yellow/pink boundaries
+                            const lowUppers: number[] = [];
+                            const highLowers: number[] = [];
+                            zones.forEach((z: any, i: number) => {
+                              if (z.score === 0) return;
+                              const zk = `${p.id}_${i}`;
+                              const isLow =
+                                whiteIdx === -1
+                                  ? i < zones.length / 2
+                                  : i < whiteIdx;
+                              if (isLow) {
+                                const raw =
+                                  overrideValues[zk]?.max ??
+                                  z.max_value?.toString() ??
+                                  "";
+                                const n = parseFloat(raw);
+                                if (!isNaN(n)) lowUppers.push(n);
+                              } else {
+                                const raw =
+                                  overrideValues[zk]?.min ??
+                                  z.min_value?.toString() ??
+                                  "";
+                                const n = parseFloat(raw);
+                                if (!isNaN(n)) highLowers.push(n);
+                              }
+                            });
+                            const computedNormalMin = lowUppers.length
+                              ? Math.max(...lowUppers) + 1
+                              : null;
+                            const computedNormalMax = highLowers.length
+                              ? Math.min(...highLowers) - 1
+                              : null;
+                            return zones.map((zone: any, idx: number) => {
                             const isNormalZone = zone.score === 0;
+                            const zoneKey = `${p.id}_${idx}`;
                             return (
                               <div
                                 key={idx}
@@ -565,13 +603,24 @@ export default function EWSSection({
                                   </div>
                                 </div>
                                 <div className="flex-1 text-xs text-muted-foreground">
-                                  {zone.min_value === null
-                                    ? `≤ ${zone.max_value}`
-                                    : zone.max_value === null
-                                      ? `≥ ${zone.min_value}`
-                                      : `${zone.min_value} – ${zone.max_value}`}
+                                  {isNormalZone &&
+                                  (computedNormalMin !== null ||
+                                    computedNormalMax !== null) ? (
+                                    <span className="text-sm text-blue-600 font-medium">
+                                      {computedNormalMin ?? "—"} – {computedNormalMax ?? "—"}
+                                      <span className="text-xs ml-1 text-muted-foreground">
+                                        (авто)
+                                      </span>
+                                    </span>
+                                  ) : zone.min_value === null ? (
+                                    `≤ ${zone.max_value}`
+                                  ) : zone.max_value === null ? (
+                                    `≥ ${zone.min_value}`
+                                  ) : (
+                                    `${zone.min_value} – ${zone.max_value}`
+                                  )}
                                 </div>
-                                {isNormalZone && canOverride && (
+                                {zone.score > 0 && canOverride && (
                                   <div className="flex items-center gap-1.5 shrink-0">
                                     <div className="flex items-center gap-1">
                                       <span className="text-xs text-muted-foreground">от</span>
@@ -579,16 +628,21 @@ export default function EWSSection({
                                         type="number"
                                         step="0.1"
                                         value={
-                                          overrideValues[p.id]?.min ??
-                                          zone.min_value ??
+                                          overrideValues[zoneKey]?.min ??
+                                          zone.min_value?.toString() ??
                                           ""
                                         }
                                         onChange={(e) =>
                                           setOverrideValues((prev) => ({
                                             ...prev,
-                                            [p.id]: {
-                                              ...prev[p.id],
+                                            [zoneKey]: {
+                                              ...prev[zoneKey],
                                               min: e.target.value,
+                                              max:
+                                                prev[zoneKey]?.max ??
+                                                zone.max_value?.toString() ??
+                                                "",
+                                              reason: prev[zoneKey]?.reason ?? "",
                                             },
                                           }))
                                         }
@@ -602,16 +656,21 @@ export default function EWSSection({
                                         type="number"
                                         step="0.1"
                                         value={
-                                          overrideValues[p.id]?.max ??
-                                          zone.max_value ??
+                                          overrideValues[zoneKey]?.max ??
+                                          zone.max_value?.toString() ??
                                           ""
                                         }
                                         onChange={(e) =>
                                           setOverrideValues((prev) => ({
                                             ...prev,
-                                            [p.id]: {
-                                              ...prev[p.id],
+                                            [zoneKey]: {
+                                              ...prev[zoneKey],
+                                              min:
+                                                prev[zoneKey]?.min ??
+                                                zone.min_value?.toString() ??
+                                                "",
                                               max: e.target.value,
+                                              reason: prev[zoneKey]?.reason ?? "",
                                             },
                                           }))
                                         }
@@ -625,7 +684,8 @@ export default function EWSSection({
                                 )}
                               </div>
                             );
-                          })}
+                            });
+                          })()}
                         </div>
                         {canOverride && (
                           <div className="px-3 py-2 bg-gray-50 border-t">
