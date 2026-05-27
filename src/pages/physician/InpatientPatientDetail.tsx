@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import InpatientDocumentWorkspace from "@/components/documents/InpatientDocumentWorkspace";
 import DischargeDialog from "@/components/inpatient/DischargeDialog";
+import EWSSection from "@/components/ews/EWSSection";
 import { usePhysicianLayoutContext } from "@/components/physician/PhysicianLayout";
 
 type TabKey = "medication" | "imaging" | "lab" | "consultation" | "care" | "diagnosis" | "ews";
