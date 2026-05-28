@@ -16,6 +16,7 @@ const MARGIN_LEFT = 52;
 const ROW_HEIGHT = 100;
 const PADDING_TOP = 8;
 const PADDING_BOTTOM = 8;
+const PADDING_X = 24;
 const chartHeight = ROW_HEIGHT - PADDING_TOP - PADDING_BOTTOM;
 
 const zoneFill: Record<string, string> = {
@@ -24,6 +25,17 @@ const zoneFill: Record<string, string> = {
   pink: "#fce7f3",
 };
 const zoneFillOverride = "#eff6ff";
+
+const LINE_COLORS = [
+  "#3b82f6",
+  "#10b981",
+  "#f59e0b",
+  "#ef4444",
+  "#8b5cf6",
+  "#06b6d4",
+  "#f97316",
+  "#ec4899",
+];
 
 export default function EWSChart({
   hospitalizationId,
