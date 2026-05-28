@@ -466,9 +466,8 @@ export default function EWSChart({
                               y1={y}
                               x2={chartWidth}
                               y2={y}
-                              stroke="#e5e7eb"
-                              strokeWidth={0.5}
-                              strokeDasharray="3 2"
+                              stroke="#d1d5db"
+                              strokeWidth={0.8}
                             />
                           );
                         })}
@@ -481,11 +480,12 @@ export default function EWSChart({
                               y1={0}
                               x2={x}
                               y2={ROW_HEIGHT}
-                              stroke="#e5e7eb"
-                              strokeWidth={0.5}
+                              stroke="#d1d5db"
+                              strokeWidth={0.8}
                             />
                           );
                         })}
+
                         {paramReadings.length > 1 && (
                           <path
                             d={linePath}
