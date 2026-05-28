@@ -903,8 +903,6 @@ export default function EWSSection({
       {recentReadings.length > 0 && scale && (
         <EWSChart
           hospitalizationId={hospitalizationId}
-          hospitalId={hospitalId}
-          scaleId={scale.id}
           parameters={parameters}
           thresholds={thresholds}
           overrideMap={overrideMap}
