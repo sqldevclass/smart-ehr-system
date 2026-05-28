@@ -51,6 +51,7 @@ export default function EWSSection({
 
   const [showEWSForm, setShowEWSForm] = useState(false);
   const [showGlucoseForm, setShowGlucoseForm] = useState(false);
+  const [showAllGlucose, setShowAllGlucose] = useState(false);
   const [ewsValues, setEwsValues] = useState<Record<string, string>>({});
   const [ewsNotes, setEwsNotes] = useState("");
   const [glucoseValue, setGlucoseValue] = useState("");
