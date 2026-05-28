@@ -187,7 +187,10 @@ export default function EWSChart({
           Нет данных за выбранный период
         </p>
       ) : (
-        <div className="overflow-x-auto border border-[#0c0480] rounded-lg relative">
+        <div
+          className="overflow-x-auto border rounded-lg relative"
+          style={{ borderColor: "#1607eb" }}
+        >
           {tooltip && (
             <div
               className="absolute z-50 bg-gray-900 text-white text-xs rounded px-2 py-1.5 pointer-events-none shadow-lg"
@@ -360,20 +363,37 @@ export default function EWSChart({
                 });
                 yTickVals.add(yMin);
                 yTickVals.add(yMax);
-                const yTicks = Array.from(yTickVals).sort(
-                  (a, b) => a - b,
-                );
+                const rawYTicks = Array.from(yTickVals);
+                const deduplicateTicks = (ticks: number[]) => {
+                  const sorted = [...ticks].sort((a, b) => a - b);
+                  const result: number[] = [];
+                  for (const val of sorted) {
+                    const near = result.find((v) => Math.abs(v - val) <= 1);
+                    if (near === undefined) {
+                      result.push(val);
+                    } else {
+                      const idx = result.indexOf(near);
+                      if (
+                        val === Math.round(val) &&
+                        near !== Math.round(near)
+                      ) {
+                        result[idx] = val;
+                      }
+                    }
+                  }
+                  return result;
+                };
+                const yTicks = deduplicateTicks(rawYTicks);
 
                 return (
                   <div
                     key={p.id}
-                    className={cn(
-                      "flex border border-[#0c0480] relative",
-                    )}
+                    className="flex border relative"
+                    style={{ borderColor: "#1607eb" }}
                   >
                     <div
-                      style={{ width: MARGIN_LEFT, height: ROW_HEIGHT, position: "relative" }}
-                      className="shrink-0 flex flex-col items-start justify-between pl-2 py-2 border-r border-[#424543] bg-white overflow-hidden"
+                      style={{ width: MARGIN_LEFT, height: ROW_HEIGHT, position: "relative", borderColor: "#424543" }}
+                      className="shrink-0 flex flex-col items-start justify-between pl-2 py-2 border-r bg-white overflow-hidden"
                     >
                       <span className="text-xs font-medium text-gray-700 leading-tight text-left break-words hyphens-auto max-w-full pr-7">
                         {p.name_ru}
@@ -613,10 +633,14 @@ export default function EWSChart({
                   .filter(Boolean) as any[];
 
                 return (
-                  <div key={p.id} className="flex border border-[#0c0480] bg-white">
+                  <div
+                    key={p.id}
+                    className="flex border bg-white"
+                    style={{ borderColor: "#1607eb" }}
+                  >
                     <div
-                      style={{ width: MARGIN_LEFT, height: 36 }}
-                      className="shrink-0 flex items-center pl-2 border-r border-[#424543]"
+                      style={{ width: MARGIN_LEFT, height: 36, borderColor: "#424543" }}
+                      className="shrink-0 flex items-center pl-2 border-r"
                     >
                       <span className="text-xs font-medium text-gray-700">
                         {p.name_ru}

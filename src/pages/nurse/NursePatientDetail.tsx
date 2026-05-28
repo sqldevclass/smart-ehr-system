@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -43,6 +43,26 @@ export default function NursePatientDetail() {
   const [showVitalsForm, setShowVitalsForm] = useState(false);
   const [vitals, setVitals] = useState<Record<string, string>>(EMPTY_VITALS);
   const [saving, setSaving] = useState(false);
+  const [leftWidth, setLeftWidth] = useState(50);
+  const [isDragging, setIsDragging] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isDragging) return;
+    const onMove = (e: MouseEvent) => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const pct = ((e.clientX - rect.left) / rect.width) * 100;
+      setLeftWidth(Math.min(80, Math.max(20, pct)));
+    };
+    const onUp = () => setIsDragging(false);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [isDragging]);
 
   const { data: hosp, isLoading } = useQuery({
     queryKey: ["nurse-hosp", hospId],
@@ -192,8 +212,14 @@ export default function NursePatientDetail() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-[40%_60%]">
-        <div className="p-4">
+      <div
+        ref={containerRef}
+        className="flex flex-1 overflow-hidden select-none"
+      >
+        <div
+          style={{ width: `${leftWidth}%` }}
+          className="overflow-y-auto shrink-0 p-4"
+        >
           <EWSSection
             hospitalizationId={hospId!}
             patientId={patient.id}
@@ -204,7 +230,15 @@ export default function NursePatientDetail() {
           />
         </div>
 
-        <div className="p-4 border-l h-full overflow-y-auto">
+        <div
+          onMouseDown={() => setIsDragging(true)}
+          className="w-px bg-gray-300 hover:bg-gray-400 cursor-col-resize shrink-0 transition-colors"
+        />
+
+        <div
+          style={{ width: `${100 - leftWidth}%` }}
+          className="overflow-y-auto p-4"
+        >
           <h3 className="font-semibold mb-4">Уход и назначения</h3>
           {careOrders.length === 0 ? (
             <p className="text-sm text-muted-foreground">Назначений нет</p>
