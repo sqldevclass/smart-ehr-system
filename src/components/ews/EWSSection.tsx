@@ -899,58 +899,15 @@ export default function EWSSection({
         </div>
       )}
 
-      {recentReadings.length > 0 && (
-        <div className="space-y-2">
-          <h4 className="text-sm font-medium">История ШРПУ</h4>
-          {recentReadings.map((r: any) => (
-            <div key={r.id} className="border rounded p-3 text-sm">
-              <div className="flex items-center justify-between">
-                <span
-                  className={cn(
-                    "font-bold px-2 py-0.5 rounded text-xs",
-                    r.escalation_level === 0
-                      ? "bg-green-100 text-green-700"
-                      : r.escalation_level === 1
-                      ? "bg-yellow-100 text-yellow-700"
-                      : r.escalation_level === 2
-                      ? "bg-orange-100 text-orange-700"
-                      : "bg-red-100 text-red-700",
-                  )}
-                >
-                  {r.total_score} баллов
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {format(new Date(r.recorded_at), "dd.MM.yyyy HH:mm")}
-                </span>
-              </div>
-              <div className="text-xs text-muted-foreground mt-1">
-                {r.profiles?.full_name}
-              </div>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 mt-2">
-                {(r.ews_reading_values || []).map((v: any) => {
-                  const param = parameters.find((p: any) => p.id === v.parameter_id);
-                  if (!param) return null;
-                  return (
-                    <div
-                      key={v.parameter_id}
-                      className={cn(
-                        "text-xs px-1 rounded",
-                        v.score === 0
-                          ? ""
-                          : v.score === 1
-                          ? "text-yellow-700"
-                          : "text-red-700 font-medium",
-                      )}
-                    >
-                      {param.name_ru}: {v.numeric_value ?? v.text_value}
-                      {v.score > 0 && <span className="ml-1">(+{v.score})</span>}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
+      {recentReadings.length > 0 && scale && (
+        <EWSChart
+          hospitalizationId={hospitalizationId}
+          hospitalId={hospitalId}
+          scaleId={scale.id}
+          parameters={parameters}
+          thresholds={thresholds}
+          overrideMap={overrideMap}
+        />
       )}
 
       <hr className="border-gray-200" />
