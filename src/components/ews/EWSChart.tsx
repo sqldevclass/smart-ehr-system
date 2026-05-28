@@ -533,12 +533,17 @@ export default function EWSChart({
                           />
                         ))}
                         {paramReadings.map((pt, di) => {
-                          const above = pt.y - 8 >= 0;
+                          const labelAboveY = pt.y - 10;
+                          const labelBelowY = pt.y + 18;
+                          const showAbove = labelAboveY >= PADDING_TOP + 2;
+                          const labelY = showAbove ? labelAboveY : labelBelowY;
+                          if (!showAbove && labelBelowY > ROW_HEIGHT - 2)
+                            return null;
                           return (
                             <text
                               key={`lbl-${di}`}
                               x={pt.x}
-                              y={above ? pt.y - 8 : pt.y + 16}
+                              y={labelY}
                               textAnchor="middle"
                               fontSize={9}
                               fontWeight="500"
@@ -556,6 +561,7 @@ export default function EWSChart({
                             </text>
                           );
                         })}
+
                       </g>
                     </svg>
                       );
