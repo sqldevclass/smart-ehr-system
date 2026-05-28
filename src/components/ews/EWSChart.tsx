@@ -345,7 +345,7 @@ export default function EWSChart({
                   <div
                     key={p.id}
                     className={cn(
-                      "flex border-b last:border-b-0",
+                      "flex border-2 border-gray-300 last:border-b-2",
                       paramIdx % 2 === 0 ? "bg-gray-50/30" : "bg-white",
                     )}
                   >
@@ -377,97 +377,114 @@ export default function EWSChart({
                       )}
                     </div>
 
+                    {(() => {
+                      const lineColor =
+                        LINE_COLORS[paramIdx % LINE_COLORS.length];
+                      return (
                     <svg
                       width={chartWidth}
                       height={ROW_HEIGHT}
-                      className="overflow-visible"
                     >
-                      {paramThresholds.map((th: any, ti: number) => {
-                        const zMin = th.min_value ?? yMin;
-                        const zMax = th.max_value ?? yMax;
-                        const rectY = yScale(Math.min(zMax, yMax), yMin, yMax);
-                        const rectH =
-                          yScale(Math.max(zMin, yMin), yMin, yMax) - rectY;
-                        const fill =
-                          th.score === 0 && override
-                            ? zoneFillOverride
-                            : zoneFill[th.color as keyof typeof zoneFill] ??
-                              "#ffffff";
-                        return (
+                      <defs>
+                        <clipPath id={`ews-clip-${p.id}`}>
                           <rect
-                            key={ti}
                             x={0}
-                            y={rectY}
+                            y={0}
                             width={chartWidth}
-                            height={Math.max(rectH, 0)}
-                            fill={fill}
+                            height={ROW_HEIGHT}
                           />
-                        );
-                      })}
-                      {paramThresholds.map((th: any, ti: number) => (
-                        <g key={`line-${ti}`}>
-                          {th.min_value !== null &&
-                            th.min_value !== undefined &&
-                            th.min_value > yMin && (
-                              <line
-                                x1={0}
-                                y1={yScale(th.min_value, yMin, yMax)}
-                                x2={chartWidth}
-                                y2={yScale(th.min_value, yMin, yMax)}
-                                stroke="#e5e7eb"
-                                strokeWidth={1}
-                                strokeDasharray="4 2"
-                              />
-                            )}
-                        </g>
-                      ))}
-                      {paramReadings.length > 1 && (
-                        <path
-                          d={linePath}
-                          fill="none"
-                          stroke="#3b82f6"
-                          strokeWidth={2}
-                          strokeLinejoin="round"
-                          strokeLinecap="round"
-                        />
-                      )}
-                      {paramReadings.map((pt, di) => (
-                        <circle
-                          key={di}
-                          cx={pt.x}
-                          cy={pt.y}
-                          r={5}
-                          fill={
-                            pt.score === 0
-                              ? "#ffffff"
-                              : pt.score === 1
-                              ? "#fde047"
-                              : "#f9a8d4"
-                          }
-                          stroke={
-                            pt.score === 0
-                              ? "#3b82f6"
-                              : pt.score === 1
-                              ? "#ca8a04"
-                              : "#be185d"
-                          }
-                          strokeWidth={2}
-                          className="cursor-pointer"
-                          onMouseEnter={() => {
-                            setTooltip({
-                              x: pt.x,
-                              y: pt.y + paramIdx * ROW_HEIGHT + X_AXIS_HEIGHT,
-                              value:
-                                `${pt.value}` + (p.unit ? ` ${p.unit}` : ""),
-                              time: new Date(pt.recorded_at).toLocaleString("ru"),
-                              score: pt.score,
-                              paramName: p.name_ru,
-                            });
-                          }}
-                          onMouseLeave={() => setTooltip(null)}
-                        />
-                      ))}
+                        </clipPath>
+                      </defs>
+                      <g clipPath={`url(#ews-clip-${p.id})`}>
+                        {paramThresholds.map((th: any, ti: number) => {
+                          const zMin = th.min_value ?? yMin;
+                          const zMax = th.max_value ?? yMax;
+                          const rectY = yScale(Math.min(zMax, yMax), yMin, yMax);
+                          const rectH =
+                            yScale(Math.max(zMin, yMin), yMin, yMax) - rectY;
+                          const fill =
+                            th.score === 0 && override
+                              ? zoneFillOverride
+                              : zoneFill[th.color as keyof typeof zoneFill] ??
+                                "#ffffff";
+                          return (
+                            <rect
+                              key={ti}
+                              x={0}
+                              y={rectY}
+                              width={chartWidth}
+                              height={Math.max(rectH, 0)}
+                              fill={fill}
+                            />
+                          );
+                        })}
+                        {paramThresholds.map((th: any, ti: number) => (
+                          <g key={`line-${ti}`}>
+                            {th.min_value !== null &&
+                              th.min_value !== undefined &&
+                              th.min_value > yMin && (
+                                <line
+                                  x1={0}
+                                  y1={yScale(th.min_value, yMin, yMax)}
+                                  x2={chartWidth}
+                                  y2={yScale(th.min_value, yMin, yMax)}
+                                  stroke="#e5e7eb"
+                                  strokeWidth={1}
+                                  strokeDasharray="4 2"
+                                />
+                              )}
+                          </g>
+                        ))}
+                        {paramReadings.length > 1 && (
+                          <path
+                            d={linePath}
+                            fill="none"
+                            stroke={lineColor}
+                            strokeWidth={2}
+                            strokeLinejoin="round"
+                            strokeLinecap="round"
+                          />
+                        )}
+                        {paramReadings.map((pt, di) => (
+                          <circle
+                            key={di}
+                            cx={pt.x}
+                            cy={pt.y}
+                            r={5}
+                            fill={
+                              pt.score === 0
+                                ? "#ffffff"
+                                : pt.score === 1
+                                ? "#fde047"
+                                : "#f9a8d4"
+                            }
+                            stroke={
+                              pt.score === 0
+                                ? lineColor
+                                : pt.score === 1
+                                ? "#ca8a04"
+                                : "#be185d"
+                            }
+                            strokeWidth={2}
+                            className="cursor-pointer"
+                            onMouseEnter={() => {
+                              setTooltip({
+                                x: pt.x,
+                                y: pt.y + paramIdx * ROW_HEIGHT + X_AXIS_HEIGHT,
+                                value:
+                                  `${pt.value}` + (p.unit ? ` ${p.unit}` : ""),
+                                time: new Date(pt.recorded_at).toLocaleString("ru"),
+                                score: pt.score,
+                                paramName: p.name_ru,
+                              });
+                            }}
+                            onMouseLeave={() => setTooltip(null)}
+                          />
+                        ))}
+                      </g>
                     </svg>
+                      );
+                    })()}
                   </div>
                 );
               })}
