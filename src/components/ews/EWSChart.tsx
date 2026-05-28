@@ -187,7 +187,7 @@ export default function EWSChart({
           Нет данных за выбранный период
         </p>
       ) : (
-        <div className="overflow-x-auto border rounded-lg relative">
+        <div className="overflow-x-auto border border-[#0c0480] rounded-lg relative">
           {tooltip && (
             <div
               className="absolute z-50 bg-gray-900 text-white text-xs rounded px-2 py-1.5 pointer-events-none shadow-lg"
@@ -368,25 +368,25 @@ export default function EWSChart({
                   <div
                     key={p.id}
                     className={cn(
-                      "flex border-2 border-blue-400 last:border-b-2 relative",
+                      "flex border border-[#0c0480] relative",
                     )}
                   >
                     <div
-                      style={{ width: MARGIN_LEFT, height: ROW_HEIGHT }}
-                      className="shrink-0 flex flex-col items-start justify-between pl-2 pr-1 py-2 border-r bg-white"
+                      style={{ width: MARGIN_LEFT, height: ROW_HEIGHT, position: "relative" }}
+                      className="shrink-0 flex flex-col items-start justify-between pl-2 py-2 border-r border-[#424543] bg-white overflow-hidden"
                     >
-                      <span className="text-xs font-medium text-gray-700 leading-tight text-left break-words hyphens-auto max-w-full">
+                      <span className="text-xs font-medium text-gray-700 leading-tight text-left break-words hyphens-auto max-w-full pr-7">
                         {p.name_ru}
                       </span>
                       {p.unit && (
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-xs text-muted-foreground pr-7">
                           {p.unit}
                         </span>
                       )}
                       {latest && (
                         <span
                           className={cn(
-                            "text-xs font-bold",
+                            "text-xs font-bold pr-7",
                             latest.score === 0
                               ? "text-gray-700"
                               : latest.score === 1
@@ -397,6 +397,43 @@ export default function EWSChart({
                           {latest.value}
                         </span>
                       )}
+                      <div
+                        style={{
+                          position: "absolute",
+                          right: 2,
+                          top: 0,
+                          bottom: 0,
+                          width: 28,
+                          pointerEvents: "none",
+                        }}
+                      >
+                        {yTicks.map((tick: number) => {
+                          const y = yScale(tick, yMin, yMax);
+                          if (y < 4 || y > ROW_HEIGHT - 4) return null;
+                          return (
+                            <div
+                              key={tick}
+                              style={{
+                                position: "absolute",
+                                top: y - 6,
+                                right: 0,
+                                lineHeight: "1",
+                              }}
+                              className="text-right"
+                            >
+                              <span
+                                style={{
+                                  fontSize: "8px",
+                                  color: "#9ca3af",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {tick % 1 === 0 ? tick : tick.toFixed(1)}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
 
 
@@ -418,21 +455,6 @@ export default function EWSChart({
                           />
                         </clipPath>
                       </defs>
-                      {yTicks.map((tick: number) => {
-                        const y = yScale(tick, yMin, yMax);
-                        return (
-                          <text
-                            key={`ytick-${tick}`}
-                            x={4}
-                            y={y + 3}
-                            textAnchor="start"
-                            fontSize={8}
-                            fill="#9ca3af"
-                          >
-                            {tick % 1 === 0 ? tick : tick.toFixed(1)}
-                          </text>
-                        );
-                      })}
 
                       <g clipPath={`url(#ews-clip-${p.id})`}>
                         {paramThresholds.map((th: any, ti: number) => {
@@ -466,8 +488,9 @@ export default function EWSChart({
                               y1={y}
                               x2={chartWidth}
                               y2={y}
-                              stroke="#d1d5db"
-                              strokeWidth={0.8}
+                              stroke="#424543"
+                              strokeWidth={0.5}
+                              strokeOpacity={0.3}
                             />
                           );
                         })}
@@ -480,8 +503,9 @@ export default function EWSChart({
                               y1={0}
                               x2={x}
                               y2={ROW_HEIGHT}
-                              stroke="#d1d5db"
-                              strokeWidth={0.8}
+                              stroke="#424543"
+                              strokeWidth={0.5}
+                              strokeOpacity={0.3}
                             />
                           );
                         })}
@@ -589,19 +613,33 @@ export default function EWSChart({
                   .filter(Boolean) as any[];
 
                 return (
-                  <div key={p.id} className="flex border-t bg-white">
+                  <div key={p.id} className="flex border border-[#0c0480] bg-white">
                     <div
-                      style={{ width: MARGIN_LEFT }}
-                      className="shrink-0 flex items-center justify-end pr-2 border-r text-xs font-medium text-gray-700 py-2"
+                      style={{ width: MARGIN_LEFT, height: 36 }}
+                      className="shrink-0 flex items-center pl-2 border-r border-[#424543]"
                     >
-                      {p.name_ru}
+                      <span className="text-xs font-medium text-gray-700">
+                        {p.name_ru}
+                      </span>
                     </div>
-                    <svg width={chartWidth} height={28}>
-                      {paramReadings.map((pt, i) => (
-                        <text
+                    <svg width={chartWidth} height={36}>
+                      {filteredReadings.map((_: any, i: number) => (
+                        <line
                           key={i}
+                          x1={xScale(i)}
+                          y1={0}
+                          x2={xScale(i)}
+                          y2={36}
+                          stroke="#424543"
+                          strokeWidth={0.5}
+                          strokeOpacity={0.3}
+                        />
+                      ))}
+                      {paramReadings.map((pt) => (
+                        <text
+                          key={pt.x}
                           x={pt.x}
-                          y={18}
+                          y={20}
                           textAnchor="middle"
                           fontSize={9}
                           fill={
@@ -621,7 +659,7 @@ export default function EWSChart({
                             : pt.value === "unresponsive"
                             ? "U"
                             : pt.value === "air"
-                            ? "воз"
+                            ? "Воз"
                             : "O₂"}
                         </text>
                       ))}
