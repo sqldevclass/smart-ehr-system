@@ -5,8 +5,6 @@ import { cn } from "@/lib/utils";
 
 interface Props {
   hospitalizationId: string;
-  hospitalId: string;
-  scaleId: string | undefined;
   parameters: any[];
   thresholds: any[];
   overrideMap: Record<string, any>;
