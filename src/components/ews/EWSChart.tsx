@@ -12,7 +12,7 @@ interface Props {
   overrideMap: Record<string, any>;
 }
 
-const MARGIN_LEFT = 80;
+const MARGIN_LEFT = 110;
 const ROW_HEIGHT = 100;
 const PADDING_TOP = 8;
 const PADDING_BOTTOM = 8;
@@ -21,8 +21,8 @@ const chartHeight = ROW_HEIGHT - PADDING_TOP - PADDING_BOTTOM;
 
 const zoneFill: Record<string, string> = {
   white: "#ffffff",
-  yellow: "#fef9c3",
-  pink: "#fce7f3",
+  yellow: "#fef08a",
+  pink: "#fbcfe8",
 };
 const zoneFillOverride = "#eff6ff";
 
