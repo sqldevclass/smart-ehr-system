@@ -5,8 +5,6 @@ import { cn } from "@/lib/utils";
 
 interface Props {
   hospitalizationId: string;
-  hospitalId: string;
-  scaleId: string | undefined;
   parameters: any[];
   thresholds: any[];
   overrideMap: Record<string, any>;
@@ -18,6 +16,8 @@ const PADDING_TOP = 8;
 const PADDING_BOTTOM = 8;
 const PADDING_X = 24;
 const chartHeight = ROW_HEIGHT - PADDING_TOP - PADDING_BOTTOM;
+const LEVEL1_HEIGHT = 20;
+const X_AXIS_HEIGHT = 48;
 
 const zoneFill: Record<string, string> = {
   white: "#ffffff",
@@ -36,6 +36,23 @@ const LINE_COLORS = [
   "#f97316",
   "#ec4899",
 ];
+
+const deduplicateTicks = (ticks: number[]) => {
+  const sorted = [...ticks].sort((a, b) => a - b);
+  const result: number[] = [];
+  for (const val of sorted) {
+    const near = result.find((v) => Math.abs(v - val) <= 1);
+    if (near === undefined) {
+      result.push(val);
+    } else {
+      const idx = result.indexOf(near);
+      if (val === Math.round(val) && near !== Math.round(near)) {
+        result[idx] = val;
+      }
+    }
+  }
+  return result;
+};
 
 export default function EWSChart({
   hospitalizationId,
@@ -135,9 +152,6 @@ export default function EWSChart({
     });
     return groups;
   }, [filteredReadings]);
-
-  const LEVEL1_HEIGHT = 20;
-  const X_AXIS_HEIGHT = 48;
 
   const yScale = (value: number, yMin: number, yMax: number) => {
     const range = yMax - yMin || 1;
@@ -363,27 +377,9 @@ export default function EWSChart({
                 });
                 yTickVals.add(yMin);
                 yTickVals.add(yMax);
-                const rawYTicks = Array.from(yTickVals);
-                const deduplicateTicks = (ticks: number[]) => {
-                  const sorted = [...ticks].sort((a, b) => a - b);
-                  const result: number[] = [];
-                  for (const val of sorted) {
-                    const near = result.find((v) => Math.abs(v - val) <= 1);
-                    if (near === undefined) {
-                      result.push(val);
-                    } else {
-                      const idx = result.indexOf(near);
-                      if (
-                        val === Math.round(val) &&
-                        near !== Math.round(near)
-                      ) {
-                        result[idx] = val;
-                      }
-                    }
-                  }
-                  return result;
-                };
-                const yTicks = deduplicateTicks(rawYTicks);
+                const yTicks = deduplicateTicks(Array.from(yTickVals));
+                const lineColor =
+                  LINE_COLORS[paramIdx % LINE_COLORS.length];
 
                 return (
                   <div
@@ -457,10 +453,6 @@ export default function EWSChart({
                     </div>
 
 
-                    {(() => {
-                      const lineColor =
-                        LINE_COLORS[paramIdx % LINE_COLORS.length];
-                      return (
                     <svg
                       width={chartWidth}
                       height={ROW_HEIGHT}
@@ -540,76 +532,73 @@ export default function EWSChart({
                             strokeLinecap="round"
                           />
                         )}
-                        {paramReadings.map((pt, di) => (
-                          <circle
-                            key={di}
-                            cx={pt.x}
-                            cy={pt.y}
-                            r={5}
-                            fill={
-                              pt.score === 0
-                                ? "#ffffff"
-                                : pt.score === 1
-                                ? "#fde047"
-                                : "#f9a8d4"
-                            }
-                            stroke={
-                              pt.score === 0
-                                ? lineColor
-                                : pt.score === 1
-                                ? "#ca8a04"
-                                : "#be185d"
-                            }
-                            strokeWidth={2}
-                            className="cursor-pointer"
-                            onMouseEnter={() => {
-                              setTooltip({
-                                x: pt.x,
-                                y: pt.y + paramIdx * ROW_HEIGHT + X_AXIS_HEIGHT,
-                                value:
-                                  `${pt.value}` + (p.unit ? ` ${p.unit}` : ""),
-                                time: new Date(pt.recorded_at).toLocaleString("ru"),
-                                score: pt.score,
-                                paramName: p.name_ru,
-                              });
-                            }}
-                            onMouseLeave={() => setTooltip(null)}
-                          />
-                        ))}
                         {paramReadings.map((pt, di) => {
                           const labelAboveY = pt.y - 10;
                           const labelBelowY = pt.y + 18;
                           const showAbove = labelAboveY >= PADDING_TOP + 2;
                           const labelY = showAbove ? labelAboveY : labelBelowY;
-                          if (!showAbove && labelBelowY > ROW_HEIGHT - 2)
-                            return null;
+                          const labelVisible = showAbove || labelBelowY <= ROW_HEIGHT - 2;
                           return (
-                            <text
-                              key={`lbl-${di}`}
-                              x={pt.x}
-                              y={labelY}
-                              textAnchor="middle"
-                              fontSize={9}
-                              fontWeight="500"
-                              fill={
-                                pt.score === 0
-                                  ? "#6b7280"
-                                  : pt.score === 1
-                                  ? "#92400e"
-                                  : "#9d174d"
-                              }
-                            >
-                              {pt.value % 1 === 0
-                                ? pt.value
-                                : pt.value.toFixed(1)}
-                            </text>
+                            <g key={di}>
+                              <circle
+                                cx={pt.x}
+                                cy={pt.y}
+                                r={5}
+                                fill={
+                                  pt.score === 0
+                                    ? "#ffffff"
+                                    : pt.score === 1
+                                    ? "#fde047"
+                                    : "#f9a8d4"
+                                }
+                                stroke={
+                                  pt.score === 0
+                                    ? lineColor
+                                    : pt.score === 1
+                                    ? "#ca8a04"
+                                    : "#be185d"
+                                }
+                                strokeWidth={2}
+                                className="cursor-pointer"
+                                onMouseEnter={() => {
+                                  setTooltip({
+                                    x: pt.x,
+                                    y: pt.y + paramIdx * ROW_HEIGHT + X_AXIS_HEIGHT,
+                                    value:
+                                      `${pt.value}` + (p.unit ? ` ${p.unit}` : ""),
+                                    time: new Date(pt.recorded_at).toLocaleString("ru"),
+                                    score: pt.score,
+                                    paramName: p.name_ru,
+                                  });
+                                }}
+                                onMouseLeave={() => setTooltip(null)}
+                              />
+                              {labelVisible && (
+                                <text
+                                  x={pt.x}
+                                  y={labelY}
+                                  textAnchor="middle"
+                                  fontSize={9}
+                                  fontWeight="500"
+                                  fill={
+                                    pt.score === 0
+                                      ? "#6b7280"
+                                      : pt.score === 1
+                                      ? "#92400e"
+                                      : "#9d174d"
+                                  }
+                                >
+                                  {pt.value % 1 === 0
+                                    ? pt.value
+                                    : pt.value.toFixed(1)}
+                                </text>
+                              )}
+                            </g>
                           );
                         })}
 
                       </g>
                     </svg>
-                      );
-                    })()}
                   </div>
                 );
               })}
