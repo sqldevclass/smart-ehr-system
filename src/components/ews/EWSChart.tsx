@@ -44,11 +44,13 @@ export default function EWSChart({
   const [containerWidth, setContainerWidth] = useState(600);
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    const el = containerRef.current?.parentElement;
+    if (!el) return;
     const ro = new ResizeObserver((entries) => {
-      setContainerWidth(entries[0].contentRect.width);
+      const w = entries[0].contentRect.width;
+      setContainerWidth((prev) => (Math.abs(prev - w) > 10 ? w : prev));
     });
-    ro.observe(containerRef.current);
+    ro.observe(el);
     return () => ro.disconnect();
   }, []);
 
@@ -93,7 +95,7 @@ export default function EWSChart({
 
   const chartWidth = Math.max(
     containerWidth - MARGIN_LEFT,
-    filteredReadings.length * 44,
+    200,
   );
 
   const xMin =
