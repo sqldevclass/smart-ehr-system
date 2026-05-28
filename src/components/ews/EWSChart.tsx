@@ -378,6 +378,8 @@ export default function EWSChart({
                 yTickVals.add(yMin);
                 yTickVals.add(yMax);
                 const yTicks = deduplicateTicks(Array.from(yTickVals));
+                const lineColor =
+                  LINE_COLORS[paramIdx % LINE_COLORS.length];
 
                 return (
                   <div
