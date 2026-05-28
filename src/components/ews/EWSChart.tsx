@@ -461,13 +461,13 @@ export default function EWSChart({
               .filter((p: any) => p.input_type === "enum")
               .map((p: any) => {
                 const paramReadings = filteredReadings
-                  .map((r: any) => {
+                  .map((r: any, i: number) => {
                     const val = r.ews_reading_values?.find(
                       (v: any) => v.parameter_id === p.id,
                     );
                     if (!val?.text_value) return null;
                     return {
-                      x: xScale(new Date(r.recorded_at).getTime()),
+                      x: xScale(i),
                       value: val.text_value,
                       score: val.score,
                       recorded_at: r.recorded_at,
