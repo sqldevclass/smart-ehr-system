@@ -12,7 +12,7 @@ interface Props {
   overrideMap: Record<string, any>;
 }
 
-const MARGIN_LEFT = 52;
+const MARGIN_LEFT = 80;
 const ROW_HEIGHT = 100;
 const PADDING_TOP = 8;
 const PADDING_BOTTOM = 8;
@@ -341,11 +341,34 @@ export default function EWSChart({
                 const latest = paramReadings[paramReadings.length - 1];
                 const override = overrideMap[p.id];
 
+                const yTickVals = new Set<number>();
+                paramThresholds.forEach((t: any) => {
+                  if (
+                    t.min_value !== null &&
+                    t.min_value !== undefined &&
+                    t.min_value >= yMin &&
+                    t.min_value <= yMax
+                  )
+                    yTickVals.add(t.min_value);
+                  if (
+                    t.max_value !== null &&
+                    t.max_value !== undefined &&
+                    t.max_value >= yMin &&
+                    t.max_value <= yMax
+                  )
+                    yTickVals.add(t.max_value);
+                });
+                yTickVals.add(yMin);
+                yTickVals.add(yMax);
+                const yTicks = Array.from(yTickVals).sort(
+                  (a, b) => a - b,
+                );
+
                 return (
                   <div
                     key={p.id}
                     className={cn(
-                      "flex border-2 border-gray-300 last:border-b-2",
+                      "flex border-2 border-gray-300 last:border-b-2 relative",
                       paramIdx % 2 === 0 ? "bg-gray-50/30" : "bg-white",
                     )}
                   >
@@ -353,7 +376,7 @@ export default function EWSChart({
                       style={{ width: MARGIN_LEFT, height: ROW_HEIGHT }}
                       className="shrink-0 flex flex-col items-end justify-between pr-2 py-2 border-r"
                     >
-                      <span className="text-xs font-medium text-gray-700 leading-tight text-right">
+                      <span className="text-xs font-medium text-gray-700 leading-tight text-right break-words hyphens-auto max-w-full">
                         {p.name_ru}
                       </span>
                       {p.unit && (
@@ -375,6 +398,34 @@ export default function EWSChart({
                           {latest.value}
                         </span>
                       )}
+                    </div>
+                    <div
+                      style={{
+                        position: "absolute",
+                        left: 0,
+                        top: 0,
+                        width: MARGIN_LEFT,
+                        height: ROW_HEIGHT,
+                        pointerEvents: "none",
+                      }}
+                    >
+                      <svg width={MARGIN_LEFT} height={ROW_HEIGHT}>
+                        {yTicks.map((tick: number) => {
+                          const y = yScale(tick, yMin, yMax);
+                          return (
+                            <text
+                              key={tick}
+                              x={MARGIN_LEFT - 6}
+                              y={y + 3}
+                              textAnchor="end"
+                              fontSize={8}
+                              fill="#9ca3af"
+                            >
+                              {tick % 1 === 0 ? tick : tick.toFixed(1)}
+                            </text>
+                          );
+                        })}
+                      </svg>
                     </div>
 
                     {(() => {
@@ -418,23 +469,35 @@ export default function EWSChart({
                             />
                           );
                         })}
-                        {paramThresholds.map((th: any, ti: number) => (
-                          <g key={`line-${ti}`}>
-                            {th.min_value !== null &&
-                              th.min_value !== undefined &&
-                              th.min_value > yMin && (
-                                <line
-                                  x1={0}
-                                  y1={yScale(th.min_value, yMin, yMax)}
-                                  x2={chartWidth}
-                                  y2={yScale(th.min_value, yMin, yMax)}
-                                  stroke="#e5e7eb"
-                                  strokeWidth={1}
-                                  strokeDasharray="4 2"
-                                />
-                              )}
-                          </g>
-                        ))}
+                        {yTicks.map((tick: number) => {
+                          const y = yScale(tick, yMin, yMax);
+                          return (
+                            <line
+                              key={`hgrid-${tick}`}
+                              x1={0}
+                              y1={y}
+                              x2={chartWidth}
+                              y2={y}
+                              stroke="#e5e7eb"
+                              strokeWidth={0.5}
+                              strokeDasharray="3 2"
+                            />
+                          );
+                        })}
+                        {filteredReadings.map((_: any, i: number) => {
+                          const x = xScale(i);
+                          return (
+                            <line
+                              key={`vread-${i}`}
+                              x1={x}
+                              y1={0}
+                              x2={x}
+                              y2={ROW_HEIGHT}
+                              stroke="#e5e7eb"
+                              strokeWidth={0.5}
+                            />
+                          );
+                        })}
                         {paramReadings.length > 1 && (
                           <path
                             d={linePath}
