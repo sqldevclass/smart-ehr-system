@@ -974,21 +974,82 @@ export default function EWSSection({
           </div>
         )}
 
-        {glucoseReadings.length === 0 ? (
-          <p className="text-xs text-muted-foreground">Нет записей</p>
-        ) : (
-          glucoseReadings.map((g: any) => (
-            <div
-              key={g.id}
-              className="flex items-center justify-between text-sm py-1 border-b last:border-0"
-            >
-              <span className="font-medium">{g.value_mmol} ммоль/л</span>
-              <span className="text-xs text-muted-foreground">
-                {format(new Date(g.recorded_at), "dd.MM.yyyy HH:mm")}
-              </span>
+        {(() => {
+          const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
+          const visibleGlucose = showAllGlucose
+            ? glucoseReadings
+            : glucoseReadings.filter(
+                (g: any) => new Date(g.recorded_at) >= fiveDaysAgo,
+              );
+          if (glucoseReadings.length === 0) {
+            return <p className="text-xs text-muted-foreground">Нет записей</p>;
+          }
+          return (
+            <div className="space-y-2">
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {visibleGlucose.map((g: any) => {
+                  const dt = new Date(g.recorded_at);
+                  const value = parseFloat(g.value_mmol);
+                  const isHigh = value > 7.8;
+                  const isLow = value < 3.9;
+                  return (
+                    <div
+                      key={g.id}
+                      className={cn(
+                        "shrink-0 rounded-lg border p-2 text-center min-w-[60px]",
+                        isHigh
+                          ? "bg-yellow-50 border-yellow-300"
+                          : isLow
+                          ? "bg-pink-50 border-pink-300"
+                          : "bg-white border-gray-200",
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "text-sm font-bold",
+                          isHigh
+                            ? "text-yellow-700"
+                            : isLow
+                            ? "text-pink-700"
+                            : "text-gray-800",
+                        )}
+                      >
+                        {value % 1 === 0 ? value : value.toFixed(1)}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        ммоль/л
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1 leading-tight">
+                        {dt.getDate().toString().padStart(2, "0")}.
+                        {(dt.getMonth() + 1).toString().padStart(2, "0")}
+                        <br />
+                        {dt.getHours().toString().padStart(2, "0")}:
+                        {dt.getMinutes().toString().padStart(2, "0")}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {!showAllGlucose &&
+                glucoseReadings.length > visibleGlucose.length && (
+                  <button
+                    onClick={() => setShowAllGlucose(true)}
+                    className="text-xs text-primary underline"
+                  >
+                    Показать все ({glucoseReadings.length})
+                  </button>
+                )}
+              {showAllGlucose && (
+                <button
+                  onClick={() => setShowAllGlucose(false)}
+                  className="text-xs text-primary underline"
+                >
+                  Скрыть
+                </button>
+              )}
             </div>
-          ))
-        )}
+          );
+        })()}
       </div>
     </div>
   );
