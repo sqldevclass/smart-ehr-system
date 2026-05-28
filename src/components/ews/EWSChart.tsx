@@ -98,17 +98,32 @@ export default function EWSChart({
     200,
   );
 
-  const xMin =
-    filteredReadings.length > 0
-      ? new Date(filteredReadings[0].recorded_at).getTime()
-      : now.getTime() - 5 * 86400000;
-  const xMax =
-    filteredReadings.length > 0
-      ? new Date(filteredReadings[filteredReadings.length - 1].recorded_at).getTime()
-      : now.getTime();
-  const xRange = xMax - xMin || 1;
-  const xScale = (timestamp: number) =>
-    ((timestamp - xMin) / xRange) * chartWidth;
+  const cellWidth =
+    filteredReadings.length > 1
+      ? chartWidth / (filteredReadings.length - 1)
+      : chartWidth / 2;
+  const xScale = (index: number) =>
+    filteredReadings.length <= 1 ? chartWidth / 2 : index * cellWidth;
+
+  const dayGroups = useMemo(() => {
+    const groups: { date: string; startIndex: number; count: number }[] = [];
+    filteredReadings.forEach((r: any, i: number) => {
+      const dt = new Date(r.recorded_at);
+      const dateStr =
+        `${dt.getDate().toString().padStart(2, "0")}.` +
+        `${(dt.getMonth() + 1).toString().padStart(2, "0")}`;
+      const last = groups[groups.length - 1];
+      if (last && last.date === dateStr) {
+        last.count++;
+      } else {
+        groups.push({ date: dateStr, startIndex: i, count: 1 });
+      }
+    });
+    return groups;
+  }, [filteredReadings]);
+
+  const LEVEL1_HEIGHT = 20;
+  const X_AXIS_HEIGHT = 48;
 
   const yScale = (value: number, yMin: number, yMax: number) => {
     const range = yMax - yMin || 1;
