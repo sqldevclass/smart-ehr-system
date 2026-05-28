@@ -368,15 +368,14 @@ export default function EWSChart({
                   <div
                     key={p.id}
                     className={cn(
-                      "flex border-2 border-gray-300 last:border-b-2 relative",
-                      paramIdx % 2 === 0 ? "bg-gray-50/30" : "bg-white",
+                      "flex border-2 border-blue-400 last:border-b-2 relative",
                     )}
                   >
                     <div
                       style={{ width: MARGIN_LEFT, height: ROW_HEIGHT }}
-                      className="shrink-0 flex flex-col items-end justify-between pr-2 py-2 border-r"
+                      className="shrink-0 flex flex-col items-start justify-between pl-2 pr-1 py-2 border-r bg-white"
                     >
-                      <span className="text-xs font-medium text-gray-700 leading-tight text-right break-words hyphens-auto max-w-full">
+                      <span className="text-xs font-medium text-gray-700 leading-tight text-left break-words hyphens-auto max-w-full">
                         {p.name_ru}
                       </span>
                       {p.unit && (
@@ -399,34 +398,7 @@ export default function EWSChart({
                         </span>
                       )}
                     </div>
-                    <div
-                      style={{
-                        position: "absolute",
-                        left: 0,
-                        top: 0,
-                        width: MARGIN_LEFT,
-                        height: ROW_HEIGHT,
-                        pointerEvents: "none",
-                      }}
-                    >
-                      <svg width={MARGIN_LEFT} height={ROW_HEIGHT}>
-                        {yTicks.map((tick: number) => {
-                          const y = yScale(tick, yMin, yMax);
-                          return (
-                            <text
-                              key={tick}
-                              x={MARGIN_LEFT - 6}
-                              y={y + 3}
-                              textAnchor="end"
-                              fontSize={8}
-                              fill="#9ca3af"
-                            >
-                              {tick % 1 === 0 ? tick : tick.toFixed(1)}
-                            </text>
-                          );
-                        })}
-                      </svg>
-                    </div>
+
 
                     {(() => {
                       const lineColor =
