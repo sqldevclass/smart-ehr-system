@@ -544,6 +544,30 @@ export default function EWSChart({
                             onMouseLeave={() => setTooltip(null)}
                           />
                         ))}
+                        {paramReadings.map((pt, di) => {
+                          const above = pt.y - 8 >= 0;
+                          return (
+                            <text
+                              key={`lbl-${di}`}
+                              x={pt.x}
+                              y={above ? pt.y - 8 : pt.y + 16}
+                              textAnchor="middle"
+                              fontSize={9}
+                              fontWeight="500"
+                              fill={
+                                pt.score === 0
+                                  ? "#6b7280"
+                                  : pt.score === 1
+                                  ? "#92400e"
+                                  : "#9d174d"
+                              }
+                            >
+                              {pt.value % 1 === 0
+                                ? pt.value
+                                : pt.value.toFixed(1)}
+                            </text>
+                          );
+                        })}
                       </g>
                     </svg>
                       );
