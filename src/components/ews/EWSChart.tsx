@@ -37,6 +37,23 @@ const LINE_COLORS = [
   "#ec4899",
 ];
 
+const deduplicateTicks = (ticks: number[]) => {
+  const sorted = [...ticks].sort((a, b) => a - b);
+  const result: number[] = [];
+  for (const val of sorted) {
+    const near = result.find((v) => Math.abs(v - val) <= 1);
+    if (near === undefined) {
+      result.push(val);
+    } else {
+      const idx = result.indexOf(near);
+      if (val === Math.round(val) && near !== Math.round(near)) {
+        result[idx] = val;
+      }
+    }
+  }
+  return result;
+};
+
 export default function EWSChart({
   hospitalizationId,
   parameters,
