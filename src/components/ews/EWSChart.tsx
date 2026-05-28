@@ -201,33 +201,89 @@ export default function EWSChart({
             <div className="flex sticky top-0 bg-white z-10 border-b">
               <div style={{ width: MARGIN_LEFT }} className="shrink-0" />
               <svg width={chartWidth} height={36} className="overflow-visible">
+              <svg width={chartWidth} height={X_AXIS_HEIGHT} className="overflow-visible">
+                {dayGroups.map((group, gi) => {
+                  const startX = xScale(group.startIndex);
+                  const lastIdx = group.startIndex + group.count - 1;
+                  const endX =
+                    lastIdx < filteredReadings.length - 1
+                      ? xScale(lastIdx) + cellWidth / 2
+                      : chartWidth;
+                  const groupWidth = endX - (startX - cellWidth / 2);
+                  const labelX = startX + ((group.count - 1) * cellWidth) / 2;
+                  return (
+                    <g key={gi}>
+                      <rect
+                        x={startX - cellWidth / 2}
+                        y={0}
+                        width={groupWidth}
+                        height={LEVEL1_HEIGHT}
+                        fill={gi % 2 === 0 ? "#f9fafb" : "#ffffff"}
+                      />
+                      <text
+                        x={labelX}
+                        y={14}
+                        textAnchor="middle"
+                        fontSize={10}
+                        fontWeight={600}
+                        fill="#374151"
+                      >
+                        {group.date}
+                      </text>
+                      {gi > 0 && (
+                        <line
+                          x1={startX - cellWidth / 2}
+                          y1={0}
+                          x2={startX - cellWidth / 2}
+                          y2={X_AXIS_HEIGHT}
+                          stroke="#e5e7eb"
+                          strokeWidth={1}
+                        />
+                      )}
+                    </g>
+                  );
+                })}
+                <line
+                  x1={0}
+                  y1={LEVEL1_HEIGHT}
+                  x2={chartWidth}
+                  y2={LEVEL1_HEIGHT}
+                  stroke="#e5e7eb"
+                  strokeWidth={1}
+                />
                 {filteredReadings.map((r: any, i: number) => {
-                  const x = xScale(new Date(r.recorded_at).getTime());
+                  const x = xScale(i);
                   const dt = new Date(r.recorded_at);
                   const label =
-                    `${dt.getDate().toString().padStart(2, "0")}.` +
-                    `${(dt.getMonth() + 1).toString().padStart(2, "0")} ` +
                     `${dt.getHours().toString().padStart(2, "0")}:` +
                     `${dt.getMinutes().toString().padStart(2, "0")}`;
-                  const step = Math.max(
-                    1,
-                    Math.floor(filteredReadings.length / (chartWidth / 80)),
-                  );
-                  if (i % step !== 0 && i !== filteredReadings.length - 1)
-                    return null;
+                  const skip = Math.max(1, Math.ceil(28 / Math.max(cellWidth, 1)));
+                  const showLabel =
+                    cellWidth >= 28 ||
+                    i === 0 ||
+                    i === filteredReadings.length - 1 ||
+                    i % skip === 0;
                   return (
                     <g key={r.id}>
-                      <line x1={x} y1={0} x2={x} y2={6} stroke="#9ca3af" strokeWidth={1} />
-                      <text
-                        x={x}
-                        y={20}
-                        textAnchor="middle"
-                        fontSize={9}
-                        fill="#6b7280"
-                        transform={`rotate(-35, ${x}, 20)`}
-                      >
-                        {label}
-                      </text>
+                      <line
+                        x1={x}
+                        y1={LEVEL1_HEIGHT}
+                        x2={x}
+                        y2={LEVEL1_HEIGHT + 4}
+                        stroke="#9ca3af"
+                        strokeWidth={1}
+                      />
+                      {showLabel && (
+                        <text
+                          x={x}
+                          y={LEVEL1_HEIGHT + 16}
+                          textAnchor="middle"
+                          fontSize={9}
+                          fill="#6b7280"
+                        >
+                          {label}
+                        </text>
+                      )}
                     </g>
                   );
                 })}
@@ -246,7 +302,7 @@ export default function EWSChart({
                   );
 
                 const paramReadings = filteredReadings
-                  .map((r: any) => {
+                  .map((r: any, i: number) => {
                     const val = r.ews_reading_values?.find(
                       (v: any) => v.parameter_id === p.id,
                     );
