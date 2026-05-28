@@ -44,11 +44,13 @@ export default function EWSChart({
   const [containerWidth, setContainerWidth] = useState(600);
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    const el = containerRef.current?.parentElement;
+    if (!el) return;
     const ro = new ResizeObserver((entries) => {
-      setContainerWidth(entries[0].contentRect.width);
+      const w = entries[0].contentRect.width;
+      setContainerWidth((prev) => (Math.abs(prev - w) > 10 ? w : prev));
     });
-    ro.observe(containerRef.current);
+    ro.observe(el);
     return () => ro.disconnect();
   }, []);
 
@@ -91,9 +93,9 @@ export default function EWSChart({
     (r: any) => new Date(r.recorded_at) >= windowStart,
   );
 
-  const minChartWidth = Math.max(
+  const chartWidth = Math.max(
     containerWidth - MARGIN_LEFT,
-    filteredReadings.length * 44,
+    200,
   );
 
   const xMin =
@@ -106,7 +108,7 @@ export default function EWSChart({
       : now.getTime();
   const xRange = xMax - xMin || 1;
   const xScale = (timestamp: number) =>
-    ((timestamp - xMin) / xRange) * minChartWidth;
+    ((timestamp - xMin) / xRange) * chartWidth;
 
   const yScale = (value: number, yMin: number, yMax: number) => {
     const range = yMax - yMin || 1;
@@ -180,10 +182,10 @@ export default function EWSChart({
               )}
             </div>
           )}
-          <div style={{ width: MARGIN_LEFT + minChartWidth }}>
+          <div style={{ width: MARGIN_LEFT + chartWidth }}>
             <div className="flex sticky top-0 bg-white z-10 border-b">
               <div style={{ width: MARGIN_LEFT }} className="shrink-0" />
-              <svg width={minChartWidth} height={36} className="overflow-visible">
+              <svg width={chartWidth} height={36} className="overflow-visible">
                 {filteredReadings.map((r: any, i: number) => {
                   const x = xScale(new Date(r.recorded_at).getTime());
                   const dt = new Date(r.recorded_at);
@@ -194,7 +196,7 @@ export default function EWSChart({
                     `${dt.getMinutes().toString().padStart(2, "0")}`;
                   const step = Math.max(
                     1,
-                    Math.floor(filteredReadings.length / (minChartWidth / 80)),
+                    Math.floor(filteredReadings.length / (chartWidth / 80)),
                   );
                   if (i % step !== 0 && i !== filteredReadings.length - 1)
                     return null;
@@ -290,7 +292,7 @@ export default function EWSChart({
                     </div>
 
                     <svg
-                      width={minChartWidth}
+                      width={chartWidth}
                       height={ROW_HEIGHT}
                       className="overflow-visible"
                     >
@@ -310,7 +312,7 @@ export default function EWSChart({
                             key={ti}
                             x={0}
                             y={rectY}
-                            width={minChartWidth}
+                            width={chartWidth}
                             height={Math.max(rectH, 0)}
                             fill={fill}
                           />
@@ -324,7 +326,7 @@ export default function EWSChart({
                               <line
                                 x1={0}
                                 y1={yScale(th.min_value, yMin, yMax)}
-                                x2={minChartWidth}
+                                x2={chartWidth}
                                 y2={yScale(th.min_value, yMin, yMax)}
                                 stroke="#e5e7eb"
                                 strokeWidth={1}
@@ -410,7 +412,7 @@ export default function EWSChart({
                     >
                       {p.name_ru}
                     </div>
-                    <svg width={minChartWidth} height={28}>
+                    <svg width={chartWidth} height={28}>
                       {paramReadings.map((pt, i) => (
                         <text
                           key={i}
