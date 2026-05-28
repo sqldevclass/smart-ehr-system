@@ -212,8 +212,14 @@ export default function NursePatientDetail() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-[40%_60%]">
-        <div className="p-4">
+      <div
+        ref={containerRef}
+        className="flex flex-1 overflow-hidden select-none"
+      >
+        <div
+          style={{ width: `${leftWidth}%` }}
+          className="overflow-y-auto shrink-0 p-4"
+        >
           <EWSSection
             hospitalizationId={hospId!}
             patientId={patient.id}
@@ -224,7 +230,15 @@ export default function NursePatientDetail() {
           />
         </div>
 
-        <div className="p-4 border-l h-full overflow-y-auto">
+        <div
+          onMouseDown={() => setIsDragging(true)}
+          className="w-px bg-gray-300 hover:bg-gray-400 cursor-col-resize shrink-0 transition-colors"
+        />
+
+        <div
+          style={{ width: `${100 - leftWidth}%` }}
+          className="overflow-y-auto p-4"
+        >
           <h3 className="font-semibold mb-4">Уход и назначения</h3>
           {careOrders.length === 0 ? (
             <p className="text-sm text-muted-foreground">Назначений нет</p>
