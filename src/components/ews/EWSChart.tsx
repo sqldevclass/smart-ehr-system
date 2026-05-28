@@ -346,7 +346,6 @@ export default function EWSChart({
                       score: val.score,
                       time: new Date(r.recorded_at).toLocaleString("ru"),
                       recorded_at: r.recorded_at,
-                      readingIndex: i,
                     };
                   })
                   .filter(Boolean) as any[];
