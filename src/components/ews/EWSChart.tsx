@@ -16,6 +16,8 @@ const PADDING_TOP = 8;
 const PADDING_BOTTOM = 8;
 const PADDING_X = 24;
 const chartHeight = ROW_HEIGHT - PADDING_TOP - PADDING_BOTTOM;
+const LEVEL1_HEIGHT = 20;
+const X_AXIS_HEIGHT = 48;
 
 const zoneFill: Record<string, string> = {
   white: "#ffffff",
