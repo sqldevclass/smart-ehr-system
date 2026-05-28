@@ -926,7 +926,7 @@ export default function EWSSection({
       <div>
         <div className="flex items-center justify-between mb-3">
           <h4 className="text-sm font-medium">Глюкоза крови</h4>
-          {!isReadOnly && (
+          {!isReadOnly && !canOverride && (
             <Button
               size="sm"
               variant="outline"
@@ -936,6 +936,7 @@ export default function EWSSection({
             </Button>
           )}
         </div>
+
 
         {showGlucoseForm && (
           <div className="border rounded p-3 space-y-2 bg-muted/30 mb-3">
