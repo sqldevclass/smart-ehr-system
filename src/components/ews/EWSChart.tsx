@@ -200,7 +200,6 @@ export default function EWSChart({
           <div style={{ width: MARGIN_LEFT + chartWidth }}>
             <div className="flex sticky top-0 bg-white z-10 border-b">
               <div style={{ width: MARGIN_LEFT }} className="shrink-0" />
-              <svg width={chartWidth} height={36} className="overflow-visible">
               <svg width={chartWidth} height={X_AXIS_HEIGHT} className="overflow-visible">
                 {dayGroups.map((group, gi) => {
                   const startX = xScale(group.startIndex);
