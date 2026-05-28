@@ -141,7 +141,8 @@ export default function EWSChart({
 
   const yScale = (value: number, yMin: number, yMax: number) => {
     const range = yMax - yMin || 1;
-    return PADDING_TOP + chartHeight - ((value - yMin) / range) * chartHeight;
+    const raw = PADDING_TOP + chartHeight - ((value - yMin) / range) * chartHeight;
+    return Math.max(PADDING_TOP, Math.min(ROW_HEIGHT - PADDING_BOTTOM, raw));
   };
 
   const getYRange = (paramId: string) => {
