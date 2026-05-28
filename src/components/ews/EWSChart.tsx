@@ -441,7 +441,7 @@ export default function EWSChart({
                           onMouseEnter={() => {
                             setTooltip({
                               x: pt.x,
-                              y: pt.y + paramIdx * ROW_HEIGHT + 36,
+                              y: pt.y + paramIdx * ROW_HEIGHT + X_AXIS_HEIGHT,
                               value:
                                 `${pt.value}` + (p.unit ? ` ${p.unit}` : ""),
                               time: new Date(pt.recorded_at).toLocaleString("ru"),
