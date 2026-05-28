@@ -308,12 +308,13 @@ export default function EWSChart({
                     if (val?.numeric_value === null || val?.numeric_value === undefined)
                       return null;
                     return {
-                      x: xScale(new Date(r.recorded_at).getTime()),
+                      x: xScale(i),
                       y: yScale(val.numeric_value, yMin, yMax),
                       value: val.numeric_value,
                       score: val.score,
                       time: new Date(r.recorded_at).toLocaleString("ru"),
                       recorded_at: r.recorded_at,
+                      readingIndex: i,
                     };
                   })
                   .filter(Boolean) as any[];
