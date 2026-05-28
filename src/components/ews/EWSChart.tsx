@@ -112,10 +112,12 @@ export default function EWSChart({
 
   const cellWidth =
     filteredReadings.length > 1
-      ? chartWidth / (filteredReadings.length - 1)
+      ? (chartWidth - 2 * PADDING_X) / (filteredReadings.length - 1)
       : chartWidth / 2;
   const xScale = (index: number) =>
-    filteredReadings.length <= 1 ? chartWidth / 2 : index * cellWidth;
+    filteredReadings.length <= 1
+      ? chartWidth / 2
+      : PADDING_X + index * cellWidth;
 
   const dayGroups = useMemo(() => {
     const groups: { date: string; startIndex: number; count: number }[] = [];
