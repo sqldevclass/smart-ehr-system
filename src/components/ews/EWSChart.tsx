@@ -633,10 +633,14 @@ export default function EWSChart({
                   .filter(Boolean) as any[];
 
                 return (
-                  <div key={p.id} className="flex border border-[#0c0480] bg-white">
+                  <div
+                    key={p.id}
+                    className="flex border bg-white"
+                    style={{ borderColor: "#1607eb" }}
+                  >
                     <div
-                      style={{ width: MARGIN_LEFT, height: 36 }}
-                      className="shrink-0 flex items-center pl-2 border-r border-[#424543]"
+                      style={{ width: MARGIN_LEFT, height: 36, borderColor: "#424543" }}
+                      className="shrink-0 flex items-center pl-2 border-r"
                     >
                       <span className="text-xs font-medium text-gray-700">
                         {p.name_ru}
