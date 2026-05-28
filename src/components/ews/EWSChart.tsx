@@ -377,27 +377,7 @@ export default function EWSChart({
                 });
                 yTickVals.add(yMin);
                 yTickVals.add(yMax);
-                const rawYTicks = Array.from(yTickVals);
-                const deduplicateTicks = (ticks: number[]) => {
-                  const sorted = [...ticks].sort((a, b) => a - b);
-                  const result: number[] = [];
-                  for (const val of sorted) {
-                    const near = result.find((v) => Math.abs(v - val) <= 1);
-                    if (near === undefined) {
-                      result.push(val);
-                    } else {
-                      const idx = result.indexOf(near);
-                      if (
-                        val === Math.round(val) &&
-                        near !== Math.round(near)
-                      ) {
-                        result[idx] = val;
-                      }
-                    }
-                  }
-                  return result;
-                };
-                const yTicks = deduplicateTicks(rawYTicks);
+                const yTicks = deduplicateTicks(Array.from(yTickVals));
 
                 return (
                   <div
