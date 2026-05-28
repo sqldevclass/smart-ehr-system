@@ -395,20 +395,35 @@ export default function EWSSection({
     queryClient.invalidateQueries({ queryKey: ["blood-glucose", hospitalizationId] });
   };
 
+  const getIntervalLabel = (score: number) => {
+    if (score === 0) return "каждые 12 часов";
+    if (score <= 2) return "каждые 6 часов";
+    if (score <= 6) return "каждый час";
+    return "непрерывный мониторинг";
+  };
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="font-semibold">ШРПУ</h3>
           <p className="text-xs text-muted-foreground">
-            Шкала: {scale?.name ?? "—"}
+            Шкала: {scale?.name}
           </p>
         </div>
-        {!isReadOnly && scale && (
-          <Button size="sm" onClick={() => setShowEWSForm(true)}>
+        {canOverride ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowOverridePanel(!showOverridePanel)}
+          >
+            {showOverridePanel ? "Скрыть границы" : "Изменить границы нормы"}
+          </Button>
+        ) : !isReadOnly ? (
+          <Button size="sm" onClick={() => setShowEWSForm(!showEWSForm)}>
             + Внести данные
           </Button>
-        )}
+        ) : null}
       </div>
 
       {!isReadOnly && (isDue || isDueSoon) && (
@@ -445,7 +460,14 @@ export default function EWSSection({
             ],
           )}
         >
-          <div className="font-semibold">Балл: {ewsSchedule.last_score ?? 0}</div>
+          <div className="flex items-center justify-between">
+            <span className="font-semibold">
+              Балл: {ewsSchedule.last_score ?? 0}
+            </span>
+            <span className="text-xs">
+              Интервал: {getIntervalLabel(ewsSchedule.last_score ?? 0)}
+            </span>
+          </div>
           {ewsSchedule.next_due_at && (
             <div className="text-xs mt-0.5">
               Следующее внесение:{" "}
@@ -455,17 +477,6 @@ export default function EWSSection({
         </div>
       )}
 
-      {canOverride && (
-        <div className="flex justify-end">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowOverridePanel(!showOverridePanel)}
-          >
-            {showOverridePanel ? "Скрыть границы" : "Изменить границы нормы"}
-          </Button>
-        </div>
-      )}
 
       {showOverridePanel && canOverride && (
         <div className="border rounded-md p-4 space-y-3 bg-blue-50/30">
