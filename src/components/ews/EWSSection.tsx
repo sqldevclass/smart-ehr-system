@@ -51,6 +51,7 @@ export default function EWSSection({
 
   const [showEWSForm, setShowEWSForm] = useState(false);
   const [showGlucoseForm, setShowGlucoseForm] = useState(false);
+  const [showAllGlucose, setShowAllGlucose] = useState(false);
   const [ewsValues, setEwsValues] = useState<Record<string, string>>({});
   const [ewsNotes, setEwsNotes] = useState("");
   const [glucoseValue, setGlucoseValue] = useState("");
@@ -394,20 +395,35 @@ export default function EWSSection({
     queryClient.invalidateQueries({ queryKey: ["blood-glucose", hospitalizationId] });
   };
 
+  const getIntervalLabel = (score: number) => {
+    if (score === 0) return "каждые 12 часов";
+    if (score <= 2) return "каждые 6 часов";
+    if (score <= 6) return "каждый час";
+    return "непрерывный мониторинг";
+  };
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="font-semibold">ШРПУ</h3>
           <p className="text-xs text-muted-foreground">
-            Шкала: {scale?.name ?? "—"}
+            Шкала: {scale?.name}
           </p>
         </div>
-        {!isReadOnly && scale && (
-          <Button size="sm" onClick={() => setShowEWSForm(true)}>
+        {canOverride ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowOverridePanel(!showOverridePanel)}
+          >
+            {showOverridePanel ? "Скрыть границы" : "Изменить границы нормы"}
+          </Button>
+        ) : !isReadOnly ? (
+          <Button size="sm" onClick={() => setShowEWSForm(!showEWSForm)}>
             + Внести данные
           </Button>
-        )}
+        ) : null}
       </div>
 
       {!isReadOnly && (isDue || isDueSoon) && (
@@ -444,7 +460,14 @@ export default function EWSSection({
             ],
           )}
         >
-          <div className="font-semibold">Балл: {ewsSchedule.last_score ?? 0}</div>
+          <div className="flex items-center justify-between">
+            <span className="font-semibold">
+              Балл: {ewsSchedule.last_score ?? 0}
+            </span>
+            <span className="text-xs">
+              Интервал: {getIntervalLabel(ewsSchedule.last_score ?? 0)}
+            </span>
+          </div>
           {ewsSchedule.next_due_at && (
             <div className="text-xs mt-0.5">
               Следующее внесение:{" "}
@@ -454,17 +477,6 @@ export default function EWSSection({
         </div>
       )}
 
-      {canOverride && (
-        <div className="flex justify-end">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowOverridePanel(!showOverridePanel)}
-          >
-            {showOverridePanel ? "Скрыть границы" : "Изменить границы нормы"}
-          </Button>
-        </div>
-      )}
 
       {showOverridePanel && canOverride && (
         <div className="border rounded-md p-4 space-y-3 bg-blue-50/30">
@@ -914,7 +926,7 @@ export default function EWSSection({
       <div>
         <div className="flex items-center justify-between mb-3">
           <h4 className="text-sm font-medium">Глюкоза крови</h4>
-          {!isReadOnly && (
+          {!isReadOnly && !canOverride && (
             <Button
               size="sm"
               variant="outline"
@@ -924,6 +936,7 @@ export default function EWSSection({
             </Button>
           )}
         </div>
+
 
         {showGlucoseForm && (
           <div className="border rounded p-3 space-y-2 bg-muted/30 mb-3">
@@ -961,21 +974,82 @@ export default function EWSSection({
           </div>
         )}
 
-        {glucoseReadings.length === 0 ? (
-          <p className="text-xs text-muted-foreground">Нет записей</p>
-        ) : (
-          glucoseReadings.map((g: any) => (
-            <div
-              key={g.id}
-              className="flex items-center justify-between text-sm py-1 border-b last:border-0"
-            >
-              <span className="font-medium">{g.value_mmol} ммоль/л</span>
-              <span className="text-xs text-muted-foreground">
-                {format(new Date(g.recorded_at), "dd.MM.yyyy HH:mm")}
-              </span>
+        {(() => {
+          const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
+          const visibleGlucose = showAllGlucose
+            ? glucoseReadings
+            : glucoseReadings.filter(
+                (g: any) => new Date(g.recorded_at) >= fiveDaysAgo,
+              );
+          if (glucoseReadings.length === 0) {
+            return <p className="text-xs text-muted-foreground">Нет записей</p>;
+          }
+          return (
+            <div className="space-y-2">
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {visibleGlucose.map((g: any) => {
+                  const dt = new Date(g.recorded_at);
+                  const value = parseFloat(g.value_mmol);
+                  const isHigh = value > 7.8;
+                  const isLow = value < 3.9;
+                  return (
+                    <div
+                      key={g.id}
+                      className={cn(
+                        "shrink-0 rounded-lg border p-2 text-center min-w-[60px]",
+                        isHigh
+                          ? "bg-yellow-50 border-yellow-300"
+                          : isLow
+                          ? "bg-pink-50 border-pink-300"
+                          : "bg-white border-gray-200",
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "text-sm font-bold",
+                          isHigh
+                            ? "text-yellow-700"
+                            : isLow
+                            ? "text-pink-700"
+                            : "text-gray-800",
+                        )}
+                      >
+                        {value % 1 === 0 ? value : value.toFixed(1)}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        ммоль/л
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1 leading-tight">
+                        {dt.getDate().toString().padStart(2, "0")}.
+                        {(dt.getMonth() + 1).toString().padStart(2, "0")}
+                        <br />
+                        {dt.getHours().toString().padStart(2, "0")}:
+                        {dt.getMinutes().toString().padStart(2, "0")}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {!showAllGlucose &&
+                glucoseReadings.length > visibleGlucose.length && (
+                  <button
+                    onClick={() => setShowAllGlucose(true)}
+                    className="text-xs text-primary underline"
+                  >
+                    Показать все ({glucoseReadings.length})
+                  </button>
+                )}
+              {showAllGlucose && (
+                <button
+                  onClick={() => setShowAllGlucose(false)}
+                  className="text-xs text-primary underline"
+                >
+                  Скрыть
+                </button>
+              )}
             </div>
-          ))
-        )}
+          );
+        })()}
       </div>
     </div>
   );
