@@ -12,7 +12,7 @@ interface Props {
   overrideMap: Record<string, any>;
 }
 
-const MARGIN_LEFT = 80;
+const MARGIN_LEFT = 110;
 const ROW_HEIGHT = 100;
 const PADDING_TOP = 8;
 const PADDING_BOTTOM = 8;
@@ -21,8 +21,8 @@ const chartHeight = ROW_HEIGHT - PADDING_TOP - PADDING_BOTTOM;
 
 const zoneFill: Record<string, string> = {
   white: "#ffffff",
-  yellow: "#fef9c3",
-  pink: "#fce7f3",
+  yellow: "#fef08a",
+  pink: "#fbcfe8",
 };
 const zoneFillOverride = "#eff6ff";
 
@@ -368,15 +368,14 @@ export default function EWSChart({
                   <div
                     key={p.id}
                     className={cn(
-                      "flex border-2 border-gray-300 last:border-b-2 relative",
-                      paramIdx % 2 === 0 ? "bg-gray-50/30" : "bg-white",
+                      "flex border-2 border-blue-400 last:border-b-2 relative",
                     )}
                   >
                     <div
                       style={{ width: MARGIN_LEFT, height: ROW_HEIGHT }}
-                      className="shrink-0 flex flex-col items-end justify-between pr-2 py-2 border-r"
+                      className="shrink-0 flex flex-col items-start justify-between pl-2 pr-1 py-2 border-r bg-white"
                     >
-                      <span className="text-xs font-medium text-gray-700 leading-tight text-right break-words hyphens-auto max-w-full">
+                      <span className="text-xs font-medium text-gray-700 leading-tight text-left break-words hyphens-auto max-w-full">
                         {p.name_ru}
                       </span>
                       {p.unit && (
@@ -399,34 +398,7 @@ export default function EWSChart({
                         </span>
                       )}
                     </div>
-                    <div
-                      style={{
-                        position: "absolute",
-                        left: 0,
-                        top: 0,
-                        width: MARGIN_LEFT,
-                        height: ROW_HEIGHT,
-                        pointerEvents: "none",
-                      }}
-                    >
-                      <svg width={MARGIN_LEFT} height={ROW_HEIGHT}>
-                        {yTicks.map((tick: number) => {
-                          const y = yScale(tick, yMin, yMax);
-                          return (
-                            <text
-                              key={tick}
-                              x={MARGIN_LEFT - 6}
-                              y={y + 3}
-                              textAnchor="end"
-                              fontSize={8}
-                              fill="#9ca3af"
-                            >
-                              {tick % 1 === 0 ? tick : tick.toFixed(1)}
-                            </text>
-                          );
-                        })}
-                      </svg>
-                    </div>
+
 
                     {(() => {
                       const lineColor =
@@ -446,6 +418,22 @@ export default function EWSChart({
                           />
                         </clipPath>
                       </defs>
+                      {yTicks.map((tick: number) => {
+                        const y = yScale(tick, yMin, yMax);
+                        return (
+                          <text
+                            key={`ytick-${tick}`}
+                            x={4}
+                            y={y + 3}
+                            textAnchor="start"
+                            fontSize={8}
+                            fill="#9ca3af"
+                          >
+                            {tick % 1 === 0 ? tick : tick.toFixed(1)}
+                          </text>
+                        );
+                      })}
+
                       <g clipPath={`url(#ews-clip-${p.id})`}>
                         {paramThresholds.map((th: any, ti: number) => {
                           const zMin = th.min_value ?? yMin;
@@ -478,9 +466,8 @@ export default function EWSChart({
                               y1={y}
                               x2={chartWidth}
                               y2={y}
-                              stroke="#e5e7eb"
-                              strokeWidth={0.5}
-                              strokeDasharray="3 2"
+                              stroke="#d1d5db"
+                              strokeWidth={0.8}
                             />
                           );
                         })}
@@ -493,11 +480,12 @@ export default function EWSChart({
                               y1={0}
                               x2={x}
                               y2={ROW_HEIGHT}
-                              stroke="#e5e7eb"
-                              strokeWidth={0.5}
+                              stroke="#d1d5db"
+                              strokeWidth={0.8}
                             />
                           );
                         })}
+
                         {paramReadings.length > 1 && (
                           <path
                             d={linePath}
@@ -545,12 +533,17 @@ export default function EWSChart({
                           />
                         ))}
                         {paramReadings.map((pt, di) => {
-                          const above = pt.y - 8 >= 0;
+                          const labelAboveY = pt.y - 10;
+                          const labelBelowY = pt.y + 18;
+                          const showAbove = labelAboveY >= PADDING_TOP + 2;
+                          const labelY = showAbove ? labelAboveY : labelBelowY;
+                          if (!showAbove && labelBelowY > ROW_HEIGHT - 2)
+                            return null;
                           return (
                             <text
                               key={`lbl-${di}`}
                               x={pt.x}
-                              y={above ? pt.y - 8 : pt.y + 16}
+                              y={labelY}
                               textAnchor="middle"
                               fontSize={9}
                               fontWeight="500"
@@ -568,6 +561,7 @@ export default function EWSChart({
                             </text>
                           );
                         })}
+
                       </g>
                     </svg>
                       );
