@@ -418,6 +418,22 @@ export default function EWSChart({
                           />
                         </clipPath>
                       </defs>
+                      {yTicks.map((tick: number) => {
+                        const y = yScale(tick, yMin, yMax);
+                        return (
+                          <text
+                            key={`ytick-${tick}`}
+                            x={4}
+                            y={y + 3}
+                            textAnchor="start"
+                            fontSize={8}
+                            fill="#9ca3af"
+                          >
+                            {tick % 1 === 0 ? tick : tick.toFixed(1)}
+                          </text>
+                        );
+                      })}
+
                       <g clipPath={`url(#ews-clip-${p.id})`}>
                         {paramThresholds.map((th: any, ti: number) => {
                           const zMin = th.min_value ?? yMin;
