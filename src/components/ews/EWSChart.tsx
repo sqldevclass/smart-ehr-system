@@ -187,7 +187,10 @@ export default function EWSChart({
           Нет данных за выбранный период
         </p>
       ) : (
-        <div className="overflow-x-auto border border-[#0c0480] rounded-lg relative">
+        <div
+          className="overflow-x-auto border rounded-lg relative"
+          style={{ borderColor: "#1607eb" }}
+        >
           {tooltip && (
             <div
               className="absolute z-50 bg-gray-900 text-white text-xs rounded px-2 py-1.5 pointer-events-none shadow-lg"
