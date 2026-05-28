@@ -213,7 +213,7 @@ export default function EWSChart({
             </div>
           )}
           <div style={{ width: MARGIN_LEFT + chartWidth }}>
-            <div className="flex sticky top-0 bg-white z-10 border-b">
+            <div className="flex sticky top-0 bg-white z-10 border-b-2 border-gray-300">
               <div style={{ width: MARGIN_LEFT }} className="shrink-0" />
               <svg width={chartWidth} height={X_AXIS_HEIGHT} className="overflow-visible">
                 {dayGroups.map((group, gi) => {
