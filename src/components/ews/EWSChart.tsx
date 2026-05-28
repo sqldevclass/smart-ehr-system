@@ -153,9 +153,6 @@ export default function EWSChart({
     return groups;
   }, [filteredReadings]);
 
-  const LEVEL1_HEIGHT = 20;
-  const X_AXIS_HEIGHT = 48;
-
   const yScale = (value: number, yMin: number, yMax: number) => {
     const range = yMax - yMin || 1;
     const raw = PADDING_TOP + chartHeight - ((value - yMin) / range) * chartHeight;
