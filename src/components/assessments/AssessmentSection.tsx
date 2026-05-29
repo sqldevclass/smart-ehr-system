@@ -214,13 +214,13 @@ export default function AssessmentSection({
         <div
           className={cn(
             "rounded border px-3 py-2 text-sm",
-            getRiskLevel(latest.total_score).color
+            getRiskLevel(latest.total_score, scaleCode).color
           )}
         >
           <div className="flex items-center justify-between gap-2">
             <span className="font-medium">
               Балл: {latest.total_score} —{" "}
-              {getRiskLevel(latest.total_score).label}
+              {getRiskLevel(latest.total_score, scaleCode).label}
             </span>
             <span className="text-xs opacity-75">
               {format(new Date(latest.assessed_at), "dd.MM.yyyy HH:mm")}
@@ -245,13 +245,13 @@ export default function AssessmentSection({
             className={cn(
               "flex items-center justify-between gap-2 px-3 py-2 rounded border text-sm",
               allItemsSelected
-                ? getRiskLevel(totalScore).color
+                ? getRiskLevel(totalScore, scaleCode).color
                 : "bg-white border-gray-200"
             )}
           >
             <span className="font-medium">
               {allItemsSelected
-                ? `Балл: ${totalScore} — ${getRiskLevel(totalScore).label}`
+                ? `Балл: ${totalScore} — ${getRiskLevel(totalScore, scaleCode).label}`
                 : `Выбрано ${Object.keys(selections).length} из ${itemCount} параметров`}
             </span>
             {allItemsSelected && (
@@ -371,11 +371,11 @@ export default function AssessmentSection({
               key={a.id}
               className={cn(
                 "flex items-center justify-between px-3 py-1.5 rounded border text-xs",
-                getRiskLevel(a.total_score).color
+                getRiskLevel(a.total_score, scaleCode).color
               )}
             >
               <span className="font-medium">
-                {a.total_score} — {getRiskLevel(a.total_score).label}
+                {a.total_score} — {getRiskLevel(a.total_score, scaleCode).label}
               </span>
               <span className="opacity-75">
                 {format(new Date(a.assessed_at), "dd.MM.yyyy HH:mm")}
