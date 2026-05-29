@@ -135,17 +135,18 @@ export default function NursePatientsList() {
     },
   });
 
-  const { data: bradenScale } = useQuery({
-    queryKey: ["scale-id-braden"],
+  const { data: scales = [] } = useQuery({
+    queryKey: ["assessment-scales-ids"],
     queryFn: async () => {
       const { data } = await supabase
         .from("assessment_scales")
         .select("id, code")
-        .eq("code", "braden")
-        .single();
-      return data;
+        .in("code", ["braden", "morse"]);
+      return data || [];
     },
   });
+  const bradenScale = scales.find((s) => s.code === "braden");
+  const morseScale = scales.find((s) => s.code === "morse");
 
   const pendingAssessments = useMemo(() => {
     const map: Record<string, string[]> = {};
@@ -155,7 +156,7 @@ export default function NursePatientsList() {
         const latest = latestAssessments.find(
           (a: any) =>
             a.hospitalization_id === h.id &&
-            a.assessment_scales?.code === "braden"
+            a.scale_id === bradenScale.id
         );
         if (
           !latest ||
@@ -165,12 +166,26 @@ export default function NursePatientsList() {
           pending.push("Брадена");
         }
       }
+      if (morseScale) {
+        const latest = latestAssessments.find(
+          (a: any) =>
+            a.hospitalization_id === h.id &&
+            a.scale_id === morseScale.id
+        );
+        if (
+          !latest ||
+          (latest.next_assessment_at &&
+            new Date(latest.next_assessment_at) <= new Date())
+        ) {
+          pending.push("Морзе");
+        }
+      }
       if (pending.length > 0) {
         map[h.id] = pending;
       }
     });
     return map;
-  }, [latestAssessments, hospitalizations, bradenScale]);
+  }, [latestAssessments, hospitalizations, bradenScale, morseScale]);
 
   const openAssignDialog = (h: any) => {
     setAssignTarget(h);
