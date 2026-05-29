@@ -404,78 +404,70 @@ export default function EWSSection({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between mb-4">
-        <div>
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
+        <div className="shrink-0">
           <h3 className="font-semibold">ШРПУ</h3>
           <p className="text-xs text-muted-foreground">
             Шкала: {scale?.name}
           </p>
         </div>
-        {canOverride ? (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowOverridePanel(!showOverridePanel)}
-          >
-            {showOverridePanel ? "Скрыть границы" : "Изменить границы нормы"}
-          </Button>
-        ) : !isReadOnly ? (
-          <Button size="sm" onClick={() => setShowEWSForm(!showEWSForm)}>
-            + Внести данные
-          </Button>
-        ) : null}
-      </div>
-
-      {!isReadOnly && (isDue || isDueSoon) && (
-        <div className={cn(
-          "flex items-center gap-2 p-2 rounded text-sm mb-3",
-          isDue
-            ? "bg-red-50 text-red-700 border border-red-200"
-            : "bg-yellow-50 text-yellow-700 border border-yellow-200"
-        )}>
-          <span className={cn(
-            "w-2.5 h-2.5 rounded-full shrink-0",
-            isDue
-              ? "bg-red-500 animate-ping"
-              : "bg-yellow-400 animate-pulse"
-          )} />
-          {isDue
-            ? "Необходимо внести показатели ШРПУ"
-            : "Скоро время вносить показатели ШРПУ"}
-        </div>
-      )}
-
-      {ewsSchedule && (
-        <div
-          className={cn(
-            "p-3 rounded-md border text-sm",
-            escalationColors[
-              (ewsSchedule.last_score ?? 0) === 0
-                ? 0
-                : (ewsSchedule.last_score ?? 0) <= 2
-                ? 1
-                : (ewsSchedule.last_score ?? 0) <= 6
-                ? 2
-                : 3
-            ],
-          )}
-        >
-          <div className="flex items-center justify-between">
-            <span className="font-semibold">
-              Балл: {ewsSchedule.last_score ?? 0}
-            </span>
-            <span className="text-xs">
-              Интервал: {getIntervalLabel(ewsSchedule.last_score ?? 0)}
-            </span>
-          </div>
-          {ewsSchedule.next_due_at && (
-            <div className="text-xs mt-0.5">
+        {ewsSchedule && (
+          <div className={cn(
+            "flex-1 min-w-0 px-3 py-1.5 rounded border text-sm",
+            (ewsSchedule.last_score ?? 0) === 0
+              ? "bg-green-50 border-green-200"
+              : (ewsSchedule.last_score ?? 0) <= 2
+              ? "bg-yellow-50 border-yellow-200"
+              : (ewsSchedule.last_score ?? 0) <= 6
+              ? "bg-orange-50 border-orange-200"
+              : "bg-red-50 border-red-200"
+          )}>
+            <div className="flex items-center gap-3">
+              <span className="font-semibold">
+                Балл: {ewsSchedule.last_score ?? 0}
+              </span>
+              <span className="text-xs">
+                Интервал:{" "}
+                <strong>
+                  {getIntervalLabel(ewsSchedule.last_score ?? 0)}
+                </strong>
+              </span>
+            </div>
+            <div className="text-xs text-muted-foreground mt-0.5">
               Следующее внесение:{" "}
               {format(new Date(ewsSchedule.next_due_at), "dd.MM.yyyy HH:mm")}
             </div>
+          </div>
+        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {!isReadOnly && (isDue || isDueSoon) && (
+            <div className={cn(
+              "flex items-center gap-1.5 px-2 py-1 rounded text-xs border",
+              isDue
+                ? "bg-red-50 text-red-700 border-red-200"
+                : "bg-yellow-50 text-yellow-700 border-yellow-200"
+            )}>
+              <span className={cn(
+                "w-2 h-2 rounded-full shrink-0",
+                isDue ? "bg-red-500 animate-ping" : "bg-yellow-400 animate-pulse"
+              )} />
+              <span>
+                {isDue ? "Необходимо внести ШРПУ" : "Скоро время ШРПУ"}
+              </span>
+            </div>
           )}
+          {canOverride ? (
+            <Button variant="outline" size="sm"
+              onClick={() => setShowOverridePanel(!showOverridePanel)}>
+              {showOverridePanel ? "Скрыть границы" : "Изменить границы нормы"}
+            </Button>
+          ) : !isReadOnly ? (
+            <Button size="sm" onClick={() => setShowEWSForm(!showEWSForm)}>
+              + Внести данные
+            </Button>
+          ) : null}
         </div>
-      )}
+      </div>
 
 
       {showOverridePanel && canOverride && (
