@@ -165,6 +165,32 @@ export default function NursePatientDetail() {
     enabled: !!hospId && !!user?.hospitalId,
   });
 
+  const { data: morseAssessments = [] } = useQuery({
+    queryKey: ["morse-assessments", hospId],
+    enabled: !!hospId,
+    staleTime: 0,
+    queryFn: async () => {
+      const { data: scale } = await supabase
+        .from("assessment_scales")
+        .select("id")
+        .eq("code", "morse")
+        .single();
+      if (!scale) return [];
+      const { data } = await supabase
+        .from("patient_assessments")
+        .select("total_score, risk_level, assessed_at")
+        .eq("hospitalization_id", hospId!)
+        .eq("scale_id", scale.id)
+        .eq("is_voided", false)
+        .order("assessed_at", { ascending: false })
+        .limit(1);
+      return data || [];
+    },
+  });
+
+  const latestMorseScore = (morseAssessments[0] as any)?.total_score ?? null;
+  const isFallRisk = latestMorseScore !== null && latestMorseScore >= 51;
+
   const patient = (hosp as any)?.patients;
   const ra = (hosp as any)?.room_assignments?.[0];
   const allergies = patient?.patient_allergies || [];
