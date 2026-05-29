@@ -280,20 +280,28 @@ export default function NursePatientsList() {
                                 <div className="font-medium">{h.patients?.last_name} {h.patients?.first_name}</div>
                                 <div className="text-xs text-muted-foreground">{h.patients?.patient_number}</div>
                               </div>
-                              {pendingAssessments[h.id] && (
+                              {assessmentMap[h.id]?.pendingCount > 0 ? (
                                 <TooltipProvider>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-semibold shrink-0">
-                                        {pendingAssessments[h.id].length}
+                                        {assessmentMap[h.id].pendingCount}
                                       </span>
                                     </TooltipTrigger>
                                     <TooltipContent>
                                       Необходимо заполнить:{" "}
-                                      {pendingAssessments[h.id].map((s) => `Шкала ${s}`).join(", ")}
+                                      {[
+                                        assessmentMap[h.id].bradenPending && "Шкала Брадена",
+                                        assessmentMap[h.id].morsePending && "Шкала Морзе",
+                                      ].filter(Boolean).join(", ")}
                                     </TooltipContent>
                                   </Tooltip>
                                 </TooltipProvider>
+                              ) : (
+                                <AssessmentIndicator
+                                  bradenScore={assessmentMap[h.id]?.bradenScore ?? null}
+                                  morseScore={assessmentMap[h.id]?.morseScore ?? null}
+                                />
                               )}
                             </div>
                           </td>
