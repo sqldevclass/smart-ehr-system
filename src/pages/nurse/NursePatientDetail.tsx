@@ -13,6 +13,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import EWSSection from "@/components/ews/EWSSection";
+import AssessmentSection from "@/components/assessments/AssessmentSection";
 
 const EMPTY_VITALS = {
   bp_systolic: "",
@@ -235,6 +236,14 @@ export default function NursePatientDetail() {
             admittedAt={(hosp as any).admitted_at}
             isReadOnly={false}
           />
+          <div className="mt-6 pt-6 border-t">
+            <AssessmentSection
+              scaleCode="braden"
+              hospitalizationId={hospId!}
+              patientId={patient.id}
+              hospitalId={user!.hospitalId}
+            />
+          </div>
         </div>
 
         <div

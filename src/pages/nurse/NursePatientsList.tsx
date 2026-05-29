@@ -20,6 +20,9 @@ import { RoomBedSelector, RoomBedValue } from "@/components/inpatient/RoomBedSel
 import { toast } from "sonner";
 import { useEWSSchedule } from "@/hooks/useEWSSchedule";
 import EWSStatusDot from "@/components/ews/EWSStatusDot";
+import {
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export default function NursePatientsList() {
   const { user } = useAuth();
@@ -110,6 +113,64 @@ export default function NursePatientsList() {
     }
     return map;
   }, [allVitals]);
+
+  const { data: latestAssessments = [] } = useQuery({
+    queryKey: ["nurse-assessments-latest", user?.hospitalId],
+    staleTime: 0,
+    refetchInterval: 300000,
+    enabled: !!user?.hospitalId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("patient_assessments")
+        .select(`
+          id, hospitalization_id, scale_id,
+          total_score, risk_level,
+          next_assessment_at,
+          assessment_scales!scale_id(code)
+        `)
+        .eq("hospital_id", user!.hospitalId)
+        .eq("is_voided", false)
+        .order("assessed_at", { ascending: false });
+      return data || [];
+    },
+  });
+
+  const { data: bradenScale } = useQuery({
+    queryKey: ["scale-id-braden"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("assessment_scales")
+        .select("id, code")
+        .eq("code", "braden")
+        .single();
+      return data;
+    },
+  });
+
+  const pendingAssessments = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    hospitalizations.forEach((h: any) => {
+      const pending: string[] = [];
+      if (bradenScale) {
+        const latest = latestAssessments.find(
+          (a: any) =>
+            a.hospitalization_id === h.id &&
+            a.assessment_scales?.code === "braden"
+        );
+        if (
+          !latest ||
+          (latest.next_assessment_at &&
+            new Date(latest.next_assessment_at) <= new Date())
+        ) {
+          pending.push("Брадена");
+        }
+      }
+      if (pending.length > 0) {
+        map[h.id] = pending;
+      }
+    });
+    return map;
+  }, [latestAssessments, hospitalizations, bradenScale]);
 
   const openAssignDialog = (h: any) => {
     setAssignTarget(h);
@@ -203,8 +264,27 @@ export default function NursePatientsList() {
                       return (
                         <tr key={h.id} className="border-b hover:bg-muted/50">
                           <td className="px-3 py-2">
-                            <div className="font-medium">{h.patients?.last_name} {h.patients?.first_name}</div>
-                            <div className="text-xs text-muted-foreground">{h.patients?.patient_number}</div>
+                            <div className="flex items-center gap-2">
+                              <div className="min-w-0">
+                                <div className="font-medium">{h.patients?.last_name} {h.patients?.first_name}</div>
+                                <div className="text-xs text-muted-foreground">{h.patients?.patient_number}</div>
+                              </div>
+                              {pendingAssessments[h.id] && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-semibold shrink-0">
+                                        {pendingAssessments[h.id].length}
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      Необходимо заполнить:{" "}
+                                      {pendingAssessments[h.id].map((s) => `Шкала ${s}`).join(", ")}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
+                            </div>
                           </td>
                           <td className="px-3 py-2 text-xs">
                             {ra ? `${ra.rooms?.name} / ${ra.bed_number}` : "—"}
@@ -275,9 +355,28 @@ export default function NursePatientsList() {
                       </TableCell>
                       <TableCell>{h.departments?.name || "—"}</TableCell>
                       <TableCell>
-                        <div className="font-medium">{p?.last_name} {p?.first_name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {p?.date_of_birth ? format(new Date(p.date_of_birth), "dd.MM.yyyy") : "—"}
+                        <div className="flex items-center gap-2">
+                          <div className="min-w-0">
+                            <div className="font-medium">{p?.last_name} {p?.first_name}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {p?.date_of_birth ? format(new Date(p.date_of_birth), "dd.MM.yyyy") : "—"}
+                            </div>
+                          </div>
+                          {pendingAssessments[h.id] && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-semibold shrink-0">
+                                    {pendingAssessments[h.id].length}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  Необходимо заполнить:{" "}
+                                  {pendingAssessments[h.id].map((s) => `Шкала ${s}`).join(", ")}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>
