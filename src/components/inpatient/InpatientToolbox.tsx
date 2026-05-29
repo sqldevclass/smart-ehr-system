@@ -299,10 +299,6 @@ export default function InpatientToolbox({
           />
         )}
       </div>
-
-      <Button variant="outline" size="sm" disabled>
-        Планшет
-      </Button>
     </div>
   );
 }
