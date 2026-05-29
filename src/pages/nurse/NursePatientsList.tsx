@@ -352,6 +352,7 @@ export default function NursePatientsList() {
                   <TableHead>ФИО / ДОБ</TableHead>
                   <TableHead>№Палаты / Кровать</TableHead>
                   <TableHead>Лечащий Врач</TableHead>
+                  <TableHead>Оценки</TableHead>
                   <TableHead>Который день</TableHead>
                   <TableHead>ШРПУ</TableHead>
                   <TableHead>Операция</TableHead>
@@ -374,28 +375,9 @@ export default function NursePatientsList() {
                       </TableCell>
                       <TableCell>{h.departments?.name || "—"}</TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div className="min-w-0">
-                            <div className="font-medium">{p?.last_name} {p?.first_name}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {p?.date_of_birth ? format(new Date(p.date_of_birth), "dd.MM.yyyy") : "—"}
-                            </div>
-                          </div>
-                          {pendingAssessments[h.id] && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-semibold shrink-0">
-                                    {pendingAssessments[h.id].length}
-                                  </span>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  Необходимо заполнить:{" "}
-                                  {pendingAssessments[h.id].map((s) => `Шкала ${s}`).join(", ")}
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
+                        <div className="font-medium">{p?.last_name} {p?.first_name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {p?.date_of_birth ? format(new Date(p.date_of_birth), "dd.MM.yyyy") : "—"}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -403,6 +385,31 @@ export default function NursePatientsList() {
                       </TableCell>
                       <TableCell className="text-sm">
                         {(h as any).physicians?.profiles?.full_name || "—"}
+                      </TableCell>
+                      <TableCell>
+                        {assessmentMap[h.id]?.pendingCount > 0 ? (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-orange-500 text-white text-xs font-bold cursor-default">
+                                  {assessmentMap[h.id].pendingCount}
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                Необходимо заполнить:{" "}
+                                {[
+                                  assessmentMap[h.id].bradenPending && "Шкала Брадена",
+                                  assessmentMap[h.id].morsePending && "Шкала Морзе",
+                                ].filter(Boolean).join(", ")}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        ) : (
+                          <AssessmentIndicator
+                            bradenScore={assessmentMap[h.id]?.bradenScore ?? null}
+                            morseScore={assessmentMap[h.id]?.morseScore ?? null}
+                          />
+                        )}
                       </TableCell>
                       <TableCell className="text-sm">{days} дн.</TableCell>
                       <TableCell>
