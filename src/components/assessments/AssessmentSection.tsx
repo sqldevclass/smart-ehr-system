@@ -19,7 +19,27 @@ interface Selection {
   score: number;
 }
 
-function getRiskLevel(score: number) {
+function getRiskLevel(score: number, scaleCode: string) {
+  if (scaleCode === "morse") {
+    if (score >= 51)
+      return {
+        level: "high",
+        label: "Высокий риск падения",
+        color: "bg-red-100 text-red-800 border-red-300",
+      };
+    if (score >= 25)
+      return {
+        level: "low",
+        label: "Низкий риск падения",
+        color: "bg-yellow-50 text-yellow-700 border-yellow-200",
+      };
+    return {
+      level: "none",
+      label: "Нет риска падения",
+      color: "bg-green-50 text-green-700 border-green-200",
+    };
+  }
+  // Braden (lower = worse)
   if (score <= 9)
     return {
       level: "very_high",
@@ -194,13 +214,13 @@ export default function AssessmentSection({
         <div
           className={cn(
             "rounded border px-3 py-2 text-sm",
-            getRiskLevel(latest.total_score).color
+            getRiskLevel(latest.total_score, scaleCode).color
           )}
         >
           <div className="flex items-center justify-between gap-2">
             <span className="font-medium">
               Балл: {latest.total_score} —{" "}
-              {getRiskLevel(latest.total_score).label}
+              {getRiskLevel(latest.total_score, scaleCode).label}
             </span>
             <span className="text-xs opacity-75">
               {format(new Date(latest.assessed_at), "dd.MM.yyyy HH:mm")}
@@ -225,13 +245,13 @@ export default function AssessmentSection({
             className={cn(
               "flex items-center justify-between gap-2 px-3 py-2 rounded border text-sm",
               allItemsSelected
-                ? getRiskLevel(totalScore).color
+                ? getRiskLevel(totalScore, scaleCode).color
                 : "bg-white border-gray-200"
             )}
           >
             <span className="font-medium">
               {allItemsSelected
-                ? `Балл: ${totalScore} — ${getRiskLevel(totalScore).label}`
+                ? `Балл: ${totalScore} — ${getRiskLevel(totalScore, scaleCode).label}`
                 : `Выбрано ${Object.keys(selections).length} из ${itemCount} параметров`}
             </span>
             {allItemsSelected && (
@@ -351,11 +371,11 @@ export default function AssessmentSection({
               key={a.id}
               className={cn(
                 "flex items-center justify-between px-3 py-1.5 rounded border text-xs",
-                getRiskLevel(a.total_score).color
+                getRiskLevel(a.total_score, scaleCode).color
               )}
             >
               <span className="font-medium">
-                {a.total_score} — {getRiskLevel(a.total_score).label}
+                {a.total_score} — {getRiskLevel(a.total_score, scaleCode).label}
               </span>
               <span className="opacity-75">
                 {format(new Date(a.assessed_at), "dd.MM.yyyy HH:mm")}

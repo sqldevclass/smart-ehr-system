@@ -165,6 +165,32 @@ export default function NursePatientDetail() {
     enabled: !!hospId && !!user?.hospitalId,
   });
 
+  const { data: morseAssessments = [] } = useQuery({
+    queryKey: ["morse-assessments", hospId],
+    enabled: !!hospId,
+    staleTime: 0,
+    queryFn: async () => {
+      const { data: scale } = await supabase
+        .from("assessment_scales")
+        .select("id")
+        .eq("code", "morse")
+        .single();
+      if (!scale) return [];
+      const { data } = await supabase
+        .from("patient_assessments")
+        .select("total_score, risk_level, assessed_at")
+        .eq("hospitalization_id", hospId!)
+        .eq("scale_id", scale.id)
+        .eq("is_voided", false)
+        .order("assessed_at", { ascending: false })
+        .limit(1);
+      return data || [];
+    },
+  });
+
+  const latestMorseScore = (morseAssessments[0] as any)?.total_score ?? null;
+  const isFallRisk = latestMorseScore !== null && latestMorseScore >= 51;
+
   const patient = (hosp as any)?.patients;
   const ra = (hosp as any)?.room_assignments?.[0];
   const allergies = patient?.patient_allergies || [];
@@ -217,6 +243,12 @@ export default function NursePatientDetail() {
             <span>{allergies.map((a: any) => a.allergy_type).join(", ")}</span>
           </div>
         )}
+        {isFallRisk && (
+          <div className="flex items-center gap-1 text-xs text-red-700 font-semibold">
+            <span>⚠</span>
+            <span>РИСК ПАДЕНИЯ</span>
+          </div>
+        )}
       </div>
 
 
@@ -242,6 +274,15 @@ export default function NursePatientDetail() {
               hospitalizationId={hospId!}
               patientId={patient.id}
               hospitalId={user!.hospitalId}
+            />
+          </div>
+          <div className="border-t pt-4 mt-4">
+            <AssessmentSection
+              scaleCode="morse"
+              hospitalizationId={hospId!}
+              patientId={patient.id}
+              hospitalId={user!.hospitalId}
+              isReadOnly={false}
             />
           </div>
         </div>
