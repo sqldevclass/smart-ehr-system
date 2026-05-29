@@ -32,6 +32,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { format, differenceInDays } from "date-fns";
 import { PeriodFilter, PeriodState, getDateBounds, getTodayBounds, SummaryCard, MetricTile } from "@/components/shared/PeriodFilter";
+import StatusToggle from "@/components/shared/StatusToggle";
 
 export default function AdmissionsPage() {
   const { user } = useAuth();
@@ -44,7 +45,8 @@ export default function AdmissionsPage() {
   const [departmentId, setDepartmentId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [periodState, setPeriodState] = useState<PeriodState>({ period: "today" });
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "discharged">("all");
+  const [hospStatusFilter, setHospStatusFilter] = useState<"active" | "discharged">("active");
+  const [showAllDischarged, setShowAllDischarged] = useState(false);
   const [deptFilter, setDeptFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<"all" | "planned" | "emergency">("all");
 
@@ -87,17 +89,24 @@ export default function AdmissionsPage() {
   });
 
   const { data: active, isLoading: loadingActive } = useQuery({
-    queryKey: ["active-hospitalizations", user?.hospitalId, bounds.from, bounds.to, statusFilter, deptFilter, typeFilter],
+    queryKey: ["active-hospitalizations", user?.hospitalId, bounds.from, bounds.to, hospStatusFilter, showAllDischarged, deptFilter, typeFilter],
     queryFn: async () => {
       let q = supabase
         .from("hospitalizations")
-        .select("id, hospitalization_number, admitted_at, discharged_at, department_id, urgency_id, departments(name), patients(first_name, last_name, patient_number), hospitalization_types(name_ru), hospitalization_urgency(code), room_assignments(bed_number, rooms(name))")
+        .select("id, hospitalization_number, admitted_at, discharged_at, discharge_type, department_id, urgency_id, departments(name), patients(first_name, last_name, patient_number), hospitalization_types(name_ru), hospitalization_urgency(code), room_assignments(bed_number, rooms(name))")
         .eq("hospital_id", user!.hospitalId)
         .gte("admitted_at", bounds.from)
         .lte("admitted_at", bounds.to)
         .order("admitted_at", { ascending: false });
-      if (statusFilter === "active") q = q.is("discharged_at", null);
-      if (statusFilter === "discharged") q = q.not("discharged_at", "is", null);
+      if (hospStatusFilter === "active") {
+        q = q.is("discharged_at", null);
+      } else {
+        q = q.not("discharged_at", "is", null);
+        if (!showAllDischarged) {
+          const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
+          q = q.gte("discharged_at", fiveDaysAgo);
+        }
+      }
       if (deptFilter !== "all") q = q.eq("department_id", deptFilter);
       const { data, error } = await q;
       if (error) throw error;
@@ -290,15 +299,14 @@ export default function AdmissionsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-center gap-3">
+            <StatusToggle
+              value={hospStatusFilter}
+              onChange={(v) => {
+                setHospStatusFilter(v);
+                setShowAllDischarged(false);
+              }}
+            />
             <PeriodFilter value={periodState} onChange={setPeriodState} />
-            <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
-              <SelectTrigger className="h-9 w-[140px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="discharged">Discharged</SelectItem>
-              </SelectContent>
-            </Select>
             <Select value={deptFilter} onValueChange={setDeptFilter}>
               <SelectTrigger className="h-9 w-[180px]"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -357,7 +365,18 @@ export default function AdmissionsPage() {
                       <TableCell>{days}</TableCell>
                       <TableCell>
                         {h.discharged_at ? (
-                          <Badge variant="secondary">Discharged</Badge>
+                          <div>
+                            <Badge variant="secondary" className="text-xs">
+                              {h.discharge_type === "discharged"
+                                ? "Выписан"
+                                : h.discharge_type === "transferred"
+                                ? "Переведён"
+                                : "Летальный исход"}
+                            </Badge>
+                            <div className="text-xs text-muted-foreground mt-0.5">
+                              {format(new Date(h.discharged_at), "dd.MM.yyyy HH:mm")}
+                            </div>
+                          </div>
                         ) : (
                           <Badge className="bg-green-600 text-white hover:bg-green-700">Active</Badge>
                         )}
