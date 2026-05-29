@@ -342,7 +342,6 @@ export default function AdmissionsPage() {
                   <TableHead>Room / Bed</TableHead>
                   <TableHead>Days</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -350,7 +349,11 @@ export default function AdmissionsPage() {
                   const ra = h.room_assignments?.[0];
                   const days = differenceInDays(new Date(), new Date(h.admitted_at));
                   return (
-                    <TableRow key={h.id}>
+                    <TableRow
+                      key={h.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => navigate(`/inpatient/hospitalizations/${h.id}`)}
+                    >
                       <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
                       <TableCell className="font-mono">{h.hospitalization_number}</TableCell>
                       <TableCell>
@@ -380,15 +383,6 @@ export default function AdmissionsPage() {
                         ) : (
                           <Badge className="bg-green-600 text-white hover:bg-green-700">Active</Badge>
                         )}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => navigate(`/inpatient/hospitalizations/${h.id}`)}
-                        >
-                          View
-                        </Button>
                       </TableCell>
                     </TableRow>
                   );
