@@ -19,7 +19,27 @@ interface Selection {
   score: number;
 }
 
-function getRiskLevel(score: number) {
+function getRiskLevel(score: number, scaleCode: string) {
+  if (scaleCode === "morse") {
+    if (score >= 51)
+      return {
+        level: "high",
+        label: "Высокий риск падения",
+        color: "bg-red-100 text-red-800 border-red-300",
+      };
+    if (score >= 25)
+      return {
+        level: "low",
+        label: "Низкий риск падения",
+        color: "bg-yellow-50 text-yellow-700 border-yellow-200",
+      };
+    return {
+      level: "none",
+      label: "Нет риска падения",
+      color: "bg-green-50 text-green-700 border-green-200",
+    };
+  }
+  // Braden (lower = worse)
   if (score <= 9)
     return {
       level: "very_high",
