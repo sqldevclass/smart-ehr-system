@@ -139,10 +139,17 @@ export default function InpatientPatientsList() {
         <CardTitle>Стационарные пациенты</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        <StatusToggle
+          value={statusFilter}
+          onChange={(v) => {
+            setStatusFilter(v);
+            setShowAllDischarged(false);
+          }}
+        />
         {isLoading ? (
           <p className="text-muted-foreground text-sm">Loading…</p>
         ) : !filtered.length ? (
-          <p className="text-muted-foreground text-sm">Нет активных госпитализаций.</p>
+          <p className="text-muted-foreground text-sm">Нет госпитализаций.</p>
         ) : (
           <Table>
             <TableHeader>
@@ -154,6 +161,7 @@ export default function InpatientPatientsList() {
                 <TableHead>Лечащий Врач</TableHead>
                 <TableHead>Дней в стационаре</TableHead>
                 <TableHead>ШРПУ</TableHead>
+                <TableHead>Статус</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -240,6 +248,26 @@ export default function InpatientPatientsList() {
                         status={getStatus(h.id)}
                         score={scheduleMap[h.id]?.last_score}
                       />
+                    </TableCell>
+                    <TableCell>
+                      {h.discharged_at ? (
+                        <div>
+                          <Badge variant="secondary" className="text-xs">
+                            {h.discharge_type === "discharged"
+                              ? "Выписан"
+                              : h.discharge_type === "transferred"
+                              ? "Переведён"
+                              : "Летальный исход"}
+                          </Badge>
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            {format(new Date(h.discharged_at), "dd.MM.yyyy HH:mm")}
+                          </div>
+                        </div>
+                      ) : (
+                        <Badge variant="outline" className="text-xs text-green-700 border-green-300">
+                          Активный
+                        </Badge>
+                      )}
                     </TableCell>
                   </>
                 );
