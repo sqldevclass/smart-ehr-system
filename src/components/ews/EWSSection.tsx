@@ -440,22 +440,6 @@ export default function EWSSection({
           </div>
         )}
         <div className="flex items-center gap-2 shrink-0">
-          {!isReadOnly && (isDue || isDueSoon) && (
-            <div className={cn(
-              "flex items-center gap-1.5 px-2 py-1 rounded text-xs border",
-              isDue
-                ? "bg-red-50 text-red-700 border-red-200"
-                : "bg-yellow-50 text-yellow-700 border-yellow-200"
-            )}>
-              <span className={cn(
-                "w-2 h-2 rounded-full shrink-0",
-                isDue ? "bg-red-500 animate-ping" : "bg-yellow-400 animate-pulse"
-              )} />
-              <span>
-                {isDue ? "Необходимо внести ШРПУ" : "Скоро время ШРПУ"}
-              </span>
-            </div>
-          )}
           {canOverride ? (
             <Button variant="outline" size="sm"
               onClick={() => setShowOverridePanel(!showOverridePanel)}>
@@ -910,6 +894,31 @@ export default function EWSSection({
           parameters={parameters}
           thresholds={thresholds}
           overrideMap={overrideMap}
+          alertSlot={
+            !isReadOnly && (isDue || isDueSoon)
+              ? (
+                <div className={cn(
+                  "flex items-center gap-1.5",
+                  "px-2 py-1 rounded text-xs border",
+                  isDue
+                    ? "bg-red-50 text-red-700 border-red-200"
+                    : "bg-yellow-50 text-yellow-700 border-yellow-200"
+                )}>
+                  <span className={cn(
+                    "w-2 h-2 rounded-full shrink-0",
+                    isDue
+                      ? "bg-red-500 animate-ping"
+                      : "bg-yellow-400 animate-pulse"
+                  )} />
+                  <span>
+                    {isDue
+                      ? "Необходимо внести ШРПУ"
+                      : "Скоро время ШРПУ"}
+                  </span>
+                </div>
+              )
+              : undefined
+          }
         />
       )}
 
@@ -966,82 +975,82 @@ export default function EWSSection({
           </div>
         )}
 
-        {(() => {
-          const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
-          const visibleGlucose = showAllGlucose
-            ? glucoseReadings
-            : glucoseReadings.filter(
-                (g: any) => new Date(g.recorded_at) >= fiveDaysAgo,
-              );
-          if (glucoseReadings.length === 0) {
-            return <p className="text-xs text-muted-foreground">Нет записей</p>;
-          }
-          return (
-            <div className="space-y-2">
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {visibleGlucose.map((g: any) => {
-                  const dt = new Date(g.recorded_at);
-                  const value = parseFloat(g.value_mmol);
-                  const isHigh = value > 7.8;
-                  const isLow = value < 3.9;
-                  return (
-                    <div
-                      key={g.id}
-                      className={cn(
-                        "shrink-0 rounded-lg border p-2 text-center min-w-[60px]",
-                        isHigh
-                          ? "bg-yellow-50 border-yellow-300"
-                          : isLow
-                          ? "bg-pink-50 border-pink-300"
-                          : "bg-white border-gray-200",
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          "text-sm font-bold",
-                          isHigh
-                            ? "text-yellow-700"
-                            : isLow
-                            ? "text-pink-700"
-                            : "text-gray-800",
-                        )}
-                      >
-                        {value % 1 === 0 ? value : value.toFixed(1)}
+        {glucoseReadings.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            Нет записей
+          </p>
+        ) : (
+          (() => {
+            const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
+            const visibleGlucose = showAllGlucose
+              ? glucoseReadings
+              : glucoseReadings.filter(
+                  (g: any) => new Date(g.recorded_at) >= fiveDaysAgo,
+                );
+            return (
+              <div className="space-y-2">
+                <div className="flex gap-6 overflow-x-auto pb-1 flex-wrap">
+                  {visibleGlucose.map((g: any) => {
+                    const dt = new Date(g.recorded_at);
+                    const value = parseFloat(g.value_mmol);
+                    const isHigh = value > 7.8;
+                    const isLow = value < 3.9;
+                    return (
+                      <div key={g.id}
+                        className="shrink-0 text-left">
+                        <div className={cn(
+                          "text-sm font-semibold",
+                          isHigh ? "text-yellow-700"
+                          : isLow ? "text-pink-700"
+                          : "text-gray-800"
+                        )}>
+                          {value % 1 === 0
+                            ? value
+                            : value.toFixed(1)}{" "}
+                          <span className="font-normal
+                            text-xs text-muted-foreground">
+                            ммоль/л
+                          </span>
+                        </div>
+                        <div className="text-xs
+                          text-muted-foreground mt-0.5">
+                          {dt.getDate().toString()
+                            .padStart(2, "0")}.
+                          {(dt.getMonth()+1).toString()
+                            .padStart(2, "0")}{" "}
+                          {dt.getHours().toString()
+                            .padStart(2, "0")}:
+                          {dt.getMinutes().toString()
+                            .padStart(2, "0")}
+                        </div>
                       </div>
-                      <div className="text-xs text-muted-foreground mt-0.5">
-                        ммоль/л
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1 leading-tight">
-                        {dt.getDate().toString().padStart(2, "0")}.
-                        {(dt.getMonth() + 1).toString().padStart(2, "0")}
-                        <br />
-                        {dt.getHours().toString().padStart(2, "0")}:
-                        {dt.getMinutes().toString().padStart(2, "0")}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              {!showAllGlucose &&
-                glucoseReadings.length > visibleGlucose.length && (
+                    );
+                  })}
+                </div>
+                {!showAllGlucose &&
+                  glucoseReadings.length > visibleGlucose.length && (
                   <button
-                    onClick={() => setShowAllGlucose(true)}
-                    className="text-xs text-primary underline"
-                  >
-                    Показать все ({glucoseReadings.length})
+                    onClick={() =>
+                      setShowAllGlucose(true)}
+                    className="text-xs text-primary
+                      underline">
+                    Показать все ({
+                      glucoseReadings.length})
                   </button>
                 )}
-              {showAllGlucose && (
-                <button
-                  onClick={() => setShowAllGlucose(false)}
-                  className="text-xs text-primary underline"
-                >
-                  Скрыть
-                </button>
-              )}
-            </div>
-          );
-        })()}
+                {showAllGlucose && (
+                  <button
+                    onClick={() =>
+                      setShowAllGlucose(false)}
+                    className="text-xs text-primary
+                      underline">
+                    Скрыть
+                  </button>
+                )}
+              </div>
+            );
+          })()
+        )}
       </div>
     </div>
   );

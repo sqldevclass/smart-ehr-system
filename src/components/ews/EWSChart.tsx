@@ -8,6 +8,7 @@ interface Props {
   parameters: any[];
   thresholds: any[];
   overrideMap: Record<string, any>;
+  alertSlot?: React.ReactNode;
 }
 
 const MARGIN_LEFT = 110;
@@ -59,6 +60,7 @@ export default function EWSChart({
   parameters,
   thresholds,
   overrideMap,
+  alertSlot,
 }: Props) {
   const [timeWindow, setTimeWindow] = useState<"1d" | "3d" | "5d" | "7d" | "all">("5d");
   const [tooltip, setTooltip] = useState<{
@@ -194,6 +196,11 @@ export default function EWSChart({
         <span className="text-xs text-muted-foreground ml-2">
           {filteredReadings.length} показаний
         </span>
+        {alertSlot && (
+          <div className="ml-auto">
+            {alertSlot}
+          </div>
+        )}
       </div>
 
       {filteredReadings.length === 0 ? (
