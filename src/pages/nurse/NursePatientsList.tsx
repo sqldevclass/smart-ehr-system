@@ -20,6 +20,9 @@ import { RoomBedSelector, RoomBedValue } from "@/components/inpatient/RoomBedSel
 import { toast } from "sonner";
 import { useEWSSchedule } from "@/hooks/useEWSSchedule";
 import EWSStatusDot from "@/components/ews/EWSStatusDot";
+import {
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export default function NursePatientsList() {
   const { user } = useAuth();
