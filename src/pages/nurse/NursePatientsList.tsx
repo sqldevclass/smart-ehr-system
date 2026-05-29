@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNurseContext } from "@/contexts/NurseContext";
 import { format, differenceInDays } from "date-fns";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -24,6 +25,7 @@ import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from "@/components/ui/tooltip";
 import AssessmentIndicator from "@/components/assessments/AssessmentIndicator";
+import { cn } from "@/lib/utils";
 
 export default function NursePatientsList() {
   const { user } = useAuth();
