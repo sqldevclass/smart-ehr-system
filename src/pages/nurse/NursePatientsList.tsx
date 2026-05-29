@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNurseContext } from "@/contexts/NurseContext";
 import { format, differenceInDays } from "date-fns";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -24,6 +25,7 @@ import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from "@/components/ui/tooltip";
 import AssessmentIndicator from "@/components/assessments/AssessmentIndicator";
+import { cn } from "@/lib/utils";
 
 export default function NursePatientsList() {
   const { user } = useAuth();
@@ -40,6 +42,7 @@ export default function NursePatientsList() {
   const [assignTarget, setAssignTarget] = useState<any>(null);
   const [roomBed, setRoomBed] = useState<RoomBedValue>({ roomId: "", bedNumber: null });
   const [submitting, setSubmitting] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<"active" | "discharged">("active");
 
 
   const { data: departments = [] } = useQuery({
@@ -56,12 +59,13 @@ export default function NursePatientsList() {
   });
 
   const { data: hospitalizations = [], isLoading, refetch } = useQuery({
-    queryKey: ["nurse-active-hosp", user?.hospitalId, selectedDeptIds],
+    queryKey: ["nurse-active-hosp", user?.hospitalId, selectedDeptIds, statusFilter],
     queryFn: async () => {
       let q = supabase
         .from("hospitalizations")
         .select(`
           id, hospitalization_number, admitted_at,
+          discharged_at, discharge_type,
           department_id, primary_physician_id,
           departments!department_id(name),
           physicians!primary_physician_id(
@@ -74,8 +78,12 @@ export default function NursePatientsList() {
             rooms!inner(name))
         `)
         .eq("hospital_id", user!.hospitalId)
-        .is("discharged_at", null)
         .order("admitted_at", { ascending: false });
+      if (statusFilter === "active") {
+        q = q.is("discharged_at", null);
+      } else {
+        q = q.not("discharged_at", "is", null);
+      }
       if (selectedDeptIds.length > 0) q = q.in("department_id", selectedDeptIds);
       const { data, error } = await q;
       if (error) throw error;
@@ -218,15 +226,43 @@ export default function NursePatientsList() {
         <CardTitle>Пациенты</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex items-center justify-end gap-2">
-          <Switch
-            id="tablet-toggle"
-            checked={tabletMode}
-            onCheckedChange={(v) => setTabletMode(v)}
-          />
-          <Label htmlFor="tablet-toggle" className="text-sm cursor-pointer">
-            Планшет
-          </Label>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex rounded-md border overflow-hidden shrink-0">
+            <button
+              onClick={() => setStatusFilter("active")}
+              className={cn(
+                "px-3 py-1.5 text-xs font-medium",
+                "transition-colors",
+                statusFilter === "active"
+                  ? "bg-primary text-white"
+                  : "bg-white text-muted-foreground hover:bg-muted"
+              )}
+            >
+              Активные
+            </button>
+            <button
+              onClick={() => setStatusFilter("discharged")}
+              className={cn(
+                "px-3 py-1.5 text-xs font-medium",
+                "border-l transition-colors",
+                statusFilter === "discharged"
+                  ? "bg-primary text-white"
+                  : "bg-white text-muted-foreground hover:bg-muted"
+              )}
+            >
+              Выписанные
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch
+              id="tablet-toggle"
+              checked={tabletMode}
+              onCheckedChange={(v) => setTabletMode(v)}
+            />
+            <Label htmlFor="tablet-toggle" className="text-sm cursor-pointer">
+              Планшет
+            </Label>
+          </div>
         </div>
 
         {(() => {
@@ -246,7 +282,7 @@ export default function NursePatientsList() {
             return <p className="text-muted-foreground text-sm">Загрузка…</p>;
           }
           if (!filtered.length) {
-            return <p className="text-muted-foreground text-sm">Нет активных госпитализаций.</p>;
+            return <p className="text-muted-foreground text-sm">Нет госпитализаций.</p>;
           }
           if (tabletMode) {
             return (
@@ -273,7 +309,18 @@ export default function NursePatientsList() {
                       const days = differenceInDays(new Date(), new Date(h.admitted_at));
                       const balance = v ? (v.fluid_intake_ml ?? 0) - (v.fluid_output_ml ?? 0) : null;
                       return (
-                        <tr key={h.id} className="border-b hover:bg-muted/50">
+                        <tr
+                          key={h.id}
+                          className="border-b hover:bg-muted/50 cursor-pointer"
+                          onClick={() => {
+                            const ra = h.room_assignments?.[0];
+                            if (!ra) {
+                              openAssignDialog(h);
+                            } else {
+                              navigate(`/nurse/${h.id}`);
+                            }
+                          }}
+                        >
                           <td className="px-3 py-2">
                             <div className="flex items-center gap-2">
                               <div className="min-w-0">
@@ -356,10 +403,8 @@ export default function NursePatientsList() {
                   <TableHead>Который день</TableHead>
                   <TableHead>ШРПУ</TableHead>
                   <TableHead>Операция</TableHead>
-                  <TableHead>Лист назначения</TableHead>
-                  <TableHead>Приход/списание</TableHead>
+                  <TableHead>План лечения</TableHead>
                   <TableHead>Статус</TableHead>
-                  <TableHead className="text-right">Действие</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -369,7 +414,18 @@ export default function NursePatientsList() {
                   const hasRoom = !!ra;
                   const days = differenceInDays(new Date(), new Date(h.admitted_at));
                   return (
-                    <TableRow key={h.id}>
+                    <TableRow
+                      key={h.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => {
+                        const ra = h.room_assignments?.[0];
+                        if (!ra) {
+                          openAssignDialog(h);
+                        } else {
+                          navigate(`/nurse/${h.id}`);
+                        }
+                      }}
+                    >
                       <TableCell className="text-sm">
                         {format(new Date(h.admitted_at), "dd.MM.yyyy HH:mm")}
                       </TableCell>
@@ -420,27 +476,28 @@ export default function NursePatientsList() {
                       </TableCell>
                       <TableCell className="text-muted-foreground">—</TableCell>
                       <TableCell className="text-muted-foreground">—</TableCell>
-                      <TableCell className="text-muted-foreground">—</TableCell>
                       <TableCell>
-                        {hasRoom ? (
-                          <span className="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-700">
+                        {h.discharged_at ? (
+                          <div>
+                            <Badge variant="secondary" className="text-xs">
+                              {h.discharge_type === "discharged"
+                                ? "Выписан"
+                                : h.discharge_type === "transferred"
+                                ? "Переведён"
+                                : "Летальный исход"}
+                            </Badge>
+                            <div className="text-xs text-muted-foreground mt-0.5">
+                              {format(new Date(h.discharged_at), "dd.MM.yyyy HH:mm")}
+                            </div>
+                          </div>
+                        ) : hasRoom ? (
+                          <Badge variant="outline" className="text-xs text-green-700 border-green-300">
                             Размещён
-                          </span>
+                          </Badge>
                         ) : (
-                          <span className="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700">
+                          <Badge variant="outline" className="text-xs text-yellow-700 border-yellow-300">
                             Ожидает размещения
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {hasRoom ? (
-                          <Button size="sm" variant="ghost" onClick={() => navigate(`/nurse/${h.id}`)}>
-                            Открыть
-                          </Button>
-                        ) : (
-                          <Button size="sm" variant="outline" onClick={() => openAssignDialog(h)}>
-                            Принять
-                          </Button>
+                          </Badge>
                         )}
                       </TableCell>
                     </TableRow>

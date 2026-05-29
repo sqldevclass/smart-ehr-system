@@ -250,6 +250,16 @@ export default function NursePatientDetail() {
             <span>Риск падения</span>
           </div>
         )}
+        <div className="ml-auto">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            disabled
+          >
+            Приход / Списание
+          </Button>
+        </div>
       </div>
 
 
