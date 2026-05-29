@@ -39,6 +39,26 @@ function getRiskLevel(score: number, scaleCode: string) {
       color: "bg-green-50 text-green-700 border-green-200",
     };
   }
+  // GCS (lower = worse)
+  if (scaleCode === "gcs") {
+    if (score <= 8)
+      return {
+        level: "severe",
+        label: "Тяжёлое нарушение сознания",
+        color: "bg-red-100 text-red-800 border-red-300",
+      };
+    if (score <= 12)
+      return {
+        level: "moderate",
+        label: "Умеренное нарушение сознания",
+        color: "bg-orange-50 text-orange-700 border-orange-200",
+      };
+    return {
+      level: "mild",
+      label: "Лёгкое нарушение сознания",
+      color: "bg-green-50 text-green-700 border-green-200",
+    };
+  }
   // Braden (lower = worse)
   if (score <= 9)
     return {
