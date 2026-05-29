@@ -196,6 +196,11 @@ export default function EWSChart({
         <span className="text-xs text-muted-foreground ml-2">
           {filteredReadings.length} показаний
         </span>
+        {alertSlot && (
+          <div className="ml-auto">
+            {alertSlot}
+          </div>
+        )}
       </div>
 
       {filteredReadings.length === 0 ? (
