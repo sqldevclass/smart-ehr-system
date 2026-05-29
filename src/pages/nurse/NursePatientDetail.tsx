@@ -276,6 +276,15 @@ export default function NursePatientDetail() {
               hospitalId={user!.hospitalId}
             />
           </div>
+          <div className="border-t pt-4 mt-4">
+            <AssessmentSection
+              scaleCode="morse"
+              hospitalizationId={hospId!}
+              patientId={patient.id}
+              hospitalId={user!.hospitalId}
+              isReadOnly={false}
+            />
+          </div>
         </div>
 
         <div
