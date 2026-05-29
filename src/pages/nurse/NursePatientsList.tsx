@@ -23,6 +23,7 @@ import EWSStatusDot from "@/components/ews/EWSStatusDot";
 import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from "@/components/ui/tooltip";
+import AssessmentIndicator from "@/components/assessments/AssessmentIndicator";
 
 export default function NursePatientsList() {
   const { user } = useAuth();
@@ -148,41 +149,36 @@ export default function NursePatientsList() {
   const bradenScale = scales.find((s) => s.code === "braden");
   const morseScale = scales.find((s) => s.code === "morse");
 
-  const pendingAssessments = useMemo(() => {
-    const map: Record<string, string[]> = {};
+  const assessmentMap = useMemo(() => {
+    const map: Record<string, {
+      bradenScore: number | null;
+      morseScore: number | null;
+      bradenPending: boolean;
+      morsePending: boolean;
+      pendingCount: number;
+    }> = {};
     hospitalizations.forEach((h: any) => {
-      const pending: string[] = [];
-      if (bradenScale) {
-        const latest = latestAssessments.find(
-          (a: any) =>
-            a.hospitalization_id === h.id &&
-            a.scale_id === bradenScale.id
-        );
-        if (
-          !latest ||
-          (latest.next_assessment_at &&
-            new Date(latest.next_assessment_at) <= new Date())
-        ) {
-          pending.push("Брадена");
-        }
-      }
-      if (morseScale) {
-        const latest = latestAssessments.find(
-          (a: any) =>
-            a.hospitalization_id === h.id &&
-            a.scale_id === morseScale.id
-        );
-        if (
-          !latest ||
-          (latest.next_assessment_at &&
-            new Date(latest.next_assessment_at) <= new Date())
-        ) {
-          pending.push("Морзе");
-        }
-      }
-      if (pending.length > 0) {
-        map[h.id] = pending;
-      }
+      const bradenLatest = latestAssessments.find(
+        (a: any) => a.hospitalization_id === h.id && a.scale_id === bradenScale?.id
+      );
+      const morseLatest = latestAssessments.find(
+        (a: any) => a.hospitalization_id === h.id && a.scale_id === morseScale?.id
+      );
+      const bradenPending = !bradenLatest || (
+        bradenLatest.next_assessment_at &&
+        new Date(bradenLatest.next_assessment_at) <= new Date()
+      );
+      const morsePending = !morseLatest || (
+        morseLatest.next_assessment_at &&
+        new Date(morseLatest.next_assessment_at) <= new Date()
+      );
+      map[h.id] = {
+        bradenScore: (bradenLatest as any)?.total_score ?? null,
+        morseScore: (morseLatest as any)?.total_score ?? null,
+        bradenPending: !!bradenPending,
+        morsePending: !!morsePending,
+        pendingCount: (bradenPending ? 1 : 0) + (morsePending ? 1 : 0),
+      };
     });
     return map;
   }, [latestAssessments, hospitalizations, bradenScale, morseScale]);
