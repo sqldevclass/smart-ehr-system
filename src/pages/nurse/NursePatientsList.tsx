@@ -25,6 +25,7 @@ import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from "@/components/ui/tooltip";
 import AssessmentIndicator from "@/components/assessments/AssessmentIndicator";
+import StatusToggle from "@/components/shared/StatusToggle";
 import { cn } from "@/lib/utils";
 
 export default function NursePatientsList() {
@@ -227,32 +228,7 @@ export default function NursePatientsList() {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex rounded-md border overflow-hidden shrink-0">
-            <button
-              onClick={() => setStatusFilter("active")}
-              className={cn(
-                "px-3 py-1.5 text-xs font-medium",
-                "transition-colors",
-                statusFilter === "active"
-                  ? "bg-primary text-white"
-                  : "bg-white text-muted-foreground hover:bg-muted"
-              )}
-            >
-              Активные
-            </button>
-            <button
-              onClick={() => setStatusFilter("discharged")}
-              className={cn(
-                "px-3 py-1.5 text-xs font-medium",
-                "border-l transition-colors",
-                statusFilter === "discharged"
-                  ? "bg-primary text-white"
-                  : "bg-white text-muted-foreground hover:bg-muted"
-              )}
-            >
-              Выписанные
-            </button>
-          </div>
+          <StatusToggle value={statusFilter} onChange={setStatusFilter} />
           <div className="flex items-center gap-2">
             <Switch
               id="tablet-toggle"
