@@ -139,13 +139,15 @@ export default function InpatientPatientsList() {
         <CardTitle>Стационарные пациенты</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <StatusToggle
-          value={statusFilter}
-          onChange={(v) => {
-            setStatusFilter(v);
-            setShowAllDischarged(false);
-          }}
-        />
+        <div className="shrink-0">
+          <StatusToggle
+            value={statusFilter}
+            onChange={(v) => {
+              setStatusFilter(v);
+              setShowAllDischarged(false);
+            }}
+          />
+        </div>
         {isLoading ? (
           <p className="text-muted-foreground text-sm">Loading…</p>
         ) : !filtered.length ? (

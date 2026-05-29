@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -83,14 +82,17 @@ export default function LabResultsPage() {
               <TableHead>Barcode</TableHead>
               <TableHead>Service</TableHead>
               <TableHead>Drawn</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.map((s, i) => {
               const p = s.patients;
               return (
-                <TableRow key={s.id}>
+                <TableRow
+                  key={s.id}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => openResults(s)}
+                >
                   <TableCell>{i + 1}</TableCell>
                   <TableCell className="font-medium">
                     {[p?.last_name, p?.first_name].filter(Boolean).join(" ") || "—"}
@@ -99,13 +101,6 @@ export default function LabResultsPage() {
                   <TableCell className="font-mono text-xs">{s.barcode}</TableCell>
                   <TableCell>{s.visit_services?.services?.name || "—"}</TableCell>
                   <TableCell>{s.drawn_at ? format(new Date(s.drawn_at), "HH:mm") : "—"}</TableCell>
-                  <TableCell className="text-right">
-                    {allowEnter ? (
-                      <Button size="sm" onClick={() => openResults(s)}>Enter Results</Button>
-                    ) : (
-                      <Button size="sm" variant="outline" onClick={() => openResults(s)}>View</Button>
-                    )}
-                  </TableCell>
                 </TableRow>
               );
             })}

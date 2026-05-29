@@ -7,7 +7,7 @@ interface StatusToggleProps {
 
 export default function StatusToggle({ value, onChange }: StatusToggleProps) {
   return (
-    <div className="flex rounded-md border overflow-hidden shrink-0">
+    <div className="flex rounded-md border overflow-hidden shrink-0 w-fit">
       <button
         onClick={() => onChange("active")}
         className={cn(
