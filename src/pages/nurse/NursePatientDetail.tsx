@@ -236,6 +236,14 @@ export default function NursePatientDetail() {
             admittedAt={(hosp as any).admitted_at}
             isReadOnly={false}
           />
+          <div className="mt-6 pt-6 border-t">
+            <AssessmentSection
+              scaleCode="braden"
+              hospitalizationId={hospId!}
+              patientId={patient.id}
+              hospitalId={user!.hospitalId}
+            />
+          </div>
         </div>
 
         <div
