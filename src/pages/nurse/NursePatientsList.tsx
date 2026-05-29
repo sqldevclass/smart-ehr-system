@@ -172,6 +172,7 @@ export default function NursePatientsList() {
     return map;
   }, [latestAssessments, hospitalizations, bradenScale]);
 
+  const openAssignDialog = (h: any) => {
     setAssignTarget(h);
     setRoomBed({ roomId: "", bedNumber: null });
     setAssignDialogOpen(true);
