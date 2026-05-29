@@ -114,7 +114,64 @@ export default function NursePatientsList() {
     return map;
   }, [allVitals]);
 
-  const openAssignDialog = (h: any) => {
+  const { data: latestAssessments = [] } = useQuery({
+    queryKey: ["nurse-assessments-latest", user?.hospitalId],
+    staleTime: 0,
+    refetchInterval: 300000,
+    enabled: !!user?.hospitalId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("patient_assessments")
+        .select(`
+          id, hospitalization_id, scale_id,
+          total_score, risk_level,
+          next_assessment_at,
+          assessment_scales!scale_id(code)
+        `)
+        .eq("hospital_id", user!.hospitalId)
+        .eq("is_voided", false)
+        .order("assessed_at", { ascending: false });
+      return data || [];
+    },
+  });
+
+  const { data: bradenScale } = useQuery({
+    queryKey: ["scale-id-braden"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("assessment_scales")
+        .select("id, code")
+        .eq("code", "braden")
+        .single();
+      return data;
+    },
+  });
+
+  const pendingAssessments = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    hospitalizations.forEach((h: any) => {
+      const pending: string[] = [];
+      if (bradenScale) {
+        const latest = latestAssessments.find(
+          (a: any) =>
+            a.hospitalization_id === h.id &&
+            a.assessment_scales?.code === "braden"
+        );
+        if (
+          !latest ||
+          (latest.next_assessment_at &&
+            new Date(latest.next_assessment_at) <= new Date())
+        ) {
+          pending.push("Брадена");
+        }
+      }
+      if (pending.length > 0) {
+        map[h.id] = pending;
+      }
+    });
+    return map;
+  }, [latestAssessments, hospitalizations, bradenScale]);
+
     setAssignTarget(h);
     setRoomBed({ roomId: "", bedNumber: null });
     setAssignDialogOpen(true);
