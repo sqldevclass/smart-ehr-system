@@ -8,6 +8,7 @@ interface Props {
   parameters: any[];
   thresholds: any[];
   overrideMap: Record<string, any>;
+  alertSlot?: React.ReactNode;
 }
 
 const MARGIN_LEFT = 110;
