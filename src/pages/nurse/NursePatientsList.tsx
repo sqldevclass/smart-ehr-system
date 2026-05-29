@@ -23,6 +23,7 @@ import EWSStatusDot from "@/components/ews/EWSStatusDot";
 import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from "@/components/ui/tooltip";
+import AssessmentIndicator from "@/components/assessments/AssessmentIndicator";
 
 export default function NursePatientsList() {
   const { user } = useAuth();
@@ -148,41 +149,36 @@ export default function NursePatientsList() {
   const bradenScale = scales.find((s) => s.code === "braden");
   const morseScale = scales.find((s) => s.code === "morse");
 
-  const pendingAssessments = useMemo(() => {
-    const map: Record<string, string[]> = {};
+  const assessmentMap = useMemo(() => {
+    const map: Record<string, {
+      bradenScore: number | null;
+      morseScore: number | null;
+      bradenPending: boolean;
+      morsePending: boolean;
+      pendingCount: number;
+    }> = {};
     hospitalizations.forEach((h: any) => {
-      const pending: string[] = [];
-      if (bradenScale) {
-        const latest = latestAssessments.find(
-          (a: any) =>
-            a.hospitalization_id === h.id &&
-            a.scale_id === bradenScale.id
-        );
-        if (
-          !latest ||
-          (latest.next_assessment_at &&
-            new Date(latest.next_assessment_at) <= new Date())
-        ) {
-          pending.push("Брадена");
-        }
-      }
-      if (morseScale) {
-        const latest = latestAssessments.find(
-          (a: any) =>
-            a.hospitalization_id === h.id &&
-            a.scale_id === morseScale.id
-        );
-        if (
-          !latest ||
-          (latest.next_assessment_at &&
-            new Date(latest.next_assessment_at) <= new Date())
-        ) {
-          pending.push("Морзе");
-        }
-      }
-      if (pending.length > 0) {
-        map[h.id] = pending;
-      }
+      const bradenLatest = latestAssessments.find(
+        (a: any) => a.hospitalization_id === h.id && a.scale_id === bradenScale?.id
+      );
+      const morseLatest = latestAssessments.find(
+        (a: any) => a.hospitalization_id === h.id && a.scale_id === morseScale?.id
+      );
+      const bradenPending = !bradenLatest || (
+        bradenLatest.next_assessment_at &&
+        new Date(bradenLatest.next_assessment_at) <= new Date()
+      );
+      const morsePending = !morseLatest || (
+        morseLatest.next_assessment_at &&
+        new Date(morseLatest.next_assessment_at) <= new Date()
+      );
+      map[h.id] = {
+        bradenScore: (bradenLatest as any)?.total_score ?? null,
+        morseScore: (morseLatest as any)?.total_score ?? null,
+        bradenPending: !!bradenPending,
+        morsePending: !!morsePending,
+        pendingCount: (bradenPending ? 1 : 0) + (morsePending ? 1 : 0),
+      };
     });
     return map;
   }, [latestAssessments, hospitalizations, bradenScale, morseScale]);
@@ -284,20 +280,28 @@ export default function NursePatientsList() {
                                 <div className="font-medium">{h.patients?.last_name} {h.patients?.first_name}</div>
                                 <div className="text-xs text-muted-foreground">{h.patients?.patient_number}</div>
                               </div>
-                              {pendingAssessments[h.id] && (
+                              {assessmentMap[h.id]?.pendingCount > 0 ? (
                                 <TooltipProvider>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-semibold shrink-0">
-                                        {pendingAssessments[h.id].length}
+                                        {assessmentMap[h.id].pendingCount}
                                       </span>
                                     </TooltipTrigger>
                                     <TooltipContent>
                                       Необходимо заполнить:{" "}
-                                      {pendingAssessments[h.id].map((s) => `Шкала ${s}`).join(", ")}
+                                      {[
+                                        assessmentMap[h.id].bradenPending && "Шкала Брадена",
+                                        assessmentMap[h.id].morsePending && "Шкала Морзе",
+                                      ].filter(Boolean).join(", ")}
                                     </TooltipContent>
                                   </Tooltip>
                                 </TooltipProvider>
+                              ) : (
+                                <AssessmentIndicator
+                                  bradenScore={assessmentMap[h.id]?.bradenScore ?? null}
+                                  morseScore={assessmentMap[h.id]?.morseScore ?? null}
+                                />
                               )}
                             </div>
                           </td>
@@ -348,6 +352,7 @@ export default function NursePatientsList() {
                   <TableHead>ФИО / ДОБ</TableHead>
                   <TableHead>№Палаты / Кровать</TableHead>
                   <TableHead>Лечащий Врач</TableHead>
+                  <TableHead>Оценки</TableHead>
                   <TableHead>Который день</TableHead>
                   <TableHead>ШРПУ</TableHead>
                   <TableHead>Операция</TableHead>
@@ -370,28 +375,9 @@ export default function NursePatientsList() {
                       </TableCell>
                       <TableCell>{h.departments?.name || "—"}</TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div className="min-w-0">
-                            <div className="font-medium">{p?.last_name} {p?.first_name}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {p?.date_of_birth ? format(new Date(p.date_of_birth), "dd.MM.yyyy") : "—"}
-                            </div>
-                          </div>
-                          {pendingAssessments[h.id] && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-semibold shrink-0">
-                                    {pendingAssessments[h.id].length}
-                                  </span>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  Необходимо заполнить:{" "}
-                                  {pendingAssessments[h.id].map((s) => `Шкала ${s}`).join(", ")}
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
+                        <div className="font-medium">{p?.last_name} {p?.first_name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {p?.date_of_birth ? format(new Date(p.date_of_birth), "dd.MM.yyyy") : "—"}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -399,6 +385,31 @@ export default function NursePatientsList() {
                       </TableCell>
                       <TableCell className="text-sm">
                         {(h as any).physicians?.profiles?.full_name || "—"}
+                      </TableCell>
+                      <TableCell>
+                        {assessmentMap[h.id]?.pendingCount > 0 ? (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-orange-500 text-white text-xs font-bold cursor-default">
+                                  {assessmentMap[h.id].pendingCount}
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                Необходимо заполнить:{" "}
+                                {[
+                                  assessmentMap[h.id].bradenPending && "Шкала Брадена",
+                                  assessmentMap[h.id].morsePending && "Шкала Морзе",
+                                ].filter(Boolean).join(", ")}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        ) : (
+                          <AssessmentIndicator
+                            bradenScore={assessmentMap[h.id]?.bradenScore ?? null}
+                            morseScore={assessmentMap[h.id]?.morseScore ?? null}
+                          />
+                        )}
                       </TableCell>
                       <TableCell className="text-sm">{days} дн.</TableCell>
                       <TableCell>

@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import EWSSection from "@/components/ews/EWSSection";
 import AssessmentSection from "@/components/assessments/AssessmentSection";
+import FallingPersonIcon from "@/components/assessments/FallingPersonIcon";
 
 const EMPTY_VITALS = {
   bp_systolic: "",
@@ -244,9 +245,9 @@ export default function NursePatientDetail() {
           </div>
         )}
         {isFallRisk && (
-          <div className="flex items-center gap-1 text-xs text-red-700 font-semibold">
-            <span>⚠</span>
-            <span>РИСК ПАДЕНИЯ</span>
+          <div className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-red-50 border border-red-200 text-red-700">
+            <FallingPersonIcon color="#B91C1C" size={14} />
+            <span>Риск падения</span>
           </div>
         )}
       </div>
