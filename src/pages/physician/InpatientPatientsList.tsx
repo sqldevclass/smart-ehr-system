@@ -302,6 +302,16 @@ export default function InpatientPatientsList() {
             </TableBody>
           </Table>
         )}
+        {statusFilter === "discharged" && !showAllDischarged && filtered.length > 0 && (
+          <div className="flex justify-center pt-2">
+            <button
+              onClick={() => setShowAllDischarged(true)}
+              className="text-xs text-primary underline"
+            >
+              Показать все выписанные
+            </button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
