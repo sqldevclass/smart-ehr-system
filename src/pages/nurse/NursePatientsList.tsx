@@ -414,7 +414,18 @@ export default function NursePatientsList() {
                   const hasRoom = !!ra;
                   const days = differenceInDays(new Date(), new Date(h.admitted_at));
                   return (
-                    <TableRow key={h.id}>
+                    <TableRow
+                      key={h.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => {
+                        const ra = h.room_assignments?.[0];
+                        if (!ra) {
+                          openAssignDialog(h);
+                        } else {
+                          navigate(`/nurse/${h.id}`);
+                        }
+                      }}
+                    >
                       <TableCell className="text-sm">
                         {format(new Date(h.admitted_at), "dd.MM.yyyy HH:mm")}
                       </TableCell>
@@ -465,27 +476,28 @@ export default function NursePatientsList() {
                       </TableCell>
                       <TableCell className="text-muted-foreground">—</TableCell>
                       <TableCell className="text-muted-foreground">—</TableCell>
-                      <TableCell className="text-muted-foreground">—</TableCell>
                       <TableCell>
-                        {hasRoom ? (
-                          <span className="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-700">
+                        {h.discharged_at ? (
+                          <div>
+                            <Badge variant="secondary" className="text-xs">
+                              {h.discharge_type === "discharged"
+                                ? "Выписан"
+                                : h.discharge_type === "transferred"
+                                ? "Переведён"
+                                : "Летальный исход"}
+                            </Badge>
+                            <div className="text-xs text-muted-foreground mt-0.5">
+                              {format(new Date(h.discharged_at), "dd.MM.yyyy HH:mm")}
+                            </div>
+                          </div>
+                        ) : hasRoom ? (
+                          <Badge variant="outline" className="text-xs text-green-700 border-green-300">
                             Размещён
-                          </span>
+                          </Badge>
                         ) : (
-                          <span className="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700">
+                          <Badge variant="outline" className="text-xs text-yellow-700 border-yellow-300">
                             Ожидает размещения
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {hasRoom ? (
-                          <Button size="sm" variant="ghost" onClick={() => navigate(`/nurse/${h.id}`)}>
-                            Открыть
-                          </Button>
-                        ) : (
-                          <Button size="sm" variant="outline" onClick={() => openAssignDialog(h)}>
-                            Принять
-                          </Button>
+                          </Badge>
                         )}
                       </TableCell>
                     </TableRow>
