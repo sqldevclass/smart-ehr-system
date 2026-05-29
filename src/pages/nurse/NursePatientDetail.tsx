@@ -199,18 +199,25 @@ export default function NursePatientDetail() {
   if (!hosp) return <p className="text-destructive">Госпитализация не найдена.</p>;
 
   return (
-    <div className="-m-6">
-      <div className="flex items-center gap-3 p-4 border-b bg-card">
-        <Button variant="ghost" size="sm" onClick={() => navigate("/nurse")}>
+    <div className="-m-6 flex flex-col h-[calc(100vh-3.5rem)]">
+      <div className="flex items-center gap-3 px-3 py-2 border-b bg-white shrink-0">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2"
+          onClick={() => navigate("/nurse")}
+        >
           ← Назад
         </Button>
+        {allergies.length > 0 && (
+          <div className="flex items-center gap-1 text-xs text-red-700 font-semibold">
+            <span>⚠</span>
+            <span>АЛЛЕРГИЯ:</span>
+            <span>{allergies.map((a: any) => a.allergy_type).join(", ")}</span>
+          </div>
+        )}
       </div>
 
-      {allergies.length > 0 && (
-        <div className="mx-4 mt-3 p-2 bg-red-50 border border-red-200 rounded text-red-700 font-semibold text-sm">
-          АЛЛЕРГИЯ: {allergies.map((a: any) => a.allergy_type).join(", ")}
-        </div>
-      )}
 
       <div
         ref={containerRef}
