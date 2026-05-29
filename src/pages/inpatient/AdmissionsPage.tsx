@@ -396,6 +396,16 @@ export default function AdmissionsPage() {
               </TableBody>
             </Table>
           )}
+          {hospStatusFilter === "discharged" && !showAllDischarged && (active?.length ?? 0) > 0 && (
+            <div className="flex justify-center pt-2">
+              <button
+                onClick={() => setShowAllDischarged(true)}
+                className="text-xs text-primary underline"
+              >
+                Показать все выписанные
+              </button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
