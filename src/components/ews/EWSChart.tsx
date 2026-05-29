@@ -60,6 +60,7 @@ export default function EWSChart({
   parameters,
   thresholds,
   overrideMap,
+  alertSlot,
 }: Props) {
   const [timeWindow, setTimeWindow] = useState<"1d" | "3d" | "5d" | "7d" | "all">("5d");
   const [tooltip, setTooltip] = useState<{
