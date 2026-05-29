@@ -243,6 +243,12 @@ export default function NursePatientDetail() {
             <span>{allergies.map((a: any) => a.allergy_type).join(", ")}</span>
           </div>
         )}
+        {isFallRisk && (
+          <div className="flex items-center gap-1 text-xs text-red-700 font-semibold">
+            <span>⚠</span>
+            <span>РИСК ПАДЕНИЯ</span>
+          </div>
+        )}
       </div>
 
 
