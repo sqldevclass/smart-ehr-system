@@ -17,9 +17,11 @@ import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { UserCheck } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { useInpatientContext } from "@/contexts/InpatientContext";
+import StatusToggle from "@/components/shared/StatusToggle";
 import { cn } from "@/lib/utils";
 
 export default function InpatientPatientsList() {
@@ -33,15 +35,18 @@ export default function InpatientPatientsList() {
 
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
   const [physicianSearch, setPhysicianSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"active" | "discharged">("active");
+  const [showAllDischarged, setShowAllDischarged] = useState(false);
 
   const { data: hospitalizations = [], isLoading } = useQuery({
-    queryKey: ["inpatient-list", user?.hospitalId, selectedDeptIds],
+    queryKey: ["inpatient-list", user?.hospitalId, selectedDeptIds, statusFilter, showAllDischarged],
     queryFn: async () => {
       if (!selectedDeptIds.length) return [];
-      const { data, error } = await supabase
+      let query = supabase
         .from("hospitalizations")
         .select(`
           id, hospitalization_number, admitted_at,
+          discharged_at, discharge_type,
           department_id, primary_physician_id,
           departments!department_id(name),
           patients!inner(id, first_name, last_name, patient_number, date_of_birth),
@@ -49,8 +54,17 @@ export default function InpatientPatientsList() {
         `)
         .eq("hospital_id", user!.hospitalId)
         .in("department_id", selectedDeptIds)
-        .is("discharged_at", null)
         .order("admitted_at", { ascending: false });
+      if (statusFilter === "active") {
+        query = query.is("discharged_at", null);
+      } else {
+        query = query.not("discharged_at", "is", null);
+        if (!showAllDischarged) {
+          const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
+          query = query.gte("discharged_at", fiveDaysAgo);
+        }
+      }
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
@@ -125,10 +139,17 @@ export default function InpatientPatientsList() {
         <CardTitle>Стационарные пациенты</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        <StatusToggle
+          value={statusFilter}
+          onChange={(v) => {
+            setStatusFilter(v);
+            setShowAllDischarged(false);
+          }}
+        />
         {isLoading ? (
           <p className="text-muted-foreground text-sm">Loading…</p>
         ) : !filtered.length ? (
-          <p className="text-muted-foreground text-sm">Нет активных госпитализаций.</p>
+          <p className="text-muted-foreground text-sm">Нет госпитализаций.</p>
         ) : (
           <Table>
             <TableHeader>
@@ -140,6 +161,7 @@ export default function InpatientPatientsList() {
                 <TableHead>Лечащий Врач</TableHead>
                 <TableHead>Дней в стационаре</TableHead>
                 <TableHead>ШРПУ</TableHead>
+                <TableHead>Статус</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -227,6 +249,26 @@ export default function InpatientPatientsList() {
                         score={scheduleMap[h.id]?.last_score}
                       />
                     </TableCell>
+                    <TableCell>
+                      {h.discharged_at ? (
+                        <div>
+                          <Badge variant="secondary" className="text-xs">
+                            {h.discharge_type === "discharged"
+                              ? "Выписан"
+                              : h.discharge_type === "transferred"
+                              ? "Переведён"
+                              : "Летальный исход"}
+                          </Badge>
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            {format(new Date(h.discharged_at), "dd.MM.yyyy HH:mm")}
+                          </div>
+                        </div>
+                      ) : (
+                        <Badge variant="outline" className="text-xs text-green-700 border-green-300">
+                          Активный
+                        </Badge>
+                      )}
+                    </TableCell>
                   </>
                 );
 
@@ -259,6 +301,16 @@ export default function InpatientPatientsList() {
               })}
             </TableBody>
           </Table>
+        )}
+        {statusFilter === "discharged" && !showAllDischarged && filtered.length > 0 && (
+          <div className="flex justify-center pt-2">
+            <button
+              onClick={() => setShowAllDischarged(true)}
+              className="text-xs text-primary underline"
+            >
+              Показать все выписанные
+            </button>
+          </div>
         )}
       </CardContent>
     </Card>
