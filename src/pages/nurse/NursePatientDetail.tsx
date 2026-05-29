@@ -13,6 +13,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import EWSSection from "@/components/ews/EWSSection";
+import AssessmentSection from "@/components/assessments/AssessmentSection";
 
 const EMPTY_VITALS = {
   bp_systolic: "",
