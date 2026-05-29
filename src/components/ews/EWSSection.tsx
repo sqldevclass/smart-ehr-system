@@ -894,6 +894,31 @@ export default function EWSSection({
           parameters={parameters}
           thresholds={thresholds}
           overrideMap={overrideMap}
+          alertSlot={
+            !isReadOnly && (isDue || isDueSoon)
+              ? (
+                <div className={cn(
+                  "flex items-center gap-1.5",
+                  "px-2 py-1 rounded text-xs border",
+                  isDue
+                    ? "bg-red-50 text-red-700 border-red-200"
+                    : "bg-yellow-50 text-yellow-700 border-yellow-200"
+                )}>
+                  <span className={cn(
+                    "w-2 h-2 rounded-full shrink-0",
+                    isDue
+                      ? "bg-red-500 animate-ping"
+                      : "bg-yellow-400 animate-pulse"
+                  )} />
+                  <span>
+                    {isDue
+                      ? "Необходимо внести ШРПУ"
+                      : "Скоро время ШРПУ"}
+                  </span>
+                </div>
+              )
+              : undefined
+          }
         />
       )}
 
