@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import EWSChart from "./EWSChart";
+import AssessmentSection from "@/components/assessments/AssessmentSection";
 
 interface Props {
   hospitalizationId: string;
@@ -328,6 +329,22 @@ export default function EWSSection({
 
   const escalationLevel =
     totalScore === 0 ? 0 : totalScore <= 2 ? 1 : totalScore <= 6 ? 2 : 3;
+
+  const gcsActivated = useMemo(() => {
+    if (!recentReadings.length) return false;
+    const latest = recentReadings[0];
+    const consciousnessParam = parameters.find(
+      (p: any) => p.code === "consciousness"
+    );
+    if (!consciousnessParam) return false;
+    const consciousnessValue = latest.ews_reading_values?.find(
+      (v: any) => v.parameter_id === consciousnessParam.id
+    );
+    return (
+      consciousnessValue?.text_value === "pain" ||
+      consciousnessValue?.text_value === "unresponsive"
+    );
+  }, [recentReadings, parameters]);
 
   const isDue = ewsSchedule && new Date(ewsSchedule.next_due_at) <= new Date();
   const isDueSoon = ewsSchedule && !isDue && (new Date(ewsSchedule.next_due_at).getTime() - Date.now()) <= 30 * 60 * 1000;
@@ -1052,6 +1069,24 @@ export default function EWSSection({
           })()
         )}
       </div>
+
+      {gcsActivated && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800 text-sm">
+            <span className="font-bold">⚠</span>
+            <span className="font-medium">
+              Сознание снижено — требуется оценка по ШКГ
+            </span>
+          </div>
+          <AssessmentSection
+            scaleCode="gcs"
+            hospitalizationId={hospitalizationId}
+            patientId={patientId}
+            hospitalId={hospitalId}
+            isReadOnly={isReadOnly}
+          />
+        </div>
+      )}
     </div>
   );
 }
