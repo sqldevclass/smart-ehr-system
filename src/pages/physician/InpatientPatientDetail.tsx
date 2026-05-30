@@ -527,7 +527,7 @@ function Placeholder({ text }: { text: string }) {
 
 /* --- Lab / Consultation tab --- */
 function ServiceTab({
-  showForm, setShowForm, hospitalizationId, patientId, hospitalId, userId, typeCode, title, readOnly,
+  hospitalizationId, patientId, hospitalId, userId, typeCode, title, readOnly,
 }: TabProps & { typeCode: "laboratory" | "consultation"; title: string }) {
   const queryClient = useQueryClient();
   const [selectedServiceId, setSelectedServiceId] = useState("");
@@ -571,7 +571,7 @@ function ServiceTab({
         (s: any) => s.service_types?.code === typeCode
       );
     },
-    enabled: showForm,
+    enabled: !readOnly,
   });
 
   const handleOrder = async () => {
@@ -590,7 +590,6 @@ function ServiceTab({
         return;
       }
       toast.success("Назначено");
-      setShowForm(false);
       setSelectedServiceId("");
       queryClient.invalidateQueries({ queryKey: ["inpatient-services", typeCode] });
     } finally {
@@ -600,16 +599,9 @@ function ServiceTab({
 
   return (
     <div className="p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="font-semibold">{title}</h3>
-        {!showForm && !readOnly && (
-          <Button size="sm" onClick={() => setShowForm(true)} className="gap-1">
-            <Plus className="h-4 w-4" /> Назначить
-          </Button>
-        )}
-      </div>
+      <h3 className="font-semibold">{title}</h3>
 
-      {showForm && (
+      {!readOnly && (
         <div className="border rounded p-3 space-y-3 bg-muted/30">
           <Select value={selectedServiceId} onValueChange={setSelectedServiceId}>
             <SelectTrigger>
@@ -624,9 +616,6 @@ function ServiceTab({
           <div className="flex gap-2">
             <Button size="sm" onClick={handleOrder} disabled={!selectedServiceId || submitting}>
               {submitting ? "..." : "Назначить"}
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => { setShowForm(false); setSelectedServiceId(""); }}>
-              Отмена
             </Button>
           </div>
         </div>
