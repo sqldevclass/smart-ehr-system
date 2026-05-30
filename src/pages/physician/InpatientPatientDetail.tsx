@@ -439,11 +439,6 @@ export default function InpatientPatientDetail() {
             ) : activeView?.type === "tab" ? (
               <TabPanel
                 tab={activeView.tab}
-                showForm={showInlineForm}
-                setShowForm={(b) => {
-                  if (b && isHospDischarged) return;
-                  setShowInlineForm(b);
-                }}
                 hospitalizationId={hospitalizationId}
                 patientId={patientId}
                 hospitalId={user!.hospitalId}
@@ -451,6 +446,7 @@ export default function InpatientPatientDetail() {
                 readOnly={isHospDischarged}
                 patientDateOfBirth={(hosp as any)?.patients?.date_of_birth}
                 admittedAt={(hosp as any)?.admitted_at}
+                externalAlertActive={hasSepsisAlert}
               />
             ) : (
               <div className="p-10 text-center text-muted-foreground text-sm">
