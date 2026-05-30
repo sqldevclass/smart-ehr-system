@@ -192,6 +192,27 @@ export default function NursePatientsList() {
     return map;
   }, [latestAssessments, hospitalizations, bradenScale, morseScale]);
 
+  const { data: activeSepsisAlerts = [] } = useQuery({
+    queryKey: ["active-sepsis-alerts", user?.hospitalId],
+    staleTime: 0,
+    refetchInterval: 60000,
+    enabled: !!user?.hospitalId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("clinical_alerts")
+        .select("hospitalization_id")
+        .eq("hospital_id", user!.hospitalId)
+        .eq("alert_type", "paediatric_sepsis_6")
+        .eq("is_active", true);
+      return data || [];
+    },
+  });
+
+  const sepsisAlertSet = useMemo(
+    () => new Set(activeSepsisAlerts.map((a: any) => a.hospitalization_id)),
+    [activeSepsisAlerts]
+  );
+
   const openAssignDialog = (h: any) => {
     setAssignTarget(h);
     setRoomBed({ roomId: "", bedNumber: null });
