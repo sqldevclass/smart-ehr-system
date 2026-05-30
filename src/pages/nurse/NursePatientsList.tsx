@@ -440,9 +440,25 @@ export default function NursePatientsList() {
                       </TableCell>
                       <TableCell>{h.departments?.name || "—"}</TableCell>
                       <TableCell>
-                        <div className="font-medium">{p?.last_name} {p?.first_name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {p?.date_of_birth ? format(new Date(p.date_of_birth), "dd.MM.yyyy") : "—"}
+                        <div className="flex items-center gap-2">
+                          <div>
+                            <div className="font-medium">{p?.last_name} {p?.first_name}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {p?.date_of_birth ? format(new Date(p.date_of_birth), "dd.MM.yyyy") : "—"}
+                            </div>
+                          </div>
+                          {sepsisAlertSet.has(h.id) && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-500 text-white text-xs font-bold shrink-0 cursor-default animate-pulse">!</span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  Активное предупреждение: Сепсис 6
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>
