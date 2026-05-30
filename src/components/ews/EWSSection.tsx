@@ -57,6 +57,7 @@ export default function EWSSection({
   isReadOnly = false,
   canOverride = false,
   viewerRole,
+  externalAlertActive = false,
 }: Props) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
