@@ -843,16 +843,9 @@ function CareTab({
 
   return (
     <div className="p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="font-semibold">Назначения по уходу</h3>
-        {!readOnly && (
-          <Button size="sm" onClick={() => setShowCareForm(!showCareForm)}>
-            + Добавить
-          </Button>
-        )}
-      </div>
+      <h3 className="font-semibold">Назначения по уходу</h3>
 
-      {showCareForm && (
+      {!readOnly && (
         <div className="border rounded-md p-3 space-y-3 bg-muted/30">
           <Select value={careType} onValueChange={(v: any) => setCareType(v)}>
             <SelectTrigger>
@@ -870,14 +863,10 @@ function CareTab({
             placeholder="Введите назначение..."
             className="w-full text-sm border rounded px-2 py-1 resize-none"
             rows={3}
-            autoFocus
           />
           <div className="flex gap-2">
             <Button size="sm" disabled={!careText.trim()} onClick={handleAddOrder}>
               Сохранить
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => { setShowCareForm(false); setCareText(""); }}>
-              Отмена
             </Button>
           </div>
         </div>
