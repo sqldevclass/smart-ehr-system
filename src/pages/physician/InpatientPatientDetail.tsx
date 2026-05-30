@@ -392,28 +392,23 @@ export default function InpatientPatientDetail() {
               {TABS.map((t) => {
                 const active = activeView?.type === "tab" && activeView.tab === t.key;
                 return (
-                  <div key={t.key} className="flex items-center">
-                    <button
-                      onClick={() => selectTab(t.key)}
-                      className={cn(
-                        "px-3 py-2 text-sm border-b-2 whitespace-nowrap transition-colors",
-                        active
-                          ? "border-primary text-primary font-medium"
-                          : "border-transparent text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      {t.label}
-                    </button>
-                    {t.hasPlus && !isHospDischarged && (
-                      <button
-                        onClick={() => tabPlus(t.key)}
-                        className="p-1 text-muted-foreground hover:text-primary"
-                        title="Добавить"
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                      </button>
+                  <button
+                    key={t.key}
+                    onClick={() => selectTab(t.key)}
+                    className={cn(
+                      "px-3 py-2 text-sm border-b-2 whitespace-nowrap transition-colors",
+                      active
+                        ? "border-primary text-primary font-medium"
+                        : "border-transparent text-muted-foreground hover:text-foreground"
                     )}
-                  </div>
+                  >
+                    <span className="flex items-center gap-1">
+                      {t.label}
+                      {t.key === "ews" && ewsNeedsAttention && (
+                        <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-ping shrink-0" />
+                      )}
+                    </span>
+                  </button>
                 );
               })}
             </div>
