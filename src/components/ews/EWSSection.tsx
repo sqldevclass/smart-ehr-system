@@ -24,6 +24,7 @@ interface Props {
   isReadOnly?: boolean;
   canOverride?: boolean;
   viewerRole: "nurse" | "physician";
+  externalAlertActive?: boolean;
 }
 
 const SEPSIS_SIGN_LABELS: Record<string, string> = {
