@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -22,7 +23,17 @@ interface Props {
   admittedAt: string;
   isReadOnly?: boolean;
   canOverride?: boolean;
+  hospitalizationSuspectedInfection?: boolean;
+  canSetSuspectedInfection?: boolean;
+  onSuspectedInfectionChange?: (v: boolean) => void;
 }
+
+const SEPSIS_SIGN_LABELS: Record<string, string> = {
+  temperature: "Температура < 36°C или > 38°C",
+  tachycardia: "Неадекватная тахикардия",
+  altered_mental_state: "Изменение сознания (AVPU)",
+  poor_perfusion: "Нарушение перфузии (ВКН > 2 сек)",
+};
 
 const bgColor: Record<string, string> = {
   white: "bg-white",
