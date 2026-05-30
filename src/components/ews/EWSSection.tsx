@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -23,9 +23,7 @@ interface Props {
   admittedAt: string;
   isReadOnly?: boolean;
   canOverride?: boolean;
-  hospitalizationSuspectedInfection?: boolean;
-  canSetSuspectedInfection?: boolean;
-  onSuspectedInfectionChange?: (v: boolean) => void;
+  viewerRole: "nurse" | "physician";
 }
 
 const SEPSIS_SIGN_LABELS: Record<string, string> = {
@@ -57,9 +55,7 @@ export default function EWSSection({
   admittedAt,
   isReadOnly = false,
   canOverride = false,
-  hospitalizationSuspectedInfection,
-  canSetSuspectedInfection = false,
-  onSuspectedInfectionChange,
+  viewerRole,
 }: Props) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -185,12 +181,12 @@ export default function EWSSection({
         .select(`
           id, alert_type, triggered_at,
           trigger_signs, is_active,
-          acknowledged_at,
-          profiles!acknowledged_by(full_name)
+          nurse_acknowledged_at,
+          physician_acknowledged_at
         `)
         .eq("hospitalization_id", hospitalizationId)
-        .eq("is_active", true)
         .eq("alert_type", "paediatric_sepsis_6")
+        .eq("is_active", true)
         .maybeSingle();
       return data;
     },
@@ -204,8 +200,9 @@ export default function EWSSection({
         .from("clinical_alerts")
         .select(`
           id, alert_type, triggered_at,
-          trigger_signs, acknowledged_at,
-          profiles!acknowledged_by(full_name)
+          trigger_signs, is_active,
+          nurse_acknowledged_at,
+          physician_acknowledged_at
         `)
         .eq("hospitalization_id", hospitalizationId)
         .eq("alert_type", "paediatric_sepsis_6")
@@ -403,7 +400,6 @@ export default function EWSSection({
   const detectSepsisAlert = useCallback(
     async (readingId: string) => {
       if (!scale?.code.startsWith("pews")) return;
-      if (!hospitalizationSuspectedInfection) return;
       const latest = recentReadings[0];
       if (!latest) return;
       const signs: string[] = [];
@@ -462,7 +458,7 @@ export default function EWSSection({
         queryKey: ["sepsis-history", hospitalizationId],
       });
     },
-    [scale, hospitalizationSuspectedInfection, recentReadings, parameters,
+    [scale, recentReadings, parameters,
      hospitalizationId, hospitalId, patientId, queryClient]
   );
 
@@ -475,6 +471,7 @@ export default function EWSSection({
     if (!activeAlert) return;
     const { error } = await supabase.rpc("acknowledge_clinical_alert", {
       p_alert_id: activeAlert.id,
+      p_role: viewerRole,
     });
     if (error) {
       toast.error(error.message);
@@ -604,21 +601,6 @@ export default function EWSSection({
           </div>
         )}
         <div className="flex items-center gap-2 shrink-0">
-          {canSetSuspectedInfection && scale?.code.startsWith("pews") && (
-            <div className="flex items-center gap-2 text-sm border rounded px-2 py-1">
-              <Switch
-                id="suspected-infection-toggle"
-                checked={hospitalizationSuspectedInfection ?? false}
-                onCheckedChange={onSuspectedInfectionChange}
-              />
-              <Label
-                htmlFor="suspected-infection-toggle"
-                className="text-xs cursor-pointer"
-              >
-                Подозрение на инфекцию
-              </Label>
-            </div>
-          )}
           {canOverride ? (
             <Button variant="outline" size="sm"
               onClick={() => setShowOverridePanel(!showOverridePanel)}>
@@ -1250,12 +1232,14 @@ export default function EWSSection({
         </div>
       )}
 
-      {activeAlert && (
+      {activeAlert && (viewerRole === "nurse"
+        ? !activeAlert.nurse_acknowledged_at
+        : !activeAlert.physician_acknowledged_at) && (
         <div className="border-2 border-red-500 rounded-lg overflow-hidden mt-4">
           <div className="bg-red-500 text-white px-4 py-2 flex items-center gap-2">
             <span className="font-bold text-sm">🔴 ПЕДИАТРИЧЕСКИЙ СЕПСИС 6</span>
             <span className="text-xs opacity-90">
-              Подозрение на инфекцию + {(activeAlert.trigger_signs as string[]).length} признака
+              {(activeAlert.trigger_signs as string[]).length} признака
             </span>
           </div>
           <div className="p-4 bg-red-50 space-y-3">
@@ -1318,10 +1302,16 @@ export default function EWSSection({
                   .map((s: string) => SEPSIS_SIGN_LABELS[s] ?? s)
                   .join(", ")}
               </div>
-              {a.acknowledged_at && (
-                <div className="text-green-700">
-                  ✓ Принято: {a.profiles?.full_name} —{" "}
-                  {format(new Date(a.acknowledged_at), "dd.MM.yyyy HH:mm")}
+              {a.nurse_acknowledged_at && (
+                <div className="text-green-700 text-xs">
+                  ✓ Медсестра приняла:{" "}
+                  {format(new Date(a.nurse_acknowledged_at), "dd.MM.yyyy HH:mm")}
+                </div>
+              )}
+              {a.physician_acknowledged_at && (
+                <div className="text-green-700 text-xs">
+                  ✓ Врач принял:{" "}
+                  {format(new Date(a.physician_acknowledged_at), "dd.MM.yyyy HH:mm")}
                 </div>
               )}
             </div>

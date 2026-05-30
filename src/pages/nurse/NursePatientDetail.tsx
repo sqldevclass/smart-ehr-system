@@ -73,7 +73,7 @@ export default function NursePatientDetail() {
         .from("hospitalizations")
         .select(`
           id, hospitalization_number, admitted_at,
-          department_id, suspected_infection,
+          department_id,
           departments!department_id(name),
           patients!inner(
             id, first_name, last_name, middle_name,
@@ -278,8 +278,7 @@ export default function NursePatientDetail() {
             patientDateOfBirth={patient.date_of_birth}
             admittedAt={(hosp as any).admitted_at}
             isReadOnly={false}
-            hospitalizationSuspectedInfection={(hosp as any)?.suspected_infection ?? false}
-            canSetSuspectedInfection={false}
+            viewerRole="nurse"
           />
           <div className="mt-6 pt-6 border-t">
             <AssessmentSection
