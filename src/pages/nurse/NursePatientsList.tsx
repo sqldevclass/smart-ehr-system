@@ -192,6 +192,27 @@ export default function NursePatientsList() {
     return map;
   }, [latestAssessments, hospitalizations, bradenScale, morseScale]);
 
+  const { data: activeSepsisAlerts = [] } = useQuery({
+    queryKey: ["active-sepsis-alerts", user?.hospitalId],
+    staleTime: 0,
+    refetchInterval: 60000,
+    enabled: !!user?.hospitalId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("clinical_alerts")
+        .select("hospitalization_id")
+        .eq("hospital_id", user!.hospitalId)
+        .eq("alert_type", "paediatric_sepsis_6")
+        .eq("is_active", true);
+      return data || [];
+    },
+  });
+
+  const sepsisAlertSet = useMemo(
+    () => new Set(activeSepsisAlerts.map((a: any) => a.hospitalization_id)),
+    [activeSepsisAlerts]
+  );
+
   const openAssignDialog = (h: any) => {
     setAssignTarget(h);
     setRoomBed({ roomId: "", bedNumber: null });
@@ -326,6 +347,18 @@ export default function NursePatientsList() {
                                   morseScore={assessmentMap[h.id]?.morseScore ?? null}
                                 />
                               )}
+                              {sepsisAlertSet.has(h.id) && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-500 text-white text-xs font-bold shrink-0 cursor-default animate-pulse">!</span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      Активное предупреждение: Сепсис 6
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
                             </div>
                           </td>
                           <td className="px-3 py-2 text-xs">
@@ -407,9 +440,25 @@ export default function NursePatientsList() {
                       </TableCell>
                       <TableCell>{h.departments?.name || "—"}</TableCell>
                       <TableCell>
-                        <div className="font-medium">{p?.last_name} {p?.first_name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {p?.date_of_birth ? format(new Date(p.date_of_birth), "dd.MM.yyyy") : "—"}
+                        <div className="flex items-center gap-2">
+                          <div>
+                            <div className="font-medium">{p?.last_name} {p?.first_name}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {p?.date_of_birth ? format(new Date(p.date_of_birth), "dd.MM.yyyy") : "—"}
+                            </div>
+                          </div>
+                          {sepsisAlertSet.has(h.id) && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-500 text-white text-xs font-bold shrink-0 cursor-default animate-pulse">!</span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  Активное предупреждение: Сепсис 6
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>

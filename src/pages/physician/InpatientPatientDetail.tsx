@@ -59,7 +59,7 @@ export default function InpatientPatientDetail() {
         .from("hospitalizations")
         .select(`
           id, hospitalization_number, admitted_at, department_id,
-          discharged_at, discharge_type,
+          discharged_at, discharge_type, suspected_infection,
           departments!department_id(name),
           patients!inner(
             id, first_name, last_name, middle_name,
@@ -193,6 +193,22 @@ export default function InpatientPatientDetail() {
     setShowInlineForm(false);
     refetchDocs();
     queryClient.invalidateQueries({ queryKey: ["inpatient-docs-all", patientId] });
+  };
+
+  const handleSuspectedInfectionChange = async (value: boolean) => {
+    const { error } = await supabase
+      .from("hospitalizations")
+      .update({
+        suspected_infection: value,
+        suspected_infection_set_by: user!.id,
+        suspected_infection_set_at: new Date().toISOString(),
+      })
+      .eq("id", hospitalizationId);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    refetch();
   };
 
   const selectTab = (tab: TabKey) => {
@@ -424,6 +440,9 @@ export default function InpatientPatientDetail() {
                 readOnly={isHospDischarged}
                 patientDateOfBirth={(hosp as any)?.patients?.date_of_birth}
                 admittedAt={(hosp as any)?.admitted_at}
+                hospitalizationSuspectedInfection={(hosp as any)?.suspected_infection ?? false}
+                canSetSuspectedInfection={!isHospDischarged}
+                onSuspectedInfectionChange={handleSuspectedInfectionChange}
               />
             ) : (
               <div className="p-10 text-center text-muted-foreground text-sm">
@@ -463,6 +482,9 @@ interface TabProps {
   readOnly?: boolean;
   patientDateOfBirth?: string;
   admittedAt?: string;
+  hospitalizationSuspectedInfection?: boolean;
+  canSetSuspectedInfection?: boolean;
+  onSuspectedInfectionChange?: (v: boolean) => void;
 }
 
 function TabPanel(props: TabProps) {
@@ -491,6 +513,9 @@ function TabPanel(props: TabProps) {
             admittedAt={props.admittedAt!}
             isReadOnly={!!props.readOnly}
             canOverride={!props.readOnly}
+            hospitalizationSuspectedInfection={props.hospitalizationSuspectedInfection}
+            canSetSuspectedInfection={props.canSetSuspectedInfection}
+            onSuspectedInfectionChange={props.onSuspectedInfectionChange}
           />
         </div>
       );
