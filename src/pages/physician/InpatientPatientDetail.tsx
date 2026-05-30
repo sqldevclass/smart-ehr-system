@@ -28,14 +28,14 @@ type ActiveView =
   | { type: "tab"; tab: TabKey }
   | null;
 
-const TABS: { key: TabKey; label: string; hasPlus: boolean }[] = [
-  { key: "medication", label: "Лист назначения", hasPlus: false },
-  { key: "imaging", label: "Инструментальные", hasPlus: true },
-  { key: "lab", label: "Лаборатория", hasPlus: true },
-  { key: "consultation", label: "Консультация", hasPlus: true },
-  { key: "care", label: "Уход", hasPlus: true },
-  { key: "diagnosis", label: "Диагнозы", hasPlus: true },
-  { key: "ews", label: "ШРПУ", hasPlus: false },
+const TABS: { key: TabKey; label: string }[] = [
+  { key: "medication", label: "Лист назначения" },
+  { key: "imaging", label: "Инструментальные" },
+  { key: "lab", label: "Лаборатория" },
+  { key: "consultation", label: "Консультация" },
+  { key: "care", label: "Уход" },
+  { key: "diagnosis", label: "Диагнозы" },
+  { key: "ews", label: "ШРПУ" },
 ];
 
 export default function InpatientPatientDetail() {
