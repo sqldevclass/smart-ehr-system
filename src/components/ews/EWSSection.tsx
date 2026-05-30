@@ -57,6 +57,9 @@ export default function EWSSection({
   admittedAt,
   isReadOnly = false,
   canOverride = false,
+  hospitalizationSuspectedInfection,
+  canSetSuspectedInfection = false,
+  onSuspectedInfectionChange,
 }: Props) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
