@@ -440,6 +440,9 @@ export default function InpatientPatientDetail() {
                 readOnly={isHospDischarged}
                 patientDateOfBirth={(hosp as any)?.patients?.date_of_birth}
                 admittedAt={(hosp as any)?.admitted_at}
+                hospitalizationSuspectedInfection={(hosp as any)?.suspected_infection ?? false}
+                canSetSuspectedInfection={!isHospDischarged}
+                onSuspectedInfectionChange={handleSuspectedInfectionChange}
               />
             ) : (
               <div className="p-10 text-center text-muted-foreground text-sm">
