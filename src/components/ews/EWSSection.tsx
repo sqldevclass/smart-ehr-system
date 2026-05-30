@@ -520,7 +520,7 @@ export default function EWSSection({
       queryClient.invalidateQueries({ queryKey: ["ews-readings", hospitalizationId] });
       queryClient.invalidateQueries({ queryKey: ["ews-schedule", hospitalizationId] });
       const readingId = (result.data as any)?.reading_id;
-      if (readingId) {
+      if (readingId && viewerRole === "nurse") {
         await detectSepsisAlert(readingId);
       }
     }
