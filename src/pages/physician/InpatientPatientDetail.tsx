@@ -59,7 +59,7 @@ export default function InpatientPatientDetail() {
         .from("hospitalizations")
         .select(`
           id, hospitalization_number, admitted_at, department_id,
-          discharged_at, discharge_type,
+          discharged_at, discharge_type, suspected_infection,
           departments!department_id(name),
           patients!inner(
             id, first_name, last_name, middle_name,
