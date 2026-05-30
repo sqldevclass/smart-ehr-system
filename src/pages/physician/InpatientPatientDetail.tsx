@@ -195,6 +195,22 @@ export default function InpatientPatientDetail() {
     queryClient.invalidateQueries({ queryKey: ["inpatient-docs-all", patientId] });
   };
 
+  const handleSuspectedInfectionChange = async (value: boolean) => {
+    const { error } = await supabase
+      .from("hospitalizations")
+      .update({
+        suspected_infection: value,
+        suspected_infection_set_by: user!.id,
+        suspected_infection_set_at: new Date().toISOString(),
+      })
+      .eq("id", hospitalizationId);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    refetch();
+  };
+
   const selectTab = (tab: TabKey) => {
     setActiveView({ type: "tab", tab });
     setShowInlineForm(false);
