@@ -230,23 +230,12 @@ export default function InpatientPatientDetail() {
 
   const closeView = () => {
     setActiveView(null);
-    setShowInlineForm(false);
     refetchDocs();
     queryClient.invalidateQueries({ queryKey: ["inpatient-docs-all", patientId] });
   };
 
-
-
-
   const selectTab = (tab: TabKey) => {
     setActiveView({ type: "tab", tab });
-    setShowInlineForm(false);
-  };
-
-  const tabPlus = (tab: TabKey) => {
-    if (isHospDischarged) return;
-    setActiveView({ type: "tab", tab });
-    setShowInlineForm(true);
   };
 
   return (
