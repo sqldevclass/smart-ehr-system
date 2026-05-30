@@ -514,6 +514,7 @@ function TabPanel(props: TabProps) {
             isReadOnly={!!props.readOnly}
             canOverride={!props.readOnly}
             viewerRole="physician"
+            externalAlertActive={!!props.externalAlertActive}
           />
         </div>
       );
