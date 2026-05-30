@@ -49,8 +49,48 @@ export default function InpatientPatientDetail() {
 
   const [showAll, setShowAll] = useState(false);
   const [activeView, setActiveView] = useState<ActiveView>(null);
-  const [showInlineForm, setShowInlineForm] = useState(false);
   const [dischargeOpen, setDischargeOpen] = useState(false);
+
+  const { data: ewsScheduleStatus } = useQuery({
+    queryKey: ["ews-schedule-status", hospitalizationId],
+    staleTime: 0,
+    refetchInterval: 60000,
+    enabled: !!hospitalizationId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("ews_schedule")
+        .select("next_due_at")
+        .eq("hospitalization_id", hospitalizationId)
+        .maybeSingle();
+      return data;
+    },
+  });
+
+  const { data: activeClinicalAlerts = [] } = useQuery({
+    queryKey: ["active-clinical-alerts", hospitalizationId],
+    staleTime: 0,
+    refetchInterval: 60000,
+    enabled: !!hospitalizationId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("clinical_alerts")
+        .select("id")
+        .eq("hospitalization_id", hospitalizationId)
+        .eq("is_active", true)
+        .is("physician_acknowledged_at", null);
+      return data || [];
+    },
+  });
+
+  const ewsNeedsAttention = useMemo(() => {
+    if (activeClinicalAlerts.length > 0) return true;
+    if (!ewsScheduleStatus?.next_due_at) return false;
+    const due = new Date(ewsScheduleStatus.next_due_at);
+    const diffMin = (due.getTime() - Date.now()) / 60000;
+    return diffMin <= 30;
+  }, [ewsScheduleStatus, activeClinicalAlerts]);
+
+  const hasSepsisAlert = activeClinicalAlerts.length > 0;
 
   const { data: hosp, isLoading, refetch } = useQuery({
     queryKey: ["inpatient-detail", hospitalizationId],
