@@ -25,7 +25,7 @@ const zoneFill: Record<string, string> = {
   yellow: "#fef08a",
   pink: "#fbcfe8",
 };
-const zoneFillOverride = "#eff6ff";
+const zoneFillOverride = "#ffffff";
 
 const LINE_COLORS = [
   "#3b82f6",
