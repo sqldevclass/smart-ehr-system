@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -397,75 +397,66 @@ export default function EWSSection({
     );
   }, [recentReadings, parameters]);
 
-  const detectSepsisAlert = useCallback(
-    async (readingId: string) => {
-      if (!scale?.code.startsWith("pews")) return;
-      const latest = recentReadings[0];
-      if (!latest) return;
-      const signs: string[] = [];
-      const vals = latest.ews_reading_values || [];
+  const detectSepsisAlert = async (readingId: string) => {
+    if (!scale?.code.startsWith("pews")) return;
+    const latest = recentReadings[0];
+    if (!latest) return;
+    const signs: string[] = [];
+    const vals = latest.ews_reading_values || [];
 
-      const tempParam = parameters.find((p: any) => p.code === "temperature");
-      const tempVal = vals.find(
-        (v: any) => v.parameter_id === tempParam?.id
-      )?.numeric_value;
-      if (tempVal !== null && tempVal !== undefined && (tempVal < 36.0 || tempVal > 38.0))
-        signs.push("temperature");
+    const tempParam = parameters.find((p: any) => p.code === "temperature");
+    const tempVal = vals.find(
+      (v: any) => v.parameter_id === tempParam?.id
+    )?.numeric_value;
+    if (tempVal !== null && tempVal !== undefined && (tempVal < 36.0 || tempVal > 38.0))
+      signs.push("temperature");
 
-      const hrParam = parameters.find((p: any) => p.code === "heart_rate");
-      const hrScore = vals.find(
-        (v: any) => v.parameter_id === hrParam?.id
-      )?.score ?? 0;
-      if (hrScore > 0) signs.push("tachycardia");
+    const hrParam = parameters.find((p: any) => p.code === "heart_rate");
+    const hrScore = vals.find(
+      (v: any) => v.parameter_id === hrParam?.id
+    )?.score ?? 0;
+    if (hrScore > 0) signs.push("tachycardia");
 
-      const consParam = parameters.find((p: any) => p.code === "consciousness");
-      const consVal = vals.find(
-        (v: any) => v.parameter_id === consParam?.id
-      )?.text_value;
-      if (["voice", "pain", "unresponsive"].includes(consVal ?? ""))
-        signs.push("altered_mental_state");
+    const consParam = parameters.find((p: any) => p.code === "consciousness");
+    const consVal = vals.find(
+      (v: any) => v.parameter_id === consParam?.id
+    )?.text_value;
+    if (["voice", "pain", "unresponsive"].includes(consVal ?? ""))
+      signs.push("altered_mental_state");
 
-      const crtParam = parameters.find((p: any) => p.code === "crt");
-      const crtVal = vals.find(
-        (v: any) => v.parameter_id === crtParam?.id
-      )?.numeric_value;
-      if (crtVal !== null && crtVal !== undefined && crtVal > 2.0)
-        signs.push("poor_perfusion");
+    const crtParam = parameters.find((p: any) => p.code === "crt");
+    const crtVal = vals.find(
+      (v: any) => v.parameter_id === crtParam?.id
+    )?.numeric_value;
+    if (crtVal !== null && crtVal !== undefined && crtVal > 2.0)
+      signs.push("poor_perfusion");
 
-      if (signs.length < 2) return;
+    if (signs.length < 2) return;
 
-      const { data: existing } = await supabase
-        .from("clinical_alerts")
-        .select("id")
-        .eq("hospitalization_id", hospitalizationId)
-        .eq("alert_type", "paediatric_sepsis_6")
-        .eq("triggered_by_reading_id", readingId)
-        .maybeSingle();
-      if (existing) return;
+    const { data: existing } = await supabase
+      .from("clinical_alerts")
+      .select("id")
+      .eq("hospitalization_id", hospitalizationId)
+      .eq("alert_type", "paediatric_sepsis_6")
+      .eq("triggered_by_reading_id", readingId)
+      .maybeSingle();
+    if (existing) return;
 
-      await supabase.from("clinical_alerts").insert({
-        hospital_id: hospitalId,
-        hospitalization_id: hospitalizationId,
-        patient_id: patientId,
-        alert_type: "paediatric_sepsis_6",
-        triggered_by_reading_id: readingId,
-        trigger_signs: signs,
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["sepsis-alert", hospitalizationId],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["sepsis-history", hospitalizationId],
-      });
-    },
-    [scale, recentReadings, parameters,
-     hospitalizationId, hospitalId, patientId, queryClient]
-  );
-
-  useEffect(() => {
-    const latestId = recentReadings[0]?.id;
-    if (latestId) detectSepsisAlert(latestId);
-  }, [recentReadings, detectSepsisAlert]);
+    await supabase.from("clinical_alerts").insert({
+      hospital_id: hospitalId,
+      hospitalization_id: hospitalizationId,
+      patient_id: patientId,
+      alert_type: "paediatric_sepsis_6",
+      triggered_by_reading_id: readingId,
+      trigger_signs: signs,
+    });
+    queryClient.invalidateQueries({
+      queryKey: ["sepsis-alert", hospitalizationId],
+    });
+    queryClient.invalidateQueries({
+      queryKey: ["sepsis-history", hospitalizationId],
+    });
+  };
 
   const handleAcknowledge = async () => {
     if (!activeAlert) return;
@@ -529,7 +520,7 @@ export default function EWSSection({
       queryClient.invalidateQueries({ queryKey: ["ews-readings", hospitalizationId] });
       queryClient.invalidateQueries({ queryKey: ["ews-schedule", hospitalizationId] });
       const readingId = (result.data as any)?.reading_id;
-      if (readingId) {
+      if (readingId && viewerRole === "nurse") {
         await detectSepsisAlert(readingId);
       }
     }
