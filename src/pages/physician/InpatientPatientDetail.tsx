@@ -513,6 +513,9 @@ function TabPanel(props: TabProps) {
             admittedAt={props.admittedAt!}
             isReadOnly={!!props.readOnly}
             canOverride={!props.readOnly}
+            hospitalizationSuspectedInfection={props.hospitalizationSuspectedInfection}
+            canSetSuspectedInfection={props.canSetSuspectedInfection}
+            onSuspectedInfectionChange={props.onSuspectedInfectionChange}
           />
         </div>
       );
