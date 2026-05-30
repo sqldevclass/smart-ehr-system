@@ -477,8 +477,6 @@ export default function InpatientPatientDetail() {
 
 interface TabProps {
   tab: TabKey;
-  showForm: boolean;
-  setShowForm: (b: boolean) => void;
   hospitalizationId: string;
   patientId: string;
   hospitalId: string;
@@ -486,6 +484,7 @@ interface TabProps {
   readOnly?: boolean;
   patientDateOfBirth?: string;
   admittedAt?: string;
+  externalAlertActive?: boolean;
 }
 
 function TabPanel(props: TabProps) {
