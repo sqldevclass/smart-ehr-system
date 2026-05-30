@@ -176,6 +176,46 @@ export default function EWSSection({
     },
   });
 
+  const { data: activeAlert } = useQuery({
+    queryKey: ["sepsis-alert", hospitalizationId],
+    staleTime: 0,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("clinical_alerts")
+        .select(`
+          id, alert_type, triggered_at,
+          trigger_signs, is_active,
+          acknowledged_at,
+          profiles!acknowledged_by(full_name)
+        `)
+        .eq("hospitalization_id", hospitalizationId)
+        .eq("is_active", true)
+        .eq("alert_type", "paediatric_sepsis_6")
+        .maybeSingle();
+      return data;
+    },
+  });
+
+  const { data: alertHistory = [] } = useQuery({
+    queryKey: ["sepsis-history", hospitalizationId],
+    staleTime: 0,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("clinical_alerts")
+        .select(`
+          id, alert_type, triggered_at,
+          trigger_signs, acknowledged_at,
+          profiles!acknowledged_by(full_name)
+        `)
+        .eq("hospitalization_id", hospitalizationId)
+        .eq("alert_type", "paediatric_sepsis_6")
+        .order("triggered_at", { ascending: false })
+        .limit(10);
+      return data || [];
+    },
+  });
+
+
   const { data: overrides = [], refetch: refetchOverrides } = useQuery({
     queryKey: ["ews-overrides", hospitalizationId],
     enabled: !!hospitalizationId,
