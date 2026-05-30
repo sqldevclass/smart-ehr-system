@@ -781,7 +781,6 @@ function CareTab({
   hospitalizationId, hospitalId, userId, readOnly,
 }: TabProps) {
   const queryClient = useQueryClient();
-  const [showCareForm, setShowCareForm] = useState(false);
   const [careType, setCareType] = useState<"diet" | "activity_mode" | "care">("care");
   const [careText, setCareText] = useState("");
 
