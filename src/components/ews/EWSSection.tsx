@@ -439,7 +439,7 @@ export default function EWSSection({
         .select("id")
         .eq("hospitalization_id", hospitalizationId)
         .eq("alert_type", "paediatric_sepsis_6")
-        .eq("is_active", true)
+        .eq("triggered_by_reading_id", readingId)
         .maybeSingle();
       if (existing) return;
 
