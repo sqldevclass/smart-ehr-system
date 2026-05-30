@@ -482,6 +482,9 @@ interface TabProps {
   readOnly?: boolean;
   patientDateOfBirth?: string;
   admittedAt?: string;
+  hospitalizationSuspectedInfection?: boolean;
+  canSetSuspectedInfection?: boolean;
+  onSuspectedInfectionChange?: (v: boolean) => void;
 }
 
 function TabPanel(props: TabProps) {
