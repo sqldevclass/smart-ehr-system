@@ -820,7 +820,6 @@ function CareTab({
       return;
     }
     setCareText("");
-    setShowCareForm(false);
     refetchOrders();
     queryClient.invalidateQueries({ queryKey: ["care-orders"] });
   };
