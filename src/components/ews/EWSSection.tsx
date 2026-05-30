@@ -1249,6 +1249,85 @@ export default function EWSSection({
           />
         </div>
       )}
+
+      {activeAlert && (
+        <div className="border-2 border-red-500 rounded-lg overflow-hidden mt-4">
+          <div className="bg-red-500 text-white px-4 py-2 flex items-center gap-2">
+            <span className="font-bold text-sm">🔴 ПЕДИАТРИЧЕСКИЙ СЕПСИС 6</span>
+            <span className="text-xs opacity-90">
+              Подозрение на инфекцию + {(activeAlert.trigger_signs as string[]).length} признака
+            </span>
+          </div>
+          <div className="p-4 bg-red-50 space-y-3">
+            <div className="space-y-1">
+              {(activeAlert.trigger_signs as string[]).map((sign: string) => (
+                <div key={sign} className="flex items-center gap-2 text-sm text-red-800">
+                  <span>✓</span>
+                  <span>{SEPSIS_SIGN_LABELS[sign] ?? sign}</span>
+                </div>
+              ))}
+            </div>
+            <hr className="border-red-200" />
+            <div>
+              <p className="text-sm font-semibold text-red-800 mb-2">
+                Ответить по протоколу Сепсис 6 в течение 1 часа:
+              </p>
+              <ul className="space-y-1 text-sm text-red-700">
+                {[
+                  "Высокопоточный кислород",
+                  "В/в или в/к доступ, посев крови, глюкоза, лактат",
+                  "В/в или в/к антибиотики",
+                  "Рассмотреть инфузионную терапию",
+                  "Рассмотреть инотропную поддержку",
+                  "Привлечь старших специалистов НЕМЕДЛЕННО",
+                ].map((item, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <span className="shrink-0">•</span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            {!isReadOnly && (
+              <div className="flex justify-end pt-1">
+                <Button size="sm" variant="destructive" onClick={handleAcknowledge}>
+                  Подтвердить и принять к сведению
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {alertHistory.length > 0 && (
+        <div className="mt-4 space-y-2">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            История предупреждений о сепсисе
+          </p>
+          {alertHistory.map((a: any) => (
+            <div key={a.id} className="border rounded p-3 text-xs space-y-1 bg-red-50/50">
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-red-700">Педиатрический Сепсис 6</span>
+                <span className="text-muted-foreground">
+                  {format(new Date(a.triggered_at), "dd.MM.yyyy HH:mm")}
+                </span>
+              </div>
+              <div className="text-muted-foreground">
+                Признаки:{" "}
+                {(a.trigger_signs as string[])
+                  .map((s: string) => SEPSIS_SIGN_LABELS[s] ?? s)
+                  .join(", ")}
+              </div>
+              {a.acknowledged_at && (
+                <div className="text-green-700">
+                  ✓ Принято: {a.profiles?.full_name} —{" "}
+                  {format(new Date(a.acknowledged_at), "dd.MM.yyyy HH:mm")}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
