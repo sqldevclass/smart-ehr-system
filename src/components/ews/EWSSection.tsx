@@ -604,6 +604,21 @@ export default function EWSSection({
           </div>
         )}
         <div className="flex items-center gap-2 shrink-0">
+          {canSetSuspectedInfection && scale?.code.startsWith("pews") && (
+            <div className="flex items-center gap-2 text-sm border rounded px-2 py-1">
+              <Switch
+                id="suspected-infection-toggle"
+                checked={hospitalizationSuspectedInfection ?? false}
+                onCheckedChange={onSuspectedInfectionChange}
+              />
+              <Label
+                htmlFor="suspected-infection-toggle"
+                className="text-xs cursor-pointer"
+              >
+                Подозрение на инфекцию
+              </Label>
+            </div>
+          )}
           {canOverride ? (
             <Button variant="outline" size="sm"
               onClick={() => setShowOverridePanel(!showOverridePanel)}>
