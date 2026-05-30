@@ -347,6 +347,18 @@ export default function NursePatientsList() {
                                   morseScore={assessmentMap[h.id]?.morseScore ?? null}
                                 />
                               )}
+                              {sepsisAlertSet.has(h.id) && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-500 text-white text-xs font-bold shrink-0 cursor-default animate-pulse">!</span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      Активное предупреждение: Сепсис 6
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
                             </div>
                           </td>
                           <td className="px-3 py-2 text-xs">
