@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,7 +12,7 @@ import {
 import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from "@/components/ui/select";
-import { ArrowLeft, Plus } from "lucide-react";
+
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -28,14 +28,14 @@ type ActiveView =
   | { type: "tab"; tab: TabKey }
   | null;
 
-const TABS: { key: TabKey; label: string; hasPlus: boolean }[] = [
-  { key: "medication", label: "Лист назначения", hasPlus: false },
-  { key: "imaging", label: "Инструментальные", hasPlus: true },
-  { key: "lab", label: "Лаборатория", hasPlus: true },
-  { key: "consultation", label: "Консультация", hasPlus: true },
-  { key: "care", label: "Уход", hasPlus: true },
-  { key: "diagnosis", label: "Диагнозы", hasPlus: true },
-  { key: "ews", label: "ШРПУ", hasPlus: false },
+const TABS: { key: TabKey; label: string }[] = [
+  { key: "medication", label: "Лист назначения" },
+  { key: "imaging", label: "Инструментальные" },
+  { key: "lab", label: "Лаборатория" },
+  { key: "consultation", label: "Консультация" },
+  { key: "care", label: "Уход" },
+  { key: "diagnosis", label: "Диагнозы" },
+  { key: "ews", label: "ШРПУ" },
 ];
 
 export default function InpatientPatientDetail() {
@@ -49,8 +49,48 @@ export default function InpatientPatientDetail() {
 
   const [showAll, setShowAll] = useState(false);
   const [activeView, setActiveView] = useState<ActiveView>(null);
-  const [showInlineForm, setShowInlineForm] = useState(false);
   const [dischargeOpen, setDischargeOpen] = useState(false);
+
+  const { data: ewsScheduleStatus } = useQuery({
+    queryKey: ["ews-schedule-status", hospitalizationId],
+    staleTime: 0,
+    refetchInterval: 60000,
+    enabled: !!hospitalizationId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("ews_schedule")
+        .select("next_due_at")
+        .eq("hospitalization_id", hospitalizationId)
+        .maybeSingle();
+      return data;
+    },
+  });
+
+  const { data: activeClinicalAlerts = [] } = useQuery({
+    queryKey: ["active-clinical-alerts", hospitalizationId],
+    staleTime: 0,
+    refetchInterval: 60000,
+    enabled: !!hospitalizationId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("clinical_alerts")
+        .select("id")
+        .eq("hospitalization_id", hospitalizationId)
+        .eq("is_active", true)
+        .is("physician_acknowledged_at", null);
+      return data || [];
+    },
+  });
+
+  const ewsNeedsAttention = useMemo(() => {
+    if (activeClinicalAlerts.length > 0) return true;
+    if (!ewsScheduleStatus?.next_due_at) return false;
+    const due = new Date(ewsScheduleStatus.next_due_at);
+    const diffMin = (due.getTime() - Date.now()) / 60000;
+    return diffMin <= 30;
+  }, [ewsScheduleStatus, activeClinicalAlerts]);
+
+  const hasSepsisAlert = activeClinicalAlerts.length > 0;
 
   const { data: hosp, isLoading, refetch } = useQuery({
     queryKey: ["inpatient-detail", hospitalizationId],
@@ -190,23 +230,12 @@ export default function InpatientPatientDetail() {
 
   const closeView = () => {
     setActiveView(null);
-    setShowInlineForm(false);
     refetchDocs();
     queryClient.invalidateQueries({ queryKey: ["inpatient-docs-all", patientId] });
   };
 
-
-
-
   const selectTab = (tab: TabKey) => {
     setActiveView({ type: "tab", tab });
-    setShowInlineForm(false);
-  };
-
-  const tabPlus = (tab: TabKey) => {
-    if (isHospDischarged) return;
-    setActiveView({ type: "tab", tab });
-    setShowInlineForm(true);
   };
 
   return (
@@ -363,28 +392,23 @@ export default function InpatientPatientDetail() {
               {TABS.map((t) => {
                 const active = activeView?.type === "tab" && activeView.tab === t.key;
                 return (
-                  <div key={t.key} className="flex items-center">
-                    <button
-                      onClick={() => selectTab(t.key)}
-                      className={cn(
-                        "px-3 py-2 text-sm border-b-2 whitespace-nowrap transition-colors",
-                        active
-                          ? "border-primary text-primary font-medium"
-                          : "border-transparent text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      {t.label}
-                    </button>
-                    {t.hasPlus && !isHospDischarged && (
-                      <button
-                        onClick={() => tabPlus(t.key)}
-                        className="p-1 text-muted-foreground hover:text-primary"
-                        title="Добавить"
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                      </button>
+                  <button
+                    key={t.key}
+                    onClick={() => selectTab(t.key)}
+                    className={cn(
+                      "px-3 py-2 text-sm border-b-2 whitespace-nowrap transition-colors",
+                      active
+                        ? "border-primary text-primary font-medium"
+                        : "border-transparent text-muted-foreground hover:text-foreground"
                     )}
-                  </div>
+                  >
+                    <span className="flex items-center gap-1">
+                      {t.label}
+                      {t.key === "ews" && ewsNeedsAttention && (
+                        <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-ping shrink-0" />
+                      )}
+                    </span>
+                  </button>
                 );
               })}
             </div>
@@ -415,11 +439,6 @@ export default function InpatientPatientDetail() {
             ) : activeView?.type === "tab" ? (
               <TabPanel
                 tab={activeView.tab}
-                showForm={showInlineForm}
-                setShowForm={(b) => {
-                  if (b && isHospDischarged) return;
-                  setShowInlineForm(b);
-                }}
                 hospitalizationId={hospitalizationId}
                 patientId={patientId}
                 hospitalId={user!.hospitalId}
@@ -427,6 +446,7 @@ export default function InpatientPatientDetail() {
                 readOnly={isHospDischarged}
                 patientDateOfBirth={(hosp as any)?.patients?.date_of_birth}
                 admittedAt={(hosp as any)?.admitted_at}
+                externalAlertActive={hasSepsisAlert}
               />
             ) : (
               <div className="p-10 text-center text-muted-foreground text-sm">
@@ -457,8 +477,6 @@ export default function InpatientPatientDetail() {
 
 interface TabProps {
   tab: TabKey;
-  showForm: boolean;
-  setShowForm: (b: boolean) => void;
   hospitalizationId: string;
   patientId: string;
   hospitalId: string;
@@ -466,6 +484,7 @@ interface TabProps {
   readOnly?: boolean;
   patientDateOfBirth?: string;
   admittedAt?: string;
+  externalAlertActive?: boolean;
 }
 
 function TabPanel(props: TabProps) {
@@ -495,6 +514,7 @@ function TabPanel(props: TabProps) {
             isReadOnly={!!props.readOnly}
             canOverride={!props.readOnly}
             viewerRole="physician"
+            externalAlertActive={!!props.externalAlertActive}
           />
         </div>
       );
@@ -507,7 +527,7 @@ function Placeholder({ text }: { text: string }) {
 
 /* --- Lab / Consultation tab --- */
 function ServiceTab({
-  showForm, setShowForm, hospitalizationId, patientId, hospitalId, userId, typeCode, title, readOnly,
+  hospitalizationId, patientId, hospitalId, userId, typeCode, title, readOnly,
 }: TabProps & { typeCode: "laboratory" | "consultation"; title: string }) {
   const queryClient = useQueryClient();
   const [selectedServiceId, setSelectedServiceId] = useState("");
@@ -551,7 +571,7 @@ function ServiceTab({
         (s: any) => s.service_types?.code === typeCode
       );
     },
-    enabled: showForm,
+    enabled: !readOnly,
   });
 
   const handleOrder = async () => {
@@ -570,7 +590,6 @@ function ServiceTab({
         return;
       }
       toast.success("Назначено");
-      setShowForm(false);
       setSelectedServiceId("");
       queryClient.invalidateQueries({ queryKey: ["inpatient-services", typeCode] });
     } finally {
@@ -580,16 +599,9 @@ function ServiceTab({
 
   return (
     <div className="p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="font-semibold">{title}</h3>
-        {!showForm && !readOnly && (
-          <Button size="sm" onClick={() => setShowForm(true)} className="gap-1">
-            <Plus className="h-4 w-4" /> Назначить
-          </Button>
-        )}
-      </div>
+      <h3 className="font-semibold">{title}</h3>
 
-      {showForm && (
+      {!readOnly && (
         <div className="border rounded p-3 space-y-3 bg-muted/30">
           <Select value={selectedServiceId} onValueChange={setSelectedServiceId}>
             <SelectTrigger>
@@ -604,9 +616,6 @@ function ServiceTab({
           <div className="flex gap-2">
             <Button size="sm" onClick={handleOrder} disabled={!selectedServiceId || submitting}>
               {submitting ? "..." : "Назначить"}
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => { setShowForm(false); setSelectedServiceId(""); }}>
-              Отмена
             </Button>
           </div>
         </div>
@@ -772,7 +781,6 @@ function CareTab({
   hospitalizationId, hospitalId, userId, readOnly,
 }: TabProps) {
   const queryClient = useQueryClient();
-  const [showCareForm, setShowCareForm] = useState(false);
   const [careType, setCareType] = useState<"diet" | "activity_mode" | "care">("care");
   const [careText, setCareText] = useState("");
 
@@ -812,7 +820,6 @@ function CareTab({
       return;
     }
     setCareText("");
-    setShowCareForm(false);
     refetchOrders();
     queryClient.invalidateQueries({ queryKey: ["care-orders"] });
   };
@@ -836,16 +843,9 @@ function CareTab({
 
   return (
     <div className="p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="font-semibold">Назначения по уходу</h3>
-        {!readOnly && (
-          <Button size="sm" onClick={() => setShowCareForm(!showCareForm)}>
-            + Добавить
-          </Button>
-        )}
-      </div>
+      <h3 className="font-semibold">Назначения по уходу</h3>
 
-      {showCareForm && (
+      {!readOnly && (
         <div className="border rounded-md p-3 space-y-3 bg-muted/30">
           <Select value={careType} onValueChange={(v: any) => setCareType(v)}>
             <SelectTrigger>
@@ -863,14 +863,10 @@ function CareTab({
             placeholder="Введите назначение..."
             className="w-full text-sm border rounded px-2 py-1 resize-none"
             rows={3}
-            autoFocus
           />
           <div className="flex gap-2">
             <Button size="sm" disabled={!careText.trim()} onClick={handleAddOrder}>
               Сохранить
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => { setShowCareForm(false); setCareText(""); }}>
-              Отмена
             </Button>
           </div>
         </div>

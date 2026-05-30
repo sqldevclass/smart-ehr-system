@@ -24,6 +24,7 @@ interface Props {
   isReadOnly?: boolean;
   canOverride?: boolean;
   viewerRole: "nurse" | "physician";
+  externalAlertActive?: boolean;
 }
 
 const SEPSIS_SIGN_LABELS: Record<string, string> = {
@@ -56,6 +57,7 @@ export default function EWSSection({
   isReadOnly = false,
   canOverride = false,
   viewerRole,
+  externalAlertActive = false,
 }: Props) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -1047,8 +1049,13 @@ export default function EWSSection({
           thresholds={thresholds}
           overrideMap={overrideMap}
           alertSlot={
-            !isReadOnly && (isDue || isDueSoon)
-              ? (
+            <div className="flex items-center gap-2">
+              {externalAlertActive && (
+                <div className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-700 border border-red-300">
+                  🔴 Сепсис 6
+                </div>
+              )}
+              {!isReadOnly && (isDue || isDueSoon) && (
                 <div className={cn(
                   "flex items-center gap-1.5",
                   "px-2 py-1 rounded text-xs border",
@@ -1068,8 +1075,8 @@ export default function EWSSection({
                       : "Скоро время ШРПУ"}
                   </span>
                 </div>
-              )
-              : undefined
+              )}
+            </div>
           }
         />
       )}
