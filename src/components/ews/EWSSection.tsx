@@ -513,7 +513,7 @@ export default function EWSSection({
         text_value: p.input_type === "enum" ? ewsValues[p.id] : null,
       }));
 
-    const { error } = await supabase.rpc("submit_ews_reading", {
+    const result = await supabase.rpc("submit_ews_reading", {
       p_hospitalization_id: hospitalizationId,
       p_hospital_id: hospitalId,
       p_patient_id: patientId,
@@ -522,8 +522,8 @@ export default function EWSSection({
       p_notes: ewsNotes || null,
     });
 
-    if (error) {
-      toast.error(error.message);
+    if (result.error) {
+      toast.error(result.error.message);
     } else {
       toast.success("ШРПУ внесён");
       setShowEWSForm(false);
@@ -531,6 +531,10 @@ export default function EWSSection({
       setEwsNotes("");
       queryClient.invalidateQueries({ queryKey: ["ews-readings", hospitalizationId] });
       queryClient.invalidateQueries({ queryKey: ["ews-schedule", hospitalizationId] });
+      const readingId = (result.data as any)?.reading_id;
+      if (readingId) {
+        await detectSepsisAlert(readingId);
+      }
     }
     setSubmitting(false);
   };
