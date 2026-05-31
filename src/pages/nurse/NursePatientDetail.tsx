@@ -307,6 +307,8 @@ export default function NursePatientDetail() {
               patientId={patient.id}
               hospitalId={user!.hospitalId}
               isReadOnly={false}
+              patientDateOfBirth={patient.date_of_birth}
+              patientGender={patient.gender}
             />
           </div>
         </div>
