@@ -1642,13 +1642,22 @@ export default function EWSSection({
       )}
 
       {activeFormCodes.has("cpot") && (
-        <div className="border-t pt-4 mt-4">
-          <CpotSection
-            hospitalizationId={hospitalizationId}
-            patientId={patientId}
-            hospitalId={hospitalId}
-            isReadOnly={isReadOnly}
-          />
+        <CpotSection
+          hospitalizationId={hospitalizationId}
+          patientId={patientId}
+          hospitalId={hospitalId}
+          isReadOnly={isReadOnly}
+        />
+      )}
+
+      {activeFormCodes.has("fluid_balance") && (
+        <div className="border rounded-lg p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-semibold">Баланс жидкости</h4>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Раздел в разработке
+          </p>
         </div>
       )}
 
