@@ -512,6 +512,7 @@ function TabPanel(props: TabProps) {
             patientId={props.patientId}
             hospitalId={props.hospitalId}
             patientDateOfBirth={props.patientDateOfBirth!}
+            patientGender={props.patientGender}
             admittedAt={props.admittedAt!}
             isReadOnly={!!props.readOnly}
             canOverride={!props.readOnly}
