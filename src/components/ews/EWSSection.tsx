@@ -82,13 +82,15 @@ export default function EWSSection({
   const [showPainForm, setShowPainForm] = useState(false);
   const [painScore, setPainScore] = useState("");
   const [painNotes, setPainNotes] = useState("");
+  const [painCharacter, setPainCharacter] = useState<string[]>([]);
+  const [painLocation, setPainLocation] = useState("");
   const [showAllPain, setShowAllPain] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
 
   const painScaleType = useMemo<"nrs" | "faces" | undefined>(() => {
     if (!patientDateOfBirth) return undefined;
     const age = differenceInYears(new Date(), new Date(patientDateOfBirth));
-    return age < 18 ? "faces" : "nrs";
+    return age < 12 ? "faces" : "nrs";
   }, [patientDateOfBirth]);
 
   const { data: painReadings = [] } = useQuery({
@@ -98,7 +100,8 @@ export default function EWSSection({
       const { data, error } = await supabase
         .from("pain_scale_readings")
         .select(`
-          id, scale_type, score, recorded_at, notes,
+          id, scale_type, score, pain_character, pain_location,
+          recorded_at, notes,
           profiles!recorded_by(full_name)
         `)
         .eq("hospitalization_id", hospitalizationId)
@@ -154,6 +157,8 @@ export default function EWSSection({
       scale_type: painScaleType,
       score,
       recorded_by: user!.id,
+      pain_character: painCharacter.length > 0 ? painCharacter : null,
+      pain_location: painLocation.trim() || null,
       notes: painNotes || null,
     });
     if (error) {
@@ -162,6 +167,8 @@ export default function EWSSection({
     }
     setPainScore("");
     setPainNotes("");
+    setPainCharacter([]);
+    setPainLocation("");
     setShowPainForm(false);
     queryClient.invalidateQueries({
       queryKey: ["pain-readings", hospitalizationId],
@@ -188,10 +195,69 @@ export default function EWSSection({
   };
 
   const facesOptions = [
-    { label: "Нет боли", score: 0, emoji: "😊", range: "0" },
-    { label: "Слабая", score: 2, emoji: "😐", range: "1–3" },
-    { label: "Умеренная", score: 5, emoji: "😟", range: "4–6" },
-    { label: "Сильная", score: 8, emoji: "😭", range: "7–10" },
+    {
+      label: "Нет боли",
+      score: 0,
+      emoji: "😊",
+      range: "0",
+      behaviour: [
+        "Нормальная активность",
+        "Не плачет",
+        "Весёлый",
+      ],
+    },
+    {
+      label: "Слабая",
+      score: 2,
+      emoji: "😐",
+      range: "1–3",
+      behaviour: [
+        "Трёт область боли",
+        "Сниженная активность",
+        "Нейтральное выражение",
+        "Может играть / говорить",
+      ],
+    },
+    {
+      label: "Умеренная",
+      score: 5,
+      emoji: "😟",
+      range: "4–6",
+      behaviour: [
+        "Защищает область боли",
+        "Тихий",
+        "Жалуется на боль",
+        "Утешаемый плач",
+        "Гримасы при движении",
+      ],
+    },
+    {
+      label: "Сильная",
+      score: 8,
+      emoji: "😭",
+      range: "7–10",
+      behaviour: [
+        "Не двигается",
+        "Напуган",
+        "Очень тихий",
+        "Беспокойный",
+        "Безутешный плач",
+      ],
+    },
+  ];
+
+  const painCharacterOptions = [
+    { code: "Ж",   label: "Жгучая" },
+    { code: "Кол", label: "Колющая" },
+    { code: "Н",   label: "Ноющая" },
+    { code: "О",   label: "Острая" },
+    { code: "П",   label: "Постоянная" },
+    { code: "Пл",  label: "Пульсирующая" },
+    { code: "Р",   label: "Режущая" },
+    { code: "Стр", label: "Стреляющая" },
+    { code: "Сх",  label: "Схваткообразная" },
+    { code: "Туп", label: "Тупая" },
+    { code: "Тян", label: "Тянущая" },
   ];
 
   const painColor = (score: number) =>
