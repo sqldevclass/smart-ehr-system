@@ -86,6 +86,7 @@ export default function EWSSection({
   const [painLocation, setPainLocation] = useState("");
   const [showAllPain, setShowAllPain] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showAllSepsisHistory, setShowAllSepsisHistory] = useState(false);
 
   const painScaleType = useMemo<"nrs" | "faces" | undefined>(() => {
     if (!patientDateOfBirth) return undefined;
@@ -141,10 +142,21 @@ export default function EWSSection({
     () => new Set((activeFormsData as any[]).map((f) => f.scale_code)),
     [activeFormsData],
   );
-  const availableOptionalScales = useMemo(
-    () => (optionalScales as any[]).filter((s) => !activeFormCodes.has(s.code)),
-    [optionalScales, activeFormCodes],
+  const allOptionalForms = useMemo(
+    () => [
+      ...(optionalScales as any[]).map((s) => ({
+        code: s.code,
+        name: s.name_ru,
+      })),
+      { code: "fluid_balance", name: "Баланс жидкости" },
+    ],
+    [optionalScales],
   );
+  const availableForms = useMemo(
+    () => allOptionalForms.filter((f) => !activeFormCodes.has(f.code)),
+    [allOptionalForms, activeFormCodes],
+  );
+
 
   const handleSubmitPain = async () => {
     if (!painScore || !painScaleType) return;
@@ -1271,11 +1283,44 @@ export default function EWSSection({
         />
       )}
 
-      <hr className="border-gray-200" />
+      {!isReadOnly && (
+        <div className="flex justify-end mb-3">
+          <div className="relative">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs"
+              onClick={() => setShowAddForm(!showAddForm)}
+            >
+              Добавить форму ▾
+            </Button>
+            {showAddForm && (
+              <div className="absolute right-0 top-full mt-1 bg-white border rounded-md shadow-lg z-50 min-w-52 py-1">
+                {availableForms.length === 0 ? (
+                  <div className="px-3 py-2 text-sm text-muted-foreground">
+                    Все формы добавлены
+                  </div>
+                ) : (
+                  availableForms.map((f) => (
+                    <button
+                      key={f.code}
+                      onClick={() => handleActivateForm(f.code)}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50"
+                    >
+                      {f.name}
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h4 className="text-sm font-medium">Глюкоза крови</h4>
+
+      <div className="border rounded-lg p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-semibold">Глюкоза крови</h4>
           {!isReadOnly && !canOverride && (
             <Button
               size="sm"
@@ -1403,9 +1448,9 @@ export default function EWSSection({
       </div>
 
       {painScaleType && (
-        <div className="space-y-2 border-t pt-4">
+        <div className="border rounded-lg p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <h4 className="text-sm font-medium">
+            <h4 className="text-sm font-semibold">
               Боль{" "}
               <span className="text-xs text-muted-foreground font-normal">
                 ({painScaleType === "nrs" ? "NRS 0–10" : "Шкала лиц"})
@@ -1597,13 +1642,22 @@ export default function EWSSection({
       )}
 
       {activeFormCodes.has("cpot") && (
-        <div className="border-t pt-4 mt-4">
-          <CpotSection
-            hospitalizationId={hospitalizationId}
-            patientId={patientId}
-            hospitalId={hospitalId}
-            isReadOnly={isReadOnly}
-          />
+        <CpotSection
+          hospitalizationId={hospitalizationId}
+          patientId={patientId}
+          hospitalId={hospitalId}
+          isReadOnly={isReadOnly}
+        />
+      )}
+
+      {activeFormCodes.has("fluid_balance") && (
+        <div className="border rounded-lg p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-semibold">Баланс жидкости</h4>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Раздел в разработке
+          </p>
         </div>
       )}
 
@@ -1676,69 +1730,58 @@ export default function EWSSection({
         </div>
       )}
 
-      {alertHistory.length > 0 && (
-        <div className="mt-4 space-y-2">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            История предупреждений о сепсисе
-          </p>
-          {alertHistory.map((a: any) => (
-            <div key={a.id} className="border rounded p-3 text-xs space-y-1 bg-red-50/50">
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-red-700">Педиатрический Сепсис 6</span>
-                <span className="text-muted-foreground">
-                  {format(new Date(a.triggered_at), "dd.MM.yyyy HH:mm")}
-                </span>
-              </div>
-              <div className="text-muted-foreground">
-                Признаки:{" "}
-                {(a.trigger_signs as string[])
-                  .map((s: string) => SEPSIS_SIGN_LABELS[s] ?? s)
-                  .join(", ")}
-              </div>
-              {a.nurse_acknowledged_at && (
-                <div className="text-green-700 text-xs">
-                  ✓ Медсестра приняла:{" "}
-                  {format(new Date(a.nurse_acknowledged_at), "dd.MM.yyyy HH:mm")}
-                </div>
-              )}
-              {a.physician_acknowledged_at && (
-                <div className="text-green-700 text-xs">
-                  ✓ Врач принял:{" "}
-                  {format(new Date(a.physician_acknowledged_at), "dd.MM.yyyy HH:mm")}
-                </div>
-              )}
+      {alertHistory.length > 0 && (() => {
+        const renderSepsisHistoryItem = (a: any) => (
+          <div key={a.id} className="border rounded p-3 text-xs space-y-1 bg-red-50/50">
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-red-700">Педиатрический Сепсис 6</span>
+              <span className="text-muted-foreground">
+                {format(new Date(a.triggered_at), "dd.MM.yyyy HH:mm")}
+              </span>
             </div>
-          ))}
-        </div>
-      )}
-
-      {!isReadOnly && availableOptionalScales.length > 0 && (
-        <div className="pt-2">
-          <div className="relative">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs text-muted-foreground"
-              onClick={() => setShowAddForm(!showAddForm)}
-            >
-              Добавить форму ▾
-            </Button>
-            {showAddForm && (
-              <div className="absolute left-0 top-full mt-1 bg-white border rounded-md shadow-lg z-50 min-w-48 py-1">
-                {availableOptionalScales.map((s: any) => (
-                  <button
-                    key={s.code}
-                    onClick={() => handleActivateForm(s.code)}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50"
-                  >
-                    {s.name_ru}
-                  </button>
-                ))}
+            <div className="text-muted-foreground">
+              Признаки:{" "}
+              {(a.trigger_signs as string[])
+                .map((s: string) => SEPSIS_SIGN_LABELS[s] ?? s)
+                .join(", ")}
+            </div>
+            {a.nurse_acknowledged_at && (
+              <div className="text-green-700 text-xs">
+                ✓ Медсестра приняла:{" "}
+                {format(new Date(a.nurse_acknowledged_at), "dd.MM.yyyy HH:mm")}
+              </div>
+            )}
+            {a.physician_acknowledged_at && (
+              <div className="text-green-700 text-xs">
+                ✓ Врач принял:{" "}
+                {format(new Date(a.physician_acknowledged_at), "dd.MM.yyyy HH:mm")}
               </div>
             )}
           </div>
-        </div>
-      )}
+        );
+        return (
+          <div className="mt-4 space-y-2">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              История предупреждений о сепсисе
+            </p>
+            {renderSepsisHistoryItem(alertHistory[0])}
+            {showAllSepsisHistory &&
+              (alertHistory as any[]).slice(1).map((a: any) =>
+                renderSepsisHistoryItem(a),
+              )}
+            {alertHistory.length > 1 && (
+              <button
+                onClick={() => setShowAllSepsisHistory(!showAllSepsisHistory)}
+                className="text-xs text-primary underline"
+              >
+                {showAllSepsisHistory
+                  ? "Скрыть"
+                  : `Показать ещё (${alertHistory.length - 1})`}
+              </button>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }
