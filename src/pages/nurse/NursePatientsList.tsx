@@ -151,46 +151,58 @@ export default function NursePatientsList() {
       const { data } = await supabase
         .from("assessment_scales")
         .select("id, code")
-        .in("code", ["braden", "morse"]);
+        .in("code", ["braden", "morse", "humpty_dumpty"]);
       return data || [];
     },
   });
   const bradenScale = scales.find((s) => s.code === "braden");
   const morseScale = scales.find((s) => s.code === "morse");
+  const humptyDumptyScale = scales.find((s) => s.code === "humpty_dumpty");
 
   const assessmentMap = useMemo(() => {
     const map: Record<string, {
       bradenScore: number | null;
-      morseScore: number | null;
+      fallRiskScore: number | null;
+      fallRiskScale: "morse" | "humpty_dumpty";
       bradenPending: boolean;
-      morsePending: boolean;
+      fallRiskPending: boolean;
       pendingCount: number;
     }> = {};
     hospitalizations.forEach((h: any) => {
       const bradenLatest = latestAssessments.find(
         (a: any) => a.hospitalization_id === h.id && a.scale_id === bradenScale?.id
       );
-      const morseLatest = latestAssessments.find(
-        (a: any) => a.hospitalization_id === h.id && a.scale_id === morseScale?.id
-      );
+      const ageYears = h.patients?.date_of_birth
+        ? differenceInYears(new Date(), new Date(h.patients.date_of_birth))
+        : 99;
+      const fallRiskScale: "morse" | "humpty_dumpty" =
+        ageYears < 18 ? "humpty_dumpty" : "morse";
+      const fallRiskScaleId =
+        fallRiskScale === "humpty_dumpty" ? humptyDumptyScale?.id : morseScale?.id;
+      const fallRiskLatest = fallRiskScaleId
+        ? latestAssessments.find(
+            (a: any) => a.hospitalization_id === h.id && a.scale_id === fallRiskScaleId
+          )
+        : null;
       const bradenPending = !bradenLatest || (
         bradenLatest.next_assessment_at &&
         new Date(bradenLatest.next_assessment_at) <= new Date()
       );
-      const morsePending = !morseLatest || (
-        morseLatest.next_assessment_at &&
-        new Date(morseLatest.next_assessment_at) <= new Date()
+      const fallRiskPending = !fallRiskLatest || (
+        fallRiskLatest.next_assessment_at &&
+        new Date(fallRiskLatest.next_assessment_at) <= new Date()
       );
       map[h.id] = {
         bradenScore: (bradenLatest as any)?.total_score ?? null,
-        morseScore: (morseLatest as any)?.total_score ?? null,
+        fallRiskScore: (fallRiskLatest as any)?.total_score ?? null,
+        fallRiskScale,
         bradenPending: !!bradenPending,
-        morsePending: !!morsePending,
-        pendingCount: (bradenPending ? 1 : 0) + (morsePending ? 1 : 0),
+        fallRiskPending: !!fallRiskPending,
+        pendingCount: (bradenPending ? 1 : 0) + (fallRiskPending ? 1 : 0),
       };
     });
     return map;
-  }, [latestAssessments, hospitalizations, bradenScale, morseScale]);
+  }, [latestAssessments, hospitalizations, bradenScale, morseScale, humptyDumptyScale]);
 
   const { data: activeSepsisAlerts = [] } = useQuery({
     queryKey: ["active-sepsis-alerts", user?.hospitalId],
