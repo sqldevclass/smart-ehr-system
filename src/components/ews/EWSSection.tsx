@@ -1318,9 +1318,9 @@ export default function EWSSection({
       )}
 
 
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h4 className="text-sm font-medium">Глюкоза крови</h4>
+      <div className="border rounded-lg p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-semibold">Глюкоза крови</h4>
           {!isReadOnly && !canOverride && (
             <Button
               size="sm"
