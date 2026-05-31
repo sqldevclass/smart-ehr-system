@@ -239,13 +239,19 @@ export default function AssessmentSection({
     },
   });
 
-  const totalScore = Object.values(selections).reduce(
-    (sum, s) => sum + s.score,
-    0
+  const visibleItems = (scale?.assessment_scale_items ?? []).filter(
+    (it: any) => !hiddenItemCodes?.includes(it.code),
   );
-  const itemCount = scale?.assessment_scale_items?.length ?? 0;
+  const visibleSelections = Object.entries(selections).filter(([itemId]) =>
+    visibleItems.some((it: any) => it.id === itemId),
+  );
+  const totalScore = visibleSelections.reduce(
+    (sum, [, s]) => sum + s.score,
+    0,
+  );
+  const itemCount = visibleItems.length;
   const allItemsSelected =
-    itemCount > 0 && Object.keys(selections).length === itemCount;
+    itemCount > 0 && visibleSelections.length === itemCount;
 
   const handleSubmit = async () => {
     if (!scale) return;
