@@ -51,7 +51,6 @@ export default function CpotSection({
         />
       ) : (
         <div className="space-y-2">
-          <h3 className="font-semibold text-sm">CPOT — Оценка боли</h3>
           <p className="text-sm text-muted-foreground">
             Выберите тип пациента:
           </p>
