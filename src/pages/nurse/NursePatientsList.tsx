@@ -493,7 +493,7 @@ export default function NursePatientsList() {
                                 Необходимо заполнить:{" "}
                                 {[
                                   assessmentMap[h.id].bradenPending && "Шкала Брадена",
-                                  assessmentMap[h.id].morsePending && "Шкала Морзе",
+                                  assessmentMap[h.id].fallRiskPending && (assessmentMap[h.id].fallRiskScale === "humpty_dumpty" ? "Шкала Хамти Дамти" : "Шкала Морзе"),
                                 ].filter(Boolean).join(", ")}
                               </TooltipContent>
                             </Tooltip>
@@ -501,7 +501,8 @@ export default function NursePatientsList() {
                         ) : (
                           <AssessmentIndicator
                             bradenScore={assessmentMap[h.id]?.bradenScore ?? null}
-                            morseScore={assessmentMap[h.id]?.morseScore ?? null}
+                            fallRiskScore={assessmentMap[h.id]?.fallRiskScore ?? null}
+                            fallRiskScale={assessmentMap[h.id]?.fallRiskScale ?? "morse"}
                           />
                         )}
                       </TableCell>
