@@ -302,7 +302,7 @@ export default function NursePatientDetail() {
           </div>
           <div className="border-t pt-4 mt-4">
             <AssessmentSection
-              scaleCode="morse"
+              scaleCode={fallRiskScaleCode}
               hospitalizationId={hospId!}
               patientId={patient.id}
               hospitalId={user!.hospitalId}
