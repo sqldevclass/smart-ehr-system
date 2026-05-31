@@ -256,13 +256,11 @@ export default function AssessmentSection({
   const handleSubmit = async () => {
     if (!scale) return;
     setSubmitting(true);
-    const responses = Object.entries(selections).map(
-      ([itemId, { optionId, score }]) => ({
-        item_id: itemId,
-        option_id: optionId,
-        score,
-      })
-    );
+    const responses = visibleSelections.map(([itemId, { optionId, score }]) => ({
+      item_id: itemId,
+      option_id: optionId,
+      score,
+    }));
     const { error } = await supabase.rpc("submit_assessment", {
       p_hospitalization_id: hospitalizationId,
       p_hospital_id: hospitalId,
