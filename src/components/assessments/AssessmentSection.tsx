@@ -75,6 +75,25 @@ function getRiskLevel(score: number, scaleCode: string) {
       color: "bg-yellow-50 text-yellow-700 border-yellow-200",
     };
   }
+  if (scaleCode === "cpot") {
+    if (score >= 6)
+      return {
+        level: "severe",
+        label: "Сильная боль",
+        color: "bg-red-100 text-red-800 border-red-300",
+      };
+    if (score >= 2)
+      return {
+        level: "moderate",
+        label: "Боль есть",
+        color: "bg-orange-50 text-orange-700 border-orange-200",
+      };
+    return {
+      level: "none",
+      label: "Боли нет",
+      color: "bg-green-50 text-green-700 border-green-200",
+    };
+  }
   // Braden (lower = worse)
   if (score <= 9)
     return {
