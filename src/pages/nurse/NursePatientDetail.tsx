@@ -175,7 +175,7 @@ export default function NursePatientDetail() {
 
   const { data: fallRiskAssessments = [] } = useQuery({
     queryKey: ["fall-risk-assessments", hospId, fallRiskScaleCode],
-    enabled: !!hospId,
+    enabled: !!hospId && fallRiskScaleCode !== undefined,
     staleTime: 0,
     queryFn: async () => {
       const { data: scale } = await supabase
