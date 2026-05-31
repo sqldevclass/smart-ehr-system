@@ -79,6 +79,127 @@ export default function EWSSection({
   >({});
   const [savingOverrides, setSavingOverrides] = useState(false);
 
+  const [showPainForm, setShowPainForm] = useState(false);
+  const [painScore, setPainScore] = useState("");
+  const [painNotes, setPainNotes] = useState("");
+  const [showAllPain, setShowAllPain] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+
+  const painScaleType = useMemo<"nrs" | "faces" | undefined>(() => {
+    if (!patientDateOfBirth) return undefined;
+    const age = differenceInYears(new Date(), new Date(patientDateOfBirth));
+    return age < 18 ? "faces" : "nrs";
+  }, [patientDateOfBirth]);
+
+  const { data: painReadings = [] } = useQuery({
+    queryKey: ["pain-readings", hospitalizationId],
+    staleTime: 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pain_scale_readings")
+        .select(`
+          id, scale_type, score, recorded_at, notes,
+          profiles!recorded_by(full_name)
+        `)
+        .eq("hospitalization_id", hospitalizationId)
+        .order("recorded_at", { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: optionalScales = [] } = useQuery({
+    queryKey: ["optional-scales"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("assessment_scales")
+        .select("id, code, name_ru")
+        .eq("is_optional", true);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: activeFormsData = [] } = useQuery({
+    queryKey: ["active-forms", hospitalizationId],
+    staleTime: 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hospitalization_active_forms")
+        .select("scale_code")
+        .eq("hospitalization_id", hospitalizationId);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const activeFormCodes = useMemo(
+    () => new Set((activeFormsData as any[]).map((f) => f.scale_code)),
+    [activeFormsData],
+  );
+  const availableOptionalScales = useMemo(
+    () => (optionalScales as any[]).filter((s) => !activeFormCodes.has(s.code)),
+    [optionalScales, activeFormCodes],
+  );
+
+  const handleSubmitPain = async () => {
+    if (!painScore || !painScaleType) return;
+    const score = parseInt(painScore);
+    if (isNaN(score) || score < 0 || score > 10) return;
+    const { error } = await supabase.from("pain_scale_readings").insert({
+      hospital_id: hospitalId,
+      hospitalization_id: hospitalizationId,
+      patient_id: patientId,
+      scale_type: painScaleType,
+      score,
+      recorded_by: user!.id,
+      notes: painNotes || null,
+    });
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setPainScore("");
+    setPainNotes("");
+    setShowPainForm(false);
+    queryClient.invalidateQueries({
+      queryKey: ["pain-readings", hospitalizationId],
+    });
+  };
+
+  const handleActivateForm = async (scaleCode: string) => {
+    const { error } = await supabase
+      .from("hospitalization_active_forms")
+      .insert({
+        hospital_id: hospitalId,
+        hospitalization_id: hospitalizationId,
+        scale_code: scaleCode,
+        activated_by: user!.id,
+      });
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    queryClient.invalidateQueries({
+      queryKey: ["active-forms", hospitalizationId],
+    });
+    setShowAddForm(false);
+  };
+
+  const facesOptions = [
+    { label: "Нет боли", score: 0, emoji: "😊", range: "0" },
+    { label: "Слабая", score: 2, emoji: "😐", range: "1–3" },
+    { label: "Умеренная", score: 5, emoji: "😟", range: "4–6" },
+    { label: "Сильная", score: 8, emoji: "😭", range: "7–10" },
+  ];
+
+  const painColor = (score: number) =>
+    score === 0 ? "text-green-700"
+    : score <= 3 ? "text-yellow-700"
+    : score <= 6 ? "text-orange-700"
+    : "text-red-700";
+
   const ageMonths = differenceInMonths(
     new Date(admittedAt),
     new Date(patientDateOfBirth),
