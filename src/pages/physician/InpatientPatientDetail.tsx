@@ -484,6 +484,7 @@ interface TabProps {
   userId: string;
   readOnly?: boolean;
   patientDateOfBirth?: string;
+  patientGender?: string;
   admittedAt?: string;
   externalAlertActive?: boolean;
 }
