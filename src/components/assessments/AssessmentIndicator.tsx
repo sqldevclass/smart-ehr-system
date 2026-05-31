@@ -20,22 +20,31 @@ function bradenColors(score: number | null): BadgeColors {
   return null;
 }
 
-function morseColors(score: number | null): BadgeColors {
-  if (score === null) return null;
-  if (score >= 51) return { bg: "#FEE2E2", border: "#FCA5A5", iconColor: "#B91C1C", label: "Высокий риск" };
-  if (score >= 25) return { bg: "#FEF9C3", border: "#FDE047", iconColor: "#A16207", label: "Низкий риск" };
-  return null;
-}
-
 export default function AssessmentIndicator({
   bradenScore,
-  morseScore,
+  fallRiskScore,
+  fallRiskScale,
 }: {
   bradenScore: number | null;
-  morseScore: number | null;
+  fallRiskScore: number | null;
+  fallRiskScale: "morse" | "humpty_dumpty";
 }) {
   const braden = bradenColors(bradenScore);
-  const morse = morseColors(morseScore);
+
+  const isFallRiskHigh =
+    fallRiskScale === "humpty_dumpty"
+      ? (fallRiskScore ?? 0) >= 12
+      : (fallRiskScore ?? 0) >= 51;
+  const isFallRiskLow =
+    fallRiskScale === "humpty_dumpty"
+      ? (fallRiskScore ?? 0) >= 7 && (fallRiskScore ?? 0) < 12
+      : (fallRiskScore ?? 0) >= 25 && (fallRiskScore ?? 0) < 51;
+
+  const fallRiskBg = isFallRiskHigh ? "#FEE2E2" : isFallRiskLow ? "#FEF9C3" : null;
+  const fallRiskBorder = isFallRiskHigh ? "#FCA5A5" : isFallRiskLow ? "#FDE047" : null;
+  const fallRiskIconColor = isFallRiskHigh ? "#B91C1C" : "#A16207";
+  const fallRiskLabel = isFallRiskHigh ? "Высокий риск падения" : "Низкий риск падения";
+  const showFallRisk = fallRiskScore !== null && fallRiskBg !== null;
 
   return (
     <div className="flex items-center gap-1">
@@ -64,7 +73,7 @@ export default function AssessmentIndicator({
           </Tooltip>
         </TooltipProvider>
       )}
-      {morse && (
+      {showFallRisk && (
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -73,18 +82,18 @@ export default function AssessmentIndicator({
                   width: 26,
                   height: 26,
                   borderRadius: 5,
-                  background: morse.bg,
-                  border: `1px solid ${morse.border}`,
+                  background: fallRiskBg!,
+                  border: `1px solid ${fallRiskBorder!}`,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                 }}
               >
-                <FallingPersonIcon color={morse.iconColor} size={14} />
+                <FallingPersonIcon color={fallRiskIconColor} size={14} />
               </div>
             </TooltipTrigger>
             <TooltipContent>
-              Морзе: {morseScore} — {morse.label}
+              {fallRiskScale === "humpty_dumpty" ? "Хамти Дамти" : "Морзе"}: {fallRiskScore} — {fallRiskLabel}
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
