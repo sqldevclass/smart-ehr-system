@@ -59,6 +59,19 @@ function getRiskLevel(score: number, scaleCode: string) {
       color: "bg-green-50 text-green-700 border-green-200",
     };
   }
+  if (scaleCode === "humpty_dumpty") {
+    if (score >= 12)
+      return {
+        level: "high",
+        label: "Высокий риск падения",
+        color: "bg-red-100 text-red-800 border-red-300",
+      };
+    return {
+      level: "low",
+      label: "Низкий риск падения",
+      color: "bg-yellow-50 text-yellow-700 border-yellow-200",
+    };
+  }
   // Braden (lower = worse)
   if (score <= 9)
     return {
