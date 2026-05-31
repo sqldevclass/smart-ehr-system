@@ -445,6 +445,7 @@ export default function InpatientPatientDetail() {
                 userId={user!.id}
                 readOnly={isHospDischarged}
                 patientDateOfBirth={(hosp as any)?.patients?.date_of_birth}
+                patientGender={(hosp as any)?.patients?.gender}
                 admittedAt={(hosp as any)?.admitted_at}
                 externalAlertActive={hasSepsisAlert}
               />
@@ -483,6 +484,7 @@ interface TabProps {
   userId: string;
   readOnly?: boolean;
   patientDateOfBirth?: string;
+  patientGender?: string;
   admittedAt?: string;
   externalAlertActive?: boolean;
 }
@@ -510,6 +512,7 @@ function TabPanel(props: TabProps) {
             patientId={props.patientId}
             hospitalId={props.hospitalId}
             patientDateOfBirth={props.patientDateOfBirth!}
+            patientGender={props.patientGender}
             admittedAt={props.admittedAt!}
             isReadOnly={!!props.readOnly}
             canOverride={!props.readOnly}

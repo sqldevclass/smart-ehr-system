@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { differenceInMonths, format } from "date-fns";
+import { differenceInMonths, differenceInYears, format } from "date-fns";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,12 +14,14 @@ import {
 import { cn } from "@/lib/utils";
 import EWSChart from "./EWSChart";
 import AssessmentSection from "@/components/assessments/AssessmentSection";
+import CpotSection from "@/components/assessments/CpotSection";
 
 interface Props {
   hospitalizationId: string;
   patientId: string;
   hospitalId: string;
   patientDateOfBirth: string;
+  patientGender?: string;
   admittedAt: string;
   isReadOnly?: boolean;
   canOverride?: boolean;
@@ -53,6 +55,7 @@ export default function EWSSection({
   patientId,
   hospitalId,
   patientDateOfBirth,
+  patientGender,
   admittedAt,
   isReadOnly = false,
   canOverride = false,
@@ -75,6 +78,127 @@ export default function EWSSection({
     Record<string, { min: string; max: string; reason: string }>
   >({});
   const [savingOverrides, setSavingOverrides] = useState(false);
+
+  const [showPainForm, setShowPainForm] = useState(false);
+  const [painScore, setPainScore] = useState("");
+  const [painNotes, setPainNotes] = useState("");
+  const [showAllPain, setShowAllPain] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+
+  const painScaleType = useMemo<"nrs" | "faces" | undefined>(() => {
+    if (!patientDateOfBirth) return undefined;
+    const age = differenceInYears(new Date(), new Date(patientDateOfBirth));
+    return age < 18 ? "faces" : "nrs";
+  }, [patientDateOfBirth]);
+
+  const { data: painReadings = [] } = useQuery({
+    queryKey: ["pain-readings", hospitalizationId],
+    staleTime: 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pain_scale_readings")
+        .select(`
+          id, scale_type, score, recorded_at, notes,
+          profiles!recorded_by(full_name)
+        `)
+        .eq("hospitalization_id", hospitalizationId)
+        .order("recorded_at", { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: optionalScales = [] } = useQuery({
+    queryKey: ["optional-scales"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("assessment_scales")
+        .select("id, code, name_ru")
+        .eq("is_optional", true);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: activeFormsData = [] } = useQuery({
+    queryKey: ["active-forms", hospitalizationId],
+    staleTime: 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hospitalization_active_forms")
+        .select("scale_code")
+        .eq("hospitalization_id", hospitalizationId);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const activeFormCodes = useMemo(
+    () => new Set((activeFormsData as any[]).map((f) => f.scale_code)),
+    [activeFormsData],
+  );
+  const availableOptionalScales = useMemo(
+    () => (optionalScales as any[]).filter((s) => !activeFormCodes.has(s.code)),
+    [optionalScales, activeFormCodes],
+  );
+
+  const handleSubmitPain = async () => {
+    if (!painScore || !painScaleType) return;
+    const score = parseInt(painScore);
+    if (isNaN(score) || score < 0 || score > 10) return;
+    const { error } = await supabase.from("pain_scale_readings").insert({
+      hospital_id: hospitalId,
+      hospitalization_id: hospitalizationId,
+      patient_id: patientId,
+      scale_type: painScaleType,
+      score,
+      recorded_by: user!.id,
+      notes: painNotes || null,
+    });
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setPainScore("");
+    setPainNotes("");
+    setShowPainForm(false);
+    queryClient.invalidateQueries({
+      queryKey: ["pain-readings", hospitalizationId],
+    });
+  };
+
+  const handleActivateForm = async (scaleCode: string) => {
+    const { error } = await supabase
+      .from("hospitalization_active_forms")
+      .insert({
+        hospital_id: hospitalId,
+        hospitalization_id: hospitalizationId,
+        scale_code: scaleCode,
+        activated_by: user!.id,
+      });
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    queryClient.invalidateQueries({
+      queryKey: ["active-forms", hospitalizationId],
+    });
+    setShowAddForm(false);
+  };
+
+  const facesOptions = [
+    { label: "Нет боли", score: 0, emoji: "😊", range: "0" },
+    { label: "Слабая", score: 2, emoji: "😐", range: "1–3" },
+    { label: "Умеренная", score: 5, emoji: "😟", range: "4–6" },
+    { label: "Сильная", score: 8, emoji: "😭", range: "7–10" },
+  ];
+
+  const painColor = (score: number) =>
+    score === 0 ? "text-green-700"
+    : score <= 3 ? "text-yellow-700"
+    : score <= 6 ? "text-orange-700"
+    : "text-red-700";
 
   const ageMonths = differenceInMonths(
     new Date(admittedAt),
@@ -1212,6 +1336,138 @@ export default function EWSSection({
         )}
       </div>
 
+      {painScaleType && (
+        <div className="space-y-2 border-t pt-4">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-medium">
+              Боль{" "}
+              <span className="text-xs text-muted-foreground font-normal">
+                ({painScaleType === "nrs" ? "NRS 0–10" : "Шкала лиц"})
+              </span>
+            </h4>
+            {!isReadOnly && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowPainForm(!showPainForm)}
+              >
+                + Внести
+              </Button>
+            )}
+          </div>
+          {showPainForm && !isReadOnly && (
+            <div className="border rounded p-3 space-y-2 bg-muted/30">
+              {painScaleType === "nrs" ? (
+                <div>
+                  <Label className="text-xs">Оценка боли (0–10)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={10}
+                    value={painScore}
+                    onChange={(e) => setPainScore(e.target.value)}
+                    className="h-8 text-sm mt-1 w-24"
+                    placeholder="0–10"
+                    autoFocus
+                  />
+                </div>
+              ) : (
+                <div>
+                  <Label className="text-xs mb-2 block">
+                    Выберите уровень боли
+                  </Label>
+                  <div className="flex gap-2 flex-wrap">
+                    {facesOptions.map((opt) => (
+                      <button
+                        key={opt.score}
+                        onClick={() => setPainScore(String(opt.score))}
+                        className={cn(
+                          "flex flex-col items-center px-3 py-2 rounded border text-xs transition-colors",
+                          painScore === String(opt.score)
+                            ? "bg-primary/10 border-primary"
+                            : "bg-white border-gray-200 hover:bg-muted/50",
+                        )}
+                      >
+                        <span className="text-2xl">{opt.emoji}</span>
+                        <span className="mt-1">{opt.label}</span>
+                        <span className="text-muted-foreground">{opt.range}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="flex gap-2 items-end">
+                <Button
+                  size="sm"
+                  disabled={!painScore}
+                  onClick={handleSubmitPain}
+                >
+                  Сохранить
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setShowPainForm(false);
+                    setPainScore("");
+                  }}
+                >
+                  Отмена
+                </Button>
+              </div>
+            </div>
+          )}
+          {painReadings.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Нет записей</p>
+          ) : (
+            <div className="space-y-1">
+              <div className="flex gap-4 overflow-x-auto pb-1">
+                {(showAllPain ? painReadings : painReadings.slice(0, 5)).map(
+                  (r: any) => {
+                    const dt = new Date(r.recorded_at);
+                    return (
+                      <div key={r.id} className="shrink-0 text-left">
+                        <div className={cn("text-sm font-semibold", painColor(r.score))}>
+                          {r.score}
+                          <span className="text-xs font-normal text-muted-foreground ml-1">
+                            /10
+                          </span>
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {dt.getDate().toString().padStart(2, "0")}.
+                          {(dt.getMonth() + 1).toString().padStart(2, "0")}{" "}
+                          {dt.getHours().toString().padStart(2, "0")}:
+                          {dt.getMinutes().toString().padStart(2, "0")}
+                        </div>
+                      </div>
+                    );
+                  },
+                )}
+              </div>
+              {!showAllPain && painReadings.length > 5 && (
+                <button
+                  onClick={() => setShowAllPain(true)}
+                  className="text-xs text-primary underline"
+                >
+                  Показать все ({painReadings.length})
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeFormCodes.has("cpot") && (
+        <div className="border-t pt-4 mt-4">
+          <CpotSection
+            hospitalizationId={hospitalizationId}
+            patientId={patientId}
+            hospitalId={hospitalId}
+            isReadOnly={isReadOnly}
+          />
+        </div>
+      )}
+
       {gcsActivated && (
         <div className="space-y-3">
           <div className="flex items-center gap-2 px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800 text-sm">
@@ -1314,6 +1570,34 @@ export default function EWSSection({
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {!isReadOnly && availableOptionalScales.length > 0 && (
+        <div className="pt-2">
+          <div className="relative">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs text-muted-foreground"
+              onClick={() => setShowAddForm(!showAddForm)}
+            >
+              Добавить форму ▾
+            </Button>
+            {showAddForm && (
+              <div className="absolute left-0 top-full mt-1 bg-white border rounded-md shadow-lg z-50 min-w-48 py-1">
+                {availableOptionalScales.map((s: any) => (
+                  <button
+                    key={s.code}
+                    onClick={() => handleActivateForm(s.code)}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50"
+                  >
+                    {s.name_ru}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -14,6 +14,7 @@ interface Props {
   isReadOnly?: boolean;
   patientDateOfBirth?: string;
   patientGender?: string;
+  hiddenItemCodes?: string[];
 }
 
 interface Selection {
@@ -114,6 +115,7 @@ export default function AssessmentSection({
   isReadOnly = false,
   patientDateOfBirth,
   patientGender,
+  hiddenItemCodes,
 }: Props) {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
@@ -237,24 +239,28 @@ export default function AssessmentSection({
     },
   });
 
-  const totalScore = Object.values(selections).reduce(
-    (sum, s) => sum + s.score,
-    0
+  const visibleItems = (scale?.assessment_scale_items ?? []).filter(
+    (it: any) => !hiddenItemCodes?.includes(it.code),
   );
-  const itemCount = scale?.assessment_scale_items?.length ?? 0;
+  const visibleSelections = Object.entries(selections).filter(([itemId]) =>
+    visibleItems.some((it: any) => it.id === itemId),
+  );
+  const totalScore = visibleSelections.reduce(
+    (sum, [, s]) => sum + s.score,
+    0,
+  );
+  const itemCount = visibleItems.length;
   const allItemsSelected =
-    itemCount > 0 && Object.keys(selections).length === itemCount;
+    itemCount > 0 && visibleSelections.length === itemCount;
 
   const handleSubmit = async () => {
     if (!scale) return;
     setSubmitting(true);
-    const responses = Object.entries(selections).map(
-      ([itemId, { optionId, score }]) => ({
-        item_id: itemId,
-        option_id: optionId,
-        score,
-      })
-    );
+    const responses = visibleSelections.map(([itemId, { optionId, score }]) => ({
+      item_id: itemId,
+      option_id: optionId,
+      score,
+    }));
     const { error } = await supabase.rpc("submit_assessment", {
       p_hospitalization_id: hospitalizationId,
       p_hospital_id: hospitalId,
@@ -348,7 +354,7 @@ export default function AssessmentSection({
             <span className="font-medium">
               {allItemsSelected
                 ? `Балл: ${totalScore} — ${getRiskLevel(totalScore, scaleCode).label}`
-                : `Выбрано ${Object.keys(selections).length} из ${itemCount} параметров`}
+                 : `Выбрано ${visibleSelections.length} из ${itemCount} параметров`}
             </span>
             {allItemsSelected && (
               <span className="text-xs opacity-75">
@@ -358,7 +364,7 @@ export default function AssessmentSection({
           </div>
 
           <div className="space-y-3">
-            {scale.assessment_scale_items.map((item: any) => {
+            {visibleItems.map((item: any) => {
               const selected = selections[item.id];
               return (
                 <div
