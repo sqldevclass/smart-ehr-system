@@ -445,6 +445,7 @@ export default function InpatientPatientDetail() {
                 userId={user!.id}
                 readOnly={isHospDischarged}
                 patientDateOfBirth={(hosp as any)?.patients?.date_of_birth}
+                patientGender={(hosp as any)?.patients?.gender}
                 admittedAt={(hosp as any)?.admitted_at}
                 externalAlertActive={hasSepsisAlert}
               />
