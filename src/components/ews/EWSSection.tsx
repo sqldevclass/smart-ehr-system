@@ -82,13 +82,15 @@ export default function EWSSection({
   const [showPainForm, setShowPainForm] = useState(false);
   const [painScore, setPainScore] = useState("");
   const [painNotes, setPainNotes] = useState("");
+  const [painCharacter, setPainCharacter] = useState<string[]>([]);
+  const [painLocation, setPainLocation] = useState("");
   const [showAllPain, setShowAllPain] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
 
   const painScaleType = useMemo<"nrs" | "faces" | undefined>(() => {
     if (!patientDateOfBirth) return undefined;
     const age = differenceInYears(new Date(), new Date(patientDateOfBirth));
-    return age < 18 ? "faces" : "nrs";
+    return age < 12 ? "faces" : "nrs";
   }, [patientDateOfBirth]);
 
   const { data: painReadings = [] } = useQuery({
@@ -98,7 +100,8 @@ export default function EWSSection({
       const { data, error } = await supabase
         .from("pain_scale_readings")
         .select(`
-          id, scale_type, score, recorded_at, notes,
+          id, scale_type, score, pain_character, pain_location,
+          recorded_at, notes,
           profiles!recorded_by(full_name)
         `)
         .eq("hospitalization_id", hospitalizationId)
@@ -154,6 +157,8 @@ export default function EWSSection({
       scale_type: painScaleType,
       score,
       recorded_by: user!.id,
+      pain_character: painCharacter.length > 0 ? painCharacter : null,
+      pain_location: painLocation.trim() || null,
       notes: painNotes || null,
     });
     if (error) {
@@ -162,6 +167,8 @@ export default function EWSSection({
     }
     setPainScore("");
     setPainNotes("");
+    setPainCharacter([]);
+    setPainLocation("");
     setShowPainForm(false);
     queryClient.invalidateQueries({
       queryKey: ["pain-readings", hospitalizationId],
@@ -188,10 +195,69 @@ export default function EWSSection({
   };
 
   const facesOptions = [
-    { label: "Нет боли", score: 0, emoji: "😊", range: "0" },
-    { label: "Слабая", score: 2, emoji: "😐", range: "1–3" },
-    { label: "Умеренная", score: 5, emoji: "😟", range: "4–6" },
-    { label: "Сильная", score: 8, emoji: "😭", range: "7–10" },
+    {
+      label: "Нет боли",
+      score: 0,
+      emoji: "😊",
+      range: "0",
+      behaviour: [
+        "Нормальная активность",
+        "Не плачет",
+        "Весёлый",
+      ],
+    },
+    {
+      label: "Слабая",
+      score: 2,
+      emoji: "😐",
+      range: "1–3",
+      behaviour: [
+        "Трёт область боли",
+        "Сниженная активность",
+        "Нейтральное выражение",
+        "Может играть / говорить",
+      ],
+    },
+    {
+      label: "Умеренная",
+      score: 5,
+      emoji: "😟",
+      range: "4–6",
+      behaviour: [
+        "Защищает область боли",
+        "Тихий",
+        "Жалуется на боль",
+        "Утешаемый плач",
+        "Гримасы при движении",
+      ],
+    },
+    {
+      label: "Сильная",
+      score: 8,
+      emoji: "😭",
+      range: "7–10",
+      behaviour: [
+        "Не двигается",
+        "Напуган",
+        "Очень тихий",
+        "Беспокойный",
+        "Безутешный плач",
+      ],
+    },
+  ];
+
+  const painCharacterOptions = [
+    { code: "Ж",   label: "Жгучая" },
+    { code: "Кол", label: "Колющая" },
+    { code: "Н",   label: "Ноющая" },
+    { code: "О",   label: "Острая" },
+    { code: "П",   label: "Постоянная" },
+    { code: "Пл",  label: "Пульсирующая" },
+    { code: "Р",   label: "Режущая" },
+    { code: "Стр", label: "Стреляющая" },
+    { code: "Сх",  label: "Схваткообразная" },
+    { code: "Туп", label: "Тупая" },
+    { code: "Тян", label: "Тянущая" },
   ];
 
   const painColor = (score: number) =>
@@ -1358,18 +1424,70 @@ export default function EWSSection({
           {showPainForm && !isReadOnly && (
             <div className="border rounded p-3 space-y-2 bg-muted/30">
               {painScaleType === "nrs" ? (
-                <div>
-                  <Label className="text-xs">Оценка боли (0–10)</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    max={10}
-                    value={painScore}
-                    onChange={(e) => setPainScore(e.target.value)}
-                    className="h-8 text-sm mt-1 w-24"
-                    placeholder="0–10"
-                    autoFocus
-                  />
+                <div className="space-y-2">
+                  <div>
+                    <Label className="text-xs">Оценка боли (0–10)</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={10}
+                      value={painScore}
+                      onChange={(e) => setPainScore(e.target.value)}
+                      className="h-8 text-sm mt-1 w-24"
+                      placeholder="0–10"
+                      autoFocus
+                    />
+                  </div>
+                  {/* Pain character — multi-select chips */}
+                  <div>
+                    <Label className="text-xs">
+                      Характер боли
+                      <span className="text-muted-foreground font-normal ml-1">
+                        (необязательно)
+                      </span>
+                    </Label>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {painCharacterOptions.map((opt) => {
+                        const selected = painCharacter.includes(opt.code);
+                        return (
+                          <button
+                            key={opt.code}
+                            type="button"
+                            onClick={() =>
+                              setPainCharacter(prev =>
+                                selected
+                                  ? prev.filter(c => c !== opt.code)
+                                  : [...prev, opt.code]
+                              )
+                            }
+                            className={cn(
+                              "px-2 py-0.5 rounded-full text-xs border transition-colors",
+                              selected
+                                ? "bg-primary text-white border-primary"
+                                : "bg-white border-gray-300 hover:bg-muted"
+                            )}
+                          >
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  {/* Pain location — free text */}
+                  <div>
+                    <Label className="text-xs">
+                      Локализация боли
+                      <span className="text-muted-foreground font-normal ml-1">
+                        (необязательно)
+                      </span>
+                    </Label>
+                    <Input
+                      value={painLocation}
+                      onChange={(e) => setPainLocation(e.target.value)}
+                      placeholder="Укажите, где болит"
+                      className="h-8 text-sm mt-1"
+                    />
+                  </div>
                 </div>
               ) : (
                 <div>
@@ -1382,15 +1500,24 @@ export default function EWSSection({
                         key={opt.score}
                         onClick={() => setPainScore(String(opt.score))}
                         className={cn(
-                          "flex flex-col items-center px-3 py-2 rounded border text-xs transition-colors",
+                          "flex flex-col items-center px-3 py-2 rounded border text-xs transition-colors text-left min-w-[100px]",
                           painScore === String(opt.score)
                             ? "bg-primary/10 border-primary"
-                            : "bg-white border-gray-200 hover:bg-muted/50",
+                            : "bg-white border-gray-200 hover:bg-muted/50"
                         )}
                       >
-                        <span className="text-2xl">{opt.emoji}</span>
-                        <span className="mt-1">{opt.label}</span>
-                        <span className="text-muted-foreground">{opt.range}</span>
+                        <span className="text-3xl mb-1">{opt.emoji}</span>
+                        <span className="font-medium text-center">{opt.label}</span>
+                        <span className="text-muted-foreground text-center mb-1">{opt.range}</span>
+                        {/* Behaviour — display only */}
+                        <ul className="text-muted-foreground text-left mt-1 space-y-0.5 w-full">
+                          {opt.behaviour.map((b, i) => (
+                            <li key={i} className="flex items-start gap-1">
+                              <span className="shrink-0">•</span>
+                              <span>{b}</span>
+                            </li>
+                          ))}
+                        </ul>
                       </button>
                     ))}
                   </div>
@@ -1410,6 +1537,8 @@ export default function EWSSection({
                   onClick={() => {
                     setShowPainForm(false);
                     setPainScore("");
+                    setPainCharacter([]);
+                    setPainLocation("");
                   }}
                 >
                   Отмена
@@ -1439,6 +1568,16 @@ export default function EWSSection({
                           {dt.getHours().toString().padStart(2, "0")}:
                           {dt.getMinutes().toString().padStart(2, "0")}
                         </div>
+                        {r.pain_character?.length > 0 && (
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            {r.pain_character.join(", ")}
+                          </div>
+                        )}
+                        {r.pain_location && (
+                          <div className="text-xs text-muted-foreground">
+                            {r.pain_location}
+                          </div>
+                        )}
                       </div>
                     );
                   },
