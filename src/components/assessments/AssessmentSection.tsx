@@ -354,7 +354,7 @@ export default function AssessmentSection({
             <span className="font-medium">
               {allItemsSelected
                 ? `Балл: ${totalScore} — ${getRiskLevel(totalScore, scaleCode).label}`
-                : `Выбрано ${Object.keys(selections).length} из ${itemCount} параметров`}
+                 : `Выбрано ${visibleSelections.length} из ${itemCount} параметров`}
             </span>
             {allItemsSelected && (
               <span className="text-xs opacity-75">
@@ -364,7 +364,7 @@ export default function AssessmentSection({
           </div>
 
           <div className="space-y-3">
-            {scale.assessment_scale_items.map((item: any) => {
+            {visibleItems.map((item: any) => {
               const selected = selections[item.id];
               return (
                 <div
