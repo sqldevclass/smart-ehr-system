@@ -198,6 +198,7 @@ export default function NursePatientDetail() {
 
   const latestFallRiskScore = (fallRiskAssessments[0] as any)?.total_score ?? null;
   const isFallRisk =
+    fallRiskScaleCode !== undefined &&
     latestFallRiskScore !== null &&
     (fallRiskScaleCode === "humpty_dumpty"
       ? latestFallRiskScore >= 12
