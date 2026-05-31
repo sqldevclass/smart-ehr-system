@@ -14,6 +14,7 @@ interface Props {
   isReadOnly?: boolean;
   patientDateOfBirth?: string;
   patientGender?: string;
+  hiddenItemCodes?: string[];
 }
 
 interface Selection {
@@ -114,6 +115,7 @@ export default function AssessmentSection({
   isReadOnly = false,
   patientDateOfBirth,
   patientGender,
+  hiddenItemCodes,
 }: Props) {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
