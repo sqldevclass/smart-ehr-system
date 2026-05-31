@@ -166,13 +166,12 @@ export default function NursePatientDetail() {
     enabled: !!hospId && !!user?.hospitalId,
   });
 
-  const patientAgeYears = (hosp as any)?.patients?.date_of_birth
-    ? differenceInYears(new Date(), new Date((hosp as any).patients.date_of_birth))
-    : null;
-  const fallRiskScaleCode =
-    patientAgeYears !== null && patientAgeYears < 18
-      ? "humpty_dumpty"
-      : "morse";
+  const fallRiskScaleCode = useMemo(() => {
+    const dob = (hosp as any)?.patients?.date_of_birth;
+    if (!dob) return undefined;
+    const ageYears = differenceInYears(new Date(), new Date(dob));
+    return ageYears < 18 ? "humpty_dumpty" : "morse";
+  }, [(hosp as any)?.patients?.date_of_birth]);
 
   const { data: fallRiskAssessments = [] } = useQuery({
     queryKey: ["fall-risk-assessments", hospId, fallRiskScaleCode],
