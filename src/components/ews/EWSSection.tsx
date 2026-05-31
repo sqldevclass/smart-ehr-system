@@ -1336,6 +1336,138 @@ export default function EWSSection({
         )}
       </div>
 
+      {painScaleType && (
+        <div className="space-y-2 border-t pt-4">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-medium">
+              Боль{" "}
+              <span className="text-xs text-muted-foreground font-normal">
+                ({painScaleType === "nrs" ? "NRS 0–10" : "Шкала лиц"})
+              </span>
+            </h4>
+            {!isReadOnly && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowPainForm(!showPainForm)}
+              >
+                + Внести
+              </Button>
+            )}
+          </div>
+          {showPainForm && !isReadOnly && (
+            <div className="border rounded p-3 space-y-2 bg-muted/30">
+              {painScaleType === "nrs" ? (
+                <div>
+                  <Label className="text-xs">Оценка боли (0–10)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={10}
+                    value={painScore}
+                    onChange={(e) => setPainScore(e.target.value)}
+                    className="h-8 text-sm mt-1 w-24"
+                    placeholder="0–10"
+                    autoFocus
+                  />
+                </div>
+              ) : (
+                <div>
+                  <Label className="text-xs mb-2 block">
+                    Выберите уровень боли
+                  </Label>
+                  <div className="flex gap-2 flex-wrap">
+                    {facesOptions.map((opt) => (
+                      <button
+                        key={opt.score}
+                        onClick={() => setPainScore(String(opt.score))}
+                        className={cn(
+                          "flex flex-col items-center px-3 py-2 rounded border text-xs transition-colors",
+                          painScore === String(opt.score)
+                            ? "bg-primary/10 border-primary"
+                            : "bg-white border-gray-200 hover:bg-muted/50",
+                        )}
+                      >
+                        <span className="text-2xl">{opt.emoji}</span>
+                        <span className="mt-1">{opt.label}</span>
+                        <span className="text-muted-foreground">{opt.range}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="flex gap-2 items-end">
+                <Button
+                  size="sm"
+                  disabled={!painScore}
+                  onClick={handleSubmitPain}
+                >
+                  Сохранить
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setShowPainForm(false);
+                    setPainScore("");
+                  }}
+                >
+                  Отмена
+                </Button>
+              </div>
+            </div>
+          )}
+          {painReadings.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Нет записей</p>
+          ) : (
+            <div className="space-y-1">
+              <div className="flex gap-4 overflow-x-auto pb-1">
+                {(showAllPain ? painReadings : painReadings.slice(0, 5)).map(
+                  (r: any) => {
+                    const dt = new Date(r.recorded_at);
+                    return (
+                      <div key={r.id} className="shrink-0 text-left">
+                        <div className={cn("text-sm font-semibold", painColor(r.score))}>
+                          {r.score}
+                          <span className="text-xs font-normal text-muted-foreground ml-1">
+                            /10
+                          </span>
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {dt.getDate().toString().padStart(2, "0")}.
+                          {(dt.getMonth() + 1).toString().padStart(2, "0")}{" "}
+                          {dt.getHours().toString().padStart(2, "0")}:
+                          {dt.getMinutes().toString().padStart(2, "0")}
+                        </div>
+                      </div>
+                    );
+                  },
+                )}
+              </div>
+              {!showAllPain && painReadings.length > 5 && (
+                <button
+                  onClick={() => setShowAllPain(true)}
+                  className="text-xs text-primary underline"
+                >
+                  Показать все ({painReadings.length})
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeFormCodes.has("cpot") && (
+        <div className="border-t pt-4 mt-4">
+          <CpotSection
+            hospitalizationId={hospitalizationId}
+            patientId={patientId}
+            hospitalId={hospitalId}
+            isReadOnly={isReadOnly}
+          />
+        </div>
+      )}
+
       {gcsActivated && (
         <div className="space-y-3">
           <div className="flex items-center gap-2 px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800 text-sm">
