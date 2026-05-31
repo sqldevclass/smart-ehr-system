@@ -142,10 +142,21 @@ export default function EWSSection({
     () => new Set((activeFormsData as any[]).map((f) => f.scale_code)),
     [activeFormsData],
   );
-  const availableOptionalScales = useMemo(
-    () => (optionalScales as any[]).filter((s) => !activeFormCodes.has(s.code)),
-    [optionalScales, activeFormCodes],
+  const allOptionalForms = useMemo(
+    () => [
+      ...(optionalScales as any[]).map((s) => ({
+        code: s.code,
+        name: s.name_ru,
+      })),
+      { code: "fluid_balance", name: "Баланс жидкости" },
+    ],
+    [optionalScales],
   );
+  const availableForms = useMemo(
+    () => allOptionalForms.filter((f) => !activeFormCodes.has(f.code)),
+    [allOptionalForms, activeFormCodes],
+  );
+
 
   const handleSubmitPain = async () => {
     if (!painScore || !painScaleType) return;
