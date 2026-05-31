@@ -300,17 +300,19 @@ export default function NursePatientDetail() {
               hospitalId={user!.hospitalId}
             />
           </div>
-          <div className="border-t pt-4 mt-4">
-            <AssessmentSection
-              scaleCode={fallRiskScaleCode}
-              hospitalizationId={hospId!}
-              patientId={patient.id}
-              hospitalId={user!.hospitalId}
-              isReadOnly={false}
-              patientDateOfBirth={patient.date_of_birth}
-              patientGender={patient.gender}
-            />
-          </div>
+          {fallRiskScaleCode && (
+            <div className="border-t pt-4 mt-4">
+              <AssessmentSection
+                scaleCode={fallRiskScaleCode}
+                hospitalizationId={hospId!}
+                patientId={patient.id}
+                hospitalId={user!.hospitalId}
+                isReadOnly={false}
+                patientDateOfBirth={patient.date_of_birth}
+                patientGender={patient.gender}
+              />
+            </div>
+          )}
         </div>
 
         <div
