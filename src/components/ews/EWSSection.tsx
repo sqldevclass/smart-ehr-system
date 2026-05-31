@@ -1448,9 +1448,9 @@ export default function EWSSection({
       </div>
 
       {painScaleType && (
-        <div className="space-y-2 border-t pt-4">
+        <div className="border rounded-lg p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <h4 className="text-sm font-medium">
+            <h4 className="text-sm font-semibold">
               Боль{" "}
               <span className="text-xs text-muted-foreground font-normal">
                 ({painScaleType === "nrs" ? "NRS 0–10" : "Шкала лиц"})
