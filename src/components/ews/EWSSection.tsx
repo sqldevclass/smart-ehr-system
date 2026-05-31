@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { differenceInMonths, format } from "date-fns";
+import { differenceInMonths, differenceInYears, format } from "date-fns";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,12 +14,14 @@ import {
 import { cn } from "@/lib/utils";
 import EWSChart from "./EWSChart";
 import AssessmentSection from "@/components/assessments/AssessmentSection";
+import CpotSection from "@/components/assessments/CpotSection";
 
 interface Props {
   hospitalizationId: string;
   patientId: string;
   hospitalId: string;
   patientDateOfBirth: string;
+  patientGender?: string;
   admittedAt: string;
   isReadOnly?: boolean;
   canOverride?: boolean;
