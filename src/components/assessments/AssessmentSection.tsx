@@ -121,64 +121,6 @@ export default function AssessmentSection({
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Pre-populate Humpty Dumpty fields from patient demographics
-  useEffect(() => {
-    if (scaleCode !== "humpty_dumpty") return;
-    if (!scale?.assessment_scale_items?.length) return;
-    if (Object.keys(selections).length > 0) return; // don't overwrite if already set
-
-    const preSelections: Record<string, { optionId: string; score: number }> = {};
-
-    // Pre-populate Age
-    if (patientDateOfBirth) {
-      const ageYears = differenceInYears(new Date(), new Date(patientDateOfBirth));
-      const ageItem = scale.assessment_scale_items.find((i: any) => i.code === "age");
-      if (ageItem) {
-        let targetScore: number;
-        if (ageYears < 3) targetScore = 4;
-        else if (ageYears <= 6) targetScore = 3;
-        else if (ageYears <= 12) targetScore = 2;
-        else targetScore = 1;
-
-        const matchedOption = ageItem.assessment_scale_item_options.find(
-          (o: any) => o.score === targetScore
-        );
-        if (matchedOption) {
-          preSelections[ageItem.id] = {
-            optionId: matchedOption.id,
-            score: matchedOption.score,
-          };
-        }
-      }
-    }
-
-    // Pre-populate Gender
-    if (patientGender) {
-      const genderItem = scale.assessment_scale_items.find((i: any) => i.code === "gender");
-      if (genderItem) {
-        const isMale =
-          patientGender.toLowerCase().startsWith("m") ||
-          patientGender === "м" ||
-          patientGender === "male";
-        const targetScore = isMale ? 2 : 1;
-
-        const matchedOption = genderItem.assessment_scale_item_options.find(
-          (o: any) => o.score === targetScore
-        );
-        if (matchedOption) {
-          preSelections[genderItem.id] = {
-            optionId: matchedOption.id,
-            score: matchedOption.score,
-          };
-        }
-      }
-    }
-
-    if (Object.keys(preSelections).length > 0) {
-      setSelections(preSelections);
-    }
-  }, [scale, scaleCode, patientDateOfBirth, patientGender]);
-
 
   const { data: scale } = useQuery({
     queryKey: ["assessment-scale", scaleCode],
