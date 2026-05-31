@@ -86,6 +86,7 @@ export default function EWSSection({
   const [painLocation, setPainLocation] = useState("");
   const [showAllPain, setShowAllPain] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showAllSepsisHistory, setShowAllSepsisHistory] = useState(false);
 
   const painScaleType = useMemo<"nrs" | "faces" | undefined>(() => {
     if (!patientDateOfBirth) return undefined;
