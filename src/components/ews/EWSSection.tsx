@@ -1568,6 +1568,16 @@ export default function EWSSection({
                           {dt.getHours().toString().padStart(2, "0")}:
                           {dt.getMinutes().toString().padStart(2, "0")}
                         </div>
+                        {r.pain_character?.length > 0 && (
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            {r.pain_character.join(", ")}
+                          </div>
+                        )}
+                        {r.pain_location && (
+                          <div className="text-xs text-muted-foreground">
+                            {r.pain_location}
+                          </div>
+                        )}
                       </div>
                     );
                   },
