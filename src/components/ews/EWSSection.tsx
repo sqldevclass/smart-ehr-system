@@ -1424,18 +1424,70 @@ export default function EWSSection({
           {showPainForm && !isReadOnly && (
             <div className="border rounded p-3 space-y-2 bg-muted/30">
               {painScaleType === "nrs" ? (
-                <div>
-                  <Label className="text-xs">Оценка боли (0–10)</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    max={10}
-                    value={painScore}
-                    onChange={(e) => setPainScore(e.target.value)}
-                    className="h-8 text-sm mt-1 w-24"
-                    placeholder="0–10"
-                    autoFocus
-                  />
+                <div className="space-y-2">
+                  <div>
+                    <Label className="text-xs">Оценка боли (0–10)</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={10}
+                      value={painScore}
+                      onChange={(e) => setPainScore(e.target.value)}
+                      className="h-8 text-sm mt-1 w-24"
+                      placeholder="0–10"
+                      autoFocus
+                    />
+                  </div>
+                  {/* Pain character — multi-select chips */}
+                  <div>
+                    <Label className="text-xs">
+                      Характер боли
+                      <span className="text-muted-foreground font-normal ml-1">
+                        (необязательно)
+                      </span>
+                    </Label>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {painCharacterOptions.map((opt) => {
+                        const selected = painCharacter.includes(opt.code);
+                        return (
+                          <button
+                            key={opt.code}
+                            type="button"
+                            onClick={() =>
+                              setPainCharacter(prev =>
+                                selected
+                                  ? prev.filter(c => c !== opt.code)
+                                  : [...prev, opt.code]
+                              )
+                            }
+                            className={cn(
+                              "px-2 py-0.5 rounded-full text-xs border transition-colors",
+                              selected
+                                ? "bg-primary text-white border-primary"
+                                : "bg-white border-gray-300 hover:bg-muted"
+                            )}
+                          >
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  {/* Pain location — free text */}
+                  <div>
+                    <Label className="text-xs">
+                      Локализация боли
+                      <span className="text-muted-foreground font-normal ml-1">
+                        (необязательно)
+                      </span>
+                    </Label>
+                    <Input
+                      value={painLocation}
+                      onChange={(e) => setPainLocation(e.target.value)}
+                      placeholder="Укажите, где болит"
+                      className="h-8 text-sm mt-1"
+                    />
+                  </div>
                 </div>
               ) : (
                 <div>
@@ -1448,15 +1500,24 @@ export default function EWSSection({
                         key={opt.score}
                         onClick={() => setPainScore(String(opt.score))}
                         className={cn(
-                          "flex flex-col items-center px-3 py-2 rounded border text-xs transition-colors",
+                          "flex flex-col items-center px-3 py-2 rounded border text-xs transition-colors text-left min-w-[100px]",
                           painScore === String(opt.score)
                             ? "bg-primary/10 border-primary"
-                            : "bg-white border-gray-200 hover:bg-muted/50",
+                            : "bg-white border-gray-200 hover:bg-muted/50"
                         )}
                       >
-                        <span className="text-2xl">{opt.emoji}</span>
-                        <span className="mt-1">{opt.label}</span>
-                        <span className="text-muted-foreground">{opt.range}</span>
+                        <span className="text-3xl mb-1">{opt.emoji}</span>
+                        <span className="font-medium text-center">{opt.label}</span>
+                        <span className="text-muted-foreground text-center mb-1">{opt.range}</span>
+                        {/* Behaviour — display only */}
+                        <ul className="text-muted-foreground text-left mt-1 space-y-0.5 w-full">
+                          {opt.behaviour.map((b, i) => (
+                            <li key={i} className="flex items-start gap-1">
+                              <span className="shrink-0">•</span>
+                              <span>{b}</span>
+                            </li>
+                          ))}
+                        </ul>
                       </button>
                     ))}
                   </div>
@@ -1476,6 +1537,8 @@ export default function EWSSection({
                   onClick={() => {
                     setShowPainForm(false);
                     setPainScore("");
+                    setPainCharacter([]);
+                    setPainLocation("");
                   }}
                 >
                   Отмена
