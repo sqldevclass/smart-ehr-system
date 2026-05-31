@@ -1283,7 +1283,40 @@ export default function EWSSection({
         />
       )}
 
-      <hr className="border-gray-200" />
+      {!isReadOnly && (
+        <div className="flex justify-end mb-3">
+          <div className="relative">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs"
+              onClick={() => setShowAddForm(!showAddForm)}
+            >
+              Добавить форму ▾
+            </Button>
+            {showAddForm && (
+              <div className="absolute right-0 top-full mt-1 bg-white border rounded-md shadow-lg z-50 min-w-52 py-1">
+                {availableForms.length === 0 ? (
+                  <div className="px-3 py-2 text-sm text-muted-foreground">
+                    Все формы добавлены
+                  </div>
+                ) : (
+                  availableForms.map((f) => (
+                    <button
+                      key={f.code}
+                      onClick={() => handleActivateForm(f.code)}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50"
+                    >
+                      {f.name}
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
 
       <div>
         <div className="flex items-center justify-between mb-3">
