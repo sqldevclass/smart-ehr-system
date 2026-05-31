@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useNurseLayoutContext } from "@/components/nurse/NurseLayout";
-import { format } from "date-fns";
+import { format, differenceInYears } from "date-fns";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -166,15 +166,23 @@ export default function NursePatientDetail() {
     enabled: !!hospId && !!user?.hospitalId,
   });
 
-  const { data: morseAssessments = [] } = useQuery({
-    queryKey: ["morse-assessments", hospId],
+  const patientAgeYears = (hosp as any)?.patients?.date_of_birth
+    ? differenceInYears(new Date(), new Date((hosp as any).patients.date_of_birth))
+    : null;
+  const fallRiskScaleCode =
+    patientAgeYears !== null && patientAgeYears < 18
+      ? "humpty_dumpty"
+      : "morse";
+
+  const { data: fallRiskAssessments = [] } = useQuery({
+    queryKey: ["fall-risk-assessments", hospId, fallRiskScaleCode],
     enabled: !!hospId,
     staleTime: 0,
     queryFn: async () => {
       const { data: scale } = await supabase
         .from("assessment_scales")
         .select("id")
-        .eq("code", "morse")
+        .eq("code", fallRiskScaleCode)
         .single();
       if (!scale) return [];
       const { data } = await supabase
@@ -189,8 +197,12 @@ export default function NursePatientDetail() {
     },
   });
 
-  const latestMorseScore = (morseAssessments[0] as any)?.total_score ?? null;
-  const isFallRisk = latestMorseScore !== null && latestMorseScore >= 51;
+  const latestFallRiskScore = (fallRiskAssessments[0] as any)?.total_score ?? null;
+  const isFallRisk =
+    latestFallRiskScore !== null &&
+    (fallRiskScaleCode === "humpty_dumpty"
+      ? latestFallRiskScore >= 12
+      : latestFallRiskScore >= 51);
 
   const patient = (hosp as any)?.patients;
   const ra = (hosp as any)?.room_assignments?.[0];
@@ -290,7 +302,7 @@ export default function NursePatientDetail() {
           </div>
           <div className="border-t pt-4 mt-4">
             <AssessmentSection
-              scaleCode="morse"
+              scaleCode={fallRiskScaleCode}
               hospitalizationId={hospId!}
               patientId={patient.id}
               hospitalId={user!.hospitalId}
