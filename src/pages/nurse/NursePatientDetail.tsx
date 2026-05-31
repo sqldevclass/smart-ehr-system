@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -166,17 +166,16 @@ export default function NursePatientDetail() {
     enabled: !!hospId && !!user?.hospitalId,
   });
 
-  const patientAgeYears = (hosp as any)?.patients?.date_of_birth
-    ? differenceInYears(new Date(), new Date((hosp as any).patients.date_of_birth))
-    : null;
-  const fallRiskScaleCode =
-    patientAgeYears !== null && patientAgeYears < 18
-      ? "humpty_dumpty"
-      : "morse";
+  const fallRiskScaleCode = useMemo(() => {
+    const dob = (hosp as any)?.patients?.date_of_birth;
+    if (!dob) return undefined;
+    const ageYears = differenceInYears(new Date(), new Date(dob));
+    return ageYears < 18 ? "humpty_dumpty" : "morse";
+  }, [(hosp as any)?.patients?.date_of_birth]);
 
   const { data: fallRiskAssessments = [] } = useQuery({
     queryKey: ["fall-risk-assessments", hospId, fallRiskScaleCode],
-    enabled: !!hospId,
+    enabled: !!hospId && fallRiskScaleCode !== undefined,
     staleTime: 0,
     queryFn: async () => {
       const { data: scale } = await supabase
@@ -199,6 +198,7 @@ export default function NursePatientDetail() {
 
   const latestFallRiskScore = (fallRiskAssessments[0] as any)?.total_score ?? null;
   const isFallRisk =
+    fallRiskScaleCode !== undefined &&
     latestFallRiskScore !== null &&
     (fallRiskScaleCode === "humpty_dumpty"
       ? latestFallRiskScore >= 12
@@ -300,17 +300,19 @@ export default function NursePatientDetail() {
               hospitalId={user!.hospitalId}
             />
           </div>
-          <div className="border-t pt-4 mt-4">
-            <AssessmentSection
-              scaleCode={fallRiskScaleCode}
-              hospitalizationId={hospId!}
-              patientId={patient.id}
-              hospitalId={user!.hospitalId}
-              isReadOnly={false}
-              patientDateOfBirth={patient.date_of_birth}
-              patientGender={patient.gender}
-            />
-          </div>
+          {fallRiskScaleCode && (
+            <div className="border-t pt-4 mt-4">
+              <AssessmentSection
+                scaleCode={fallRiskScaleCode}
+                hospitalizationId={hospId!}
+                patientId={patient.id}
+                hospitalId={user!.hospitalId}
+                isReadOnly={false}
+                patientDateOfBirth={patient.date_of_birth}
+                patientGender={patient.gender}
+              />
+            </div>
+          )}
         </div>
 
         <div

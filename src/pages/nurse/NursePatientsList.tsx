@@ -163,7 +163,7 @@ export default function NursePatientsList() {
     const map: Record<string, {
       bradenScore: number | null;
       fallRiskScore: number | null;
-      fallRiskScale: "morse" | "humpty_dumpty";
+      fallRiskScale: "morse" | "humpty_dumpty" | undefined;
       bradenPending: boolean;
       fallRiskPending: boolean;
       pendingCount: number;
@@ -172,13 +172,15 @@ export default function NursePatientsList() {
       const bradenLatest = latestAssessments.find(
         (a: any) => a.hospitalization_id === h.id && a.scale_id === bradenScale?.id
       );
-      const ageYears = h.patients?.date_of_birth
-        ? differenceInYears(new Date(), new Date(h.patients.date_of_birth))
-        : 99;
-      const fallRiskScale: "morse" | "humpty_dumpty" =
-        ageYears < 18 ? "humpty_dumpty" : "morse";
-      const fallRiskScaleId =
-        fallRiskScale === "humpty_dumpty" ? humptyDumptyScale?.id : morseScale?.id;
+      const dob = h.patients?.date_of_birth;
+      const fallRiskScale: "morse" | "humpty_dumpty" | undefined = dob
+        ? (differenceInYears(new Date(), new Date(dob)) < 18
+            ? "humpty_dumpty"
+            : "morse")
+        : undefined;
+      const fallRiskScaleId = fallRiskScale
+        ? (fallRiskScale === "humpty_dumpty" ? humptyDumptyScale?.id : morseScale?.id)
+        : undefined;
       const fallRiskLatest = fallRiskScaleId
         ? latestAssessments.find(
             (a: any) => a.hospitalization_id === h.id && a.scale_id === fallRiskScaleId
@@ -188,14 +190,16 @@ export default function NursePatientsList() {
         bradenLatest.next_assessment_at &&
         new Date(bradenLatest.next_assessment_at) <= new Date()
       );
-      const fallRiskPending = !fallRiskLatest || (
-        fallRiskLatest.next_assessment_at &&
-        new Date(fallRiskLatest.next_assessment_at) <= new Date()
-      );
+      const fallRiskPending = fallRiskScale
+        ? (!fallRiskLatest || (
+            fallRiskLatest.next_assessment_at &&
+            new Date(fallRiskLatest.next_assessment_at) <= new Date()
+          ))
+        : false;
       map[h.id] = {
         bradenScore: (bradenLatest as any)?.total_score ?? null,
         fallRiskScore: (fallRiskLatest as any)?.total_score ?? null,
-        fallRiskScale,
+        fallRiskScale: fallRiskScale ?? undefined,
         bradenPending: !!bradenPending,
         fallRiskPending: !!fallRiskPending,
         pendingCount: (bradenPending ? 1 : 0) + (fallRiskPending ? 1 : 0),
