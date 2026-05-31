@@ -55,6 +55,7 @@ export default function EWSSection({
   patientId,
   hospitalId,
   patientDateOfBirth,
+  patientGender,
   admittedAt,
   isReadOnly = false,
   canOverride = false,
