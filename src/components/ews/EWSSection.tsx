@@ -1867,7 +1867,10 @@ export default function EWSSection({
               <div className="border rounded p-3 space-y-2 bg-muted/30">
                 <div className="flex rounded-md border overflow-hidden w-fit">
                   <button
-                    onClick={() => setFluidEntryType("intake")}
+                    onClick={() => {
+                      setFluidEntryType("intake");
+                      setFluidCategory("");
+                    }}
                     className={cn(
                       "px-3 py-1 text-xs font-medium",
                       fluidEntryType === "intake"
@@ -1878,7 +1881,10 @@ export default function EWSSection({
                     Введено
                   </button>
                   <button
-                    onClick={() => setFluidEntryType("output")}
+                    onClick={() => {
+                      setFluidEntryType("output");
+                      setFluidCategory("");
+                    }}
                     className={cn(
                       "px-3 py-1 text-xs font-medium border-l",
                       fluidEntryType === "output"
