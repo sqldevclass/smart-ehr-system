@@ -62,7 +62,7 @@ export default function PatientDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("patient_allergies")
-        .select("id, allergy_type, description, severity")
+        .select("id, allergy_type, description, severity, reaction")
         .eq("patient_id", patientId!);
       if (error) throw error;
       return data || [];
@@ -213,10 +213,15 @@ export default function PatientDetail() {
         {showAllergies && allergies.length > 0 && (
           <div className="space-y-1 rounded-md border border-destructive/30 bg-destructive/5 p-3">
             {allergies.map((a: any) => (
-              <div key={a.id} className="grid grid-cols-3 gap-2 text-xs">
-                <span className="capitalize font-medium">{a.allergy_type}</span>
-                <span className="text-muted-foreground">{a.description}</span>
-                <span className="capitalize text-muted-foreground">{a.severity}</span>
+              <div key={a.id}>
+                <span className="capitalize font-medium">
+                  {a.description || a.allergy_type}
+                </span>
+                {a.reaction && (
+                  <p className="text-xs text-muted-foreground">
+                    Реакция: {a.reaction}
+                  </p>
+                )}
               </div>
             ))}
           </div>
