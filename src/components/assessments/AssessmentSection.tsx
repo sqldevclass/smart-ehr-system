@@ -321,7 +321,7 @@ export default function AssessmentSection({
             </p>
           )}
         </div>
-        {!isReadOnly && (
+        {!autoOpenForm && !isReadOnly && (
           <Button
             size="sm"
             variant="outline"
