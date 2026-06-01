@@ -1419,6 +1419,8 @@ export default function EWSSection({
         />
       )}
 
+      </>)}
+      {panelMode !== "ews-only" && (<>
       {!isReadOnly && (
         <div className="flex justify-end mb-3">
           <div className="relative">
