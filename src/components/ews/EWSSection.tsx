@@ -27,6 +27,7 @@ interface Props {
   canOverride?: boolean;
   viewerRole: "nurse" | "physician";
   externalAlertActive?: boolean;
+  panelMode?: "full" | "ews-only" | "monitoring-only";
 }
 
 const SEPSIS_SIGN_LABELS: Record<string, string> = {
