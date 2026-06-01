@@ -27,6 +27,7 @@ interface Props {
   canOverride?: boolean;
   viewerRole: "nurse" | "physician";
   externalAlertActive?: boolean;
+  panelMode?: "full" | "ews-only" | "monitoring-only";
 }
 
 const SEPSIS_SIGN_LABELS: Record<string, string> = {
@@ -63,6 +64,7 @@ export default function EWSSection({
   canOverride = false,
   viewerRole,
   externalAlertActive = false,
+  panelMode = "full",
 }: Props) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -893,6 +895,7 @@ export default function EWSSection({
 
   return (
     <div className="space-y-4">
+      {panelMode !== "monitoring-only" && (<>
       <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
         <div className="shrink-0">
           <h3 className="font-semibold">ШРПУ</h3>
@@ -1416,6 +1419,8 @@ export default function EWSSection({
         />
       )}
 
+      </>)}
+      {panelMode !== "ews-only" && (<>
       {!isReadOnly && (
         <div className="flex justify-end mb-3">
           <div className="relative">
@@ -2045,6 +2050,7 @@ export default function EWSSection({
           )}
         </div>
       )}
+      </>)}
     </div>
   );
 }

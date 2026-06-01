@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +15,7 @@ import {
 import EWSSection from "@/components/ews/EWSSection";
 import AssessmentSection from "@/components/assessments/AssessmentSection";
 import FallingPersonIcon from "@/components/assessments/FallingPersonIcon";
+import { cn } from "@/lib/utils";
 
 const EMPTY_VITALS = {
   bp_systolic: "",
@@ -45,26 +46,8 @@ export default function NursePatientDetail() {
   const [showVitalsForm, setShowVitalsForm] = useState(false);
   const [vitals, setVitals] = useState<Record<string, string>>(EMPTY_VITALS);
   const [saving, setSaving] = useState(false);
-  const [leftWidth, setLeftWidth] = useState(50);
-  const [isDragging, setIsDragging] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!isDragging) return;
-    const onMove = (e: MouseEvent) => {
-      if (!containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const pct = ((e.clientX - rect.left) / rect.width) * 100;
-      setLeftWidth(Math.min(80, Math.max(20, pct)));
-    };
-    const onUp = () => setIsDragging(false);
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-  }, [isDragging]);
+  const [panelOffset, setPanelOffset] = useState(0);
+  // 0 = panels 1+2, 1 = panel 3 + empty
 
   const { data: hosp, isLoading } = useQuery({
     queryKey: ["nurse-hosp", hospId],
@@ -256,71 +239,115 @@ export default function NursePatientDetail() {
       </div>
 
 
-      <div
-        ref={containerRef}
-        className="flex flex-1 overflow-hidden select-none"
-      >
+      <div className="flex-1 overflow-hidden relative">
+        {panelOffset > 0 && (
+          <button
+            onClick={() => setPanelOffset(0)}
+            className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-white border shadow-md flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            ◀
+          </button>
+        )}
+        {panelOffset < 1 && (
+          <button
+            onClick={() => setPanelOffset(1)}
+            className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-white border shadow-md flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            ▶
+          </button>
+        )}
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex gap-1.5">
+          {[0, 1].map((i) => (
+            <button
+              key={i}
+              onClick={() => setPanelOffset(i)}
+              className={cn(
+                "w-2 h-2 rounded-full transition-colors",
+                panelOffset === i ? "bg-primary" : "bg-gray-300"
+              )}
+            />
+          ))}
+        </div>
+
         <div
-          style={{ width: `${leftWidth}%` }}
-          className="overflow-y-auto shrink-0 p-4"
+          className="flex h-full transition-transform duration-300 ease-in-out"
+          style={{
+            width: "200%",
+            transform: `translateX(${-panelOffset * 50}%)`,
+          }}
         >
-          <EWSSection
-            hospitalizationId={hospId!}
-            patientId={patient.id}
-            hospitalId={user!.hospitalId}
-            patientDateOfBirth={patient.date_of_birth}
-            admittedAt={(hosp as any).admitted_at}
-            isReadOnly={false}
-            viewerRole="nurse"
-          />
-          <div className="mt-6 pt-6 border-t">
-            <AssessmentSection
-              scaleCode="braden"
+          {/* Panel 1 — ШРПУ */}
+          <div className="w-1/4 h-full overflow-y-auto border-r p-4">
+            <EWSSection
               hospitalizationId={hospId!}
               patientId={patient.id}
               hospitalId={user!.hospitalId}
+              patientDateOfBirth={patient.date_of_birth}
+              admittedAt={(hosp as any).admitted_at}
+              isReadOnly={false}
+              viewerRole="nurse"
+              panelMode="ews-only"
             />
           </div>
-          {fallRiskScaleCode && (
-            <div className="border-t pt-4 mt-4">
+
+          {/* Panel 2 — Мониторинг */}
+          <div className="w-1/4 h-full overflow-y-auto border-r p-4">
+            <EWSSection
+              hospitalizationId={hospId!}
+              patientId={patient.id}
+              hospitalId={user!.hospitalId}
+              patientDateOfBirth={patient.date_of_birth}
+              admittedAt={(hosp as any).admitted_at}
+              isReadOnly={false}
+              viewerRole="nurse"
+              panelMode="monitoring-only"
+            />
+            <div className="mt-6 pt-6 border-t">
               <AssessmentSection
-                scaleCode={fallRiskScaleCode}
+                scaleCode="braden"
                 hospitalizationId={hospId!}
                 patientId={patient.id}
                 hospitalId={user!.hospitalId}
-                isReadOnly={false}
-                patientDateOfBirth={patient.date_of_birth}
-                patientGender={patient.gender}
               />
             </div>
-          )}
-        </div>
-
-        <div
-          onMouseDown={() => setIsDragging(true)}
-          className="w-px bg-gray-300 hover:bg-gray-400 cursor-col-resize shrink-0 transition-colors"
-        />
-
-        <div
-          style={{ width: `${100 - leftWidth}%` }}
-          className="overflow-y-auto p-4"
-        >
-          <h3 className="font-semibold mb-4">Уход и назначения</h3>
-          {careOrders.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Назначений нет</p>
-          ) : careOrders.map((o: any) => (
-            <div key={o.id} className="border rounded p-3 space-y-1 mb-2">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                {ORDER_TYPE_LABELS[o.order_type as keyof typeof ORDER_TYPE_LABELS] ?? o.order_type}
-              </span>
-              <p className="text-sm">{o.order_value}</p>
-              <div className="text-xs text-muted-foreground">
-                {o.profiles?.full_name} · {format(new Date(o.ordered_at), "dd.MM.yyyy HH:mm")}
+            {fallRiskScaleCode && (
+              <div className="border-t pt-4 mt-4">
+                <AssessmentSection
+                  scaleCode={fallRiskScaleCode}
+                  hospitalizationId={hospId!}
+                  patientId={patient.id}
+                  hospitalId={user!.hospitalId}
+                  isReadOnly={false}
+                  patientDateOfBirth={patient.date_of_birth}
+                  patientGender={patient.gender}
+                />
               </div>
-            </div>
-          ))}
+            )}
+          </div>
+
+          {/* Panel 3 — Уход и назначения */}
+          <div className="w-1/4 h-full overflow-y-auto border-r p-4">
+            <h3 className="font-semibold mb-4">Уход и назначения</h3>
+            {careOrders.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Назначений нет</p>
+            ) : careOrders.map((o: any) => (
+              <div key={o.id} className="border rounded p-3 space-y-1 mb-2">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  {ORDER_TYPE_LABELS[o.order_type as keyof typeof ORDER_TYPE_LABELS] ?? o.order_type}
+                </span>
+                <p className="text-sm">{o.order_value}</p>
+                <div className="text-xs text-muted-foreground">
+                  {o.profiles?.full_name} · {format(new Date(o.ordered_at), "dd.MM.yyyy HH:mm")}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Panel 4 — empty reserved */}
+          <div className="w-1/4 h-full" />
         </div>
       </div>
+
     </div>
   );
 }
