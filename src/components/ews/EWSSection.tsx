@@ -120,11 +120,8 @@ export default function EWSSection({
     return d;
   }, [todayStart]);
 
-  const fluidEnabled = activeFormCodes.has("fluid_balance");
-
   const { data: todayEntries = [] } = useQuery({
     queryKey: ["fluid-today", hospitalizationId],
-    enabled: fluidEnabled,
     staleTime: 0,
     queryFn: async () => {
       const { data } = await supabase
@@ -139,7 +136,6 @@ export default function EWSSection({
 
   const { data: yesterdayEntries = [] } = useQuery({
     queryKey: ["fluid-yesterday", hospitalizationId],
-    enabled: fluidEnabled,
     queryFn: async () => {
       const { data } = await supabase
         .from("fluid_balance_entries")
