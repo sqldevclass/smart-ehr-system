@@ -9,7 +9,14 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import StatusBadge from "@/components/medication/StatusBadge";
+import { format } from "date-fns";
+import PrescriptionGrid from "@/components/medication/PrescriptionGrid";
+
+const TIME_CHIPS = Array.from({ length: 48 }, (_, i) => {
+  const h = Math.floor(i / 2).toString().padStart(2, "0");
+  const m = i % 2 === 0 ? "00" : "30";
+  return `${h}:${m}`;
+});
 
 interface Props {
   hospitalizationId: string;
