@@ -253,6 +253,7 @@ export default function MedicationTab({
       is_drafted: true,
       status_code: "preliminary",
       prescribed_by: physicianId,
+      prescribed_at: startDay.toISOString(),
     });
     if (error) {
       toast.error(error.message);
