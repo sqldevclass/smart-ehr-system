@@ -43,12 +43,14 @@ const bgColor: Record<string, string> = {
   red: "bg-red-200",
 };
 
-const escalationColors: Record<number, string> = {
-  0: "bg-green-50 border-green-200 text-green-800",
-  1: "bg-yellow-50 border-yellow-200 text-yellow-800",
-  2: "bg-orange-50 border-orange-200 text-orange-800",
-  3: "bg-red-50 border-red-200 text-red-800",
+const formatDateTime = (date: Date): string => {
+  const dd = date.getDate().toString().padStart(2, "0");
+  const mm = (date.getMonth() + 1).toString().padStart(2, "0");
+  const hh = date.getHours().toString().padStart(2, "0");
+  const min = date.getMinutes().toString().padStart(2, "0");
+  return `${dd}.${mm} ${hh}:${min}`;
 };
+
 
 export default function EWSSection({
   hospitalizationId,
@@ -123,6 +125,7 @@ export default function EWSSection({
   const { data: todayEntries = [] } = useQuery({
     queryKey: ["fluid-today", hospitalizationId],
     staleTime: 0,
+    enabled: activeFormCodes.has("fluid_balance"),
     queryFn: async () => {
       const { data } = await supabase
         .from("fluid_balance_entries")
@@ -136,6 +139,7 @@ export default function EWSSection({
 
   const { data: yesterdayEntries = [] } = useQuery({
     queryKey: ["fluid-yesterday", hospitalizationId],
+    enabled: activeFormCodes.has("fluid_balance"),
     queryFn: async () => {
       const { data } = await supabase
         .from("fluid_balance_entries")
