@@ -1895,18 +1895,24 @@ export default function EWSSection({
                     Выделено
                   </button>
                 </div>
-                <select
-                  value={fluidCategory}
-                  onChange={(e) => setFluidCategory(e.target.value)}
-                  className="w-full text-sm border rounded px-2 py-1.5 bg-white"
-                >
-                  <option value="">Выберите категорию</option>
+                <div className="flex flex-wrap gap-1.5">
                   {(fluidEntryType === "intake" ? intakeCategories : outputCategories).map((c) => (
-                    <option key={c.code} value={c.code}>
+                    <button
+                      key={c.code}
+                      type="button"
+                      onClick={() => setFluidCategory(fluidCategory === c.code ? "" : c.code)}
+                      className={cn(
+                        "px-3 py-1 rounded-full text-xs",
+                        "border transition-colors",
+                        fluidCategory === c.code
+                          ? "bg-primary text-white border-primary"
+                          : "bg-white border-gray-300 hover:bg-muted text-gray-700"
+                      )}
+                    >
                       {c.label}
-                    </option>
+                    </button>
                   ))}
-                </select>
+                </div>
                 <div className="flex items-center gap-2">
                   <Input
                     type="number"
