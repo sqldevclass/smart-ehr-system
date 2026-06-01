@@ -277,9 +277,11 @@ export default function OrdersPage() {
                           {allergyWarning ? "🔴 АЛЛЕРГИЯ" : "⚠ Аллергия"}:
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          {allergies
-                            .map((a: any) => a.allergy_type)
-                            .join(", ")}
+                          {allergies.map((a: any) =>
+                            a.reaction
+                              ? `${a.allergy_type} (${a.reaction})`
+                              : a.allergy_type
+                          ).join(", ")}
                         </span>
                       </div>
                     )}
