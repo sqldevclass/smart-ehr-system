@@ -1415,7 +1415,7 @@ export default function EWSSection({
       )}
 
 
-      <div className="border rounded-lg p-4 space-y-3">
+      <div className="border-2 border-gray-200 rounded-lg p-4 space-y-3">
         <div className="flex items-center justify-between">
           <h4 className="text-sm font-semibold">Глюкоза крови</h4>
           {!isReadOnly && !canOverride && (
@@ -1545,7 +1545,7 @@ export default function EWSSection({
       </div>
 
       {painScaleType && (
-        <div className="border rounded-lg p-4 space-y-3">
+        <div className="border-2 border-gray-200 rounded-lg p-4 space-y-3">
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-semibold">
               Боль{" "}
@@ -1748,7 +1748,7 @@ export default function EWSSection({
       )}
 
       {activeFormCodes.has("fluid_balance") && (
-        <div className="border rounded-lg p-4 space-y-3">
+        <div className="border-2 border-gray-200 rounded-lg p-4 space-y-3">
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-semibold">Баланс жидкости</h4>
           </div>
