@@ -2050,6 +2050,7 @@ export default function EWSSection({
           )}
         </div>
       )}
+      </>)}
     </div>
   );
 }
