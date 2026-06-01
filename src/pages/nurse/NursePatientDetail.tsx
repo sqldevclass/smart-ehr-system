@@ -91,25 +91,6 @@ export default function NursePatientDetail() {
     enabled: !!hospId,
   });
 
-  const { data: vitalsHistory = [], refetch: refetchVitals } = useQuery({
-    queryKey: ["nurse-vitals", hospId],
-    staleTime: 0,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("patient_vitals")
-        .select(`
-          id, recorded_at, bp_systolic, bp_diastolic, pulse,
-          respiratory_rate, spo2, temperature, weight_kg, height_cm,
-          consciousness, fluid_intake_ml, fluid_output_ml, notes,
-          profiles!recorded_by(full_name)
-        `)
-        .eq("hospitalization_id", hospId!)
-        .order("recorded_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!hospId,
-  });
 
   const handleSaveVitals = async () => {
     if (!hosp) return;
@@ -137,7 +118,7 @@ export default function NursePatientDetail() {
       if (error) throw error;
       setShowVitalsForm(false);
       setVitals(EMPTY_VITALS);
-      await refetchVitals();
+      
     } catch (err: any) {
       toast.error(err.message || "Не удалось сохранить");
     } finally {

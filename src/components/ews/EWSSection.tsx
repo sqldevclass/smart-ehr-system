@@ -43,12 +43,14 @@ const bgColor: Record<string, string> = {
   red: "bg-red-200",
 };
 
-const escalationColors: Record<number, string> = {
-  0: "bg-green-50 border-green-200 text-green-800",
-  1: "bg-yellow-50 border-yellow-200 text-yellow-800",
-  2: "bg-orange-50 border-orange-200 text-orange-800",
-  3: "bg-red-50 border-red-200 text-red-800",
+const formatDateTime = (date: Date): string => {
+  const dd = date.getDate().toString().padStart(2, "0");
+  const mm = (date.getMonth() + 1).toString().padStart(2, "0");
+  const hh = date.getHours().toString().padStart(2, "0");
+  const min = date.getMinutes().toString().padStart(2, "0");
+  return `${dd}.${mm} ${hh}:${min}`;
 };
+
 
 export default function EWSSection({
   hospitalizationId,
@@ -120,9 +122,29 @@ export default function EWSSection({
     return d;
   }, [todayStart]);
 
+  const { data: activeFormsData = [] } = useQuery({
+    queryKey: ["active-forms", hospitalizationId],
+    staleTime: 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hospitalization_active_forms")
+        .select("scale_code")
+        .eq("hospitalization_id", hospitalizationId);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const activeFormCodes = useMemo(
+    () => new Set((activeFormsData as any[]).map((f) => f.scale_code)),
+    [activeFormsData],
+  );
+
+
   const { data: todayEntries = [] } = useQuery({
     queryKey: ["fluid-today", hospitalizationId],
     staleTime: 0,
+    enabled: activeFormCodes.has("fluid_balance"),
     queryFn: async () => {
       const { data } = await supabase
         .from("fluid_balance_entries")
@@ -136,6 +158,7 @@ export default function EWSSection({
 
   const { data: yesterdayEntries = [] } = useQuery({
     queryKey: ["fluid-yesterday", hospitalizationId],
+    enabled: activeFormCodes.has("fluid_balance"),
     queryFn: async () => {
       const { data } = await supabase
         .from("fluid_balance_entries")
@@ -222,23 +245,6 @@ export default function EWSSection({
     },
   });
 
-  const { data: activeFormsData = [] } = useQuery({
-    queryKey: ["active-forms", hospitalizationId],
-    staleTime: 0,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("hospitalization_active_forms")
-        .select("scale_code")
-        .eq("hospitalization_id", hospitalizationId);
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  const activeFormCodes = useMemo(
-    () => new Set((activeFormsData as any[]).map((f) => f.scale_code)),
-    [activeFormsData],
-  );
   const allOptionalForms = useMemo(
     () => [
       ...(optionalScales as any[]).map((s) => ({
@@ -854,6 +860,36 @@ export default function EWSSection({
     if (score <= 6) return "каждый час";
     return "непрерывный мониторинг";
   };
+
+  const renderSepsisHistoryItem = (a: any) => (
+    <div key={a.id} className="border rounded p-3 text-xs space-y-1 bg-red-50/50">
+      <div className="flex items-center justify-between">
+        <span className="font-medium text-red-700">Педиатрический Сепсис 6</span>
+        <span className="text-muted-foreground">
+          {format(new Date(a.triggered_at), "dd.MM.yyyy HH:mm")}
+        </span>
+      </div>
+      <div className="text-muted-foreground">
+        Признаки:{" "}
+        {(a.trigger_signs as string[])
+          .map((s: string) => SEPSIS_SIGN_LABELS[s] ?? s)
+          .join(", ")}
+      </div>
+      {a.nurse_acknowledged_at && (
+        <div className="text-green-700 text-xs">
+          ✓ Медсестра приняла:{" "}
+          {format(new Date(a.nurse_acknowledged_at), "dd.MM.yyyy HH:mm")}
+        </div>
+      )}
+      {a.physician_acknowledged_at && (
+        <div className="text-green-700 text-xs">
+          ✓ Врач принял:{" "}
+          {format(new Date(a.physician_acknowledged_at), "dd.MM.yyyy HH:mm")}
+        </div>
+      )}
+    </div>
+  );
+
 
   return (
     <div className="space-y-4">
@@ -1505,15 +1541,9 @@ export default function EWSSection({
                         </div>
                         <div className="text-xs
                           text-muted-foreground mt-0.5">
-                          {dt.getDate().toString()
-                            .padStart(2, "0")}.
-                          {(dt.getMonth()+1).toString()
-                            .padStart(2, "0")}{" "}
-                          {dt.getHours().toString()
-                            .padStart(2, "0")}:
-                          {dt.getMinutes().toString()
-                            .padStart(2, "0")}
+                          {formatDateTime(dt)}
                         </div>
+
                       </div>
                     );
                   })}
@@ -1705,11 +1735,9 @@ export default function EWSSection({
                           </span>
                         </div>
                         <div className="text-xs text-muted-foreground mt-0.5">
-                          {dt.getDate().toString().padStart(2, "0")}.
-                          {(dt.getMonth() + 1).toString().padStart(2, "0")}{" "}
-                          {dt.getHours().toString().padStart(2, "0")}:
-                          {dt.getMinutes().toString().padStart(2, "0")}
+                          {formatDateTime(dt)}
                         </div>
+
                         {r.pain_character?.length > 0 && (
                           <div className="text-xs text-muted-foreground mt-0.5">
                             {r.pain_character.join(", ")}
@@ -1983,58 +2011,28 @@ export default function EWSSection({
         </div>
       )}
 
-      {alertHistory.length > 0 && (() => {
-        const renderSepsisHistoryItem = (a: any) => (
-          <div key={a.id} className="border rounded p-3 text-xs space-y-1 bg-red-50/50">
-            <div className="flex items-center justify-between">
-              <span className="font-medium text-red-700">Педиатрический Сепсис 6</span>
-              <span className="text-muted-foreground">
-                {format(new Date(a.triggered_at), "dd.MM.yyyy HH:mm")}
-              </span>
-            </div>
-            <div className="text-muted-foreground">
-              Признаки:{" "}
-              {(a.trigger_signs as string[])
-                .map((s: string) => SEPSIS_SIGN_LABELS[s] ?? s)
-                .join(", ")}
-            </div>
-            {a.nurse_acknowledged_at && (
-              <div className="text-green-700 text-xs">
-                ✓ Медсестра приняла:{" "}
-                {format(new Date(a.nurse_acknowledged_at), "dd.MM.yyyy HH:mm")}
-              </div>
+      {alertHistory.length > 0 && (
+        <div className="mt-4 space-y-2">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            История предупреждений о сепсисе
+          </p>
+          {renderSepsisHistoryItem(alertHistory[0])}
+          {showAllSepsisHistory &&
+            (alertHistory as any[]).slice(1).map((a: any) =>
+              renderSepsisHistoryItem(a),
             )}
-            {a.physician_acknowledged_at && (
-              <div className="text-green-700 text-xs">
-                ✓ Врач принял:{" "}
-                {format(new Date(a.physician_acknowledged_at), "dd.MM.yyyy HH:mm")}
-              </div>
-            )}
-          </div>
-        );
-        return (
-          <div className="mt-4 space-y-2">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              История предупреждений о сепсисе
-            </p>
-            {renderSepsisHistoryItem(alertHistory[0])}
-            {showAllSepsisHistory &&
-              (alertHistory as any[]).slice(1).map((a: any) =>
-                renderSepsisHistoryItem(a),
-              )}
-            {alertHistory.length > 1 && (
-              <button
-                onClick={() => setShowAllSepsisHistory(!showAllSepsisHistory)}
-                className="text-xs text-primary underline"
-              >
-                {showAllSepsisHistory
-                  ? "Скрыть"
-                  : `Показать ещё (${alertHistory.length - 1})`}
-              </button>
-            )}
-          </div>
-        );
-      })()}
+          {alertHistory.length > 1 && (
+            <button
+              onClick={() => setShowAllSepsisHistory(!showAllSepsisHistory)}
+              className="text-xs text-primary underline"
+            >
+              {showAllSepsisHistory
+                ? "Скрыть"
+                : `Показать ещё (${alertHistory.length - 1})`}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

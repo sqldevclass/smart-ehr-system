@@ -56,7 +56,7 @@ export default function RegisterPatientSheet({ open, onOpenChange, hospitalId, u
         .select("id, profiles!inner(full_name), specializations!specialization_id(name)")
         .eq("hospital_id", hospitalId)
         .eq("is_active", true);
-      console.log("Physicians query result:", data, "Error:", error, "Hospital ID:", hospitalId);
+      
       return data || [];
     },
     enabled: !!hospitalId,

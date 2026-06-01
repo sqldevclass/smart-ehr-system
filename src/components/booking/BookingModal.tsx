@@ -403,7 +403,7 @@ export function BookingModal(props: BookingModalProps) {
             )}
 
             {(() => {
-              console.log("canConfirm:", canConfirm, "physician:", physician?.scheduleType, "pickedServices:", pickedServices?.length, "queueDate:", queueDate, "selectedSlot:", selectedSlot?.id);
+              
               return null;
             })()}
             <div className="flex items-center justify-end gap-2 border-t pt-4">

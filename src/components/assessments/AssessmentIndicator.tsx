@@ -27,7 +27,7 @@ export default function AssessmentIndicator({
 }: {
   bradenScore: number | null;
   fallRiskScore: number | null;
-  fallRiskScale: "morse" | "humpty_dumpty";
+  fallRiskScale?: "morse" | "humpty_dumpty";
 }) {
   const braden = bradenColors(bradenScore);
 
@@ -44,7 +44,7 @@ export default function AssessmentIndicator({
   const fallRiskBorder = isFallRiskHigh ? "#FCA5A5" : isFallRiskLow ? "#FDE047" : null;
   const fallRiskIconColor = isFallRiskHigh ? "#B91C1C" : "#A16207";
   const fallRiskLabel = isFallRiskHigh ? "Высокий риск падения" : "Низкий риск падения";
-  const showFallRisk = fallRiskScore !== null && fallRiskBg !== null;
+  const showFallRisk = fallRiskScale !== undefined && fallRiskScore !== null && fallRiskBg !== null;
 
   return (
     <div className="flex items-center gap-1">
