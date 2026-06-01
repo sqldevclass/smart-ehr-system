@@ -88,6 +88,107 @@ export default function EWSSection({
   const [showAddForm, setShowAddForm] = useState(false);
   const [showAllSepsisHistory, setShowAllSepsisHistory] = useState(false);
 
+  const [showFluidForm, setShowFluidForm] = useState(false);
+  const [fluidEntryType, setFluidEntryType] = useState<"intake" | "output">("intake");
+  const [fluidCategory, setFluidCategory] = useState("");
+  const [fluidVolume, setFluidVolume] = useState("");
+
+  const intakeCategories = [
+    { code: "per_os", label: "PerOs" },
+    { code: "iv", label: "Внутривенно (в/в)" },
+    { code: "blood_in", label: "Кровь" },
+    { code: "nasogastric_in", label: "Назогастральный зонд" },
+    { code: "other_in", label: "Прочие" },
+  ];
+  const outputCategories = [
+    { code: "urine", label: "Моча" },
+    { code: "vomit", label: "Рвота" },
+    { code: "blood_out", label: "Кровь" },
+    { code: "aspiration", label: "Аспирация" },
+    { code: "nasogastric_out", label: "Зонд" },
+    { code: "other_out", label: "Прочие" },
+  ];
+
+  const todayStart = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+  const yesterdayStart = useMemo(() => {
+    const d = new Date(todayStart);
+    d.setDate(d.getDate() - 1);
+    return d;
+  }, [todayStart]);
+
+  const fluidEnabled = activeFormCodes.has("fluid_balance");
+
+  const { data: todayEntries = [] } = useQuery({
+    queryKey: ["fluid-today", hospitalizationId],
+    enabled: fluidEnabled,
+    staleTime: 0,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("fluid_balance_entries")
+        .select("id, entry_type, category, volume_ml, recorded_at")
+        .eq("hospitalization_id", hospitalizationId)
+        .gte("recorded_at", todayStart.toISOString())
+        .order("recorded_at", { ascending: true });
+      return data || [];
+    },
+  });
+
+  const { data: yesterdayEntries = [] } = useQuery({
+    queryKey: ["fluid-yesterday", hospitalizationId],
+    enabled: fluidEnabled,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("fluid_balance_entries")
+        .select("entry_type, volume_ml")
+        .eq("hospitalization_id", hospitalizationId)
+        .gte("recorded_at", yesterdayStart.toISOString())
+        .lt("recorded_at", todayStart.toISOString());
+      return data || [];
+    },
+  });
+
+  const todayIntake = (todayEntries as any[])
+    .filter((e) => e.entry_type === "intake")
+    .reduce((sum, e) => sum + e.volume_ml, 0);
+  const todayOutput = (todayEntries as any[])
+    .filter((e) => e.entry_type === "output")
+    .reduce((sum, e) => sum + e.volume_ml, 0);
+  const todayBalance = todayIntake - todayOutput;
+  const yesterdayIntake = (yesterdayEntries as any[])
+    .filter((e) => e.entry_type === "intake")
+    .reduce((sum, e) => sum + e.volume_ml, 0);
+  const yesterdayOutput = (yesterdayEntries as any[])
+    .filter((e) => e.entry_type === "output")
+    .reduce((sum, e) => sum + e.volume_ml, 0);
+  const yesterdayBalance = yesterdayIntake - yesterdayOutput;
+
+  const handleAddFluidEntry = async () => {
+    if (!fluidCategory || !fluidVolume) return;
+    const { error } = await supabase.from("fluid_balance_entries").insert({
+      hospital_id: hospitalId,
+      hospitalization_id: hospitalizationId,
+      patient_id: patientId,
+      entry_type: fluidEntryType,
+      category: fluidCategory,
+      volume_ml: parseInt(fluidVolume),
+      recorded_by: (user as any)?.id,
+      recorded_at: new Date().toISOString(),
+    });
+    if (!error) {
+      setFluidVolume("");
+      setFluidCategory("");
+      setShowFluidForm(false);
+      queryClient.invalidateQueries({ queryKey: ["fluid-today", hospitalizationId] });
+      queryClient.invalidateQueries({ queryKey: ["fluid-yesterday", hospitalizationId] });
+    } else {
+      toast.error(error.message);
+    }
+  };
+
   const painScaleType = useMemo<"nrs" | "faces" | undefined>(() => {
     if (!patientDateOfBirth) return undefined;
     const age = differenceInYears(new Date(), new Date(patientDateOfBirth));
