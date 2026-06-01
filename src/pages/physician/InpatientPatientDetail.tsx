@@ -30,7 +30,7 @@ type ActiveView =
   | null;
 
 const TABS: { key: TabKey; label: string }[] = [
-  { key: "medication", label: "Лист назначения" },
+  { key: "medication", label: "План лечения" },
   { key: "imaging", label: "Инструментальные" },
   { key: "lab", label: "Лаборатория" },
   { key: "consultation", label: "Консультация" },
