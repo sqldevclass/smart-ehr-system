@@ -136,9 +136,10 @@ export default function AssessmentSection({
   patientDateOfBirth,
   patientGender,
   hiddenItemCodes,
+  autoOpenForm,
 }: Props) {
   const queryClient = useQueryClient();
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(autoOpenForm ?? false);
   const [selections, setSelections] = useState<Record<string, Selection>>({});
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
