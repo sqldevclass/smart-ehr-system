@@ -2011,58 +2011,28 @@ export default function EWSSection({
         </div>
       )}
 
-      {alertHistory.length > 0 && (() => {
-        const renderSepsisHistoryItem = (a: any) => (
-          <div key={a.id} className="border rounded p-3 text-xs space-y-1 bg-red-50/50">
-            <div className="flex items-center justify-between">
-              <span className="font-medium text-red-700">Педиатрический Сепсис 6</span>
-              <span className="text-muted-foreground">
-                {format(new Date(a.triggered_at), "dd.MM.yyyy HH:mm")}
-              </span>
-            </div>
-            <div className="text-muted-foreground">
-              Признаки:{" "}
-              {(a.trigger_signs as string[])
-                .map((s: string) => SEPSIS_SIGN_LABELS[s] ?? s)
-                .join(", ")}
-            </div>
-            {a.nurse_acknowledged_at && (
-              <div className="text-green-700 text-xs">
-                ✓ Медсестра приняла:{" "}
-                {format(new Date(a.nurse_acknowledged_at), "dd.MM.yyyy HH:mm")}
-              </div>
+      {alertHistory.length > 0 && (
+        <div className="mt-4 space-y-2">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            История предупреждений о сепсисе
+          </p>
+          {renderSepsisHistoryItem(alertHistory[0])}
+          {showAllSepsisHistory &&
+            (alertHistory as any[]).slice(1).map((a: any) =>
+              renderSepsisHistoryItem(a),
             )}
-            {a.physician_acknowledged_at && (
-              <div className="text-green-700 text-xs">
-                ✓ Врач принял:{" "}
-                {format(new Date(a.physician_acknowledged_at), "dd.MM.yyyy HH:mm")}
-              </div>
-            )}
-          </div>
-        );
-        return (
-          <div className="mt-4 space-y-2">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              История предупреждений о сепсисе
-            </p>
-            {renderSepsisHistoryItem(alertHistory[0])}
-            {showAllSepsisHistory &&
-              (alertHistory as any[]).slice(1).map((a: any) =>
-                renderSepsisHistoryItem(a),
-              )}
-            {alertHistory.length > 1 && (
-              <button
-                onClick={() => setShowAllSepsisHistory(!showAllSepsisHistory)}
-                className="text-xs text-primary underline"
-              >
-                {showAllSepsisHistory
-                  ? "Скрыть"
-                  : `Показать ещё (${alertHistory.length - 1})`}
-              </button>
-            )}
-          </div>
-        );
-      })()}
+          {alertHistory.length > 1 && (
+            <button
+              onClick={() => setShowAllSepsisHistory(!showAllSepsisHistory)}
+              className="text-xs text-primary underline"
+            >
+              {showAllSepsisHistory
+                ? "Скрыть"
+                : `Показать ещё (${alertHistory.length - 1})`}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
