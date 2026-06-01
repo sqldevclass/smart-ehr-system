@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +15,7 @@ import {
 import EWSSection from "@/components/ews/EWSSection";
 import AssessmentSection from "@/components/assessments/AssessmentSection";
 import FallingPersonIcon from "@/components/assessments/FallingPersonIcon";
+import { cn } from "@/lib/utils";
 
 const EMPTY_VITALS = {
   bp_systolic: "",
