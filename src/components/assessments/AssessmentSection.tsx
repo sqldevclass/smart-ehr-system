@@ -294,7 +294,7 @@ export default function AssessmentSection({
       toast.error(error.message);
     } else {
       toast.success("Оценка сохранена");
-      setShowForm(false);
+      if (!autoOpenForm) setShowForm(false);
       setSelections({});
       setNotes("");
       queryClient.invalidateQueries({
