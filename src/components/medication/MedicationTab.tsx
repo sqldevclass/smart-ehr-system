@@ -129,6 +129,23 @@ export default function MedicationTab({
     enabled: !!physicianId,
   });
 
+  const { data: allSlots = [] } = useQuery({
+    queryKey: ["all-slots", hospitalizationId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("drug_administration_slots")
+        .select(`
+          id, prescription_id, scheduled_at, administered_at, administered_by,
+          dose_given, override_dose, original_scheduled_at, status, notes,
+          profiles!administered_by(full_name)
+        `)
+        .eq("hospitalization_id", hospitalizationId)
+        .order("scheduled_at", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   // Debounced search
   useEffect(() => {
     if (searchQuery.length < 2) {
