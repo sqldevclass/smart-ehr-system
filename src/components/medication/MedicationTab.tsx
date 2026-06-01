@@ -350,47 +350,68 @@ export default function MedicationTab({
             </Select>
 
             <div>
-              <Label className="text-xs">Время приёма</Label>
-              <div className="flex gap-2 flex-wrap mt-1">
-                {formData.scheduleTimes.map((t, i) => (
-                  <div key={i} className="flex items-center gap-1">
-                    <Input
-                      type="time"
-                      value={t}
-                      onChange={(e) => {
-                        const times = [...formData.scheduleTimes];
-                        times[i] = e.target.value;
-                        setFormData((prev) => ({ ...prev, scheduleTimes: times }));
-                      }}
-                      className="w-28 h-7 text-xs"
-                    />
-                    {formData.scheduleTimes.length > 1 && (
-                      <button
-                        onClick={() =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            scheduleTimes: prev.scheduleTimes.filter((_, j) => j !== i),
-                          }))
-                        }
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
-                ))}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 text-xs"
+              <Label className="text-xs">Дата начала</Label>
+              <div className="flex items-center gap-2 mt-1">
+                <button
+                  type="button"
                   onClick={() =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      scheduleTimes: [...prev.scheduleTimes, "12:00"],
-                    }))
+                    setStartDay((d) => {
+                      const prev = new Date(d);
+                      prev.setDate(prev.getDate() - 1);
+                      return prev;
+                    })
                   }
+                  className="w-7 h-7 rounded border flex items-center justify-center hover:bg-muted text-sm"
                 >
-                  + Время
-                </Button>
+                  ◀
+                </button>
+                <span className="text-sm font-medium min-w-24 text-center">
+                  {formatStartDay(startDay)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setStartDay((d) => {
+                      const next = new Date(d);
+                      next.setDate(next.getDate() + 1);
+                      return next;
+                    })
+                  }
+                  className="w-7 h-7 rounded border flex items-center justify-center hover:bg-muted text-sm"
+                >
+                  ▶
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs">Время приёма</Label>
+              <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto p-1 border rounded bg-white mt-1">
+                {TIME_CHIPS.map((t) => {
+                  const selected = formData.scheduleTimes.includes(t);
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          scheduleTimes: selected
+                            ? prev.scheduleTimes.filter((x) => x !== t)
+                            : [...prev.scheduleTimes, t].sort(),
+                        }))
+                      }
+                      className={cn(
+                        "px-1.5 py-0.5 rounded text-xs border transition-colors",
+                        selected
+                          ? "bg-primary text-white border-primary"
+                          : "bg-white border-gray-200 hover:bg-muted text-gray-600",
+                      )}
+                    >
+                      {t}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
