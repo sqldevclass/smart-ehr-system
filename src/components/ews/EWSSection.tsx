@@ -122,6 +122,25 @@ export default function EWSSection({
     return d;
   }, [todayStart]);
 
+  const { data: activeFormsData = [] } = useQuery({
+    queryKey: ["active-forms", hospitalizationId],
+    staleTime: 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hospitalization_active_forms")
+        .select("scale_code")
+        .eq("hospitalization_id", hospitalizationId);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const activeFormCodes = useMemo(
+    () => new Set((activeFormsData as any[]).map((f) => f.scale_code)),
+    [activeFormsData],
+  );
+
+
   const { data: todayEntries = [] } = useQuery({
     queryKey: ["fluid-today", hospitalizationId],
     staleTime: 0,
@@ -226,23 +245,6 @@ export default function EWSSection({
     },
   });
 
-  const { data: activeFormsData = [] } = useQuery({
-    queryKey: ["active-forms", hospitalizationId],
-    staleTime: 0,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("hospitalization_active_forms")
-        .select("scale_code")
-        .eq("hospitalization_id", hospitalizationId);
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  const activeFormCodes = useMemo(
-    () => new Set((activeFormsData as any[]).map((f) => f.scale_code)),
-    [activeFormsData],
-  );
   const allOptionalForms = useMemo(
     () => [
       ...(optionalScales as any[]).map((s) => ({
