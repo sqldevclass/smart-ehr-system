@@ -66,7 +66,7 @@ export default function OrdersPage() {
               patient_number,
               patient_allergies(
                 id, allergy_type, severity,
-                reaction)
+                description, reaction)
             )
           ),
           profiles!prescribed_by(full_name)
