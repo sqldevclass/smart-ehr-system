@@ -895,6 +895,7 @@ export default function EWSSection({
 
   return (
     <div className="space-y-4">
+      {panelMode !== "monitoring-only" && (<>
       <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
         <div className="shrink-0">
           <h3 className="font-semibold">ШРПУ</h3>
