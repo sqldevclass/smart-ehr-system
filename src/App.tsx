@@ -65,6 +65,7 @@ import IncomingPage from "./pages/pharmacy/IncomingPage.tsx";
 import StockPage from "./pages/pharmacy/StockPage.tsx";
 import ExpensesPage from "./pages/pharmacy/ExpensesPage.tsx";
 import TransfersPage from "./pages/pharmacy/TransfersPage.tsx";
+import OrdersPage from "./pages/pharmacy/OrdersPage.tsx";
 
 import PharmacySettingsPage from "./pages/pharmacy/PharmacySettingsPage.tsx";
 import PharmacyProfile from "./pages/pharmacy/PharmacyProfile.tsx";
@@ -158,9 +159,11 @@ const App = () => (
           </Route>
           <Route path="/pharmacy" element={<ProtectedRoute allowedRoles={["pharmacist"]}><PharmacistLayout /></ProtectedRoute>}>
             <Route index element={<IncomingPage />} />
+            <Route path="orders" element={<OrdersPage />} />
             <Route path="stock" element={<StockPage />} />
             <Route path="expenses" element={<ExpensesPage />} />
             <Route path="transfers" element={<TransfersPage />} />
+            
             
             <Route path="settings" element={<PharmacySettingsPage />} />
             <Route path="profile" element={<PharmacyProfile />} />

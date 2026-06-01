@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/sidebar";
 
 const navItems = [
+  { title: "Заказы", url: "/pharmacy/orders", icon: PackagePlus },
   { title: "Incoming", url: "/pharmacy", icon: PackagePlus, end: true },
   { title: "Stock", url: "/pharmacy/stock", icon: Boxes },
   { title: "Expenses", url: "/pharmacy/expenses", icon: Trash2 },
