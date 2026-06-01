@@ -1511,15 +1511,9 @@ export default function EWSSection({
                         </div>
                         <div className="text-xs
                           text-muted-foreground mt-0.5">
-                          {dt.getDate().toString()
-                            .padStart(2, "0")}.
-                          {(dt.getMonth()+1).toString()
-                            .padStart(2, "0")}{" "}
-                          {dt.getHours().toString()
-                            .padStart(2, "0")}:
-                          {dt.getMinutes().toString()
-                            .padStart(2, "0")}
+                          {formatDateTime(dt)}
                         </div>
+
                       </div>
                     );
                   })}
@@ -1711,11 +1705,9 @@ export default function EWSSection({
                           </span>
                         </div>
                         <div className="text-xs text-muted-foreground mt-0.5">
-                          {dt.getDate().toString().padStart(2, "0")}.
-                          {(dt.getMonth() + 1).toString().padStart(2, "0")}{" "}
-                          {dt.getHours().toString().padStart(2, "0")}:
-                          {dt.getMinutes().toString().padStart(2, "0")}
+                          {formatDateTime(dt)}
                         </div>
+
                         {r.pain_character?.length > 0 && (
                           <div className="text-xs text-muted-foreground mt-0.5">
                             {r.pain_character.join(", ")}
