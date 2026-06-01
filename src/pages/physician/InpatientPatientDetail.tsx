@@ -488,6 +488,7 @@ interface TabProps {
   patientGender?: string;
   admittedAt?: string;
   externalAlertActive?: boolean;
+  patientAllergies?: any[];
 }
 
 function TabPanel(props: TabProps) {
