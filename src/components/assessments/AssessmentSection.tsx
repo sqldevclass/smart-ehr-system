@@ -15,6 +15,7 @@ interface Props {
   patientDateOfBirth?: string;
   patientGender?: string;
   hiddenItemCodes?: string[];
+  autoOpenForm?: boolean;
 }
 
 interface Selection {
@@ -135,9 +136,10 @@ export default function AssessmentSection({
   patientDateOfBirth,
   patientGender,
   hiddenItemCodes,
+  autoOpenForm,
 }: Props) {
   const queryClient = useQueryClient();
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(autoOpenForm ?? false);
   const [selections, setSelections] = useState<Record<string, Selection>>({});
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -292,7 +294,7 @@ export default function AssessmentSection({
       toast.error(error.message);
     } else {
       toast.success("Оценка сохранена");
-      setShowForm(false);
+      if (!autoOpenForm) setShowForm(false);
       setSelections({});
       setNotes("");
       queryClient.invalidateQueries({
@@ -319,7 +321,7 @@ export default function AssessmentSection({
             </p>
           )}
         </div>
-        {!isReadOnly && (
+        {!autoOpenForm && !isReadOnly && (
           <Button
             size="sm"
             variant="outline"

@@ -88,6 +88,103 @@ export default function EWSSection({
   const [showAddForm, setShowAddForm] = useState(false);
   const [showAllSepsisHistory, setShowAllSepsisHistory] = useState(false);
 
+  const [showFluidForm, setShowFluidForm] = useState(false);
+  const [fluidEntryType, setFluidEntryType] = useState<"intake" | "output">("intake");
+  const [fluidCategory, setFluidCategory] = useState("");
+  const [fluidVolume, setFluidVolume] = useState("");
+
+  const intakeCategories = [
+    { code: "per_os", label: "PerOs" },
+    { code: "iv", label: "Внутривенно (в/в)" },
+    { code: "blood_in", label: "Кровь" },
+    { code: "nasogastric_in", label: "Назогастральный зонд" },
+    { code: "other_in", label: "Прочие" },
+  ];
+  const outputCategories = [
+    { code: "urine", label: "Моча" },
+    { code: "vomit", label: "Рвота" },
+    { code: "blood_out", label: "Кровь" },
+    { code: "aspiration", label: "Аспирация" },
+    { code: "nasogastric_out", label: "Зонд" },
+    { code: "other_out", label: "Прочие" },
+  ];
+
+  const todayStart = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+  const yesterdayStart = useMemo(() => {
+    const d = new Date(todayStart);
+    d.setDate(d.getDate() - 1);
+    return d;
+  }, [todayStart]);
+
+  const { data: todayEntries = [] } = useQuery({
+    queryKey: ["fluid-today", hospitalizationId],
+    staleTime: 0,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("fluid_balance_entries")
+        .select("id, entry_type, category, volume_ml, recorded_at")
+        .eq("hospitalization_id", hospitalizationId)
+        .gte("recorded_at", todayStart.toISOString())
+        .order("recorded_at", { ascending: true });
+      return data || [];
+    },
+  });
+
+  const { data: yesterdayEntries = [] } = useQuery({
+    queryKey: ["fluid-yesterday", hospitalizationId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("fluid_balance_entries")
+        .select("entry_type, volume_ml")
+        .eq("hospitalization_id", hospitalizationId)
+        .gte("recorded_at", yesterdayStart.toISOString())
+        .lt("recorded_at", todayStart.toISOString());
+      return data || [];
+    },
+  });
+
+  const todayIntake = (todayEntries as any[])
+    .filter((e) => e.entry_type === "intake")
+    .reduce((sum, e) => sum + e.volume_ml, 0);
+  const todayOutput = (todayEntries as any[])
+    .filter((e) => e.entry_type === "output")
+    .reduce((sum, e) => sum + e.volume_ml, 0);
+  const todayBalance = todayIntake - todayOutput;
+  const yesterdayIntake = (yesterdayEntries as any[])
+    .filter((e) => e.entry_type === "intake")
+    .reduce((sum, e) => sum + e.volume_ml, 0);
+  const yesterdayOutput = (yesterdayEntries as any[])
+    .filter((e) => e.entry_type === "output")
+    .reduce((sum, e) => sum + e.volume_ml, 0);
+  const yesterdayBalance = yesterdayIntake - yesterdayOutput;
+
+  const handleAddFluidEntry = async () => {
+    if (!fluidCategory || !fluidVolume) return;
+    const { error } = await supabase.from("fluid_balance_entries").insert({
+      hospital_id: hospitalId,
+      hospitalization_id: hospitalizationId,
+      patient_id: patientId,
+      entry_type: fluidEntryType,
+      category: fluidCategory,
+      volume_ml: parseInt(fluidVolume),
+      recorded_by: (user as any)?.id,
+      recorded_at: new Date().toISOString(),
+    });
+    if (!error) {
+      setFluidVolume("");
+      setFluidCategory("");
+      setShowFluidForm(false);
+      queryClient.invalidateQueries({ queryKey: ["fluid-today", hospitalizationId] });
+      queryClient.invalidateQueries({ queryKey: ["fluid-yesterday", hospitalizationId] });
+    } else {
+      toast.error(error.message);
+    }
+  };
+
   const painScaleType = useMemo<"nrs" | "faces" | undefined>(() => {
     if (!patientDateOfBirth) return undefined;
     const age = differenceInYears(new Date(), new Date(patientDateOfBirth));
@@ -1655,9 +1752,165 @@ export default function EWSSection({
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-semibold">Баланс жидкости</h4>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Раздел в разработке
-          </p>
+
+          {(yesterdayIntake > 0 || yesterdayOutput > 0) && (
+            <div className="text-xs bg-muted/30 rounded p-2 space-y-1">
+              <p className="font-medium text-muted-foreground">Предыдущий день</p>
+              <div className="flex gap-4">
+                <span>Введено: {yesterdayIntake} мл</span>
+                <span>Выделено: {yesterdayOutput} мл</span>
+                <span
+                  className={cn(
+                    "font-medium",
+                    yesterdayBalance >= 0 ? "text-blue-700" : "text-red-700",
+                  )}
+                >
+                  Баланс: {yesterdayBalance >= 0 ? "+" : ""}
+                  {yesterdayBalance} мл
+                </span>
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-6 text-sm">
+            <div className="text-center">
+              <div className="font-semibold text-blue-700">{todayIntake} мл</div>
+              <div className="text-xs text-muted-foreground">Введено</div>
+            </div>
+            <div className="text-center">
+              <div className="font-semibold text-orange-700">{todayOutput} мл</div>
+              <div className="text-xs text-muted-foreground">Выделено</div>
+            </div>
+            <div className="text-center">
+              <div
+                className={cn(
+                  "font-semibold",
+                  todayBalance >= 0 ? "text-green-700" : "text-red-700",
+                )}
+              >
+                {todayBalance >= 0 ? "+" : ""}
+                {todayBalance} мл
+              </div>
+              <div className="text-xs text-muted-foreground">Баланс сегодня</div>
+            </div>
+          </div>
+
+          {todayEntries.length > 0 && (
+            <div className="grid grid-cols-2 gap-3 text-xs border-t pt-2">
+              <div>
+                <p className="font-medium text-muted-foreground mb-1">Введено</p>
+                {(todayEntries as any[])
+                  .filter((e) => e.entry_type === "intake")
+                  .map((e) => (
+                    <div
+                      key={e.id}
+                      className="flex justify-between py-0.5 border-b border-muted last:border-0"
+                    >
+                      <span className="text-muted-foreground">
+                        {format(new Date(e.recorded_at), "HH:mm")}{" "}
+                        {intakeCategories.find((c) => c.code === e.category)?.label ?? e.category}
+                      </span>
+                      <span className="font-medium text-blue-700">{e.volume_ml} мл</span>
+                    </div>
+                  ))}
+              </div>
+              <div>
+                <p className="font-medium text-muted-foreground mb-1">Выделено</p>
+                {(todayEntries as any[])
+                  .filter((e) => e.entry_type === "output")
+                  .map((e) => (
+                    <div
+                      key={e.id}
+                      className="flex justify-between py-0.5 border-b border-muted last:border-0"
+                    >
+                      <span className="text-muted-foreground">
+                        {format(new Date(e.recorded_at), "HH:mm")}{" "}
+                        {outputCategories.find((c) => c.code === e.category)?.label ?? e.category}
+                      </span>
+                      <span className="font-medium text-orange-700">{e.volume_ml} мл</span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {!isReadOnly && (
+            showFluidForm ? (
+              <div className="border rounded p-3 space-y-2 bg-muted/30">
+                <div className="flex rounded-md border overflow-hidden w-fit">
+                  <button
+                    onClick={() => setFluidEntryType("intake")}
+                    className={cn(
+                      "px-3 py-1 text-xs font-medium",
+                      fluidEntryType === "intake"
+                        ? "bg-primary text-white"
+                        : "bg-white text-muted-foreground",
+                    )}
+                  >
+                    Введено
+                  </button>
+                  <button
+                    onClick={() => setFluidEntryType("output")}
+                    className={cn(
+                      "px-3 py-1 text-xs font-medium border-l",
+                      fluidEntryType === "output"
+                        ? "bg-primary text-white"
+                        : "bg-white text-muted-foreground",
+                    )}
+                  >
+                    Выделено
+                  </button>
+                </div>
+                <select
+                  value={fluidCategory}
+                  onChange={(e) => setFluidCategory(e.target.value)}
+                  className="w-full text-sm border rounded px-2 py-1.5 bg-white"
+                >
+                  <option value="">Выберите категорию</option>
+                  {(fluidEntryType === "intake" ? intakeCategories : outputCategories).map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min={1}
+                    value={fluidVolume}
+                    onChange={(e) => setFluidVolume(e.target.value)}
+                    placeholder="Объём"
+                    className="h-8 text-sm w-28"
+                  />
+                  <span className="text-sm text-muted-foreground">мл</span>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    disabled={!fluidCategory || !fluidVolume}
+                    onClick={handleAddFluidEntry}
+                  >
+                    Добавить
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setShowFluidForm(false);
+                      setFluidCategory("");
+                      setFluidVolume("");
+                    }}
+                  >
+                    Отмена
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button size="sm" variant="outline" onClick={() => setShowFluidForm(true)}>
+                + Добавить запись
+              </Button>
+            )
+          )}
         </div>
       )}
 
