@@ -9,7 +9,14 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import StatusBadge from "@/components/medication/StatusBadge";
+import { format } from "date-fns";
+import PrescriptionGrid from "@/components/medication/PrescriptionGrid";
+
+const TIME_CHIPS = Array.from({ length: 48 }, (_, i) => {
+  const h = Math.floor(i / 2).toString().padStart(2, "0");
+  const m = i % 2 === 0 ? "00" : "30";
+  return `${h}:${m}`;
+});
 
 interface Props {
   hospitalizationId: string;
@@ -78,6 +85,9 @@ export default function MedicationTab({
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
 
+  const [startDay, setStartDay] = useState(new Date());
+  const formatStartDay = (d: Date) => format(d, "dd.MM.yyyy");
+
   const { data: prescriptions = [] } = useQuery({
     queryKey: ["drug-prescriptions", hospitalizationId],
     queryFn: async () => {
@@ -85,6 +95,8 @@ export default function MedicationTab({
         .from("drug_prescriptions")
         .select(`
           id, dose, dose_unit, route, schedule_times, duration_days,
+          food_rule, prescription_type, prn_condition, notes, is_drafted,
+          status_code, prescribed_at, mix_with_drug_id,
           food_rule, prescription_type, prn_condition, notes, is_drafted,
           status_code, prescribed_at, mix_with_drug_id,
           drug_formulary!drug_formulary_id(id, trade_name, inn, dose),
@@ -115,6 +127,23 @@ export default function MedicationTab({
       return data || [];
     },
     enabled: !!physicianId,
+  });
+
+  const { data: allSlots = [] } = useQuery({
+    queryKey: ["all-slots", hospitalizationId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("drug_administration_slots")
+        .select(`
+          id, prescription_id, scheduled_at, administered_at, administered_by,
+          dose_given, override_dose, original_scheduled_at, status, notes,
+          profiles!administered_by(full_name)
+        `)
+        .eq("hospitalization_id", hospitalizationId)
+        .order("scheduled_at", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
   });
 
   // Debounced search
@@ -152,6 +181,52 @@ export default function MedicationTab({
       queryKey: ["drug-prescriptions", hospitalizationId],
     });
 
+  const invalidateSlots = () =>
+    queryClient.invalidateQueries({
+      queryKey: ["all-slots", hospitalizationId],
+    });
+
+  const handleExtend = async (prescriptionId: string) => {
+    const { error } = await supabase.rpc("extend_prescription", {
+      p_prescription_id: prescriptionId,
+    });
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    invalidate();
+    invalidateSlots();
+  };
+
+  const handleCancelDay = async (prescriptionId: string, date: Date) => {
+    const { error } = await supabase.rpc("cancel_day_slots", {
+      p_prescription_id: prescriptionId,
+      p_date: format(date, "yyyy-MM-dd"),
+    });
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    invalidateSlots();
+  };
+
+  const handleOverrideSlot = async (
+    slotId: string,
+    scheduledAt: string,
+    dose: string,
+  ) => {
+    const { error } = await supabase.rpc("override_slot", {
+      p_slot_id: slotId,
+      p_scheduled_at: scheduledAt,
+      p_dose: dose,
+    });
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    invalidateSlots();
+  };
+
   const handleAddDrug = (drug: any) => {
     setFormData({ ...initialFormData, drug });
     setShowForm(true);
@@ -178,6 +253,7 @@ export default function MedicationTab({
       is_drafted: true,
       status_code: "preliminary",
       prescribed_by: physicianId,
+      prescribed_at: startDay.toISOString(),
     });
     if (error) {
       toast.error(error.message);
@@ -274,47 +350,68 @@ export default function MedicationTab({
             </Select>
 
             <div>
-              <Label className="text-xs">Время приёма</Label>
-              <div className="flex gap-2 flex-wrap mt-1">
-                {formData.scheduleTimes.map((t, i) => (
-                  <div key={i} className="flex items-center gap-1">
-                    <Input
-                      type="time"
-                      value={t}
-                      onChange={(e) => {
-                        const times = [...formData.scheduleTimes];
-                        times[i] = e.target.value;
-                        setFormData((prev) => ({ ...prev, scheduleTimes: times }));
-                      }}
-                      className="w-28 h-7 text-xs"
-                    />
-                    {formData.scheduleTimes.length > 1 && (
-                      <button
-                        onClick={() =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            scheduleTimes: prev.scheduleTimes.filter((_, j) => j !== i),
-                          }))
-                        }
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
-                ))}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 text-xs"
+              <Label className="text-xs">Дата начала</Label>
+              <div className="flex items-center gap-2 mt-1">
+                <button
+                  type="button"
                   onClick={() =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      scheduleTimes: [...prev.scheduleTimes, "12:00"],
-                    }))
+                    setStartDay((d) => {
+                      const prev = new Date(d);
+                      prev.setDate(prev.getDate() - 1);
+                      return prev;
+                    })
                   }
+                  className="w-7 h-7 rounded border flex items-center justify-center hover:bg-muted text-sm"
                 >
-                  + Время
-                </Button>
+                  ◀
+                </button>
+                <span className="text-sm font-medium min-w-24 text-center">
+                  {formatStartDay(startDay)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setStartDay((d) => {
+                      const next = new Date(d);
+                      next.setDate(next.getDate() + 1);
+                      return next;
+                    })
+                  }
+                  className="w-7 h-7 rounded border flex items-center justify-center hover:bg-muted text-sm"
+                >
+                  ▶
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs">Время приёма</Label>
+              <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto p-1 border rounded bg-white mt-1">
+                {TIME_CHIPS.map((t) => {
+                  const selected = formData.scheduleTimes.includes(t);
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          scheduleTimes: selected
+                            ? prev.scheduleTimes.filter((x) => x !== t)
+                            : [...prev.scheduleTimes, t].sort(),
+                        }))
+                      }
+                      className={cn(
+                        "px-1.5 py-0.5 rounded text-xs border transition-colors",
+                        selected
+                          ? "bg-primary text-white border-primary"
+                          : "bg-white border-gray-200 hover:bg-muted text-gray-600",
+                      )}
+                    >
+                      {t}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -423,54 +520,17 @@ export default function MedicationTab({
           </div>
         )}
 
-        {submittedPrescriptions.map((p: any) => (
-          <div
-            key={p.id}
-            className="border-2 border-gray-200 rounded-lg p-3 space-y-1"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="font-medium text-sm">
-                  {p.drug_formulary?.trade_name}
-                </span>
-                {p.prescription_type === "prn" && (
-                  <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">
-                    PRN
-                  </span>
-                )}
-                {p.prescription_type === "antibiotic_prophylaxis" && (
-                  <span className="ml-2 text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">
-                    Антибиотикопрофилактика
-                  </span>
-                )}
-              </div>
-              <StatusBadge status={p.status_code} />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {p.dose}
-              {p.dose_unit} ·{" "}
-              {ROUTES.find((r) => r.code === p.route)?.label} ·{" "}
-              {p.schedule_times?.join(", ")}
-              {p.duration_days && ` · ${p.duration_days} дней`}
-            </p>
-            {p.mix_drug && (
-              <p className="text-xs text-muted-foreground">
-                Смешать с: {p.mix_drug.trade_name}
-              </p>
-            )}
-            {p.prn_condition && (
-              <p className="text-xs text-purple-700">При: {p.prn_condition}</p>
-            )}
-            {!isReadOnly && p.status_code === "preliminary" && (
-              <button
-                className="text-xs text-red-600 underline"
-                onClick={() => handleCancelPrescription(p.id)}
-              >
-                Отменить
-              </button>
-            )}
-          </div>
-        ))}
+        <PrescriptionGrid
+          prescriptions={submittedPrescriptions}
+          slots={allSlots}
+          viewerRole="physician"
+          isReadOnly={isReadOnly}
+          onExtend={handleExtend}
+          onCancelDay={handleCancelDay}
+          onOverrideSlot={handleOverrideSlot}
+          onAdministerSlot={() => {}}
+          onSkipSlot={() => {}}
+        />
 
         {submittedPrescriptions.length === 0 && draftPrescriptions.length === 0 && !showForm && (
           <p className="text-sm text-muted-foreground">Нет назначений</p>
