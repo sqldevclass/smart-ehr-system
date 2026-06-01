@@ -15,6 +15,7 @@ interface Props {
   patientDateOfBirth?: string;
   patientGender?: string;
   hiddenItemCodes?: string[];
+  autoOpenForm?: boolean;
 }
 
 interface Selection {
