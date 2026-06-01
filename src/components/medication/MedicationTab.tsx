@@ -520,54 +520,17 @@ export default function MedicationTab({
           </div>
         )}
 
-        {submittedPrescriptions.map((p: any) => (
-          <div
-            key={p.id}
-            className="border-2 border-gray-200 rounded-lg p-3 space-y-1"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="font-medium text-sm">
-                  {p.drug_formulary?.trade_name}
-                </span>
-                {p.prescription_type === "prn" && (
-                  <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">
-                    PRN
-                  </span>
-                )}
-                {p.prescription_type === "antibiotic_prophylaxis" && (
-                  <span className="ml-2 text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">
-                    Антибиотикопрофилактика
-                  </span>
-                )}
-              </div>
-              <StatusBadge status={p.status_code} />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {p.dose}
-              {p.dose_unit} ·{" "}
-              {ROUTES.find((r) => r.code === p.route)?.label} ·{" "}
-              {p.schedule_times?.join(", ")}
-              {p.duration_days && ` · ${p.duration_days} дней`}
-            </p>
-            {p.mix_drug && (
-              <p className="text-xs text-muted-foreground">
-                Смешать с: {p.mix_drug.trade_name}
-              </p>
-            )}
-            {p.prn_condition && (
-              <p className="text-xs text-purple-700">При: {p.prn_condition}</p>
-            )}
-            {!isReadOnly && p.status_code === "preliminary" && (
-              <button
-                className="text-xs text-red-600 underline"
-                onClick={() => handleCancelPrescription(p.id)}
-              >
-                Отменить
-              </button>
-            )}
-          </div>
-        ))}
+        <PrescriptionGrid
+          prescriptions={submittedPrescriptions}
+          slots={allSlots}
+          viewerRole="physician"
+          isReadOnly={isReadOnly}
+          onExtend={handleExtend}
+          onCancelDay={handleCancelDay}
+          onOverrideSlot={handleOverrideSlot}
+          onAdministerSlot={() => {}}
+          onSkipSlot={() => {}}
+        />
 
         {submittedPrescriptions.length === 0 && draftPrescriptions.length === 0 && !showForm && (
           <p className="text-sm text-muted-foreground">Нет назначений</p>
