@@ -449,6 +449,7 @@ export default function InpatientPatientDetail() {
                 patientGender={(hosp as any)?.patients?.gender}
                 admittedAt={(hosp as any)?.admitted_at}
                 externalAlertActive={hasSepsisAlert}
+                patientAllergies={allergies}
               />
             ) : (
               <div className="p-10 text-center text-muted-foreground text-sm">
