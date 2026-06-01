@@ -159,9 +159,11 @@ const App = () => (
           </Route>
           <Route path="/pharmacy" element={<ProtectedRoute allowedRoles={["pharmacist"]}><PharmacistLayout /></ProtectedRoute>}>
             <Route index element={<IncomingPage />} />
+            <Route path="orders" element={<OrdersPage />} />
             <Route path="stock" element={<StockPage />} />
             <Route path="expenses" element={<ExpensesPage />} />
             <Route path="transfers" element={<TransfersPage />} />
+            
             
             <Route path="settings" element={<PharmacySettingsPage />} />
             <Route path="profile" element={<PharmacyProfile />} />
