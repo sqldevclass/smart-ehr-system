@@ -13,6 +13,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import EWSSection from "@/components/ews/EWSSection";
+import NursePrescriptions from "@/components/medication/NursePrescriptions";
 import AssessmentSection from "@/components/assessments/AssessmentSection";
 import FallingPersonIcon from "@/components/assessments/FallingPersonIcon";
 import { cn } from "@/lib/utils";
