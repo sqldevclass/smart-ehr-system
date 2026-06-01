@@ -20,7 +20,7 @@ export default function CpotSection({
   >(null);
 
   return (
-    <div className="border rounded-lg p-4 space-y-3">
+    <div className="border-2 border-gray-200 rounded-lg p-4 space-y-3">
       <h4 className="text-sm font-semibold">CPOT — Оценка боли</h4>
       {patientType && (
         <div className="flex items-center gap-2 mb-2">
