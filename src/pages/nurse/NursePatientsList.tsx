@@ -361,7 +361,7 @@ export default function NursePatientsList() {
                                 <AssessmentIndicator
                                   bradenScore={assessmentMap[h.id]?.bradenScore ?? null}
                                   fallRiskScore={assessmentMap[h.id]?.fallRiskScore ?? null}
-                                  fallRiskScale={assessmentMap[h.id]?.fallRiskScale ?? "morse"}
+                                  fallRiskScale={assessmentMap[h.id]?.fallRiskScale}
                                 />
                               )}
                               {sepsisAlertSet.has(h.id) && (
@@ -506,7 +506,7 @@ export default function NursePatientsList() {
                           <AssessmentIndicator
                             bradenScore={assessmentMap[h.id]?.bradenScore ?? null}
                             fallRiskScore={assessmentMap[h.id]?.fallRiskScore ?? null}
-                            fallRiskScale={assessmentMap[h.id]?.fallRiskScale ?? "morse"}
+                            fallRiskScale={assessmentMap[h.id]?.fallRiskScale}
                           />
                         )}
                       </TableCell>
