@@ -43,6 +43,7 @@ export default function CpotSection({
           patientId={patientId}
           hospitalId={hospitalId}
           isReadOnly={isReadOnly}
+          autoOpenForm={true}
           hiddenItemCodes={
             patientType === "intubated"
               ? ["vocalization"]
