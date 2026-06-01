@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import InpatientDocumentWorkspace from "@/components/documents/InpatientDocumentWorkspace";
 import DischargeDialog from "@/components/inpatient/DischargeDialog";
 import EWSSection from "@/components/ews/EWSSection";
+import MedicationTab from "@/components/medication/MedicationTab";
 import { usePhysicianLayoutContext } from "@/components/physician/PhysicianLayout";
 
 type TabKey = "medication" | "imaging" | "lab" | "consultation" | "care" | "diagnosis" | "ews";
@@ -29,7 +30,7 @@ type ActiveView =
   | null;
 
 const TABS: { key: TabKey; label: string }[] = [
-  { key: "medication", label: "Лист назначения" },
+  { key: "medication", label: "План лечения" },
   { key: "imaging", label: "Инструментальные" },
   { key: "lab", label: "Лаборатория" },
   { key: "consultation", label: "Консультация" },
@@ -448,6 +449,7 @@ export default function InpatientPatientDetail() {
                 patientGender={(hosp as any)?.patients?.gender}
                 admittedAt={(hosp as any)?.admitted_at}
                 externalAlertActive={hasSepsisAlert}
+                patientAllergies={allergies}
               />
             ) : (
               <div className="p-10 text-center text-muted-foreground text-sm">
@@ -487,6 +489,7 @@ interface TabProps {
   patientGender?: string;
   admittedAt?: string;
   externalAlertActive?: boolean;
+  patientAllergies?: any[];
 }
 
 function TabPanel(props: TabProps) {
@@ -499,7 +502,16 @@ function TabPanel(props: TabProps) {
     case "diagnosis":
       return <DiagnosisTab {...props} />;
     case "medication":
-      return <Placeholder text="Лист назначения — Фаза 6 — в разработке" />;
+      return (
+        <MedicationTab
+          hospitalizationId={props.hospitalizationId}
+          patientId={props.patientId}
+          hospitalId={props.hospitalId}
+          physicianId={props.userId}
+          isReadOnly={!!props.readOnly}
+          patientAllergies={props.patientAllergies ?? []}
+        />
+      );
     case "imaging":
       return <Placeholder text="Инструментальные — Фаза 8 — в разработке" />;
     case "care":
