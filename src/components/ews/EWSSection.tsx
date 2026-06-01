@@ -861,6 +861,36 @@ export default function EWSSection({
     return "непрерывный мониторинг";
   };
 
+  const renderSepsisHistoryItem = (a: any) => (
+    <div key={a.id} className="border rounded p-3 text-xs space-y-1 bg-red-50/50">
+      <div className="flex items-center justify-between">
+        <span className="font-medium text-red-700">Педиатрический Сепсис 6</span>
+        <span className="text-muted-foreground">
+          {format(new Date(a.triggered_at), "dd.MM.yyyy HH:mm")}
+        </span>
+      </div>
+      <div className="text-muted-foreground">
+        Признаки:{" "}
+        {(a.trigger_signs as string[])
+          .map((s: string) => SEPSIS_SIGN_LABELS[s] ?? s)
+          .join(", ")}
+      </div>
+      {a.nurse_acknowledged_at && (
+        <div className="text-green-700 text-xs">
+          ✓ Медсестра приняла:{" "}
+          {format(new Date(a.nurse_acknowledged_at), "dd.MM.yyyy HH:mm")}
+        </div>
+      )}
+      {a.physician_acknowledged_at && (
+        <div className="text-green-700 text-xs">
+          ✓ Врач принял:{" "}
+          {format(new Date(a.physician_acknowledged_at), "dd.MM.yyyy HH:mm")}
+        </div>
+      )}
+    </div>
+  );
+
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
