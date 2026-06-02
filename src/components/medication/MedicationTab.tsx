@@ -63,11 +63,12 @@ const initialFormData = {
   doseUnit: "мг",
   route: "per_os",
   scheduleTimes: ["08:00"],
-  durationDays: 7,
+  durationDays: 0,
   foodRule: "any",
   mixWithDrug: null as any,
   prescriptionType: "regular",
   prnCondition: "",
+  maxDailyDose: "",
   notes: "",
 };
 
