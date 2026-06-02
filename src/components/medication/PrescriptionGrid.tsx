@@ -112,7 +112,7 @@ export default function PrescriptionGrid({
               <tr className="bg-muted/50">
                 <th className="border p-1.5 text-left bg-white sticky left-0 z-20 w-6">#</th>
                 <th className="border p-1.5 text-left bg-white sticky left-6 z-20 min-w-48">НАЗНАЧЕНИЕ</th>
-                <th className="border p-1.5 text-left bg-white sticky left-[198px] z-20 w-16">Врач</th>
+                <th className="border p-1.5 text-left bg-white sticky left-[222px] z-20 w-16">Врач</th>
                 {allDateColumns.map((date, i) => {
                   const isToday =
                     date.toDateString() === new Date().toDateString();
@@ -164,7 +164,7 @@ export default function PrescriptionGrid({
                         </div>
                       )}
                     </td>
-                    <td className="border p-1.5 bg-white sticky left-[198px] z-10 text-muted-foreground">
+                    <td className="border p-1.5 bg-white sticky left-[222px] z-10 text-muted-foreground">
                       {p.profiles?.full_name
                         ?.split(" ")
                         .map((w: string) => w[0])

@@ -332,7 +332,7 @@ export default function NursePatientDetail() {
 
           {/* Panel 3 — Уход и назначения */}
           <div className="w-1/4 h-full overflow-hidden border-r flex flex-col">
-            <div className="flex-1 overflow-y-auto overflow-x-auto p-4 space-y-6">
+            <div className="flex-1 overflow-y-auto overflow-x-auto p-4 space-y-4">
               <NursePrescriptions
                 hospitalizationId={hospId!}
                 patientId={patient.id}
