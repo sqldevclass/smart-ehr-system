@@ -1,4 +1,4 @@
-import { useState, useRef, useLayoutEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { format } from "date-fns";
 import { Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
