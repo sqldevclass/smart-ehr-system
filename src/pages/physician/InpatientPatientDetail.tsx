@@ -467,6 +467,32 @@ export default function InpatientPatientDetail() {
         </div>
       </div>
 
+      {showMedicationModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full h-full max-w-[95vw] max-h-[95vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
+              <h2 className="font-semibold text-base">Лист назначения</h2>
+              <button
+                onClick={() => setShowMedicationModal(false)}
+                className="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <MedicationTab
+                hospitalizationId={hospId!}
+                patientId={patient.id}
+                hospitalId={user!.hospitalId}
+                physicianId={user!.id}
+                isReadOnly={isHospDischarged}
+                patientAllergies={allergies}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       <DischargeDialog
         open={dischargeOpen}
         onOpenChange={setDischargeOpen}
