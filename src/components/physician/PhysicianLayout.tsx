@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Outlet, useNavigate, useLocation, useOutletContext } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
-import { CalendarDays, UserCircle, LogOut } from "lucide-react";
+import { UserCircle, LogOut } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
