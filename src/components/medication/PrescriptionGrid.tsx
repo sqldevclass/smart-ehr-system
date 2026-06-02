@@ -164,7 +164,7 @@ export default function PrescriptionGrid({
                         </div>
                       )}
                     </td>
-                    <td className="border p-1.5 bg-white sticky left-[198px] z-10 text-muted-foreground">
+                    <td className="border p-1.5 bg-white sticky left-[222px] z-10 text-muted-foreground">
                       {p.profiles?.full_name
                         ?.split(" ")
                         .map((w: string) => w[0])
