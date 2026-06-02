@@ -61,6 +61,20 @@ export default function PrescriptionGrid({
     notes: string;
   } | null>(null);
 
+  const leftRowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
+  const [rowHeights, setRowHeights] = useState<Record<string, number>>({});
+
+  useLayoutEffect(() => {
+    const heights: Record<string, number> = {};
+    prescriptions.forEach((p: any) => {
+      const leftRow = leftRowRefs.current[p.id];
+      if (leftRow) {
+        heights[p.id] = leftRow.getBoundingClientRect().height;
+      }
+    });
+    setRowHeights(heights);
+  }, [prescriptions, slots]);
+
   const getSlotsForDate = (prescriptionId: string, date: Date) =>
     slots
       .filter(
@@ -102,20 +116,6 @@ export default function PrescriptionGrid({
       <p className="text-sm text-muted-foreground">Нет активных назначений</p>
     );
   }
-
-  const leftRowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
-  const [rowHeights, setRowHeights] = useState<Record<string, number>>({});
-
-  useLayoutEffect(() => {
-    const heights: Record<string, number> = {};
-    prescriptions.forEach((p: any) => {
-      const leftRow = leftRowRefs.current[p.id];
-      if (leftRow) {
-        heights[p.id] = leftRow.getBoundingClientRect().height;
-      }
-    });
-    setRowHeights(heights);
-  }, [prescriptions, slots]);
 
   const HEADER_H = 32;
 
