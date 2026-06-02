@@ -61,16 +61,6 @@ export default function PrescriptionGrid({
     notes: string;
   } | null>(null);
 
-  const getDateColumns = (p: any) => {
-    const start = new Date(p.prescribed_at);
-    const days = p.duration_days ?? 1;
-    return Array.from({ length: days }, (_, i) => {
-      const d = new Date(start);
-      d.setDate(d.getDate() + i);
-      return d;
-    });
-  };
-
   const getSlotsForDate = (prescriptionId: string, date: Date) =>
     slots
       .filter(
@@ -115,214 +105,215 @@ export default function PrescriptionGrid({
 
   return (
     <>
-      <div className="overflow-x-auto">
-        <table className="text-xs border-collapse min-w-full">
-          <thead>
-            <tr className="bg-muted/50">
-              <th className="border p-1.5 text-left w-6 shrink-0">#</th>
-              <th className="border p-1.5 text-left min-w-48">НАЗНАЧЕНИЕ</th>
-              <th className="border p-1.5 text-left w-20">Врач</th>
-              {allDateColumns.map((date, i) => {
-                const isToday =
-                  date.toDateString() === new Date().toDateString();
+      <div className="w-full overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="text-xs border-collapse">
+            <thead>
+              <tr className="bg-muted/50">
+                <th className="border p-1.5 text-left bg-white sticky left-0 z-20 w-6">#</th>
+                <th className="border p-1.5 text-left bg-white sticky left-6 z-20 min-w-48">НАЗНАЧЕНИЕ</th>
+                <th className="border p-1.5 text-left bg-white sticky left-[198px] z-20 w-16">Врач</th>
+                {allDateColumns.map((date, i) => {
+                  const isToday =
+                    date.toDateString() === new Date().toDateString();
+                  return (
+                    <th
+                      key={i}
+                      className={cn(
+                        "border p-1.5 text-center min-w-24 font-medium",
+                        isToday ? "bg-blue-50 text-blue-700" : "text-muted-foreground",
+                      )}
+                    >
+                      {format(date, "dd.MM")}
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {prescriptions.map((p: any, pIdx: number) => {
+                const pStart = new Date(p.prescribed_at);
+                pStart.setHours(0, 0, 0, 0);
+                const pEnd = new Date(pStart);
+                pEnd.setDate(pEnd.getDate() + (p.duration_days ?? 1) - 1);
                 return (
-                  <th
-                    key={i}
-                    className={cn(
-                      "border p-1.5 text-center min-w-24 font-medium",
-                      isToday ? "bg-blue-50 text-blue-700" : "text-muted-foreground",
-                    )}
-                  >
-                    {format(date, "dd.MM")}
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-          <tbody>
-            {prescriptions.map((p: any, pIdx: number) => {
-              const pStart = new Date(p.prescribed_at);
-              pStart.setHours(0, 0, 0, 0);
-              const pEnd = new Date(pStart);
-              pEnd.setDate(pEnd.getDate() + (p.duration_days ?? 1) - 1);
-              return (
-                <tr key={p.id} className="align-top">
-                  <td className="border p-1.5 font-medium text-center">
-                    {pIdx + 1}
-                  </td>
-                  <td className="border p-1.5">
-                    <div className="font-medium">
-                      {p.drug_formulary?.trade_name}{" "}
-                      <span className="font-normal">
-                        {p.dose}{p.dose_unit}
-                      </span>
-                    </div>
-                    <div className="text-muted-foreground">
-                      {ROUTES[p.route] ?? p.route}
-                      {p.schedule_times?.length > 0 &&
-                        ` · ${p.schedule_times.join(", ")}`}
-                    </div>
-                    {p.prescription_type === "prn" && (
-                      <span className="inline-block mt-0.5 px-1 rounded bg-purple-100 text-purple-700">
-                        PRN
-                      </span>
-                    )}
-                    {p.prn_condition && (
-                      <div className="text-purple-700 mt-0.5">
-                        При: {p.prn_condition}
+                  <tr key={p.id} className="align-top">
+                    <td className="border p-1.5 text-center bg-white sticky left-0 z-10 font-medium">
+                      {pIdx + 1}
+                    </td>
+                    <td className="border p-1.5 bg-white sticky left-6 z-10">
+                      <div className="font-medium">
+                        {p.drug_formulary?.trade_name}{" "}
+                        <span className="font-normal">
+                          {p.dose}{p.dose_unit}
+                        </span>
                       </div>
-                    )}
-                  </td>
-                  <td className="border p-1.5 text-muted-foreground">
-                    {p.profiles?.full_name
-                      ?.split(" ")
-                      .map((w: string) => w[0])
-                      .join("") ?? "—"}
-                  </td>
-                  {allDateColumns.map((date, di) => {
-                    const dayKey = new Date(date);
-                    dayKey.setHours(0, 0, 0, 0);
-                    const inRange = dayKey >= pStart && dayKey <= pEnd;
-                    const daySlots = getSlotsForDate(p.id, date);
-                    const isToday =
-                      date.toDateString() === new Date().toDateString();
+                      <div className="text-muted-foreground">
+                        {ROUTES[p.route] ?? p.route}
+                        {p.schedule_times?.length > 0 &&
+                          ` · ${p.schedule_times.join(", ")}`}
+                      </div>
+                      {p.prescription_type === "prn" && (
+                        <span className="inline-block mt-0.5 px-1 rounded bg-purple-100 text-purple-700">
+                          PRN
+                        </span>
+                      )}
+                      {p.prn_condition && (
+                        <div className="text-purple-700 mt-0.5">
+                          При: {p.prn_condition}
+                        </div>
+                      )}
+                    </td>
+                    <td className="border p-1.5 bg-white sticky left-[198px] z-10 text-muted-foreground">
+                      {p.profiles?.full_name
+                        ?.split(" ")
+                        .map((w: string) => w[0])
+                        .join("") ?? "—"}
+                    </td>
+                    {allDateColumns.map((date, di) => {
+                      const dayKey = new Date(date);
+                      dayKey.setHours(0, 0, 0, 0);
+                      const inRange = dayKey >= pStart && dayKey <= pEnd;
+                      const daySlots = getSlotsForDate(p.id, date);
+                      const isToday =
+                        date.toDateString() === new Date().toDateString();
 
-                    if (!inRange) {
+                      if (!inRange) {
+                        return (
+                          <td
+                            key={di}
+                            className="border p-1.5 bg-gray-50 min-w-24 align-top"
+                          >
+                            {viewerRole === "physician" &&
+                              !isReadOnly &&
+                              !isPast(date) && (
+                                <button
+                                  title="Продлить до этой даты"
+                                  onClick={() => onExtend(p.id, date)}
+                                  className="text-xs text-primary hover:underline opacity-60 hover:opacity-100"
+                                >
+                                  +1д
+                                </button>
+                              )}
+                          </td>
+                        );
+                      }
+
                       return (
                         <td
                           key={di}
-                          className="border p-1.5 bg-gray-50 min-w-24 align-top"
+                          className={cn(
+                            "border p-1.5 min-w-24 align-top",
+                            isToday ? "bg-blue-50/50" : "",
+                          )}
                         >
-                          {viewerRole === "physician" &&
-                            !isReadOnly &&
-                            !isPast(date) && (
+                          {viewerRole === "physician" && !isReadOnly && (
+                            <div className="flex items-center gap-1 mb-1">
                               <button
-                                title="Продлить до этой даты"
-                                onClick={() => onExtend(p.id, date)}
-                                className="text-xs text-primary hover:underline opacity-60 hover:opacity-100"
+                                title="Изменить"
+                                className="p-0.5 rounded hover:bg-muted"
+                                onClick={() => {
+                                  const firstSlot = daySlots[0];
+                                  if (firstSlot) {
+                                    setOverrideSlot({
+                                      slotId: firstSlot.id,
+                                      scheduledAt: format(
+                                        new Date(firstSlot.scheduled_at),
+                                        "HH:mm",
+                                      ),
+                                      dose:
+                                        firstSlot.override_dose ??
+                                        `${p.dose}${p.dose_unit ?? ""}`,
+                                    });
+                                  }
+                                }}
                               >
-                                +1д
+                                <Pencil size={11} className="text-blue-600" />
                               </button>
-                            )}
-                        </td>
-                      );
-                    }
-
-                    return (
-                      <td
-                        key={di}
-                        className={cn(
-                          "border p-1.5 min-w-24 align-top",
-                          isToday ? "bg-blue-50/50" : "",
-                        )}
-                      >
-                        {viewerRole === "physician" && !isReadOnly && (
-                          <div className="flex items-center gap-1 mb-1">
-                            <button
-                              title="Изменить"
-                              className="p-0.5 rounded hover:bg-muted"
-                              onClick={() => {
-                                const firstSlot = daySlots[0];
-                                if (firstSlot) {
-                                  setOverrideSlot({
-                                    slotId: firstSlot.id,
-                                    scheduledAt: format(
-                                      new Date(firstSlot.scheduled_at),
-                                      "HH:mm",
-                                    ),
-                                    dose:
-                                      firstSlot.override_dose ??
-                                      `${p.dose}${p.dose_unit ?? ""}`,
-                                  });
-                                }
-                              }}
-                            >
-                              <Pencil size={11} className="text-blue-600" />
-                            </button>
-                            <button
-                              title="Отменить день"
-                              className="p-0.5 rounded hover:bg-muted"
-                              onClick={() => onCancelDay(p.id, date)}
-                            >
-                              <X size={11} className="text-red-500" />
-                            </button>
-                            {!isPast(date) && daySlots.length === 0 && (
                               <button
-                                title="Продлить до этой даты"
-                                onClick={() => onExtend(p.id, date)}
-                                className="text-xs text-primary hover:underline"
+                                title="Отменить день"
+                                className="p-0.5 rounded hover:bg-muted"
+                                onClick={() => onCancelDay(p.id, date)}
                               >
-                                +1д
+                                <X size={11} className="text-red-500" />
                               </button>
-                            )}
-                          </div>
-                        )}
-                        {daySlots.map((slot: any) => (
-                          <div key={slot.id} className="mb-1">
-                            {slot.status === "done" ? (
-                              <div className="text-green-700">
-                                ✅{" "}
-                                {format(
-                                  new Date(slot.administered_at),
-                                  "HH:mm",
-                                )}{" "}
-                                {slot.dose_given}
-                              </div>
-                            ) : slot.status === "skipped" ? (
-                              <div className="text-gray-400 line-through">
-                                {format(new Date(slot.scheduled_at), "HH:mm")}
-                              </div>
-                            ) : (
-                              <div>
-                                <div className="text-orange-600 font-medium">
+                              {!isPast(date) && daySlots.length === 0 && (
+                                <button
+                                  title="Продлить до этой даты"
+                                  onClick={() => onExtend(p.id, date)}
+                                  className="text-xs text-primary hover:underline"
+                                >
+                                  +1д
+                                </button>
+                              )}
+                            </div>
+                          )}
+                          {daySlots.map((slot: any) => (
+                            <div key={slot.id} className="mb-1">
+                              {slot.status === "done" ? (
+                                <div className="text-green-700">
+                                  ✅{" "}
                                   {format(
-                                    new Date(slot.scheduled_at),
+                                    new Date(slot.administered_at),
                                     "HH:mm",
-                                  )}
-                                  {slot.override_dose && (
-                                    <span className="ml-1 text-blue-600">
-                                      {slot.override_dose}
-                                    </span>
+                                  )}{" "}
+                                  {slot.dose_given}
+                                </div>
+                              ) : slot.status === "skipped" ? (
+                                <div className="text-gray-400 line-through">
+                                  {format(new Date(slot.scheduled_at), "HH:mm")}
+                                </div>
+                              ) : (
+                                <div>
+                                  <div className="text-orange-600 font-medium">
+                                    {format(
+                                      new Date(slot.scheduled_at),
+                                      "HH:mm",
+                                    )}
+                                    {slot.override_dose && (
+                                      <span className="ml-1 text-blue-600">
+                                        {slot.override_dose}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {viewerRole === "nurse" && !isReadOnly && (
+                                    <div className="flex gap-1 mt-0.5">
+                                      <button
+                                        className="text-primary underline text-xs"
+                                        onClick={() =>
+                                          setAdminSlot({
+                                            slotId: slot.id,
+                                            doseGiven:
+                                              slot.override_dose ??
+                                              `${p.dose}${p.dose_unit ?? ""}`,
+                                            notes: "",
+                                          })
+                                        }
+                                      >
+                                        Выполнить
+                                      </button>
+                                      <button
+                                        className="text-gray-500 underline text-xs"
+                                        onClick={() => onSkipSlot(slot.id)}
+                                      >
+                                        Пропустить
+                                      </button>
+                                    </div>
                                   )}
                                 </div>
-                                {viewerRole === "nurse" && !isReadOnly && (
-                                  <div className="flex gap-1 mt-0.5">
-                                    <button
-                                      className="text-primary underline text-xs"
-                                      onClick={() =>
-                                        setAdminSlot({
-                                          slotId: slot.id,
-                                          doseGiven:
-                                            slot.override_dose ??
-                                            `${p.dose}${p.dose_unit ?? ""}`,
-                                          notes: "",
-                                        })
-                                      }
-                                    >
-                                      Выполнить
-                                    </button>
-                                    <button
-                                      className="text-gray-500 underline text-xs"
-                                      onClick={() => onSkipSlot(slot.id)}
-                                    >
-                                      Пропустить
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                              )}
+                            </div>
+                          ))}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
-
 
       {overrideSlot && (
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center">
