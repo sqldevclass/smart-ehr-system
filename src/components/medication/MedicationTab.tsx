@@ -507,19 +507,6 @@ export default function MedicationTab({
               )}
             </div>
 
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                value={formData.durationDays}
-                onChange={(e) =>
-                  setFormData((p) => ({ ...p, durationDays: Number(e.target.value) }))
-                }
-                className="w-16 h-8 text-sm"
-                min={0}
-              />
-              <span className="text-sm text-muted-foreground">дней</span>
-            </div>
-
             {formData.prescriptionType === "prn" && (
               <div className="flex gap-2">
                 <div className="flex-1">
