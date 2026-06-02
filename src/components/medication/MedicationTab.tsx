@@ -291,7 +291,8 @@ export default function MedicationTab({
     const { error } = await supabase
       .from("drug_prescriptions")
       .delete()
-      .eq("id", id);
+      .eq("id", id)
+      .eq("is_drafted", true);
     if (error) {
       toast.error(error.message);
       return;
