@@ -472,8 +472,8 @@ export default function InpatientPatientDetail() {
           <div
             className="bg-white rounded-xl shadow-2xl flex flex-col"
             style={{
-              width: "calc(100vw - 280px)",
-              height: "calc(100vh - 64px)",
+              width: "calc(100vw - 80px)",
+              height: "calc(100vh - 40px)",
             }}
           >
             <div className="flex items-center gap-4 px-4 py-3 border-b shrink-0">
