@@ -264,7 +264,15 @@ export default function MedicationTab({
       mix_with_drug_id: formData.mixWithDrug?.id ?? null,
       prescription_type: formData.prescriptionType,
       prn_condition: formData.prnCondition || null,
-      notes: formData.notes || null,
+      notes:
+        [
+          formData.notes,
+          formData.maxDailyDose
+            ? `Макс. доза: ${formData.maxDailyDose}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" | ") || null,
       is_drafted: true,
       status_code: "preliminary",
       prescribed_by: physicianId,
