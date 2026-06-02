@@ -38,6 +38,28 @@ const roleTitles: Record<string, string> = {
 
 type Mode = "ambulatory" | "inpatient";
 
+function ModeSwitcher({ mode, switchMode }: { mode: Mode; switchMode: (m: Mode) => void }) {
+  const { open } = useSidebar();
+  return (
+    <div className="flex flex-col gap-1.5 px-2 py-1">
+      <Button
+        size="sm"
+        variant={mode === "ambulatory" ? "default" : "outline"}
+        onClick={() => switchMode("ambulatory")}
+      >
+        {open ? "Outpatient" : "OP"}
+      </Button>
+      <Button
+        size="sm"
+        variant={mode === "inpatient" ? "default" : "outline"}
+        onClick={() => switchMode("inpatient")}
+      >
+        {open ? "Inpatient" : "IP"}
+      </Button>
+    </div>
+  );
+}
+
 interface PhysicianOutletContext {
   setPatientContext: (node: React.ReactNode | null) => void;
 }
