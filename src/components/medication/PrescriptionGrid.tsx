@@ -125,9 +125,16 @@ export default function PrescriptionGrid({
         set.add(d.toISOString());
       }
     });
-    return Array.from(set)
+    const sortedDates = Array.from(set)
       .map((s) => new Date(s))
       .sort((a, b) => a.getTime() - b.getTime());
+    if (sortedDates.length > 0) {
+      const lastDate = new Date(sortedDates[sortedDates.length - 1]);
+      lastDate.setDate(lastDate.getDate() + 1);
+      lastDate.setHours(0, 0, 0, 0);
+      sortedDates.push(lastDate);
+    }
+    return sortedDates;
   })();
 
   if (prescriptions.length === 0) {
