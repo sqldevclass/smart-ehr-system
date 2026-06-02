@@ -508,17 +508,6 @@ function TabPanel(props: TabProps) {
       return <ServiceTab {...props} typeCode="consultation" title="Консультация" />;
     case "diagnosis":
       return <DiagnosisTab {...props} />;
-    case "medication":
-      return (
-        <MedicationTab
-          hospitalizationId={props.hospitalizationId}
-          patientId={props.patientId}
-          hospitalId={props.hospitalId}
-          physicianId={props.userId}
-          isReadOnly={!!props.readOnly}
-          patientAllergies={props.patientAllergies ?? []}
-        />
-      );
     case "imaging":
       return <Placeholder text="Инструментальные — Фаза 8 — в разработке" />;
     case "care":
