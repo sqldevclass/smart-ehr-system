@@ -11,7 +11,7 @@ interface Props {
   slots: any[];
   viewerRole: "physician" | "nurse";
   isReadOnly: boolean;
-  onExtend: (prescriptionId: string) => void;
+  onExtend: (prescriptionId: string, date: Date) => void;
   onCancelDay: (prescriptionId: string, date: Date) => void;
   onOverrideSlot: (slotId: string, scheduledAt: string, dose: string) => void;
   onAdministerSlot: (slotId: string, doseGiven: string, notes: string) => void;
@@ -83,6 +83,29 @@ export default function PrescriptionGrid({
           new Date(a.scheduled_at).getTime() -
           new Date(b.scheduled_at).getTime(),
       );
+
+  const isPast = (date: Date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return date < today;
+  };
+
+  const allDateColumns = (() => {
+    const set = new Set<string>();
+    prescriptions.forEach((p: any) => {
+      const start = new Date(p.prescribed_at);
+      const days = p.duration_days ?? 1;
+      for (let i = 0; i < days; i++) {
+        const d = new Date(start);
+        d.setDate(d.getDate() + i);
+        d.setHours(0, 0, 0, 0);
+        set.add(d.toISOString());
+      }
+    });
+    return Array.from(set)
+      .map((s) => new Date(s))
+      .sort((a, b) => a.getTime() - b.getTime());
+  })();
 
   if (prescriptions.length === 0) {
     return (
