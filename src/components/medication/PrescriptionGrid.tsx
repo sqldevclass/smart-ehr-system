@@ -116,20 +116,35 @@ export default function PrescriptionGrid({
   return (
     <>
       <div className="overflow-x-auto">
-        <table className="w-full text-xs border-collapse">
+        <table className="text-xs border-collapse min-w-full">
           <thead>
             <tr className="bg-muted/50">
               <th className="border p-1.5 text-left w-6 shrink-0">#</th>
               <th className="border p-1.5 text-left min-w-48">НАЗНАЧЕНИЕ</th>
               <th className="border p-1.5 text-left w-20">Врач</th>
-              {viewerRole === "physician" && (
-                <th className="border p-1.5 text-center w-8">+1д</th>
-              )}
+              {allDateColumns.map((date, i) => {
+                const isToday =
+                  date.toDateString() === new Date().toDateString();
+                return (
+                  <th
+                    key={i}
+                    className={cn(
+                      "border p-1.5 text-center min-w-24 font-medium",
+                      isToday ? "bg-blue-50 text-blue-700" : "text-muted-foreground",
+                    )}
+                  >
+                    {format(date, "dd.MM")}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
             {prescriptions.map((p: any, pIdx: number) => {
-              const dateColumns = getDateColumns(p);
+              const pStart = new Date(p.prescribed_at);
+              pStart.setHours(0, 0, 0, 0);
+              const pEnd = new Date(pStart);
+              pEnd.setDate(pEnd.getDate() + (p.duration_days ?? 1) - 1);
               return (
                 <tr key={p.id} className="align-top">
                   <td className="border p-1.5 font-medium text-center">
@@ -137,17 +152,16 @@ export default function PrescriptionGrid({
                   </td>
                   <td className="border p-1.5">
                     <div className="font-medium">
-                      {p.drug_formulary?.trade_name}
+                      {p.drug_formulary?.trade_name}{" "}
+                      <span className="font-normal">
+                        {p.dose}{p.dose_unit}
+                      </span>
                     </div>
                     <div className="text-muted-foreground">
-                      {p.dose}
-                      {p.dose_unit} · {ROUTES[p.route] ?? p.route}
+                      {ROUTES[p.route] ?? p.route}
+                      {p.schedule_times?.length > 0 &&
+                        ` · ${p.schedule_times.join(", ")}`}
                     </div>
-                    {p.schedule_times?.length > 0 && (
-                      <div className="text-muted-foreground">
-                        {p.schedule_times.join(", ")}
-                      </div>
-                    )}
                     {p.prescription_type === "prn" && (
                       <span className="inline-block mt-0.5 px-1 rounded bg-purple-100 text-purple-700">
                         PRN
@@ -165,11 +179,35 @@ export default function PrescriptionGrid({
                       .map((w: string) => w[0])
                       .join("") ?? "—"}
                   </td>
-                  {dateColumns.map((date, di) => {
+                  {allDateColumns.map((date, di) => {
+                    const dayKey = new Date(date);
+                    dayKey.setHours(0, 0, 0, 0);
+                    const inRange = dayKey >= pStart && dayKey <= pEnd;
                     const daySlots = getSlotsForDate(p.id, date);
-                    const dateLabel = format(date, "dd.MM");
                     const isToday =
                       date.toDateString() === new Date().toDateString();
+
+                    if (!inRange) {
+                      return (
+                        <td
+                          key={di}
+                          className="border p-1.5 bg-gray-50 min-w-24 align-top"
+                        >
+                          {viewerRole === "physician" &&
+                            !isReadOnly &&
+                            !isPast(date) && (
+                              <button
+                                title="Продлить до этой даты"
+                                onClick={() => onExtend(p.id, date)}
+                                className="text-xs text-primary hover:underline opacity-60 hover:opacity-100"
+                              >
+                                +1д
+                              </button>
+                            )}
+                        </td>
+                      );
+                    }
+
                     return (
                       <td
                         key={di}
@@ -178,16 +216,6 @@ export default function PrescriptionGrid({
                           isToday ? "bg-blue-50/50" : "",
                         )}
                       >
-                        <div
-                          className={cn(
-                            "text-center font-medium mb-1 pb-1 border-b",
-                            isToday
-                              ? "text-blue-700"
-                              : "text-muted-foreground",
-                          )}
-                        >
-                          {dateLabel}
-                        </div>
                         {viewerRole === "physician" && !isReadOnly && (
                           <div className="flex items-center gap-1 mb-1">
                             <button
@@ -209,10 +237,7 @@ export default function PrescriptionGrid({
                                 }
                               }}
                             >
-                              <Pencil
-                                size={11}
-                                className="text-blue-600"
-                              />
+                              <Pencil size={11} className="text-blue-600" />
                             </button>
                             <button
                               title="Отменить день"
@@ -221,6 +246,15 @@ export default function PrescriptionGrid({
                             >
                               <X size={11} className="text-red-500" />
                             </button>
+                            {!isPast(date) && daySlots.length === 0 && (
+                              <button
+                                title="Продлить до этой даты"
+                                onClick={() => onExtend(p.id, date)}
+                                className="text-xs text-primary hover:underline"
+                              >
+                                +1д
+                              </button>
+                            )}
                           </div>
                         )}
                         {daySlots.map((slot: any) => (
@@ -236,15 +270,11 @@ export default function PrescriptionGrid({
                               </div>
                             ) : slot.status === "skipped" ? (
                               <div className="text-gray-400 line-through">
-                                {format(
-                                  new Date(slot.scheduled_at),
-                                  "HH:mm",
-                                )}
+                                {format(new Date(slot.scheduled_at), "HH:mm")}
                               </div>
                             ) : (
                               <div>
                                 <div className="text-orange-600 font-medium">
-                                  ⏳{" "}
                                   {format(
                                     new Date(slot.scheduled_at),
                                     "HH:mm",
@@ -286,26 +316,13 @@ export default function PrescriptionGrid({
                       </td>
                     );
                   })}
-                  {viewerRole === "physician" && !isReadOnly && (
-                    <td className="border p-1.5 text-center align-middle w-8">
-                      <button
-                        onClick={() => onExtend(p.id)}
-                        className="text-xs text-primary hover:underline px-1 py-2 rounded border hover:bg-muted/50"
-                        style={{
-                          writingMode: "vertical-rl",
-                          textOrientation: "mixed",
-                        }}
-                      >
-                        +1д
-                      </button>
-                    </td>
-                  )}
                 </tr>
               );
             })}
           </tbody>
         </table>
       </div>
+
 
       {overrideSlot && (
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center">
