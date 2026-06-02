@@ -237,7 +237,13 @@ export default function MedicationTab({
   };
 
   const handleAddDrug = (drug: any) => {
-    setFormData({ ...initialFormData, drug });
+    const doseMatch = drug.dose?.match(/^([\d.]+)\s*(.*)$/);
+    setFormData({
+      ...initialFormData,
+      drug,
+      dose: doseMatch?.[1] ?? "",
+      doseUnit: doseMatch?.[2] ?? "мг",
+    });
     setShowForm(true);
   };
 
