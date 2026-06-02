@@ -186,9 +186,10 @@ export default function MedicationTab({
       queryKey: ["all-slots", hospitalizationId],
     });
 
-  const handleExtend = async (prescriptionId: string) => {
-    const { error } = await supabase.rpc("extend_prescription", {
+  const handleExtend = async (prescriptionId: string, date: Date) => {
+    const { error } = await supabase.rpc("extend_prescription_to_date", {
       p_prescription_id: prescriptionId,
+      p_target_date: format(date, "yyyy-MM-dd"),
     });
     if (error) {
       toast.error(error.message);
