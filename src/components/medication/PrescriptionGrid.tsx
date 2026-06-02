@@ -39,6 +39,22 @@ const ROUTES: Record<string, string> = {
   other: "Другое",
 };
 
+const NoteCell = ({ note }: { note: string }) => {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div
+      className="text-xs text-muted-foreground mt-0.5 cursor-pointer"
+      onClick={() => setExpanded(!expanded)}
+    >
+      {expanded ? (
+        note
+      ) : (
+        <span className="truncate block max-w-[180px]">{note}</span>
+      )}
+    </div>
+  );
+};
+
 export default function PrescriptionGrid({
   prescriptions,
   slots,
@@ -151,10 +167,13 @@ export default function PrescriptionGrid({
               <th className="border p-1.5 text-left bg-white sticky left-0 z-20 w-6">
                 #
               </th>
-              <th className="border p-1.5 text-left bg-white sticky left-6 z-20 min-w-48">
+              <th className="border p-1.5 text-left bg-white sticky left-6 z-20 w-16">
+                Дата
+              </th>
+              <th className="border p-1.5 text-left bg-white sticky left-[82px] z-20 min-w-48">
                 НАЗНАЧЕНИЕ
               </th>
-              <th className="border p-1.5 text-left bg-white sticky left-[210px] z-20 w-16">
+              <th className="border p-1.5 text-left bg-white sticky left-[274px] z-20 w-16">
                 Врач
               </th>
               {allDateColumns.map((date, i) => {
@@ -187,7 +206,16 @@ export default function PrescriptionGrid({
                   <td className="border p-1.5 text-center font-medium bg-white sticky left-0 z-10 w-6">
                     {pIdx + 1}
                   </td>
-                  <td className="border p-1.5 bg-white sticky left-6 z-10 min-w-48">
+                  <td className="border p-1.5 bg-white sticky left-6 z-10 text-xs text-muted-foreground w-16">
+                    {format(new Date(p.prescribed_at), "dd.MM")}
+                    <div
+                      className="text-muted-foreground"
+                      style={{ fontSize: "10px" }}
+                    >
+                      {format(new Date(p.prescribed_at), "HH:mm")}
+                    </div>
+                  </td>
+                  <td className="border p-1.5 bg-white sticky left-[82px] z-10 min-w-48">
                     <div className="font-medium">
                       {p.drug_formulary?.trade_name}{" "}
                       <span className="font-normal">
@@ -205,13 +233,19 @@ export default function PrescriptionGrid({
                         PRN
                       </span>
                     )}
+                    {p.prescription_type === "antibiotic_prophylaxis" && (
+                      <span className="text-xs bg-orange-100 text-orange-700 px-1 rounded">
+                        Антибиотикопрофилактика
+                      </span>
+                    )}
                     {p.prn_condition && (
                       <div className="text-xs text-purple-700">
                         При: {p.prn_condition}
                       </div>
                     )}
+                    {p.notes && <NoteCell note={p.notes} />}
                   </td>
-                  <td className="border p-1.5 bg-white sticky left-[210px] z-10 text-xs text-muted-foreground w-16">
+                  <td className="border p-1.5 bg-white sticky left-[274px] z-10 text-xs text-muted-foreground w-16">
                     {p.profiles?.full_name
                       ?.split(" ")
                       .map((w: string) => w[0])
