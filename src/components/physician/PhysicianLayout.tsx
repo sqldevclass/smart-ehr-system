@@ -27,14 +27,6 @@ import {
 const navItems = [
   { title: "Profile", url: "/physician/profile", icon: UserCircle },
 ];
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
-
-const navItems = [
-  { title: "My Schedule", url: "/physician", icon: CalendarDays },
-  { title: "Profile", url: "/physician/profile", icon: UserCircle },
-];
 
 const roleTitles: Record<string, string> = {
   admin: "Administrator",
