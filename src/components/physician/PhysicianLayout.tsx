@@ -99,22 +99,8 @@ export default function PhysicianLayout() {
             <SidebarGroup>
               <SidebarGroupLabel>Mode</SidebarGroupLabel>
               <SidebarGroupContent>
-                <div className="flex flex-col gap-1.5 px-2 py-1">
-                  <Button
-                    size="sm"
-                    variant={mode === "ambulatory" ? "default" : "outline"}
-                    onClick={() => switchMode("ambulatory")}
-                  >
-                    Ambulatory
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={mode === "inpatient" ? "default" : "outline"}
-                    onClick={() => switchMode("inpatient")}
-                  >
-                    Inpatient
-                  </Button>
-                </div>
+                <ModeSwitcher mode={mode} switchMode={switchMode} />
+
               </SidebarGroupContent>
             </SidebarGroup>
             <SidebarGroup>
