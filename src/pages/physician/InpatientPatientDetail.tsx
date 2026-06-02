@@ -13,7 +13,7 @@ import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from "@/components/ui/select";
 
-import { format } from "date-fns";
+import { format, differenceInYears } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import InpatientDocumentWorkspace from "@/components/documents/InpatientDocumentWorkspace";
@@ -469,12 +469,54 @@ export default function InpatientPatientDetail() {
 
       {showMedicationModal && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full h-full max-w-[95vw] max-h-[95vh] flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
-              <h2 className="font-semibold text-base">Лист назначения</h2>
+          <div
+            className="bg-white rounded-xl shadow-2xl flex flex-col"
+            style={{
+              width: "calc(100vw - 280px)",
+              height: "calc(100vh - 64px)",
+            }}
+          >
+            <div className="flex items-center gap-4 px-4 py-3 border-b shrink-0">
+              <h2 className="font-semibold text-base shrink-0">Лист назначения</h2>
+              <div className="flex items-center gap-4 text-sm flex-1 min-w-0">
+                <div className="shrink-0">
+                  <div className="font-medium">
+                    {patient?.last_name} {patient?.first_name}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {patient?.date_of_birth
+                      ? format(new Date(patient.date_of_birth), "dd.MM.yyyy")
+                      : "—"}
+                    {" · "}
+                    {patient?.date_of_birth
+                      ? differenceInYears(new Date(), new Date(patient.date_of_birth))
+                      : "—"}{" "}
+                    лет
+                  </div>
+                </div>
+                <div className="text-xs text-muted-foreground shrink-0">
+                  {patient?.patient_number}
+                </div>
+                {patient?.weight_kg && (
+                  <div className="text-xs text-muted-foreground shrink-0">
+                    {patient.weight_kg} кг
+                  </div>
+                )}
+                {patient?.height_cm && (
+                  <div className="text-xs text-muted-foreground shrink-0">
+                    {patient.height_cm} см
+                  </div>
+                )}
+                {allergies.length > 0 && (
+                  <div className="text-xs font-semibold text-red-600 shrink-0">
+                    ⚠ АЛЛЕРГИЯ:{" "}
+                    {allergies.map((a: any) => a.allergy_type).join(", ")}
+                  </div>
+                )}
+              </div>
               <button
                 onClick={() => setShowMedicationModal(false)}
-                className="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground"
+                className="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground shrink-0"
               >
                 ✕
               </button>
