@@ -206,7 +206,16 @@ export default function PrescriptionGrid({
                   <td className="border p-1.5 text-center font-medium bg-white sticky left-0 z-10 w-6">
                     {pIdx + 1}
                   </td>
-                  <td className="border p-1.5 bg-white sticky left-6 z-10 min-w-48">
+                  <td className="border p-1.5 bg-white sticky left-6 z-10 text-xs text-muted-foreground w-16">
+                    {format(new Date(p.prescribed_at), "dd.MM")}
+                    <div
+                      className="text-muted-foreground"
+                      style={{ fontSize: "10px" }}
+                    >
+                      {format(new Date(p.prescribed_at), "HH:mm")}
+                    </div>
+                  </td>
+                  <td className="border p-1.5 bg-white sticky left-[82px] z-10 min-w-48">
                     <div className="font-medium">
                       {p.drug_formulary?.trade_name}{" "}
                       <span className="font-normal">
@@ -224,13 +233,19 @@ export default function PrescriptionGrid({
                         PRN
                       </span>
                     )}
+                    {p.prescription_type === "antibiotic_prophylaxis" && (
+                      <span className="text-xs bg-orange-100 text-orange-700 px-1 rounded">
+                        Антибиотикопрофилактика
+                      </span>
+                    )}
                     {p.prn_condition && (
                       <div className="text-xs text-purple-700">
                         При: {p.prn_condition}
                       </div>
                     )}
+                    {p.notes && <NoteCell note={p.notes} />}
                   </td>
-                  <td className="border p-1.5 bg-white sticky left-[210px] z-10 text-xs text-muted-foreground w-16">
+                  <td className="border p-1.5 bg-white sticky left-[274px] z-10 text-xs text-muted-foreground w-16">
                     {p.profiles?.full_name
                       ?.split(" ")
                       .map((w: string) => w[0])
