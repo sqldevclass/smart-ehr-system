@@ -173,7 +173,14 @@ export default function MedicationTab({
     [prescriptions],
   );
   const submittedPrescriptions = useMemo(
-    () => prescriptions.filter((p: any) => !p.is_drafted),
+    () =>
+      prescriptions
+        .filter((p: any) => !p.is_drafted)
+        .sort(
+          (a: any, b: any) =>
+            new Date(a.prescribed_at).getTime() -
+            new Date(b.prescribed_at).getTime(),
+        ),
     [prescriptions],
   );
 
