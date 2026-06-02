@@ -64,16 +64,35 @@ export default function PrescriptionGrid({
   const leftRowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
   const [rowHeights, setRowHeights] = useState<Record<string, number>>({});
 
-  useLayoutEffect(() => {
-    const heights: Record<string, number> = {};
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observers: ResizeObserver[] = [];
     prescriptions.forEach((p: any) => {
-      const leftRow = leftRowRefs.current[p.id];
-      if (leftRow) {
-        heights[p.id] = leftRow.getBoundingClientRect().height;
-      }
+      const row = leftRowRefs.current[p.id];
+      if (!row) return;
+      const observer = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          const h = entry.contentRect.height;
+          setRowHeights((prev) => {
+            if (prev[p.id] === h) return prev;
+            return { ...prev, [p.id]: h };
+          });
+        }
+      });
+      observer.observe(row);
+      observers.push(observer);
     });
-    setRowHeights(heights);
+    return () => {
+      observers.forEach((o) => o.disconnect());
+    };
   }, [prescriptions, slots]);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
+    }
+  }, []);
 
   const getSlotsForDate = (prescriptionId: string, date: Date) =>
     slots
