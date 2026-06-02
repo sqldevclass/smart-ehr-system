@@ -414,6 +414,19 @@ export default function MedicationTab({
                   ))}
                 </SelectContent>
               </Select>
+
+              <div className="flex items-center gap-1">
+                <Input
+                  type="number"
+                  value={formData.durationDays}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, durationDays: Number(e.target.value) }))
+                  }
+                  className="w-14 h-8 text-sm"
+                  min={0}
+                />
+                <span className="text-sm text-muted-foreground">дней</span>
+              </div>
             </div>
 
             <div>
