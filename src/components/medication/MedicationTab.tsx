@@ -332,10 +332,36 @@ export default function MedicationTab({
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {showForm && formData.drug && (
           <div className="border-2 border-gray-200 rounded-lg p-4 space-y-3 bg-muted/20">
-            <div className="flex items-center justify-between">
+            <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="font-semibold text-sm">{formData.drug?.trade_name}</p>
                 <p className="text-xs text-muted-foreground">{formData.drug?.inn}</p>
+              </div>
+              <div className="flex gap-1 shrink-0 flex-wrap">
+                {["regular", "prn", "antibiotic_prophylaxis"].map((t) => (
+                  <button
+                    key={t}
+                    onClick={() =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        prescriptionType: t,
+                        scheduleTimes: t === "prn" ? [] : prev.scheduleTimes,
+                      }))
+                    }
+                    className={cn(
+                      "px-2 py-1 rounded text-xs border",
+                      formData.prescriptionType === t
+                        ? "bg-primary text-white border-primary"
+                        : "bg-white border-gray-300",
+                    )}
+                  >
+                    {t === "regular"
+                      ? "Стандартное"
+                      : t === "prn"
+                      ? "PRN"
+                      : "Антибиотикопрофилактика"}
+                  </button>
+                ))}
               </div>
               <Button size="sm" variant="ghost" onClick={() => setShowForm(false)}>
                 ✕
@@ -357,21 +383,39 @@ export default function MedicationTab({
               />
             </div>
 
-            <Select
-              value={formData.route}
-              onValueChange={(v) => setFormData((p) => ({ ...p, route: v }))}
-            >
-              <SelectTrigger className="h-8 text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ROUTES.map((r) => (
-                  <SelectItem key={r.code} value={r.code}>
-                    {r.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Select
+                value={formData.route}
+                onValueChange={(v) => setFormData((p) => ({ ...p, route: v }))}
+              >
+                <SelectTrigger className="w-auto min-w-fit h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ROUTES.map((r) => (
+                    <SelectItem key={r.code} value={r.code}>
+                      {r.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={formData.foodRule}
+                onValueChange={(v) => setFormData((p) => ({ ...p, foodRule: v }))}
+              >
+                <SelectTrigger className="w-auto min-w-fit h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {FOOD_RULES.map((r) => (
+                    <SelectItem key={r.code} value={r.code}>
+                      {r.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
             <div>
               <Label className="text-xs">Дата начала</Label>
@@ -410,7 +454,14 @@ export default function MedicationTab({
 
             <div>
               <Label className="text-xs">Время приёма</Label>
-              <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto p-1 border rounded bg-white mt-1">
+              <div
+                className={cn(
+                  "flex flex-wrap gap-1 max-h-32 overflow-y-auto p-1 border rounded mt-1",
+                  formData.prescriptionType === "prn"
+                    ? "opacity-40 pointer-events-none bg-gray-50"
+                    : "bg-white",
+                )}
+              >
                 {TIME_CHIPS.map((t) => {
                   const selected = formData.scheduleTimes.includes(t);
                   return (
@@ -437,6 +488,11 @@ export default function MedicationTab({
                   );
                 })}
               </div>
+              {formData.prescriptionType === "prn" && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  PRN — время не требуется
+                </p>
+              )}
             </div>
 
             <div className="flex items-center gap-2">
@@ -447,57 +503,36 @@ export default function MedicationTab({
                   setFormData((p) => ({ ...p, durationDays: Number(e.target.value) }))
                 }
                 className="w-16 h-8 text-sm"
-                min={1}
+                min={0}
               />
               <span className="text-sm text-muted-foreground">дней</span>
             </div>
 
-            <Select
-              value={formData.foodRule}
-              onValueChange={(v) => setFormData((p) => ({ ...p, foodRule: v }))}
-            >
-              <SelectTrigger className="h-8 text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {FOOD_RULES.map((r) => (
-                  <SelectItem key={r.code} value={r.code}>
-                    {r.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <div className="flex gap-2">
-              {["regular", "prn", "antibiotic_prophylaxis"].map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setFormData((prev) => ({ ...prev, prescriptionType: t }))}
-                  className={cn(
-                    "px-2 py-1 rounded text-xs border",
-                    formData.prescriptionType === t
-                      ? "bg-primary text-white border-primary"
-                      : "bg-white border-gray-300",
-                  )}
-                >
-                  {t === "regular"
-                    ? "Обычное"
-                    : t === "prn"
-                    ? "PRN"
-                    : "Антибиотикопрофилактика"}
-                </button>
-              ))}
-            </div>
-
             {formData.prescriptionType === "prn" && (
-              <Input
-                value={formData.prnCondition}
-                onChange={(e) =>
-                  setFormData((p) => ({ ...p, prnCondition: e.target.value }))
-                }
-                placeholder="Условие (напр. при t° ≥ 38°C)"
-                className="h-8 text-sm"
-              />
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Label className="text-xs">Условие</Label>
+                  <Input
+                    value={formData.prnCondition}
+                    onChange={(e) =>
+                      setFormData((p) => ({ ...p, prnCondition: e.target.value }))
+                    }
+                    placeholder="напр. при t° ≥ 38°C"
+                    className="h-8 text-sm mt-1"
+                  />
+                </div>
+                <div className="w-36 shrink-0">
+                  <Label className="text-xs">Макс. суточная доза</Label>
+                  <Input
+                    value={formData.maxDailyDose ?? ""}
+                    onChange={(e) =>
+                      setFormData((p) => ({ ...p, maxDailyDose: e.target.value }))
+                    }
+                    placeholder="напр. 4г"
+                    className="h-8 text-sm mt-1"
+                  />
+                </div>
+              </div>
             )}
 
             <Input
@@ -516,6 +551,7 @@ export default function MedicationTab({
             </Button>
           </div>
         )}
+
 
         {draftPrescriptions.length > 0 && (
           <div className="border rounded-lg p-3 space-y-2 bg-yellow-50 border-yellow-200">
