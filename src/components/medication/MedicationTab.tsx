@@ -332,10 +332,24 @@ export default function MedicationTab({
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {showForm && formData.drug && (
           <div className="border-2 border-gray-200 rounded-lg p-4 space-y-3 bg-muted/20">
-            <div className="flex items-start justify-between gap-3">
-              <div>
+            <div className="flex items-start gap-3 flex-wrap">
+              <div className="shrink-0">
                 <p className="font-semibold text-sm">{formData.drug?.trade_name}</p>
                 <p className="text-xs text-muted-foreground">{formData.drug?.inn}</p>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <Input
+                  value={formData.dose}
+                  onChange={(e) => setFormData((p) => ({ ...p, dose: e.target.value }))}
+                  placeholder="Доза"
+                  className="w-20 h-8 text-sm"
+                />
+                <Input
+                  value={formData.doseUnit}
+                  onChange={(e) => setFormData((p) => ({ ...p, doseUnit: e.target.value }))}
+                  placeholder="мг"
+                  className="w-14 h-8 text-sm"
+                />
               </div>
               <div className="flex gap-1 shrink-0 flex-wrap">
                 {["regular", "prn", "antibiotic_prophylaxis"].map((t) => (
@@ -363,24 +377,9 @@ export default function MedicationTab({
                   </button>
                 ))}
               </div>
-              <Button size="sm" variant="ghost" onClick={() => setShowForm(false)}>
+              <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setShowForm(false)}>
                 ✕
               </Button>
-            </div>
-
-            <div className="flex gap-2">
-              <Input
-                value={formData.dose}
-                onChange={(e) => setFormData((p) => ({ ...p, dose: e.target.value }))}
-                placeholder="Доза"
-                className="w-24 h-8 text-sm"
-              />
-              <Input
-                value={formData.doseUnit}
-                onChange={(e) => setFormData((p) => ({ ...p, doseUnit: e.target.value }))}
-                placeholder="мг"
-                className="w-16 h-8 text-sm"
-              />
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
