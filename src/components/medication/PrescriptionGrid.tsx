@@ -206,7 +206,7 @@ export default function PrescriptionGrid({
         </div>
 
         {/* RIGHT TABLE — scrollable date columns */}
-        <div className="flex-1 overflow-x-auto">
+        <div ref={scrollRef} className="flex-1 overflow-x-auto">
           <table className="text-xs border-collapse">
             <thead>
               <tr className="bg-muted/50" style={{ height: HEADER_H }}>
