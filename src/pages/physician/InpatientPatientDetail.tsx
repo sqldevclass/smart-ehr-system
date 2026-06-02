@@ -51,6 +51,7 @@ export default function InpatientPatientDetail() {
   const [showAll, setShowAll] = useState(false);
   const [activeView, setActiveView] = useState<ActiveView>(null);
   const [dischargeOpen, setDischargeOpen] = useState(false);
+  const [showMedicationModal, setShowMedicationModal] = useState(false);
 
   const { data: ewsScheduleStatus } = useQuery({
     queryKey: ["ews-schedule-status", hospitalizationId],
