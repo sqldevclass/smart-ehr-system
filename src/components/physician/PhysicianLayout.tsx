@@ -21,6 +21,14 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarTrigger,
+  useSidebar,
+} from "@/components/ui/sidebar";
+
+const navItems = [
+  { title: "Profile", url: "/physician/profile", icon: UserCircle },
+];
+  SidebarProvider,
+  SidebarTrigger,
 } from "@/components/ui/sidebar";
 
 const navItems = [
