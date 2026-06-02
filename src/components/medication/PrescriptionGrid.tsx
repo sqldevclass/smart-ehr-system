@@ -167,10 +167,13 @@ export default function PrescriptionGrid({
               <th className="border p-1.5 text-left bg-white sticky left-0 z-20 w-6">
                 #
               </th>
-              <th className="border p-1.5 text-left bg-white sticky left-6 z-20 min-w-48">
+              <th className="border p-1.5 text-left bg-white sticky left-6 z-20 w-16">
+                Дата
+              </th>
+              <th className="border p-1.5 text-left bg-white sticky left-[82px] z-20 min-w-48">
                 НАЗНАЧЕНИЕ
               </th>
-              <th className="border p-1.5 text-left bg-white sticky left-[210px] z-20 w-16">
+              <th className="border p-1.5 text-left bg-white sticky left-[274px] z-20 w-16">
                 Врач
               </th>
               {allDateColumns.map((date, i) => {
