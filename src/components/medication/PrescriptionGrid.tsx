@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useLayoutEffect } from "react";
 import { format } from "date-fns";
 import { Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -103,16 +103,87 @@ export default function PrescriptionGrid({
     );
   }
 
+  const leftRowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
+  const [rowHeights, setRowHeights] = useState<Record<string, number>>({});
+
+  useLayoutEffect(() => {
+    const heights: Record<string, number> = {};
+    prescriptions.forEach((p: any) => {
+      const leftRow = leftRowRefs.current[p.id];
+      if (leftRow) {
+        heights[p.id] = leftRow.getBoundingClientRect().height;
+      }
+    });
+    setRowHeights(heights);
+  }, [prescriptions, slots]);
+
+  const HEADER_H = 32;
+
   return (
     <>
-      <div className="w-full overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="w-full flex border rounded overflow-hidden">
+        {/* LEFT TABLE — fixed columns */}
+        <div className="shrink-0 bg-white">
           <table className="text-xs border-collapse">
             <thead>
-              <tr className="bg-muted/50">
-                <th className="border p-1.5 text-left bg-white sticky left-0 z-20 w-6">#</th>
-                <th className="border p-1.5 text-left bg-white sticky left-6 z-20 min-w-48">НАЗНАЧЕНИЕ</th>
-                <th className="border p-1.5 text-left bg-white sticky left-[222px] z-20 w-16">Врач</th>
+              <tr className="bg-muted/50" style={{ height: HEADER_H }}>
+                <th className="border p-1.5 text-left w-6">#</th>
+                <th className="border p-1.5 text-left min-w-48">НАЗНАЧЕНИЕ</th>
+                <th className="border p-1.5 text-left w-16">Врач</th>
+              </tr>
+            </thead>
+            <tbody>
+              {prescriptions.map((p: any, pIdx: number) => (
+                <tr
+                  key={p.id}
+                  ref={(el) => {
+                    leftRowRefs.current[p.id] = el;
+                  }}
+                  className="align-top"
+                >
+                  <td className="border p-1.5 text-center font-medium w-6">
+                    {pIdx + 1}
+                  </td>
+                  <td className="border p-1.5 min-w-48">
+                    <div className="font-medium">
+                      {p.drug_formulary?.trade_name}{" "}
+                      <span className="font-normal">
+                        {p.dose}{p.dose_unit}
+                      </span>
+                    </div>
+                    <div className="text-muted-foreground">
+                      {ROUTES[p.route] ?? p.route}
+                      {p.schedule_times?.length > 0 &&
+                        ` · ${p.schedule_times.join(", ")}`}
+                    </div>
+                    {p.prescription_type === "prn" && (
+                      <span className="inline-block mt-0.5 px-1 rounded bg-purple-100 text-purple-700">
+                        PRN
+                      </span>
+                    )}
+                    {p.prn_condition && (
+                      <div className="text-purple-700 mt-0.5">
+                        При: {p.prn_condition}
+                      </div>
+                    )}
+                  </td>
+                  <td className="border p-1.5 text-muted-foreground w-16">
+                    {p.profiles?.full_name
+                      ?.split(" ")
+                      .map((w: string) => w[0])
+                      .join("") ?? "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* RIGHT TABLE — scrollable date columns */}
+        <div className="flex-1 overflow-x-auto">
+          <table className="text-xs border-collapse">
+            <thead>
+              <tr className="bg-muted/50" style={{ height: HEADER_H }}>
                 {allDateColumns.map((date, i) => {
                   const isToday =
                     date.toDateString() === new Date().toDateString();
@@ -131,45 +202,21 @@ export default function PrescriptionGrid({
               </tr>
             </thead>
             <tbody>
-              {prescriptions.map((p: any, pIdx: number) => {
+              {prescriptions.map((p: any) => {
                 const pStart = new Date(p.prescribed_at);
                 pStart.setHours(0, 0, 0, 0);
                 const pEnd = new Date(pStart);
                 pEnd.setDate(pEnd.getDate() + (p.duration_days ?? 1) - 1);
                 return (
-                  <tr key={p.id} className="align-top">
-                    <td className="border p-1.5 text-center bg-white sticky left-0 z-10 font-medium">
-                      {pIdx + 1}
-                    </td>
-                    <td className="border p-1.5 bg-white sticky left-6 z-10">
-                      <div className="font-medium">
-                        {p.drug_formulary?.trade_name}{" "}
-                        <span className="font-normal">
-                          {p.dose}{p.dose_unit}
-                        </span>
-                      </div>
-                      <div className="text-muted-foreground">
-                        {ROUTES[p.route] ?? p.route}
-                        {p.schedule_times?.length > 0 &&
-                          ` · ${p.schedule_times.join(", ")}`}
-                      </div>
-                      {p.prescription_type === "prn" && (
-                        <span className="inline-block mt-0.5 px-1 rounded bg-purple-100 text-purple-700">
-                          PRN
-                        </span>
-                      )}
-                      {p.prn_condition && (
-                        <div className="text-purple-700 mt-0.5">
-                          При: {p.prn_condition}
-                        </div>
-                      )}
-                    </td>
-                    <td className="border p-1.5 bg-white sticky left-[222px] z-10 text-muted-foreground">
-                      {p.profiles?.full_name
-                        ?.split(" ")
-                        .map((w: string) => w[0])
-                        .join("") ?? "—"}
-                    </td>
+                  <tr
+                    key={p.id}
+                    className="align-top"
+                    style={{
+                      height: rowHeights[p.id]
+                        ? `${rowHeights[p.id]}px`
+                        : "auto",
+                    }}
+                  >
                     {allDateColumns.map((date, di) => {
                       const dayKey = new Date(date);
                       dayKey.setHours(0, 0, 0, 0);
@@ -177,6 +224,7 @@ export default function PrescriptionGrid({
                       const daySlots = getSlotsForDate(p.id, date);
                       const isToday =
                         date.toDateString() === new Date().toDateString();
+                      const isPastDate = isPast(date);
 
                       if (!inRange) {
                         return (
@@ -186,7 +234,7 @@ export default function PrescriptionGrid({
                           >
                             {viewerRole === "physician" &&
                               !isReadOnly &&
-                              !isPast(date) && (
+                              !isPastDate && (
                                 <button
                                   title="Продлить до этой даты"
                                   onClick={() => onExtend(p.id, date)}
@@ -237,7 +285,7 @@ export default function PrescriptionGrid({
                               >
                                 <X size={11} className="text-red-500" />
                               </button>
-                              {!isPast(date) && daySlots.length === 0 && (
+                              {!isPastDate && daySlots.length === 0 && (
                                 <button
                                   title="Продлить до этой даты"
                                   onClick={() => onExtend(p.id, date)}
@@ -314,6 +362,7 @@ export default function PrescriptionGrid({
           </table>
         </div>
       </div>
+
 
       {overrideSlot && (
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center">
