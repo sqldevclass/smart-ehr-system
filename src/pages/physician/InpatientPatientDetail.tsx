@@ -51,6 +51,7 @@ export default function InpatientPatientDetail() {
   const [showAll, setShowAll] = useState(false);
   const [activeView, setActiveView] = useState<ActiveView>(null);
   const [dischargeOpen, setDischargeOpen] = useState(false);
+  const [showMedicationModal, setShowMedicationModal] = useState(false);
 
   const { data: ewsScheduleStatus } = useQuery({
     queryKey: ["ews-schedule-status", hospitalizationId],
@@ -395,7 +396,13 @@ export default function InpatientPatientDetail() {
                 return (
                   <button
                     key={t.key}
-                    onClick={() => selectTab(t.key)}
+                    onClick={() => {
+                      if (t.key === "medication") {
+                        setShowMedicationModal(true);
+                      } else {
+                        selectTab(t.key);
+                      }
+                    }}
                     className={cn(
                       "px-3 py-2 text-sm border-b-2 whitespace-nowrap transition-colors",
                       active
@@ -460,6 +467,32 @@ export default function InpatientPatientDetail() {
         </div>
       </div>
 
+      {showMedicationModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full h-full max-w-[95vw] max-h-[95vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
+              <h2 className="font-semibold text-base">Лист назначения</h2>
+              <button
+                onClick={() => setShowMedicationModal(false)}
+                className="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <MedicationTab
+                hospitalizationId={hospId!}
+                patientId={patient.id}
+                hospitalId={user!.hospitalId}
+                physicianId={user!.id}
+                isReadOnly={isHospDischarged}
+                patientAllergies={allergies}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       <DischargeDialog
         open={dischargeOpen}
         onOpenChange={setDischargeOpen}
@@ -501,17 +534,6 @@ function TabPanel(props: TabProps) {
       return <ServiceTab {...props} typeCode="consultation" title="Консультация" />;
     case "diagnosis":
       return <DiagnosisTab {...props} />;
-    case "medication":
-      return (
-        <MedicationTab
-          hospitalizationId={props.hospitalizationId}
-          patientId={props.patientId}
-          hospitalId={props.hospitalId}
-          physicianId={props.userId}
-          isReadOnly={!!props.readOnly}
-          patientAllergies={props.patientAllergies ?? []}
-        />
-      );
     case "imaging":
       return <Placeholder text="Инструментальные — Фаза 8 — в разработке" />;
     case "care":

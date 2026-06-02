@@ -1,4 +1,4 @@
-import { useState, useRef, useLayoutEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { format } from "date-fns";
 import { Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -64,16 +64,35 @@ export default function PrescriptionGrid({
   const leftRowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
   const [rowHeights, setRowHeights] = useState<Record<string, number>>({});
 
-  useLayoutEffect(() => {
-    const heights: Record<string, number> = {};
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observers: ResizeObserver[] = [];
     prescriptions.forEach((p: any) => {
-      const leftRow = leftRowRefs.current[p.id];
-      if (leftRow) {
-        heights[p.id] = leftRow.getBoundingClientRect().height;
-      }
+      const row = leftRowRefs.current[p.id];
+      if (!row) return;
+      const observer = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          const h = entry.contentRect.height;
+          setRowHeights((prev) => {
+            if (prev[p.id] === h) return prev;
+            return { ...prev, [p.id]: h };
+          });
+        }
+      });
+      observer.observe(row);
+      observers.push(observer);
     });
-    setRowHeights(heights);
+    return () => {
+      observers.forEach((o) => o.disconnect());
+    };
   }, [prescriptions, slots]);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
+    }
+  }, []);
 
   const getSlotsForDate = (prescriptionId: string, date: Date) =>
     slots
@@ -106,9 +125,16 @@ export default function PrescriptionGrid({
         set.add(d.toISOString());
       }
     });
-    return Array.from(set)
+    const sortedDates = Array.from(set)
       .map((s) => new Date(s))
       .sort((a, b) => a.getTime() - b.getTime());
+    if (sortedDates.length > 0) {
+      const lastDate = new Date(sortedDates[sortedDates.length - 1]);
+      lastDate.setDate(lastDate.getDate() + 1);
+      lastDate.setHours(0, 0, 0, 0);
+      sortedDates.push(lastDate);
+    }
+    return sortedDates;
   })();
 
   if (prescriptions.length === 0) {
@@ -180,7 +206,7 @@ export default function PrescriptionGrid({
         </div>
 
         {/* RIGHT TABLE — scrollable date columns */}
-        <div className="flex-1 overflow-x-auto">
+        <div ref={scrollRef} className="flex-1 overflow-x-auto">
           <table className="text-xs border-collapse">
             <thead>
               <tr className="bg-muted/50" style={{ height: HEADER_H }}>
