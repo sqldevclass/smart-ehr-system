@@ -39,6 +39,22 @@ const ROUTES: Record<string, string> = {
   other: "Другое",
 };
 
+const NoteCell = ({ note }: { note: string }) => {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div
+      className="text-xs text-muted-foreground mt-0.5 cursor-pointer"
+      onClick={() => setExpanded(!expanded)}
+    >
+      {expanded ? (
+        note
+      ) : (
+        <span className="truncate block max-w-[180px]">{note}</span>
+      )}
+    </div>
+  );
+};
+
 export default function PrescriptionGrid({
   prescriptions,
   slots,
