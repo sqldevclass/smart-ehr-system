@@ -396,7 +396,13 @@ export default function InpatientPatientDetail() {
                 return (
                   <button
                     key={t.key}
-                    onClick={() => selectTab(t.key)}
+                    onClick={() => {
+                      if (t.key === "medication") {
+                        setShowMedicationModal(true);
+                      } else {
+                        selectTab(t.key);
+                      }
+                    }}
                     className={cn(
                       "px-3 py-2 text-sm border-b-2 whitespace-nowrap transition-colors",
                       active
