@@ -278,7 +278,7 @@ export default function NursePatientDetail() {
           }}
         >
           {/* Panel 1 — ШРПУ */}
-          <div className="w-1/4 h-full overflow-hidden border-r flex flex-col">
+          <div className="w-1/4 h-full overflow-hidden border-r flex flex-col shrink-0">
             <div className="flex-1 overflow-y-auto overflow-x-hidden p-4">
               <EWSSection
                 hospitalizationId={hospId!}
@@ -294,7 +294,7 @@ export default function NursePatientDetail() {
           </div>
 
           {/* Panel 2 — Мониторинг */}
-          <div className="w-1/4 h-full overflow-hidden border-r flex flex-col">
+          <div className="w-1/4 h-full overflow-hidden border-r flex flex-col shrink-0">
             <div className="flex-1 overflow-y-auto overflow-x-hidden p-4">
               <EWSSection
                 hospitalizationId={hospId!}
@@ -331,7 +331,7 @@ export default function NursePatientDetail() {
           </div>
 
           {/* Panel 3 — Уход и назначения */}
-          <div className="w-1/4 h-full overflow-hidden border-r flex flex-col">
+          <div className="w-1/4 h-full overflow-hidden border-r flex flex-col shrink-0">
             <div className="flex-1 overflow-y-auto overflow-x-auto p-4 space-y-4">
               <NursePrescriptions
                 hospitalizationId={hospId!}
@@ -358,7 +358,7 @@ export default function NursePatientDetail() {
           </div>
 
           {/* Panel 4 — empty reserved */}
-          <div className="w-1/4 h-full" />
+          <div className="w-1/4 h-full shrink-0" />
         </div>
       </div>
 
