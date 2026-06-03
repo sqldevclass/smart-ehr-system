@@ -23,9 +23,7 @@ export default function NursePatientDetail() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { setPatientContext } = useNurseLayoutContext();
-  const [leftWidth, setLeftWidth] = useState(50);
-  const [isDragging, setIsDragging] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [panelOffset, setPanelOffset] = useState(0);
 
 
   const { data: hosp, isLoading } = useQuery({
