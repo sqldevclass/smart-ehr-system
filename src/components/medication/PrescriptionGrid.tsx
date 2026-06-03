@@ -331,8 +331,6 @@ export default function PrescriptionGrid({
                                     dose:
                                       s.override_dose ??
                                       `${p.dose}${p.dose_unit ?? ""}`,
-                                    route: p.route,
-                                    foodRule: p.food_rule ?? "any",
                                     notes: "",
                                   });
                               }}
