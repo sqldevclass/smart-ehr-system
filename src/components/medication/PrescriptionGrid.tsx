@@ -442,11 +442,6 @@ export default function PrescriptionGrid({
                                   "HH:mm",
                                 )}{" "}
                                 {slot.dose_given}
-                                {slot.notes && (
-                                  <div className="text-xs text-green-600 mt-0.5 italic">
-                                    {slot.notes}
-                                  </div>
-                                )}
                               </div>
                             ) : slot.status === "skipped" ? (
                               <div className="text-gray-400 line-through text-xs">
@@ -467,11 +462,6 @@ export default function PrescriptionGrid({
                                       ?? `${p.dose}${p.dose_unit ?? ""}`}
                                   </span>
                                 </div>
-                                {slot.notes && (
-                                  <div className="text-xs text-muted-foreground mt-0.5 italic">
-                                    {slot.notes}
-                                  </div>
-                                )}
                                 {viewerRole === "nurse" && !isReadOnly && (
                                   <div className="flex gap-1 mt-0.5">
                                     <button
@@ -500,6 +490,16 @@ export default function PrescriptionGrid({
                             )}
                           </div>
                         ))}
+                        {/* Cell-level notes — show once */}
+                        {(() => {
+                          const cellNote = daySlots.find(
+                            (s: any) => s.notes)?.notes;
+                          return cellNote ? (
+                            <div className="text-xs text-muted-foreground mt-1 italic border-t pt-1">
+                              {cellNote}
+                            </div>
+                          ) : null;
+                        })()}
                       </td>
                     );
                   })}
