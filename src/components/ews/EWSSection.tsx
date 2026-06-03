@@ -164,19 +164,6 @@ export default function EWSSection({
     },
   });
 
-  const { data: glucoseReadings = [] } = useQuery({
-    queryKey: ["blood-glucose", hospitalizationId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("blood_glucose_readings")
-        .select("id, value_mmol, recorded_at, notes, profiles!recorded_by(full_name)")
-        .eq("hospitalization_id", hospitalizationId)
-        .order("recorded_at", { ascending: false })
-        .limit(10);
-      if (error) throw error;
-      return data || [];
-    },
-  });
 
   const { data: activeAlert } = useQuery({
     queryKey: ["sepsis-alert", hospitalizationId],
