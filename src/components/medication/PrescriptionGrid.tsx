@@ -434,88 +434,43 @@ export default function PrescriptionGrid({
             </div>
 
             <div>
-              <Label className="text-xs">Доза</Label>
-              <Input
-                value={overrideSlot.dose}
-                onChange={(e) =>
-                  setOverrideSlot((prev) =>
-                    prev ? { ...prev, dose: e.target.value } : null,
-                  )
-                }
-                className="h-8 text-sm mt-1 w-40"
-              />
-            </div>
-
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <Label className="text-xs">Путь введения</Label>
-                <Select
-                  value={overrideSlot.route}
-                  onValueChange={(v) =>
-                    setOverrideSlot((prev) =>
-                      prev ? { ...prev, route: v } : null,
-                    )
-                  }
-                >
-                  <SelectTrigger className="h-8 text-sm mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(ROUTES).map(([code, label]) => (
-                      <SelectItem key={code} value={code}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex-1">
-                <Label className="text-xs">Приём</Label>
-                <Select
-                  value={overrideSlot.foodRule}
-                  onValueChange={(v) =>
-                    setOverrideSlot((prev) =>
-                      prev ? { ...prev, foodRule: v } : null,
-                    )
-                  }
-                >
-                  <SelectTrigger className="h-8 text-sm mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(FOOD_RULES).map(([code, label]) => (
-                      <SelectItem key={code} value={code}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div>
               <Label className="text-xs">Время приёма</Label>
               <div className="flex flex-wrap gap-1 mt-1">
                 {TIME_CHIPS.map((t) => {
-                  const selected = overrideSlot.scheduledAt === t;
+                  const isSelected = overrideSlot.scheduledAt === t;
                   return (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() =>
-                        setOverrideSlot((prev) =>
-                          prev ? { ...prev, scheduledAt: t } : null,
-                        )
-                      }
-                      className={cn(
-                        "px-1.5 py-0.5 rounded text-xs border transition-colors",
-                        selected
-                          ? "bg-primary text-white border-primary"
-                          : "bg-white border-gray-200 hover:bg-muted text-gray-600",
+                    <div key={t} className="flex flex-col items-center gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setOverrideSlot((prev) =>
+                            prev ? { ...prev, scheduledAt: t } : null,
+                          )
+                        }
+                        className={cn(
+                          "px-1.5 py-0.5 rounded text-xs border transition-colors",
+                          isSelected
+                            ? "bg-primary text-white border-primary"
+                            : "bg-white border-gray-200 hover:bg-muted text-gray-600",
+                        )}
+                      >
+                        {t}
+                      </button>
+                      {isSelected && (
+                        <input
+                          type="text"
+                          value={overrideSlot.dose}
+                          onChange={(e) =>
+                            setOverrideSlot((prev) =>
+                              prev ? { ...prev, dose: e.target.value } : null,
+                            )
+                          }
+                          className="w-14 text-xs border rounded px-1 py-0.5 text-center"
+                          placeholder="доза"
+                          onClick={(e) => e.stopPropagation()}
+                        />
                       )}
-                    >
-                      {t}
-                    </button>
+                    </div>
                   );
                 })}
               </div>
