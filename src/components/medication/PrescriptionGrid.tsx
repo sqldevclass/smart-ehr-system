@@ -249,7 +249,7 @@ export default function PrescriptionGrid({
                     <div className="text-xs text-muted-foreground">
                       {ROUTES[p.route] ?? p.route}
                       {p.schedule_times?.length > 0 &&
-                        ` · ${p.schedule_times.join(", ")}`}
+                        ` · ${p.schedule_times.map((s: any) => s.time ?? s).join(", ")}`}
                     </div>
                     {p.prescription_type === "prn" && (
                       <span className="text-xs bg-purple-100 text-purple-700 px-1 rounded">
