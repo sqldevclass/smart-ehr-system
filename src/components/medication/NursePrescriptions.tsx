@@ -102,9 +102,10 @@ export default function NursePrescriptions({ hospitalizationId, hospitalId }: Pr
         slots={allSlots}
         viewerRole="nurse"
         isReadOnly={false}
+        hospitalId={hospitalId}
+        hospitalizationId={hospitalizationId}
         onExtend={() => {}}
         onCancelDay={() => {}}
-        onOverrideSlot={() => {}}
         onAdministerSlot={handleAdministerSlot}
         onSkipSlot={handleSkipSlot}
       />
