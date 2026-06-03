@@ -143,6 +143,25 @@ export default function NursePatientDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [(hosp as any)?.id]);
 
+  useEffect(() => {
+    if (!isDragging) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const newWidth = ((e.clientX - rect.left) / rect.width) * 100;
+      setLeftWidth(Math.min(80, Math.max(20, newWidth)));
+    };
+    const handleMouseUp = () => setIsDragging(false);
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDragging]);
+
+
+
   if (isLoading) return <p className="text-muted-foreground">Загрузка…</p>;
   if (!hosp) return <p className="text-destructive">Госпитализация не найдена.</p>;
 
