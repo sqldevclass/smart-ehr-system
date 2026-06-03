@@ -1,16 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 import { format } from "date-fns";
 import { Pencil, X } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -18,9 +13,10 @@ interface Props {
   slots: any[];
   viewerRole: "physician" | "nurse";
   isReadOnly: boolean;
+  hospitalId: string;
+  hospitalizationId: string;
   onExtend: (prescriptionId: string, date: Date) => void;
   onCancelDay: (prescriptionId: string, date: Date) => void;
-  onOverrideSlot: (slotId: string, scheduledAt: string, dose: string) => void;
   onAdministerSlot: (slotId: string, doseGiven: string, notes: string) => void;
   onSkipSlot: (slotId: string) => void;
 }
@@ -44,15 +40,6 @@ const ROUTES: Record<string, string> = {
   intraosseous: "Внутрикостно",
   endotracheal: "Эндотрахеально",
   other: "Другое",
-};
-
-const FOOD_RULES: Record<string, string> = {
-  any: "Когда угодно",
-  before_meal: "Перед едой",
-  during_meal: "Во время еды",
-  after_meal: "После еды",
-  before_sleep: "Перед сном",
-  fasting: "Натощак",
 };
 
 const TIME_CHIPS = Array.from({ length: 48 }, (_, i) => {
@@ -82,17 +69,28 @@ export default function PrescriptionGrid({
   slots,
   viewerRole,
   isReadOnly,
+  hospitalId,
+  hospitalizationId,
   onExtend,
   onCancelDay,
-  onOverrideSlot,
   onAdministerSlot,
   onSkipSlot,
 }: Props) {
-  const [overrideSlot, setOverrideSlot] = useState<{
-    slotId: string;
-    scheduledAt: string;
-    dose: string;
-    notes: string;
+  const queryClient = useQueryClient();
+  const [editCell, setEditCell] = useState<{
+    prescriptionId: string;
+    date: Date;
+    hospitalId: string;
+    hospitalizationId: string;
+    patientId: string;
+    defaultDose: string;
+    existingSlots: Array<{
+      id: string;
+      time: string;
+      dose: string;
+      status: string;
+    }>;
+    selections: Array<{ time: string; dose: string }>;
   } | null>(null);
   const [adminSlot, setAdminSlot] = useState<{
     slotId: string;
@@ -150,6 +148,67 @@ export default function PrescriptionGrid({
     }
     return sortedDates;
   })();
+
+  const handleSaveEdit = async () => {
+    if (!editCell) return;
+    const oldPending = editCell.existingSlots.filter(
+      (s) => s.status === "pending",
+    );
+    const newSelections = editCell.selections.filter(
+      (s) =>
+        !editCell.existingSlots.find(
+          (e) => e.time === s.time && e.status === "done",
+        ),
+    );
+    const removed = oldPending.filter(
+      (old) => !newSelections.find((n) => n.time === old.time),
+    );
+    const added = newSelections.filter(
+      (n) => !oldPending.find((old) => old.time === n.time),
+    );
+    const doseChanged = newSelections.filter((n) => {
+      const old = oldPending.find((o) => o.time === n.time);
+      return old && old.dose !== n.dose;
+    });
+
+    for (const slot of removed) {
+      await supabase
+        .from("drug_administration_slots")
+        .update({ status: "skipped" })
+        .eq("id", slot.id);
+    }
+    for (const slot of doseChanged) {
+      const existing = oldPending.find((o) => o.time === slot.time);
+      if (existing) {
+        await supabase
+          .from("drug_administration_slots")
+          .update({ override_dose: slot.dose })
+          .eq("id", existing.id);
+      }
+    }
+    for (const slot of added) {
+      const [hh, mm] = slot.time.split(":");
+      const slotDate = new Date(editCell.date);
+      slotDate.setHours(parseInt(hh), parseInt(mm), 0, 0);
+      await supabase.from("drug_administration_slots").insert({
+        prescription_id: editCell.prescriptionId,
+        hospital_id: editCell.hospitalId,
+        hospitalization_id: editCell.hospitalizationId,
+        patient_id: editCell.patientId,
+        scheduled_at: slotDate.toISOString(),
+        status: "pending",
+        override_dose: slot.dose || null,
+      });
+    }
+
+    queryClient.invalidateQueries({
+      queryKey: ["all-slots", editCell.hospitalizationId],
+    });
+    queryClient.invalidateQueries({
+      queryKey: ["nurse-admin-slots", editCell.hospitalizationId],
+    });
+    setEditCell(null);
+  };
 
   if (prescriptions.length === 0) {
     return (
@@ -320,19 +379,35 @@ export default function PrescriptionGrid({
                               title="Изменить"
                               className="p-0.5 rounded hover:bg-muted"
                               onClick={() => {
-                                const s = daySlots[0];
-                                if (s)
-                                  setOverrideSlot({
-                                    slotId: s.id,
-                                    scheduledAt: format(
+                                const existingSlots = daySlots.map(
+                                  (s: any) => ({
+                                    id: s.id,
+                                    time: format(
                                       new Date(s.scheduled_at),
                                       "HH:mm",
                                     ),
                                     dose:
                                       s.override_dose ??
                                       `${p.dose}${p.dose_unit ?? ""}`,
-                                    notes: "",
-                                  });
+                                    status: s.status,
+                                  }),
+                                );
+                                const allSelections = existingSlots
+                                  .filter((s) => s.status !== "skipped")
+                                  .map((s) => ({
+                                    time: s.time,
+                                    dose: s.dose,
+                                  }));
+                                setEditCell({
+                                  prescriptionId: p.id,
+                                  date,
+                                  hospitalId,
+                                  hospitalizationId,
+                                  patientId: p.patient_id,
+                                  defaultDose: `${p.dose}${p.dose_unit ?? ""}`,
+                                  existingSlots,
+                                  selections: allSelections,
+                                });
                               }}
                             >
                               <Pencil size={11} className="text-blue-600" />
@@ -420,50 +495,86 @@ export default function PrescriptionGrid({
         </table>
       </div>
 
-      {overrideSlot && (
+      {editCell && (
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg p-4 space-y-3 w-[480px] shadow-xl">
+          <div className="bg-white rounded-lg p-4 space-y-3 w-[520px] shadow-xl max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between">
-              <h4 className="font-medium text-sm">Изменить назначение</h4>
+              <h4 className="font-medium text-sm">
+                Изменить назначение — {format(editCell.date, "dd.MM.yyyy")}
+              </h4>
               <button
-                onClick={() => setOverrideSlot(null)}
+                onClick={() => setEditCell(null)}
                 className="text-muted-foreground hover:text-foreground"
               >
                 ✕
               </button>
             </div>
-
             <div>
               <Label className="text-xs">Время приёма</Label>
-              <div className="flex flex-wrap gap-1 mt-1">
+              <div className="flex flex-wrap gap-1 max-h-36 overflow-y-auto p-1.5 border rounded mt-1 bg-white">
                 {TIME_CHIPS.map((t) => {
-                  const isSelected = overrideSlot.scheduledAt === t;
+                  const sel = editCell.selections.find((s) => s.time === t);
+                  const existingDone = editCell.existingSlots.find(
+                    (s) => s.time === t && s.status === "done",
+                  );
                   return (
-                    <div key={t} className="flex flex-col items-center gap-0.5">
+                    <div
+                      key={t}
+                      className="flex flex-col items-center gap-0.5"
+                    >
                       <button
                         type="button"
-                        onClick={() =>
-                          setOverrideSlot((prev) =>
-                            prev ? { ...prev, scheduledAt: t } : null,
-                          )
-                        }
+                        disabled={!!existingDone}
+                        onClick={() => {
+                          if (existingDone) return;
+                          setEditCell((prev) => {
+                            if (!prev) return prev;
+                            const exists = prev.selections.find(
+                              (s) => s.time === t,
+                            );
+                            return {
+                              ...prev,
+                              selections: exists
+                                ? prev.selections.filter((s) => s.time !== t)
+                                : [
+                                    ...prev.selections,
+                                    { time: t, dose: prev.defaultDose },
+                                  ].sort((a, b) =>
+                                    a.time.localeCompare(b.time),
+                                  ),
+                            };
+                          });
+                        }}
                         className={cn(
                           "px-1.5 py-0.5 rounded text-xs border transition-colors",
-                          isSelected
-                            ? "bg-primary text-white border-primary"
-                            : "bg-white border-gray-200 hover:bg-muted text-gray-600",
+                          existingDone
+                            ? "bg-green-100 text-green-700 border-green-300 cursor-not-allowed"
+                            : sel
+                              ? "bg-primary text-white border-primary"
+                              : "bg-white border-gray-200 hover:bg-muted text-gray-600",
                         )}
                       >
                         {t}
                       </button>
-                      {isSelected && (
+                      {existingDone && (
+                        <span className="text-xs text-green-700">✅</span>
+                      )}
+                      {sel && !existingDone && (
                         <input
                           type="text"
-                          value={overrideSlot.dose}
+                          value={sel.dose}
                           onChange={(e) =>
-                            setOverrideSlot((prev) =>
-                              prev ? { ...prev, dose: e.target.value } : null,
-                            )
+                            setEditCell((prev) => {
+                              if (!prev) return prev;
+                              return {
+                                ...prev,
+                                selections: prev.selections.map((s) =>
+                                  s.time === t
+                                    ? { ...s, dose: e.target.value }
+                                    : s,
+                                ),
+                              };
+                            })
                           }
                           className="w-14 text-xs border rounded px-1 py-0.5 text-center"
                           placeholder="доза"
@@ -475,43 +586,14 @@ export default function PrescriptionGrid({
                 })}
               </div>
             </div>
-
-            <div>
-              <Label className="text-xs">Примечания</Label>
-              <Input
-                value={overrideSlot.notes}
-                onChange={(e) =>
-                  setOverrideSlot((prev) =>
-                    prev ? { ...prev, notes: e.target.value } : null,
-                  )
-                }
-                placeholder="Необязательно"
-                className="h-8 text-sm mt-1"
-              />
-            </div>
-
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                onClick={() => {
-                  if (!overrideSlot) return;
-                  const today = new Date();
-                  const [hh, mm] = overrideSlot.scheduledAt.split(":");
-                  today.setHours(parseInt(hh), parseInt(mm), 0, 0);
-                  onOverrideSlot(
-                    overrideSlot.slotId,
-                    today.toISOString(),
-                    overrideSlot.dose,
-                  );
-                  setOverrideSlot(null);
-                }}
-              >
+            <div className="flex gap-2 pt-1">
+              <Button size="sm" onClick={handleSaveEdit}>
                 Сохранить
               </Button>
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => setOverrideSlot(null)}
+                onClick={() => setEditCell(null)}
               >
                 Отмена
               </Button>
