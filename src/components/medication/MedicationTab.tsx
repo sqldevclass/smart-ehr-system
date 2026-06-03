@@ -601,9 +601,10 @@ export default function MedicationTab({
           slots={allSlots}
           viewerRole="physician"
           isReadOnly={isReadOnly}
+          hospitalId={hospitalId}
+          hospitalizationId={hospitalizationId}
           onExtend={handleExtend}
           onCancelDay={handleCancelDay}
-          onOverrideSlot={handleOverrideSlot}
           onAdministerSlot={() => {}}
           onSkipSlot={() => {}}
         />
