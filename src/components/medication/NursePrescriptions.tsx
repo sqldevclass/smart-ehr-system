@@ -10,7 +10,7 @@ interface Props {
   hospitalId: string;
 }
 
-export default function NursePrescriptions({ hospitalizationId }: Props) {
+export default function NursePrescriptions({ hospitalizationId, hospitalId }: Props) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
