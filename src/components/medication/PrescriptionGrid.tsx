@@ -91,6 +91,7 @@ export default function PrescriptionGrid({
       status: string;
     }>;
     selections: Array<{ time: string; dose: string }>;
+    notes: string;
   } | null>(null);
   const [adminSlot, setAdminSlot] = useState<{
     slotId: string;
@@ -198,6 +199,7 @@ export default function PrescriptionGrid({
         scheduled_at: slotDate.toISOString(),
         status: "pending",
         override_dose: slot.dose || null,
+        notes: editCell.notes || null,
       });
     }
 
@@ -407,6 +409,7 @@ export default function PrescriptionGrid({
                                   defaultDose: `${p.dose}${p.dose_unit ?? ""}`,
                                   existingSlots,
                                   selections: allSelections,
+                                  notes: "",
                                 });
                               }}
                             >

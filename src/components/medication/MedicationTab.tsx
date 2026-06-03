@@ -95,9 +95,7 @@ export default function MedicationTab({
       const { data, error } = await supabase
         .from("drug_prescriptions")
         .select(`
-          id, dose, dose_unit, route, schedule_times, duration_days,
-          food_rule, prescription_type, prn_condition, notes, is_drafted,
-          status_code, prescribed_at, mix_with_drug_id,
+          id, patient_id, dose, dose_unit, route, schedule_times, duration_days,
           food_rule, prescription_type, prn_condition, notes, is_drafted,
           status_code, prescribed_at, mix_with_drug_id,
           drug_formulary!drug_formulary_id(id, trade_name, inn, dose),
