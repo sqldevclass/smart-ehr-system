@@ -13,8 +13,6 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import EWSChart from "./EWSChart";
-import AssessmentSection from "@/components/assessments/AssessmentSection";
-import CpotSection from "@/components/assessments/CpotSection";
 
 interface Props {
   hospitalizationId: string;
