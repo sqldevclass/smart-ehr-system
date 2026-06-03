@@ -10,6 +10,7 @@ import EWSSection from "@/components/ews/EWSSection";
 import NursePrescriptions from "@/components/medication/NursePrescriptions";
 import NurseMonitoringPanel from "@/components/nurse/NurseMonitoringPanel";
 import FallingPersonIcon from "@/components/assessments/FallingPersonIcon";
+import { cn } from "@/lib/utils";
 
 
 const ORDER_TYPE_LABELS: Record<string, string> = {
