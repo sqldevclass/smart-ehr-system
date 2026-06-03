@@ -184,8 +184,8 @@ export default function NursePatientDetail() {
         </div>
       </div>
 
-      {/* Sliding container */}
-      <div className="flex-1 overflow-hidden relative">
+      {/* Sliding container — clips the strip */}
+      <div className="flex-1 relative overflow-hidden">
         {/* Left arrow */}
         {panelOffset > 0 && (
           <button
@@ -219,41 +219,28 @@ export default function NursePatientDetail() {
             />
           ))}
         </div>
-        {/* Strip — 4 panels, each 50vw */}
+        {/* Strip — absolutely positioned so it never causes page scroll */}
         <div
-          className="flex h-full transition-transform duration-300 ease-in-out"
+          className="absolute inset-y-0 left-0 flex transition-transform duration-300 ease-in-out"
           style={{
-            width: "200vw",
-            transform: `translateX(${-panelOffset * 100}vw)`,
+            width: "400%",
+            transform: `translateX(${-panelOffset * 25}%)`,
           }}
         >
-          {/* Panel 1 */}
-          <div
-            className="h-full border-r overflow-y-auto p-4"
-            style={{ width: "50vw" }}
-          >
+          {/* Panel 1 — 25% of strip = 100% of container */}
+          <div className="w-1/4 h-full overflow-y-auto border-r p-4">
             <p className="text-muted-foreground text-sm">Panel 1 — ШРПУ</p>
           </div>
           {/* Panel 2 */}
-          <div
-            className="h-full border-r overflow-y-auto p-4"
-            style={{ width: "50vw" }}
-          >
+          <div className="w-1/4 h-full overflow-y-auto border-r p-4">
             <p className="text-muted-foreground text-sm">Panel 2 — Мониторинг</p>
           </div>
           {/* Panel 3 */}
-          <div
-            className="h-full border-r overflow-y-auto p-4"
-            style={{ width: "50vw" }}
-          >
+          <div className="w-1/4 h-full overflow-y-auto border-r p-4">
             <p className="text-muted-foreground text-sm">Panel 3 — Назначения</p>
           </div>
           {/* Panel 4 — empty reserved */}
-          <div
-            className="h-full"
-            style={{ width: "50vw" }}
-          >
-          </div>
+          <div className="w-1/4 h-full" />
         </div>
       </div>
 
