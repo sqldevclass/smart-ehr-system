@@ -355,21 +355,6 @@ export default function EWSSection({
   const escalationLevel =
     totalScore === 0 ? 0 : totalScore <= 2 ? 1 : totalScore <= 6 ? 2 : 3;
 
-  const gcsActivated = useMemo(() => {
-    if (!recentReadings.length) return false;
-    const latest = recentReadings[0];
-    const consciousnessParam = parameters.find(
-      (p: any) => p.code === "consciousness"
-    );
-    if (!consciousnessParam) return false;
-    const consciousnessValue = latest.ews_reading_values?.find(
-      (v: any) => v.parameter_id === consciousnessParam.id
-    );
-    return (
-      consciousnessValue?.text_value === "pain" ||
-      consciousnessValue?.text_value === "unresponsive"
-    );
-  }, [recentReadings, parameters]);
 
   const detectSepsisAlert = async (readingId: string) => {
     if (!scale?.code.startsWith("pews")) return;
