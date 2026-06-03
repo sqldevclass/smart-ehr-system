@@ -185,25 +185,6 @@ export default function EWSSection({
     },
   });
 
-  const { data: alertHistory = [] } = useQuery({
-    queryKey: ["sepsis-history", hospitalizationId],
-    staleTime: 0,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("clinical_alerts")
-        .select(`
-          id, alert_type, triggered_at,
-          trigger_signs, is_active,
-          nurse_acknowledged_at,
-          physician_acknowledged_at
-        `)
-        .eq("hospitalization_id", hospitalizationId)
-        .eq("alert_type", "paediatric_sepsis_6")
-        .order("triggered_at", { ascending: false })
-        .limit(10);
-      return data || [];
-    },
-  });
 
 
   const { data: overrides = [], refetch: refetchOverrides } = useQuery({
