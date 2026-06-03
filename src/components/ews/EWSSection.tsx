@@ -533,25 +533,6 @@ export default function EWSSection({
     setSubmitting(false);
   };
 
-  const handleSubmitGlucose = async () => {
-    const { error } = await supabase.from("blood_glucose_readings").insert({
-      hospitalization_id: hospitalizationId,
-      patient_id: patientId,
-      hospital_id: hospitalId,
-      value_mmol: parseFloat(glucoseValue),
-      recorded_by: user!.id,
-      notes: glucoseNotes || null,
-    });
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    toast.success("Глюкоза внесена");
-    setShowGlucoseForm(false);
-    setGlucoseValue("");
-    setGlucoseNotes("");
-    queryClient.invalidateQueries({ queryKey: ["blood-glucose", hospitalizationId] });
-  };
 
   const getIntervalLabel = (score: number) => {
     if (score === 0) return "каждые 12 часов";
