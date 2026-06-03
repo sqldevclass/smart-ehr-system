@@ -46,6 +46,21 @@ const ROUTES: Record<string, string> = {
   other: "Другое",
 };
 
+const FOOD_RULES: Record<string, string> = {
+  any: "Когда угодно",
+  before_meal: "Перед едой",
+  during_meal: "Во время еды",
+  after_meal: "После еды",
+  before_sleep: "Перед сном",
+  fasting: "Натощак",
+};
+
+const TIME_CHIPS = Array.from({ length: 48 }, (_, i) => {
+  const h = Math.floor(i / 2).toString().padStart(2, "0");
+  const m = i % 2 === 0 ? "00" : "30";
+  return `${h}:${m}`;
+});
+
 const NoteCell = ({ note }: { note: string }) => {
   const [expanded, setExpanded] = useState(false);
   return (
