@@ -219,22 +219,6 @@ export default function MedicationTab({
     invalidateSlots();
   };
 
-  const handleOverrideSlot = async (
-    slotId: string,
-    scheduledAt: string,
-    dose: string,
-  ) => {
-    const { error } = await supabase.rpc("override_slot", {
-      p_slot_id: slotId,
-      p_scheduled_at: scheduledAt,
-      p_dose: dose,
-    });
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    invalidateSlots();
-  };
 
   const handleAddDrug = (drug: any) => {
     const doseMatch = drug.dose?.match(/^([\d.]+)\s*(.*)$/);
@@ -617,9 +601,10 @@ export default function MedicationTab({
           slots={allSlots}
           viewerRole="physician"
           isReadOnly={isReadOnly}
+          hospitalId={hospitalId}
+          hospitalizationId={hospitalizationId}
           onExtend={handleExtend}
           onCancelDay={handleCancelDay}
-          onOverrideSlot={handleOverrideSlot}
           onAdministerSlot={() => {}}
           onSkipSlot={() => {}}
         />

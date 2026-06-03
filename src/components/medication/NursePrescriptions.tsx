@@ -10,7 +10,7 @@ interface Props {
   hospitalId: string;
 }
 
-export default function NursePrescriptions({ hospitalizationId }: Props) {
+export default function NursePrescriptions({ hospitalizationId, hospitalId }: Props) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -102,9 +102,10 @@ export default function NursePrescriptions({ hospitalizationId }: Props) {
         slots={allSlots}
         viewerRole="nurse"
         isReadOnly={false}
+        hospitalId={hospitalId}
+        hospitalizationId={hospitalizationId}
         onExtend={() => {}}
         onCancelDay={() => {}}
-        onOverrideSlot={() => {}}
         onAdministerSlot={handleAdministerSlot}
         onSkipSlot={handleSkipSlot}
       />
