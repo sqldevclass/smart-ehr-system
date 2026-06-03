@@ -91,6 +91,7 @@ export default function PrescriptionGrid({
       status: string;
     }>;
     selections: Array<{ time: string; dose: string }>;
+    notes: string;
   } | null>(null);
   const [adminSlot, setAdminSlot] = useState<{
     slotId: string;
@@ -198,6 +199,7 @@ export default function PrescriptionGrid({
         scheduled_at: slotDate.toISOString(),
         status: "pending",
         override_dose: slot.dose || null,
+        notes: editCell.notes || null,
       });
     }
 
@@ -407,6 +409,7 @@ export default function PrescriptionGrid({
                                   defaultDose: `${p.dose}${p.dose_unit ?? ""}`,
                                   existingSlots,
                                   selections: allSelections,
+                                  notes: "",
                                 });
                               }}
                             >
@@ -451,11 +454,10 @@ export default function PrescriptionGrid({
                                     new Date(slot.scheduled_at),
                                     "HH:mm",
                                   )}
-                                  {slot.override_dose && (
-                                    <span className="ml-1 text-blue-600">
-                                      {slot.override_dose}
-                                    </span>
-                                  )}
+                                  <span className="text-muted-foreground ml-1">
+                                    {slot.override_dose
+                                      ?? `${p.dose}${p.dose_unit ?? ""}`}
+                                  </span>
                                 </div>
                                 {viewerRole === "nurse" && !isReadOnly && (
                                   <div className="flex gap-1 mt-0.5">
@@ -497,7 +499,7 @@ export default function PrescriptionGrid({
 
       {editCell && (
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg p-4 space-y-3 w-[520px] shadow-xl max-h-[80vh] overflow-y-auto">
+          <div className="bg-white rounded-lg p-4 space-y-3 w-[700px] shadow-xl">
             <div className="flex items-center justify-between">
               <h4 className="font-medium text-sm">
                 Изменить назначение — {format(editCell.date, "dd.MM.yyyy")}
@@ -511,7 +513,7 @@ export default function PrescriptionGrid({
             </div>
             <div>
               <Label className="text-xs">Время приёма</Label>
-              <div className="flex flex-wrap gap-1 max-h-36 overflow-y-auto p-1.5 border rounded mt-1 bg-white">
+              <div className="flex flex-wrap gap-0.5 p-1.5 border rounded mt-1 bg-white">
                 {TIME_CHIPS.map((t) => {
                   const sel = editCell.selections.find((s) => s.time === t);
                   const existingDone = editCell.existingSlots.find(
@@ -546,7 +548,7 @@ export default function PrescriptionGrid({
                           });
                         }}
                         className={cn(
-                          "px-1.5 py-0.5 rounded text-xs border transition-colors",
+                          "px-1 py-0 rounded text-xs border transition-colors leading-5",
                           existingDone
                             ? "bg-green-100 text-green-700 border-green-300 cursor-not-allowed"
                             : sel
@@ -585,6 +587,19 @@ export default function PrescriptionGrid({
                   );
                 })}
               </div>
+            </div>
+            <div>
+              <Label className="text-xs">Примечания</Label>
+              <Input
+                value={editCell.notes ?? ""}
+                onChange={(e) =>
+                  setEditCell((prev) =>
+                    prev ? {
+                      ...prev, notes: e.target.value
+                    } : null)}
+                placeholder="Необязательно"
+                className="h-8 text-sm mt-1"
+              />
             </div>
             <div className="flex gap-2 pt-1">
               <Button size="sm" onClick={handleSaveEdit}>
