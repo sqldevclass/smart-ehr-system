@@ -92,8 +92,6 @@ export default function PrescriptionGrid({
     slotId: string;
     scheduledAt: string;
     dose: string;
-    route: string;
-    foodRule: string;
     notes: string;
   } | null>(null);
   const [adminSlot, setAdminSlot] = useState<{
