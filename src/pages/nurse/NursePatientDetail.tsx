@@ -5,33 +5,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useNurseLayoutContext } from "@/components/nurse/NurseLayout";
 import { format, differenceInYears } from "date-fns";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import EWSSection from "@/components/ews/EWSSection";
 import NursePrescriptions from "@/components/medication/NursePrescriptions";
-import AssessmentSection from "@/components/assessments/AssessmentSection";
+import NurseMonitoringPanel from "@/components/nurse/NurseMonitoringPanel";
 import FallingPersonIcon from "@/components/assessments/FallingPersonIcon";
 import { cn } from "@/lib/utils";
-
-const EMPTY_VITALS = {
-  bp_systolic: "",
-  bp_diastolic: "",
-  pulse: "",
-  respiratory_rate: "",
-  spo2: "",
-  temperature: "",
-  weight_kg: "",
-  height_cm: "",
-  consciousness: "alert",
-  fluid_intake_ml: "",
-  fluid_output_ml: "",
-  notes: "",
-};
 
 const ORDER_TYPE_LABELS: Record<string, string> = {
   diet: "Диета",
@@ -44,11 +23,8 @@ export default function NursePatientDetail() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { setPatientContext } = useNurseLayoutContext();
-  const [showVitalsForm, setShowVitalsForm] = useState(false);
-  const [vitals, setVitals] = useState<Record<string, string>>(EMPTY_VITALS);
-  const [saving, setSaving] = useState(false);
   const [panelOffset, setPanelOffset] = useState(0);
-  // 0 = panels 1+2, 1 = panel 3 + empty
+  // 0 = panels 1+2, 1 = panels 3+4
 
   const { data: hosp, isLoading } = useQuery({
     queryKey: ["nurse-hosp", hospId],
@@ -74,41 +50,6 @@ export default function NursePatientDetail() {
     },
     enabled: !!hospId,
   });
-
-
-  const handleSaveVitals = async () => {
-    if (!hosp) return;
-    setSaving(true);
-    try {
-      const payload: any = {
-        hospital_id: user!.hospitalId,
-        hospitalization_id: hospId,
-        patient_id: (hosp.patients as any).id,
-        recorded_by: user!.id,
-        recorded_at: new Date().toISOString(),
-      };
-      const numericFields = ["bp_systolic", "bp_diastolic", "pulse",
-        "respiratory_rate", "fluid_intake_ml", "fluid_output_ml"];
-      const decimalFields = ["spo2", "temperature", "weight_kg", "height_cm"];
-      numericFields.forEach(f => {
-        if (vitals[f]) payload[f] = parseInt(vitals[f]);
-      });
-      decimalFields.forEach(f => {
-        if (vitals[f]) payload[f] = parseFloat(vitals[f]);
-      });
-      if (vitals.consciousness) payload.consciousness = vitals.consciousness;
-      if (vitals.notes) payload.notes = vitals.notes;
-      const { error } = await supabase.from("patient_vitals").insert(payload);
-      if (error) throw error;
-      setShowVitalsForm(false);
-      setVitals(EMPTY_VITALS);
-      
-    } catch (err: any) {
-      toast.error(err.message || "Не удалось сохранить");
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const { data: careOrders = [] } = useQuery({
     queryKey: ["nurse-care-orders", hospId],
@@ -239,7 +180,6 @@ export default function NursePatientDetail() {
         </div>
       </div>
 
-
       <div className="flex-1 overflow-hidden relative">
         {panelOffset > 0 && (
           <button
@@ -273,13 +213,13 @@ export default function NursePatientDetail() {
         <div
           className="flex h-full transition-transform duration-300 ease-in-out"
           style={{
-            width: "200%",
-            transform: `translateX(${-panelOffset * 50}%)`,
+            width: "400vw",
+            transform: `translateX(${-panelOffset * 100}vw)`,
           }}
         >
-          {/* Panel 1 — ШРПУ */}
-          <div className="w-1/4 h-full overflow-hidden border-r flex flex-col shrink-0">
-            <div className="flex-1 overflow-y-auto overflow-x-hidden p-4">
+          {/* Panel 1 — EWS only */}
+          <div style={{ width: "50vw" }} className="h-full overflow-hidden border-r flex flex-col shrink-0">
+            <div className="flex-1 overflow-y-auto p-4">
               <EWSSection
                 hospitalizationId={hospId!}
                 patientId={patient.id}
@@ -288,58 +228,34 @@ export default function NursePatientDetail() {
                 admittedAt={(hosp as any).admitted_at}
                 isReadOnly={false}
                 viewerRole="nurse"
-                panelMode="ews-only"
               />
             </div>
           </div>
 
-          {/* Panel 2 — Мониторинг */}
-          <div className="w-1/4 h-full overflow-hidden border-r flex flex-col shrink-0">
-            <div className="flex-1 overflow-y-auto overflow-x-hidden p-4">
-              <EWSSection
+          {/* Panel 2 — Monitoring */}
+          <div style={{ width: "50vw" }} className="h-full overflow-hidden border-r flex flex-col shrink-0">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              <NurseMonitoringPanel
                 hospitalizationId={hospId!}
                 patientId={patient.id}
                 hospitalId={user!.hospitalId}
                 patientDateOfBirth={patient.date_of_birth}
-                admittedAt={(hosp as any).admitted_at}
-                isReadOnly={false}
-                viewerRole="nurse"
-                panelMode="monitoring-only"
+                patientGender={patient.gender}
+                fallRiskScaleCode={fallRiskScaleCode}
               />
-              <div className="mt-6 pt-6 border-t">
-                <AssessmentSection
-                  scaleCode="braden"
-                  hospitalizationId={hospId!}
-                  patientId={patient.id}
-                  hospitalId={user!.hospitalId}
-                />
-              </div>
-              {fallRiskScaleCode && (
-                <div className="border-t pt-4 mt-4">
-                  <AssessmentSection
-                    scaleCode={fallRiskScaleCode}
-                    hospitalizationId={hospId!}
-                    patientId={patient.id}
-                    hospitalId={user!.hospitalId}
-                    isReadOnly={false}
-                    patientDateOfBirth={patient.date_of_birth}
-                    patientGender={patient.gender}
-                  />
-                </div>
-              )}
             </div>
           </div>
 
-          {/* Panel 3 — Уход и назначения */}
-          <div className="w-1/4 h-full overflow-hidden border-r flex flex-col shrink-0">
+          {/* Panel 3 — Prescriptions + Care */}
+          <div style={{ width: "50vw" }} className="h-full overflow-hidden border-r flex flex-col shrink-0">
             <div className="flex-1 overflow-y-auto overflow-x-auto p-4 space-y-4">
               <NursePrescriptions
                 hospitalizationId={hospId!}
                 patientId={patient.id}
                 hospitalId={user!.hospitalId}
               />
-              <div>
-                <h3 className="font-semibold mb-4">Уход и назначения</h3>
+              <div className="border-t pt-4">
+                <h3 className="font-semibold mb-3 text-sm">Уход и назначения</h3>
                 {careOrders.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Назначений нет</p>
                 ) : careOrders.map((o: any) => (
@@ -357,11 +273,10 @@ export default function NursePatientDetail() {
             </div>
           </div>
 
-          {/* Panel 4 — empty reserved */}
-          <div className="w-1/4 h-full shrink-0" />
+          {/* Panel 4 — Empty reserved */}
+          <div style={{ width: "50vw" }} className="h-full shrink-0" />
         </div>
       </div>
-
     </div>
   );
 }
