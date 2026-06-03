@@ -224,7 +224,7 @@ export default function NursePatientDetail() {
           className="absolute inset-y-0 left-0 flex transition-transform duration-300 ease-in-out"
           style={{
             width: "400%",
-            transform: `translateX(${-panelOffset * 25}%)`,
+            transform: `translateX(${-panelOffset * 50}%)`,
           }}
         >
           {/* Panel 1 — 25% of strip = 100% of container */}
