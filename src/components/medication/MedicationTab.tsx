@@ -62,7 +62,7 @@ const initialFormData = {
   dose: "",
   doseUnit: "мг",
   route: "per_os",
-  scheduleTimes: ["08:00"],
+  scheduleTimes: [{ time: "08:00", dose: "" }] as Array<{ time: string; dose: string }>,
   durationDays: 0,
   foodRule: "any",
   mixWithDrug: null as any,
@@ -475,28 +475,61 @@ export default function MedicationTab({
                 )}
               >
                 {TIME_CHIPS.map((t) => {
-                  const selected = formData.scheduleTimes.includes(t);
+                  const selected = formData.scheduleTimes.find((s) => s.time === t);
                   return (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          scheduleTimes: selected
-                            ? prev.scheduleTimes.filter((x) => x !== t)
-                            : [...prev.scheduleTimes, t].sort(),
-                        }))
-                      }
-                      className={cn(
-                        "px-1.5 py-0.5 rounded text-xs border transition-colors",
-                        selected
-                          ? "bg-primary text-white border-primary"
-                          : "bg-white border-gray-200 hover:bg-muted text-gray-600",
+                    <div key={t} className="flex flex-col items-center gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const exists = formData.scheduleTimes.find((s) => s.time === t);
+                          if (exists) {
+                            setFormData((prev) => ({
+                              ...prev,
+                              scheduleTimes: prev.scheduleTimes.filter((s) => s.time !== t),
+                            }));
+                          } else {
+                            setFormData((prev) => ({
+                              ...prev,
+                              scheduleTimes: [
+                                ...prev.scheduleTimes,
+                                {
+                                  time: t,
+                                  dose:
+                                    prev.dose && prev.doseUnit
+                                      ? `${prev.dose}${prev.doseUnit}`
+                                      : prev.dose ?? "",
+                                },
+                              ].sort((a, b) => a.time.localeCompare(b.time)),
+                            }));
+                          }
+                        }}
+                        className={cn(
+                          "px-1.5 py-0.5 rounded text-xs border transition-colors",
+                          selected
+                            ? "bg-primary text-white border-primary"
+                            : "bg-white border-gray-200 hover:bg-muted text-gray-600",
+                        )}
+                      >
+                        {t}
+                      </button>
+                      {selected && (
+                        <input
+                          type="text"
+                          value={selected.dose}
+                          onChange={(e) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              scheduleTimes: prev.scheduleTimes.map((s) =>
+                                s.time === t ? { ...s, dose: e.target.value } : s,
+                              ),
+                            }))
+                          }
+                          className="w-14 text-xs border rounded px-1 py-0.5 text-center mt-0.5"
+                          placeholder="доза"
+                          onClick={(e) => e.stopPropagation()}
+                        />
                       )}
-                    >
-                      {t}
-                    </button>
+                    </div>
                   );
                 })}
               </div>
