@@ -240,8 +240,15 @@ export default function NursePatientDetail() {
             />
           </div>
           {/* Panel 2 */}
-          <div className="w-1/4 h-full overflow-y-auto border-r p-4">
-            <p className="text-muted-foreground text-sm">Panel 2 — Мониторинг</p>
+          <div className="w-1/4 h-full overflow-y-auto overflow-x-hidden border-r p-4">
+            <NurseMonitoringPanel
+              hospitalizationId={hospId!}
+              patientId={patient.id}
+              hospitalId={user!.hospitalId}
+              patientDateOfBirth={patient.date_of_birth}
+              patientGender={patient.gender}
+              fallRiskScaleCode={fallRiskScaleCode ?? undefined}
+            />
           </div>
           {/* Panel 3 */}
           <div className="w-1/4 h-full overflow-y-auto border-r p-4">
