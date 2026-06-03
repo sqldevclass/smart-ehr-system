@@ -4,6 +4,13 @@ import { Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -39,6 +46,21 @@ const ROUTES: Record<string, string> = {
   other: "Другое",
 };
 
+const FOOD_RULES: Record<string, string> = {
+  any: "Когда угодно",
+  before_meal: "Перед едой",
+  during_meal: "Во время еды",
+  after_meal: "После еды",
+  before_sleep: "Перед сном",
+  fasting: "Натощак",
+};
+
+const TIME_CHIPS = Array.from({ length: 48 }, (_, i) => {
+  const h = Math.floor(i / 2).toString().padStart(2, "0");
+  const m = i % 2 === 0 ? "00" : "30";
+  return `${h}:${m}`;
+});
+
 const NoteCell = ({ note }: { note: string }) => {
   const [expanded, setExpanded] = useState(false);
   return (
@@ -70,6 +92,9 @@ export default function PrescriptionGrid({
     slotId: string;
     scheduledAt: string;
     dose: string;
+    route: string;
+    foodRule: string;
+    notes: string;
   } | null>(null);
   const [adminSlot, setAdminSlot] = useState<{
     slotId: string;
@@ -308,6 +333,9 @@ export default function PrescriptionGrid({
                                     dose:
                                       s.override_dose ??
                                       `${p.dose}${p.dose_unit ?? ""}`,
+                                    route: p.route,
+                                    foodRule: p.food_rule ?? "any",
+                                    notes: "",
                                   });
                               }}
                             >
@@ -398,21 +426,17 @@ export default function PrescriptionGrid({
 
       {overrideSlot && (
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg p-4 space-y-3 w-72 shadow-xl">
-            <h4 className="font-medium text-sm">Изменить назначение</h4>
-            <div>
-              <Label className="text-xs">Время</Label>
-              <Input
-                type="time"
-                value={overrideSlot.scheduledAt}
-                onChange={(e) =>
-                  setOverrideSlot((prev) =>
-                    prev ? { ...prev, scheduledAt: e.target.value } : null,
-                  )
-                }
-                className="h-8 text-sm mt-1"
-              />
+          <div className="bg-white rounded-lg p-4 space-y-3 w-[480px] shadow-xl">
+            <div className="flex items-center justify-between">
+              <h4 className="font-medium text-sm">Изменить назначение</h4>
+              <button
+                onClick={() => setOverrideSlot(null)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                ✕
+              </button>
             </div>
+
             <div>
               <Label className="text-xs">Доза</Label>
               <Input
@@ -422,9 +446,99 @@ export default function PrescriptionGrid({
                     prev ? { ...prev, dose: e.target.value } : null,
                   )
                 }
+                className="h-8 text-sm mt-1 w-40"
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Label className="text-xs">Путь введения</Label>
+                <Select
+                  value={overrideSlot.route}
+                  onValueChange={(v) =>
+                    setOverrideSlot((prev) =>
+                      prev ? { ...prev, route: v } : null,
+                    )
+                  }
+                >
+                  <SelectTrigger className="h-8 text-sm mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(ROUTES).map(([code, label]) => (
+                      <SelectItem key={code} value={code}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex-1">
+                <Label className="text-xs">Приём</Label>
+                <Select
+                  value={overrideSlot.foodRule}
+                  onValueChange={(v) =>
+                    setOverrideSlot((prev) =>
+                      prev ? { ...prev, foodRule: v } : null,
+                    )
+                  }
+                >
+                  <SelectTrigger className="h-8 text-sm mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(FOOD_RULES).map(([code, label]) => (
+                      <SelectItem key={code} value={code}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs">Время приёма</Label>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {TIME_CHIPS.map((t) => {
+                  const selected = overrideSlot.scheduledAt === t;
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() =>
+                        setOverrideSlot((prev) =>
+                          prev ? { ...prev, scheduledAt: t } : null,
+                        )
+                      }
+                      className={cn(
+                        "px-1.5 py-0.5 rounded text-xs border transition-colors",
+                        selected
+                          ? "bg-primary text-white border-primary"
+                          : "bg-white border-gray-200 hover:bg-muted text-gray-600",
+                      )}
+                    >
+                      {t}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs">Примечания</Label>
+              <Input
+                value={overrideSlot.notes}
+                onChange={(e) =>
+                  setOverrideSlot((prev) =>
+                    prev ? { ...prev, notes: e.target.value } : null,
+                  )
+                }
+                placeholder="Необязательно"
                 className="h-8 text-sm mt-1"
               />
             </div>
+
             <div className="flex gap-2">
               <Button
                 size="sm"
