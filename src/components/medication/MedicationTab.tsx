@@ -62,7 +62,7 @@ const initialFormData = {
   dose: "",
   doseUnit: "мг",
   route: "per_os",
-  scheduleTimes: ["08:00"],
+  scheduleTimes: [{ time: "08:00", dose: "" }] as Array<{ time: string; dose: string }>,
   durationDays: 0,
   foodRule: "any",
   mixWithDrug: null as any,
