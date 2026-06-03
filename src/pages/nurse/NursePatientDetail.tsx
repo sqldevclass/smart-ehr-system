@@ -228,8 +228,16 @@ export default function NursePatientDetail() {
           }}
         >
           {/* Panel 1 — 25% of strip = 100% of container */}
-          <div className="w-1/4 h-full overflow-y-auto border-r p-4">
-            <p className="text-muted-foreground text-sm">Panel 1 — ШРПУ</p>
+          <div className="w-1/4 h-full overflow-y-auto overflow-x-hidden border-r p-4">
+            <EWSSection
+              hospitalizationId={hospId!}
+              patientId={patient.id}
+              hospitalId={user!.hospitalId}
+              patientDateOfBirth={patient.date_of_birth}
+              admittedAt={(hosp as any).admitted_at}
+              isReadOnly={false}
+              viewerRole="nurse"
+            />
           </div>
           {/* Panel 2 */}
           <div className="w-1/4 h-full overflow-y-auto border-r p-4">
