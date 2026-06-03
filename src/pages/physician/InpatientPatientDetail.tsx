@@ -413,7 +413,7 @@ export default function InpatientPatientDetail() {
                     <span className="flex items-center gap-1">
                       {t.label}
                       {t.key === "ews" && ewsNeedsAttention && (
-                        <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-ping shrink-0" />
+                        <span className="inline-block w-2 h-2 rounded-full bg-red-500 shrink-0" />
                       )}
                     </span>
                   </button>
