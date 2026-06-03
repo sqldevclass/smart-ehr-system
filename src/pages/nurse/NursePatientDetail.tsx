@@ -223,7 +223,7 @@ export default function NursePatientDetail() {
         <div
           className="absolute inset-y-0 left-0 flex transition-transform duration-300 ease-in-out"
           style={{
-            width: "400%",
+            width: "200%",
             transform: `translateX(${-panelOffset * 50}%)`,
           }}
         >
