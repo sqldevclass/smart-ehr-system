@@ -1471,29 +1471,6 @@ export default function EWSSection({
         </div>
       )}
 
-      {alertHistory.length > 0 && (
-        <div className="mt-4 space-y-2">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            История предупреждений о сепсисе
-          </p>
-          {renderSepsisHistoryItem(alertHistory[0])}
-          {showAllSepsisHistory &&
-            (alertHistory as any[]).slice(1).map((a: any) =>
-              renderSepsisHistoryItem(a),
-            )}
-          {alertHistory.length > 1 && (
-            <button
-              onClick={() => setShowAllSepsisHistory(!showAllSepsisHistory)}
-              className="text-xs text-primary underline"
-            >
-              {showAllSepsisHistory
-                ? "Скрыть"
-                : `Показать ещё (${alertHistory.length - 1})`}
-            </button>
-          )}
-        </div>
-      )}
-      </>)}
     </div>
   );
 }
