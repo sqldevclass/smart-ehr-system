@@ -207,7 +207,7 @@ export default function NursePatientDetail() {
       >
         <div
           style={{ width: `${leftWidth}%` }}
-          className="overflow-y-auto border-r shrink-0 p-4"
+          className="overflow-y-auto overflow-x-hidden border-r shrink-0 p-4"
         >
           <EWSSection
             hospitalizationId={hospId!}
