@@ -182,103 +182,72 @@ export default function NursePatientDetail() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden relative">
-        {panelOffset > 0 && (
-          <button
-            onClick={() => setPanelOffset(0)}
-            className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-white border shadow-md flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors"
-          >
-            ◀
-          </button>
-        )}
-        {panelOffset < 1 && (
-          <button
-            onClick={() => setPanelOffset(1)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-white border shadow-md flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors"
-          >
-            ▶
-          </button>
-        )}
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex gap-1.5">
-          {[0, 1].map((i) => (
-            <button
-              key={i}
-              onClick={() => setPanelOffset(i)}
-              className={cn(
-                "w-2 h-2 rounded-full transition-colors",
-                panelOffset === i ? "bg-primary" : "bg-gray-300"
-              )}
-            />
-          ))}
+      <div
+        ref={containerRef}
+        className="flex flex-1 overflow-hidden select-none"
+      >
+        <div
+          style={{ width: `${leftWidth}%` }}
+          className="overflow-y-auto border-r shrink-0 p-4"
+        >
+          <EWSSection
+            hospitalizationId={hospId!}
+            patientId={patient.id}
+            hospitalId={user!.hospitalId}
+            patientDateOfBirth={patient.date_of_birth}
+            admittedAt={(hosp as any).admitted_at}
+            isReadOnly={false}
+            viewerRole="nurse"
+          />
         </div>
 
         <div
-          className="flex h-full transition-transform duration-300 ease-in-out"
-          style={{
-            width: "400vw",
-            transform: `translateX(${-panelOffset * 100}vw)`,
-          }}
+          onMouseDown={() => setIsDragging(true)}
+          className="w-1.5 shrink-0 cursor-col-resize bg-gray-200 hover:bg-primary/40 transition-colors"
+        />
+
+        <div
+          style={{ width: `${100 - leftWidth - 0.1}%` }}
+          className="overflow-y-auto overflow-x-hidden"
         >
-          {/* Panel 1 — EWS only */}
-          <div style={{ width: "50vw" }} className="h-full overflow-hidden border-r flex flex-col shrink-0">
-            <div className="flex-1 overflow-y-auto p-4">
-              <EWSSection
-                hospitalizationId={hospId!}
-                patientId={patient.id}
-                hospitalId={user!.hospitalId}
-                patientDateOfBirth={patient.date_of_birth}
-                admittedAt={(hosp as any).admitted_at}
-                isReadOnly={false}
-                viewerRole="nurse"
-              />
-            </div>
-          </div>
+          <div className="p-4 space-y-4">
+            <NurseMonitoringPanel
+              hospitalizationId={hospId!}
+              patientId={patient.id}
+              hospitalId={user!.hospitalId}
+              patientDateOfBirth={patient.date_of_birth}
+              patientGender={patient.gender}
+              fallRiskScaleCode={fallRiskScaleCode ?? undefined}
+            />
 
-          {/* Panel 2 — Monitoring */}
-          <div style={{ width: "50vw" }} className="h-full overflow-hidden border-r flex flex-col shrink-0">
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              <NurseMonitoringPanel
-                hospitalizationId={hospId!}
-                patientId={patient.id}
-                hospitalId={user!.hospitalId}
-                patientDateOfBirth={patient.date_of_birth}
-                patientGender={patient.gender}
-                fallRiskScaleCode={fallRiskScaleCode}
-              />
-            </div>
-          </div>
-
-          {/* Panel 3 — Prescriptions + Care */}
-          <div style={{ width: "50vw" }} className="h-full overflow-hidden border-r flex flex-col shrink-0">
-            <div className="flex-1 overflow-y-auto overflow-x-auto p-4 space-y-4">
+            <div className="border-t pt-4">
               <NursePrescriptions
                 hospitalizationId={hospId!}
                 patientId={patient.id}
                 hospitalId={user!.hospitalId}
               />
-              <div className="border-t pt-4">
-                <h3 className="font-semibold mb-3 text-sm">Уход и назначения</h3>
-                {careOrders.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Назначений нет</p>
-                ) : careOrders.map((o: any) => (
-                  <div key={o.id} className="border rounded p-3 space-y-1 mb-2">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      {ORDER_TYPE_LABELS[o.order_type as keyof typeof ORDER_TYPE_LABELS] ?? o.order_type}
-                    </span>
-                    <p className="text-sm">{o.order_value}</p>
-                    <div className="text-xs text-muted-foreground">
-                      {o.profiles?.full_name} · {format(new Date(o.ordered_at), "dd.MM.yyyy HH:mm")}
-                    </div>
+            </div>
+
+            <div className="border-t pt-4">
+              <h3 className="font-semibold mb-3 text-sm">Уход и назначения</h3>
+              {careOrders.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Назначений нет</p>
+              ) : careOrders.map((o: any) => (
+                <div key={o.id} className="border rounded p-3 space-y-1 mb-2">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    {ORDER_TYPE_LABELS[o.order_type as keyof typeof ORDER_TYPE_LABELS] ?? o.order_type}
+                  </span>
+                  <p className="text-sm">{o.order_value}</p>
+                  <div className="text-xs text-muted-foreground">
+                    {o.profiles?.full_name} · {format(new Date(o.ordered_at), "dd.MM.yyyy HH:mm")}
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
           </div>
-
-          {/* Panel 4 — Empty reserved */}
-          <div style={{ width: "50vw" }} className="h-full shrink-0" />
         </div>
       </div>
+
     </div>
   );
 }
