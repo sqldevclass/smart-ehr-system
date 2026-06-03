@@ -1,37 +1,36 @@
 -- Migration 087: Change schedule_times from text[] to jsonb
--- Stores [{time: "08:00", dose: "500мг"}] per entry
--- Existing text[] data migrated to jsonb format
+-- Cannot use subquery in USING clause.
+-- Solution: add new column, populate via UPDATE, drop old column.
 
--- Convert existing text[] to jsonb array of {time, dose} objects
--- Existing entries only have time, no dose — dose defaults to null
+-- Step 1: Add new jsonb column
 ALTER TABLE public.drug_prescriptions
-  ALTER COLUMN schedule_times
-    TYPE jsonb
-    USING (
-      CASE
-        WHEN schedule_times IS NULL
-          THEN '[]'::jsonb
-        WHEN array_length(schedule_times, 1) IS NULL
-          THEN '[]'::jsonb
-        ELSE (
-          SELECT jsonb_agg(
-            jsonb_build_object(
-              'time', t,
-              'dose', null
-            )
-          )
-          FROM unnest(schedule_times) AS t
-        )
-      END
-    );
+  ADD COLUMN schedule_times_new
+    jsonb DEFAULT '[]'::jsonb;
 
--- Set default to empty array
+-- Step 2: Migrate existing data
+-- Convert text[] → jsonb [{time, dose: null}]
+UPDATE public.drug_prescriptions
+SET schedule_times_new = (
+  SELECT COALESCE(
+    jsonb_agg(
+      jsonb_build_object('time', t, 'dose', null)
+    ),
+    '[]'::jsonb
+  )
+  FROM unnest(schedule_times) AS t
+)
+WHERE schedule_times IS NOT NULL
+  AND array_length(schedule_times, 1) > 0;
+
+-- Step 3: Drop old column, rename new
 ALTER TABLE public.drug_prescriptions
-  ALTER COLUMN schedule_times
-    SET DEFAULT '[]'::jsonb;
+  DROP COLUMN schedule_times;
 
--- Update submit_prescriptions RPC to handle
--- new jsonb format for slot generation
+ALTER TABLE public.drug_prescriptions
+  RENAME COLUMN schedule_times_new
+    TO schedule_times;
+
+-- Step 4: Update submit_prescriptions RPC
 CREATE OR REPLACE FUNCTION public.submit_prescriptions(
   p_hospitalization_id  uuid,
   p_hospital_id         uuid,
@@ -68,7 +67,6 @@ BEGIN
       AND hospital_id = p_hospital_id
       AND is_drafted = true
   LOOP
-    -- Mark as submitted
     UPDATE public.drug_prescriptions
     SET
       is_drafted        = false,
@@ -77,34 +75,33 @@ BEGIN
       status_changed_by = v_caller_id
     WHERE id = v_prescription.id;
 
-    -- Generate slots from jsonb schedule_times
     IF v_prescription.schedule_times IS NOT NULL
       AND jsonb_array_length(
         v_prescription.schedule_times) > 0
       AND v_prescription.duration_days IS NOT NULL
       AND v_prescription.duration_days > 0
     THEN
-      FOR v_day IN 0..(v_prescription.duration_days - 1)
+      FOR v_day IN
+        0..(v_prescription.duration_days - 1)
       LOOP
-        FOR v_slot IN
-          SELECT * FROM jsonb_array_elements(
+        FOR v_slot IN SELECT *
+          FROM jsonb_array_elements(
             v_prescription.schedule_times)
         LOOP
           v_slot_time := v_slot->>'time';
           v_slot_dose := v_slot->>'dose';
-
-          v_slot_at := (
+          v_slot_at :=
             date_trunc('day',
               v_prescription.prescribed_at)
             + v_day * interval '1 day'
-            + v_slot_time::interval
-          );
+            + v_slot_time::interval;
 
-          INSERT INTO public.drug_administration_slots
-            (prescription_id, hospital_id,
-             hospitalization_id, patient_id,
-             scheduled_at, status,
-             override_dose)
+          INSERT INTO
+            public.drug_administration_slots(
+              prescription_id, hospital_id,
+              hospitalization_id, patient_id,
+              scheduled_at, status,
+              override_dose)
           VALUES (
             v_prescription.id,
             p_hospital_id,
@@ -118,7 +115,6 @@ BEGIN
       END LOOP;
     END IF;
 
-    -- Update physician favorites
     INSERT INTO public.physician_favorites
       (physician_id, drug_formulary_id,
        use_count, last_used_at)
@@ -128,7 +124,8 @@ BEGIN
        1, now())
     ON CONFLICT (physician_id, drug_formulary_id)
     DO UPDATE SET
-      use_count    = physician_favorites.use_count + 1,
+      use_count    =
+        physician_favorites.use_count + 1,
       last_used_at = now();
 
     v_count := v_count + 1;
@@ -146,8 +143,7 @@ EXCEPTION
 END;
 $$;
 
--- Update extend_prescription_to_date to handle
--- jsonb schedule_times
+-- Step 5: Update extend_prescription_to_date RPC
 CREATE OR REPLACE FUNCTION
   public.extend_prescription_to_date(
     p_prescription_id uuid,
@@ -159,15 +155,15 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_caller_id     uuid;
-  v_hospital_id   uuid;
-  v_prescription  record;
-  v_target_start  timestamptz;
-  v_slot          jsonb;
-  v_slot_time     text;
-  v_slot_dose     text;
-  v_new_duration  integer;
-  v_caller_roles  text[];
+  v_caller_id    uuid;
+  v_hospital_id  uuid;
+  v_prescription record;
+  v_target_start timestamptz;
+  v_slot         jsonb;
+  v_slot_time    text;
+  v_slot_dose    text;
+  v_new_duration integer;
+  v_caller_roles text[];
 BEGIN
   v_caller_id   := auth.uid();
   v_hospital_id := public.get_my_hospital_id();
@@ -196,7 +192,8 @@ BEGIN
     RAISE EXCEPTION 'Prescription not found';
   END IF;
 
-  IF v_prescription.status_code = 'cancelled' THEN
+  IF v_prescription.status_code = 'cancelled'
+  THEN
     RAISE EXCEPTION
       'Cannot extend a cancelled prescription';
   END IF;
@@ -217,25 +214,26 @@ BEGIN
   END IF;
 
   v_target_start :=
-    p_target_date::timestamptz AT TIME ZONE 'UTC';
+    p_target_date::timestamptz
+    AT TIME ZONE 'UTC';
 
-  -- Generate slots from jsonb schedule_times
   IF v_prescription.schedule_times IS NOT NULL
     AND jsonb_array_length(
       v_prescription.schedule_times) > 0
   THEN
-    FOR v_slot IN
-      SELECT * FROM jsonb_array_elements(
+    FOR v_slot IN SELECT *
+      FROM jsonb_array_elements(
         v_prescription.schedule_times)
     LOOP
       v_slot_time := v_slot->>'time';
       v_slot_dose := v_slot->>'dose';
 
-      INSERT INTO public.drug_administration_slots
-        (prescription_id, hospital_id,
-         hospitalization_id, patient_id,
-         scheduled_at, status,
-         override_dose)
+      INSERT INTO
+        public.drug_administration_slots(
+          prescription_id, hospital_id,
+          hospitalization_id, patient_id,
+          scheduled_at, status,
+          override_dose)
       VALUES (
         p_prescription_id,
         v_hospital_id,
@@ -262,9 +260,9 @@ BEGIN
   END IF;
 
   RETURN jsonb_build_object(
-    'success',       true,
-    'target_date',   p_target_date,
-    'new_duration',  GREATEST(
+    'success',      true,
+    'target_date',  p_target_date,
+    'new_duration', GREATEST(
       v_new_duration,
       v_prescription.duration_days)
   );
