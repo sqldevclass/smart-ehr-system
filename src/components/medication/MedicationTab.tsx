@@ -402,7 +402,7 @@ export default function MedicationTab({
               </Button>
             </div>
 
-            {mixMode && formData.mixWithDrug && (
+            {formData.mixWithDrug && (
               <div className="flex items-center gap-2 mt-1 pl-4 border-l-2 border-blue-300">
                 <span className="text-xs text-blue-600 font-medium">+</span>
                 <span className="text-sm font-medium">
