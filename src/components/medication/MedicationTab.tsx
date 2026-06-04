@@ -66,6 +66,7 @@ const initialFormData = {
   durationDays: 0,
   foodRule: "any",
   mixWithDrug: null as any,
+  mixDose: "",
   prescriptionType: "regular",
   prnCondition: "",
   maxDailyDose: "",
@@ -85,6 +86,7 @@ export default function MedicationTab({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
+  const [mixMode, setMixMode] = useState(false);
 
   const [startDay, setStartDay] = useState(new Date());
   const formatStartDay = (d: Date) => format(d, "dd.MM.yyyy");
@@ -97,9 +99,9 @@ export default function MedicationTab({
         .select(`
           id, patient_id, dose, dose_unit, route, schedule_times, duration_days,
           food_rule, prescription_type, prn_condition, notes, is_drafted,
-          status_code, prescribed_at, mix_with_drug_id,
+          status_code, prescribed_at, mix_with_drug_id, mix_dose,
           drug_formulary!drug_formulary_id(id, trade_name, inn, dose),
-          mix_drug:drug_formulary!mix_with_drug_id(trade_name),
+          mix_drug:drug_formulary!mix_with_drug_id(id, trade_name, inn, dose),
           profiles!prescribed_by(full_name)
         `)
         .eq("hospitalization_id", hospitalizationId)
@@ -219,6 +221,15 @@ export default function MedicationTab({
 
 
   const handleAddDrug = (drug: any) => {
+    if (mixMode && formData.drug) {
+      setFormData((prev) => ({
+        ...prev,
+        mixWithDrug: drug,
+        mixDose: drug.dose ?? "",
+      }));
+      setMixMode(false);
+      return;
+    }
     const doseMatch = drug.dose?.match(/^([\d.]+)\s*(.*)$/);
     setFormData({
       ...initialFormData,
@@ -244,6 +255,7 @@ export default function MedicationTab({
       duration_days: formData.durationDays,
       food_rule: formData.foodRule,
       mix_with_drug_id: formData.mixWithDrug?.id ?? null,
+      mix_dose: formData.mixDose || null,
       prescription_type: formData.prescriptionType,
       prn_condition: formData.prnCondition || null,
       notes:
@@ -267,6 +279,7 @@ export default function MedicationTab({
     }
     setShowForm(false);
     setFormData(initialFormData);
+    setMixMode(false);
     invalidate();
   };
 
