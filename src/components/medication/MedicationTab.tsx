@@ -62,7 +62,7 @@ const initialFormData = {
   dose: "",
   doseUnit: "мг",
   route: "per_os",
-  scheduleTimes: [{ time: "08:00", dose: "" }] as Array<{ time: string; dose: string }>,
+  scheduleTimes: [] as Array<{ time: string; dose: string }>,
   durationDays: 0,
   foodRule: "any",
   mixWithDrug: null as any,
@@ -258,7 +258,8 @@ export default function MedicationTab({
       is_drafted: true,
       status_code: "preliminary",
       prescribed_by: physicianId,
-      prescribed_at: startDay.toISOString(),
+      prescribed_at: new Date().toISOString(),
+      start_date: format(startDay, "yyyy-MM-dd"),
     });
     if (error) {
       toast.error(error.message);
@@ -581,7 +582,7 @@ export default function MedicationTab({
               <div key={p.id} className="flex items-center justify-between text-sm">
                 <span>
                   {p.drug_formulary?.trade_name} {p.dose}
-                  {p.dose_unit} {p.schedule_times?.join(", ")}
+                  {p.dose_unit} {p.schedule_times?.map((s: any) => s.time).join(", ")}
                 </span>
                 <button
                   className="text-xs text-red-600"
