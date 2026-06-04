@@ -203,6 +203,18 @@ export default function PrescriptionGrid({
       });
     }
 
+    // Always update notes on existing pending slots regardless of other changes
+    const remainingPending = oldPending.filter(
+      (s) => !removed.find((r) => r.id === s.id),
+    );
+    for (const slot of remainingPending) {
+      await supabase
+        .from("drug_administration_slots")
+        .update({ notes: editCell.notes || null })
+        .eq("id", slot.id);
+    }
+
+
     queryClient.invalidateQueries({
       queryKey: ["all-slots", editCell.hospitalizationId],
     });
