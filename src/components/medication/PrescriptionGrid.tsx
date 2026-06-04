@@ -324,6 +324,11 @@ export default function PrescriptionGrid({
                       {p.schedule_times?.length > 0 &&
                         ` · ${p.schedule_times.map((s: any) => s.time ?? s).join(", ")}`}
                     </div>
+                    {p.mix_drug && (
+                      <div className="text-xs text-blue-600 mt-0.5">
+                        + {p.mix_drug.trade_name} {p.mix_dose}
+                      </div>
+                    )}
                     {p.prescription_type === "prn" && (
                       <span className="text-xs bg-purple-100 text-purple-700 px-1 rounded">
                         PRN
