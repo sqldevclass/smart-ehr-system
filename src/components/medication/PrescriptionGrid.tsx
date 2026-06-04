@@ -189,14 +189,14 @@ export default function PrescriptionGrid({
     }
     for (const slot of added) {
       const [hh, mm] = slot.time.split(":");
-      const slotDate = new Date(editCell.date);
-      slotDate.setHours(parseInt(hh), parseInt(mm), 0, 0);
+      const dateStr = format(editCell.date, "yyyy-MM-dd");
+      const scheduledAt = `${dateStr} ${hh}:${mm}:00`;
       await supabase.from("drug_administration_slots").insert({
         prescription_id: editCell.prescriptionId,
         hospital_id: editCell.hospitalId,
         hospitalization_id: editCell.hospitalizationId,
         patient_id: editCell.patientId,
-        scheduled_at: slotDate.toISOString(),
+        scheduled_at: scheduledAt,
         status: "pending",
         override_dose: slot.dose || null,
         notes: editCell.notes || null,
