@@ -292,54 +292,13 @@ export default function NursePatientDetail() {
                 ✕
               </button>
             </div>
-            <div className="flex-1 flex overflow-hidden">
-              <div className="w-64 shrink-0 border-r overflow-y-auto p-2">
-                {medDocs.length === 0 ? (
-                  <p className="text-xs text-muted-foreground p-2">Документов нет</p>
-                ) : (
-                  medDocs.map((d: any) => (
-                    <div
-                      key={d.id}
-                      onClick={() =>
-                        setSelectedDoc({ id: d.id, typeId: d.document_types?.id })
-                      }
-                      className={cn(
-                        "p-2 mb-1 rounded text-xs cursor-pointer hover:bg-muted flex items-center gap-2",
-                        selectedDoc?.id === d.id && "bg-muted"
-                      )}
-                    >
-                      <span
-                        className="w-2.5 h-2.5 rounded-full shrink-0"
-                        style={{ backgroundColor: d.document_types?.color }}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="truncate">{d.document_types?.name_ru}</div>
-                        <div className="text-muted-foreground">
-                          {format(new Date(d.created_at), "dd.MM.yyyy HH:mm")}
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-              <div className="flex-1 overflow-auto">
-                {selectedDoc ? (
-                  <InpatientDocumentWorkspace
-                    key={selectedDoc.id}
-                    hospitalizationId={hospId!}
-                    existingDocumentId={selectedDoc.id}
-                    documentTypeId={selectedDoc.typeId}
-                    patientId={patient.id}
-                    hospitalId={user!.hospitalId}
-                    forceReadOnly={true}
-                    onClose={() => setSelectedDoc(null)}
-                  />
-                ) : (
-                  <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-                    Выберите документ
-                  </div>
-                )}
-              </div>
+            <div className="flex-1 overflow-hidden">
+              <PatientDocumentSidebar
+                hospitalizationId={hospId!}
+                patientId={patient.id}
+                hospitalId={user!.hospitalId}
+                userId={user!.id}
+              />
             </div>
           </div>
         </div>
