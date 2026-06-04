@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,23 +9,18 @@ import { Button } from "@/components/ui/button";
 import EWSSection from "@/components/ews/EWSSection";
 import NursePrescriptions from "@/components/medication/NursePrescriptions";
 import NurseMonitoringPanel from "@/components/nurse/NurseMonitoringPanel";
+import InpatientDocumentWorkspace from "@/components/documents/InpatientDocumentWorkspace";
 import FallingPersonIcon from "@/components/assessments/FallingPersonIcon";
 import { cn } from "@/lib/utils";
-
-
-const ORDER_TYPE_LABELS: Record<string, string> = {
-  diet: "Диета",
-  activity_mode: "Режим активности",
-  care: "Уход",
-};
 
 export default function NursePatientDetail() {
   const { hospId } = useParams<{ hospId: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
   const { setPatientContext } = useNurseLayoutContext();
-  const [panelOffset, setPanelOffset] = useState(0);
-
+  const [showPrescriptions, setShowPrescriptions] = useState(false);
+  const [showMedDocs, setShowMedDocs] = useState(false);
+  const [selectedDoc, setSelectedDoc] = useState<{ id: string; typeId: string } | null>(null);
 
   const { data: hosp, isLoading } = useQuery({
     queryKey: ["nurse-hosp", hospId],
@@ -50,27 +45,6 @@ export default function NursePatientDetail() {
       return data;
     },
     enabled: !!hospId,
-  });
-
-  const { data: careOrders = [] } = useQuery({
-    queryKey: ["nurse-care-orders", hospId],
-    staleTime: 0,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("hospitalization_orders")
-        .select(`
-          id, order_type, order_value,
-          ordered_at,
-          profiles!ordered_by(full_name)
-        `)
-        .eq("hospitalization_id", hospId!)
-        .eq("hospital_id", user!.hospitalId)
-        .eq("is_active", true)
-        .order("ordered_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!hospId && !!user?.hospitalId,
   });
 
   const fallRiskScaleCode = useMemo(() => {
@@ -99,6 +73,23 @@ export default function NursePatientDetail() {
         .eq("is_voided", false)
         .order("assessed_at", { ascending: false })
         .limit(1);
+      return data || [];
+    },
+  });
+
+  const { data: medDocs = [] } = useQuery({
+    queryKey: ["nurse-med-docs", hospId],
+    enabled: !!hospId && !!user?.hospitalId && showMedDocs,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("patient_documents")
+        .select(`
+          id, status, created_at, completed_at,
+          document_types!inner(id, name_ru, color)
+        `)
+        .eq("hospitalization_id", hospId!)
+        .eq("hospital_id", user!.hospitalId)
+        .order("created_at", { ascending: false });
       return data || [];
     },
   });
@@ -142,9 +133,6 @@ export default function NursePatientDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [(hosp as any)?.id]);
 
-
-
-
   if (isLoading) return <p className="text-muted-foreground">Загрузка…</p>;
   if (!hosp) return <p className="text-destructive">Госпитализация не найдена.</p>;
 
@@ -158,6 +146,21 @@ export default function NursePatientDetail() {
           onClick={() => navigate("/nurse")}
         >
           ← Назад
+        </Button>
+        <Button
+          size="sm"
+          className="h-7 px-2 text-xs"
+          onClick={() => setShowPrescriptions(true)}
+        >
+          Лист назначения
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 px-2 text-xs"
+          onClick={() => setShowMedDocs(true)}
+        >
+          Мед. документы
         </Button>
         {allergies.length > 0 && (
           <div className="flex items-center gap-1 text-xs text-red-700 font-semibold">
@@ -184,108 +187,151 @@ export default function NursePatientDetail() {
         </div>
       </div>
 
-      {/* Sliding container — clips the strip */}
-      <div className="flex-1 relative overflow-hidden">
-        {/* Left arrow */}
-        {panelOffset > 0 && (
-          <button
-            onClick={() => setPanelOffset(0)}
-            className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-white border shadow-md flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors"
-          >
-            ◀
-          </button>
-        )}
-        {/* Right arrow */}
-        {panelOffset < 1 && (
-          <button
-            onClick={() => setPanelOffset(1)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-white border shadow-md flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors"
-          >
-            ▶
-          </button>
-        )}
-        {/* Dot indicators */}
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex gap-1.5">
-          {[0, 1].map((i) => (
-            <button
-              key={i}
-              onClick={() => setPanelOffset(i)}
-              className={cn(
-                "w-2 h-2 rounded-full transition-colors",
-                panelOffset === i
-                  ? "bg-primary"
-                  : "bg-gray-300 hover:bg-gray-400"
-              )}
-            />
-          ))}
+      <div className="flex-1 flex overflow-hidden">
+        <div className="w-1/2 h-full overflow-y-auto border-r p-4">
+          <EWSSection
+            hospitalizationId={hospId!}
+            patientId={patient.id}
+            hospitalId={user!.hospitalId}
+            patientDateOfBirth={patient.date_of_birth}
+            admittedAt={(hosp as any).admitted_at}
+            isReadOnly={false}
+            viewerRole="nurse"
+          />
         </div>
-        {/* Strip — absolutely positioned so it never causes page scroll */}
-        <div
-          className="absolute inset-y-0 left-0 flex transition-transform duration-300 ease-in-out"
-          style={{
-            width: "200%",
-            transform: `translateX(${-panelOffset * 50}%)`,
-          }}
-        >
-          {/* Panel 1 — 25% of strip = 100% of container */}
-          <div className="w-1/4 h-full overflow-y-auto overflow-x-hidden border-r p-4">
-            <EWSSection
-              hospitalizationId={hospId!}
-              patientId={patient.id}
-              hospitalId={user!.hospitalId}
-              patientDateOfBirth={patient.date_of_birth}
-              admittedAt={(hosp as any).admitted_at}
-              isReadOnly={false}
-              viewerRole="nurse"
-            />
-          </div>
-          {/* Panel 2 */}
-          <div className="w-1/4 h-full overflow-y-auto overflow-x-hidden border-r p-4">
-            <NurseMonitoringPanel
-              hospitalizationId={hospId!}
-              patientId={patient.id}
-              hospitalId={user!.hospitalId}
-              patientDateOfBirth={patient.date_of_birth}
-              patientGender={patient.gender}
-              fallRiskScaleCode={fallRiskScaleCode ?? undefined}
-            />
-          </div>
-          {/* Panel 3 */}
-          <div className="w-1/4 h-full overflow-y-auto overflow-x-auto border-r p-4 space-y-4">
-            <NursePrescriptions
-              hospitalizationId={hospId!}
-              patientId={patient.id}
-              hospitalId={user!.hospitalId}
-            />
-            <div className="border-t pt-4">
-              <h3 className="font-semibold mb-3 text-sm">
-                Уход и назначения
-              </h3>
-              {careOrders.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Назначений нет
-                </p>
-              ) : careOrders.map((o: any) => (
-                <div key={o.id} className="border rounded p-3 space-y-1 mb-2">
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    {ORDER_TYPE_LABELS[o.order_type as keyof typeof ORDER_TYPE_LABELS] ?? o.order_type}
-                  </span>
-                  <p className="text-sm">
-                    {o.order_value}
-                  </p>
-                  <div className="text-xs text-muted-foreground">
-                    {o.profiles?.full_name}{" · "}
-                    {format(new Date(o.ordered_at), "dd.MM.yyyy HH:mm")}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-          {/* Panel 4 — empty reserved */}
-          <div className="w-1/4 h-full" />
+        <div className="w-1/2 h-full overflow-y-auto p-4">
+          <NurseMonitoringPanel
+            hospitalizationId={hospId!}
+            patientId={patient.id}
+            hospitalId={user!.hospitalId}
+            patientDateOfBirth={patient.date_of_birth}
+            patientGender={patient.gender}
+            fallRiskScaleCode={fallRiskScaleCode ?? undefined}
+          />
         </div>
       </div>
 
+      {showPrescriptions && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg w-full max-w-6xl h-[90vh] flex flex-col">
+            <div className="flex items-start gap-4 p-4 border-b">
+              <div className="flex-1">
+                <div className="text-lg font-semibold">Лист назначения</div>
+                <div className="mt-1 flex items-center gap-3 text-sm">
+                  <span className="font-medium">
+                    {patient?.last_name} {patient?.first_name}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {patient?.date_of_birth
+                      ? format(new Date(patient.date_of_birth), "dd.MM.yyyy")
+                      : "—"}
+                    {" · "}
+                    {patient?.date_of_birth
+                      ? differenceInYears(new Date(), new Date(patient.date_of_birth))
+                      : "—"}{" "}
+                    лет
+                  </span>
+                  <span className="text-muted-foreground">
+                    П# {patient?.patient_number}
+                  </span>
+                  {allergies.length > 0 && (
+                    <span className="text-red-700 font-semibold text-xs">
+                      ⚠ АЛЛЕРГИЯ:{" "}
+                      {allergies.map((a: any) => a.allergy_type).join(", ")}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => setShowPrescriptions(false)}
+                className="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground shrink-0"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto p-4">
+              <NursePrescriptions
+                hospitalizationId={hospId!}
+                patientId={patient.id}
+                hospitalId={user!.hospitalId}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showMedDocs && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg w-full max-w-6xl h-[90vh] flex flex-col">
+            <div className="flex items-center gap-4 p-4 border-b">
+              <div className="flex-1">
+                <div className="text-lg font-semibold">Мед. документы</div>
+                <div className="text-sm text-muted-foreground">
+                  {patient?.last_name} {patient?.first_name}
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowMedDocs(false);
+                  setSelectedDoc(null);
+                }}
+                className="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex-1 flex overflow-hidden">
+              <div className="w-64 shrink-0 border-r overflow-y-auto p-2">
+                {medDocs.length === 0 ? (
+                  <p className="text-xs text-muted-foreground p-2">Документов нет</p>
+                ) : (
+                  medDocs.map((d: any) => (
+                    <div
+                      key={d.id}
+                      onClick={() =>
+                        setSelectedDoc({ id: d.id, typeId: d.document_types?.id })
+                      }
+                      className={cn(
+                        "p-2 mb-1 rounded text-xs cursor-pointer hover:bg-muted flex items-center gap-2",
+                        selectedDoc?.id === d.id && "bg-muted"
+                      )}
+                    >
+                      <span
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: d.document_types?.color }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="truncate">{d.document_types?.name_ru}</div>
+                        <div className="text-muted-foreground">
+                          {format(new Date(d.created_at), "dd.MM.yyyy HH:mm")}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className="flex-1 overflow-auto">
+                {selectedDoc ? (
+                  <InpatientDocumentWorkspace
+                    key={selectedDoc.id}
+                    hospitalizationId={hospId!}
+                    existingDocumentId={selectedDoc.id}
+                    documentTypeId={selectedDoc.typeId}
+                    patientId={patient.id}
+                    hospitalId={user!.hospitalId}
+                    forceReadOnly={true}
+                    onClose={() => setSelectedDoc(null)}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+                    Выберите документ
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
