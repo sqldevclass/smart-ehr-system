@@ -268,7 +268,13 @@ export default function NursePatientDetail() {
 
       {showMedDocs && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg w-full max-w-6xl h-[90vh] flex flex-col">
+          <div
+            className="bg-white rounded-lg flex flex-col"
+            style={{
+              width: "calc(100vw - 32px)",
+              height: "calc(100vh - 32px)",
+            }}
+          >
             <div className="flex items-center gap-4 p-4 border-b">
               <div className="flex-1">
                 <div className="text-lg font-semibold">Мед. документы</div>
