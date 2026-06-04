@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import EWSSection from "@/components/ews/EWSSection";
 import NursePrescriptions from "@/components/medication/NursePrescriptions";
 import NurseMonitoringPanel from "@/components/nurse/NurseMonitoringPanel";
-import InpatientDocumentWorkspace from "@/components/documents/InpatientDocumentWorkspace";
+import PatientDocumentSidebar from "@/components/documents/PatientDocumentSidebar";
 import FallingPersonIcon from "@/components/assessments/FallingPersonIcon";
 import { cn } from "@/lib/utils";
 
