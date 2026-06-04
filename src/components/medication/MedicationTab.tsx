@@ -372,11 +372,68 @@ export default function MedicationTab({
                       : "Антибиотикопрофилактика"}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMixMode((prev) => {
+                      const next = !prev;
+                      if (!next) {
+                        setFormData((p) => ({
+                          ...p,
+                          mixWithDrug: null,
+                          mixDose: "",
+                        }));
+                      }
+                      return next;
+                    });
+                  }}
+                  className={cn(
+                    "px-2 py-1 rounded text-xs border",
+                    mixMode
+                      ? "bg-blue-500 text-white border-blue-500"
+                      : "bg-white border-gray-300",
+                  )}
+                >
+                  Mix with
+                </button>
               </div>
               <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setShowForm(false)}>
                 ✕
               </Button>
             </div>
+
+            {mixMode && formData.mixWithDrug && (
+              <div className="flex items-center gap-2 mt-1 pl-4 border-l-2 border-blue-300">
+                <span className="text-xs text-blue-600 font-medium">+</span>
+                <span className="text-sm font-medium">
+                  {formData.mixWithDrug.trade_name}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {formData.mixWithDrug.inn}
+                </span>
+                <Input
+                  value={formData.mixDose}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, mixDose: e.target.value }))
+                  }
+                  placeholder="Доза"
+                  className="w-24 h-7 text-xs"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFormData((p) => ({
+                      ...p,
+                      mixWithDrug: null,
+                      mixDose: "",
+                    }))
+                  }
+                  className="text-xs text-red-500 hover:text-red-700"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
 
             <div className="flex items-center gap-2 flex-wrap">
               <Select
@@ -628,6 +685,11 @@ export default function MedicationTab({
 
       {/* Right sidebar */}
       <div className="w-72 shrink-0 border-l overflow-y-auto p-4 space-y-4">
+        {mixMode && (
+          <div className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded px-2 py-1.5">
+            Выберите препарат для смешивания
+          </div>
+        )}
         <div className="space-y-2">
           <Input
             value={searchQuery}

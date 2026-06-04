@@ -53,10 +53,11 @@ export default function OrdersPage() {
           food_rule, prescription_type,
           prn_condition, notes,
           status_code, prescribed_at,
+          mix_dose,
           drug_formulary!drug_formulary_id(
             id, trade_name, inn, dose),
           mix_drug:drug_formulary!mix_with_drug_id(
-            trade_name),
+            trade_name, inn),
           hospitalizations!hospitalization_id(
             id,
             departments!department_id(name),
@@ -316,8 +317,8 @@ export default function OrdersPage() {
                 </div>
 
                 {p.mix_drug && (
-                  <div className="text-xs text-muted-foreground">
-                    Смешать с: {p.mix_drug.trade_name}
+                  <div className="text-xs text-blue-600 mt-0.5">
+                    + {p.mix_drug.trade_name} {p.mix_dose}
                   </div>
                 )}
 
