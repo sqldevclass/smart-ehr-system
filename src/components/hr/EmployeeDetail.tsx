@@ -423,8 +423,8 @@ function EmployeeForm({
         </section>
       )}
 
-      {staffRole && staffRole.role_type === "physician" && (
-        <AssignedRoomsSection physicianId={staffRole.id} />
+      {isPhysician && (
+        <AssignedRoomsSection physicianId={staffRoles.find((sr: any) => sr.role_type === "physician")?.id} />
       )}
 
 
