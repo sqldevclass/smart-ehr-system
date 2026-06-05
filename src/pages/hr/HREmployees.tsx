@@ -79,14 +79,15 @@ export default function HREmployees() {
               <TableHead>ФИО</TableHead>
               <TableHead>Должность</TableHead>
               <TableHead>Пол</TableHead>
+              {showFormer && <TableHead>Статус</TableHead>}
               <TableHead>Отделение</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Загрузка…</TableCell></TableRow>
+              <TableRow><TableCell colSpan={showFormer ? 6 : 5} className="text-center text-muted-foreground py-8">Загрузка…</TableCell></TableRow>
             ) : employees.length === 0 ? (
-              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Сотрудников нет</TableCell></TableRow>
+              <TableRow><TableCell colSpan={showFormer ? 6 : 5} className="text-center text-muted-foreground py-8">Сотрудников нет</TableCell></TableRow>
             ) : employees.map((e: any) => (
               <TableRow
                 key={e.id}
@@ -99,9 +100,23 @@ export default function HREmployees() {
                 </TableCell>
                 <TableCell>{e.job_titles?.name || "—"}</TableCell>
                 <TableCell>{e.gender === "male" ? "Мужской" : e.gender === "female" ? "Женский" : "—"}</TableCell>
+                {showFormer && (
+                  <TableCell>
+                    {e.employment_status === "fired" ? (
+                      <span className="inline-flex items-center rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
+                        Уволен
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800">
+                        Освобождён
+                      </span>
+                    )}
+                  </TableCell>
+                )}
                 <TableCell>{e.departments?.name || "—"}</TableCell>
               </TableRow>
             ))}
+
           </TableBody>
         </Table>
       </div>
