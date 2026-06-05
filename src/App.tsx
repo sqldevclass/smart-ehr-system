@@ -46,6 +46,8 @@ import AuthCallback from "./pages/auth/AuthCallback.tsx";
 import SetPassword from "./pages/auth/SetPassword.tsx";
 import CallbackError from "./pages/auth/CallbackError.tsx";
 import AcceptInvite from "./pages/AcceptInvite.tsx";
+import ForgotPassword from "./pages/ForgotPassword.tsx";
+import ResetPassword from "./pages/ResetPassword.tsx";
 import InpatientLayout from "./components/inpatient/InpatientLayout.tsx";
 import AdmissionsPage from "./pages/inpatient/AdmissionsPage.tsx";
 import HospitalizationPage from "./pages/inpatient/HospitalizationPage.tsx";
@@ -102,6 +104,8 @@ const App = () => (
           <Route path="/signup" element={<Signup />} />
           <Route path="/login" element={<Login />} />
           <Route path="/invite" element={<AcceptInvite />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/queue/:displayToken" element={<QueueDisplay />} />
           <Route path="/admin" element={<ProtectedRoute allowedRoles={["admin"]}><AdminLayout /></ProtectedRoute>}>
             <Route index element={<AdminOverview />} />
