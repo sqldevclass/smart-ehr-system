@@ -367,9 +367,46 @@ function EmployeeForm({
 
       {physician && <AssignedRoomsSection physicianId={physician.id} />}
 
+      <section className="rounded-lg border bg-card p-5 space-y-3">
+        <h3 className="font-semibold">Статус занятости</h3>
+        {employee.employment_status === "active" ? (
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="text-destructive border-destructive/40 hover:bg-destructive/10"
+              disabled={saving}
+              onClick={() => handleStatusChange("fired")}
+            >
+              Уволить
+            </Button>
+            <Button
+              variant="outline"
+              disabled={saving}
+              onClick={() => handleStatusChange("released")}
+            >
+              Освободить
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-muted-foreground">
+              {employee.employment_status === "fired" ? "Уволен" : "Освобождён"}
+            </span>
+            <Button
+              variant="outline"
+              disabled={saving}
+              onClick={() => handleStatusChange("active")}
+            >
+              Восстановить
+            </Button>
+          </div>
+        )}
+      </section>
+
       <div className="flex justify-end">
         <Button onClick={save} disabled={saving}>{saving ? "Сохранение…" : "Сохранить"}</Button>
       </div>
+
     </div>
   );
 }
