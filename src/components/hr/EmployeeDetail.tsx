@@ -292,16 +292,22 @@ function EmployeeForm({
     setSaving(true);
     try {
       const { error } = await supabase
-        .from("employees")
+        .from("employments")
         .update({
           employment_status: newStatus,
           status_changed_at: new Date().toISOString(),
         })
-        .eq("id", employee.id);
+        .eq("id", employment.id);
 
       if (error) throw error;
 
-      if (newStatus !== "active" && employee.profile_id) {
+      const { data: linkedProfile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("person_id", person.id)
+        .maybeSingle();
+
+      if (newStatus !== "active" && linkedProfile?.id) {
         const { data: { session } } = await supabase.auth.getSession();
         const supabaseUrl = (supabase as any).supabaseUrl
           ?? "https://efgyjxanyqrlifjzznae.supabase.co";
@@ -317,7 +323,7 @@ function EmployeeForm({
               "apikey": supabaseKey,
               "Authorization": `Bearer ${session?.access_token}`,
             },
-            body: JSON.stringify({ target_user_id: employee.profile_id }),
+            body: JSON.stringify({ target_user_id: linkedProfile.id }),
           }
         );
         const data = await res.json();
@@ -325,6 +331,7 @@ function EmployeeForm({
           throw new Error(data.error || "Failed to revoke access");
         }
       }
+
 
       toast.success(
         newStatus === "active"
