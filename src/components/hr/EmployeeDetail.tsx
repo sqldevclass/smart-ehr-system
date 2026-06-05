@@ -114,6 +114,7 @@ export default function EmployeeDetail({ personId, onClose }: Props) {
               person={person}
               employment={employment}
               staffRole={staffRole}
+              staffRoles={staffRoles}
               onSaved={() => {
                 queryClient.invalidateQueries({ queryKey: ["hr-person", personId] });
                 queryClient.invalidateQueries({ queryKey: ["hr-employment", personId] });
