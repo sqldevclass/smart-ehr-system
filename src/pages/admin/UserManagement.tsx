@@ -218,7 +218,7 @@ export default function UserManagement() {
                       </TableCell>
                       <TableCell className="text-right space-x-2">
                         <Button size="sm" variant="outline" onClick={() => setRoleTarget(p)}>Change Role</Button>
-                        <Button size="sm" variant="destructive" onClick={() => setRemoveTarget(p)}>Remove</Button>
+                        <Button size="sm" variant="destructive" onClick={() => setRemoveTarget(p)}>Revoke Access</Button>
                       </TableCell>
                     </TableRow>
                   ))}
