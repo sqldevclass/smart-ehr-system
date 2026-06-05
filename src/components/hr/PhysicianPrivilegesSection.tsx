@@ -15,10 +15,10 @@ interface ServiceRow {
 }
 
 export default function PhysicianPrivilegesSection({
-  physicianId, hospitalId,
-}: { physicianId: string; hospitalId: string }) {
+  staffRoleId, hospitalId,
+}: { staffRoleId: string; hospitalId: string }) {
   const { user } = useAuth();
-  const selectedId = physicianId;
+  const selectedId = staffRoleId;
   const queryClient = useQueryClient();
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
@@ -38,17 +38,17 @@ export default function PhysicianPrivilegesSection({
   });
 
   const { data: currentPrivileges = [] } = useQuery({
-    queryKey: ["physician-service-privileges", physicianId, hospitalId],
+    queryKey: ["physician-service-privileges", staffRoleId, hospitalId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("physician_service_privileges")
         .select("service_id")
-        .eq("physician_id", physicianId)
+        .eq("staff_role_id", staffRoleId)
         .eq("hospital_id", hospitalId);
       if (error) throw error;
       return data || [];
     },
-    enabled: !!physicianId,
+    enabled: !!staffRoleId,
   });
 
   useEffect(() => {
@@ -79,19 +79,19 @@ export default function PhysicianPrivilegesSection({
       const { error: delErr } = await supabase
         .from("physician_service_privileges")
         .delete()
-        .eq("physician_id", physicianId)
+        .eq("staff_role_id", staffRoleId)
         .eq("hospital_id", hospitalId);
       if (delErr) throw delErr;
 
       const rows = Array.from(checked).map((service_id) => ({
-        physician_id: physicianId, service_id, hospital_id: hospitalId,
+        staff_role_id: staffRoleId, service_id, hospital_id: hospitalId,
       }));
       if (rows.length > 0) {
         const { error: insErr } = await supabase.from("physician_service_privileges").insert(rows);
         if (insErr) throw insErr;
       }
       toast.success("Service privileges saved");
-      queryClient.invalidateQueries({ queryKey: ["physician-service-privileges", physicianId, hospitalId] });
+      queryClient.invalidateQueries({ queryKey: ["physician-service-privileges", staffRoleId, hospitalId] });
     } catch (e: any) {
       toast.error(e.message || "Failed to save privileges");
     } finally {
@@ -115,17 +115,17 @@ export default function PhysicianPrivilegesSection({
   });
 
   const { data: currentRoomAssignments = [] } = useQuery({
-    queryKey: ["physician-office-rooms", physicianId, hospitalId],
+    queryKey: ["physician-office-rooms", staffRoleId, hospitalId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("office_room_physicians")
         .select("room_id")
-        .eq("physician_id", physicianId)
+        .eq("physician_id", staffRoleId)
         .eq("hospital_id", hospitalId);
       if (error) throw error;
       return (data || []) as { room_id: string }[];
     },
-    enabled: !!physicianId,
+    enabled: !!staffRoleId,
   });
 
   const [checkedRooms, setCheckedRooms] = useState<Set<string>>(new Set());
@@ -149,18 +149,18 @@ export default function PhysicianPrivilegesSection({
       const { error: delErr } = await supabase
         .from("office_room_physicians")
         .delete()
-        .eq("physician_id", physicianId)
+        .eq("physician_id", staffRoleId)
         .eq("hospital_id", hospitalId);
       if (delErr) throw delErr;
       const rows = Array.from(checkedRooms).map((room_id) => ({
-        room_id, physician_id: physicianId, hospital_id: hospitalId,
+        room_id, physician_id: staffRoleId, hospital_id: hospitalId,
       }));
       if (rows.length > 0) {
         const { error: insErr } = await supabase.from("office_room_physicians").insert(rows);
         if (insErr) throw insErr;
       }
       toast.success("Office room assignments saved");
-      queryClient.invalidateQueries({ queryKey: ["physician-office-rooms", physicianId, hospitalId] });
+      queryClient.invalidateQueries({ queryKey: ["physician-office-rooms", staffRoleId, hospitalId] });
     } catch (e: any) {
       toast.error(e.message || "Failed to save assignments");
     } finally {
@@ -187,7 +187,7 @@ export default function PhysicianPrivilegesSection({
       const { data } = await supabase
         .from("physician_document_privileges")
         .select("document_type_id")
-        .eq("physician_id", selectedId);
+        .eq("staff_role_id", selectedId);
       return data || [];
     },
   });
@@ -200,7 +200,7 @@ export default function PhysicianPrivilegesSection({
     if (!user) return;
     if (granted) {
       await supabase.from("physician_document_privileges").insert({
-        physician_id: selectedId,
+        staff_role_id: selectedId,
         document_type_id: docTypeId,
         hospital_id: hospitalId,
         granted_by: user.id,
@@ -209,7 +209,7 @@ export default function PhysicianPrivilegesSection({
       await supabase
         .from("physician_document_privileges")
         .delete()
-        .eq("physician_id", selectedId)
+        .eq("staff_role_id", selectedId)
         .eq("document_type_id", docTypeId);
     }
     queryClient.invalidateQueries({

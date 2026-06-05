@@ -125,7 +125,7 @@ export default function EmployeeDetail({ personId, onClose }: Props) {
         {staffRole && (
           <TabsContent value="privileges" className="mt-4">
             <PhysicianPrivilegesSection
-              physicianId={staffRole.id}
+              staffRoleId={staffRole.id}
               hospitalId={user!.hospitalId}
             />
           </TabsContent>
