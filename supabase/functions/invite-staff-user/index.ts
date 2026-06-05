@@ -121,11 +121,22 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (employee.profile_id) {
-      return new Response(
-        JSON.stringify({ error: "This employee already has a system account" }),
-        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    // Determine if this is a new invite or re-activation
+    const isReactivation = !!employee.profile_id;
+
+    if (isReactivation) {
+      const { data: existingProfile } = await supabaseAdmin
+        .from("profiles")
+        .select("id, is_active")
+        .eq("id", employee.profile_id)
+        .single();
+
+      if (existingProfile?.is_active) {
+        return new Response(
+          JSON.stringify({ error: "This employee already has an active system account" }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // Check for existing pending invitation for this employee
@@ -204,7 +215,9 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         from: emailFrom,
         to: email,
-        subject: "You have been invited to Medical Center Management System",
+        subject: isReactivation
+          ? "Your access has been restored — Medical Center Management System"
+          : "You have been invited to Medical Center Management System",
         html: `
 <!DOCTYPE html>
 <html>
@@ -222,7 +235,10 @@ Deno.serve(async (req) => {
             <td style="padding:40px;">
               <h2 style="margin:0 0 16px 0;color:#1F2937;">You have been invited</h2>
               <p style="color:#4B5563;font-size:15px;line-height:1.6;">
-                Hi ${full_name}, you have been invited to join as <strong>${rolesDisplay}</strong>.
+                ${isReactivation
+                  ? `Hi ${full_name}, your access has been restored as <strong>${rolesDisplay}</strong>. Click below to set a new password and log in.`
+                  : `Hi ${full_name}, you have been invited to join as <strong>${rolesDisplay}</strong>. Click below to accept your invitation.`
+                }
               </p>
               <p style="color:#4B5563;font-size:15px;line-height:1.6;">
                 Click below to accept your invitation. This link expires in <strong>48 hours</strong>.
@@ -231,7 +247,7 @@ Deno.serve(async (req) => {
                 <tr>
                   <td align="center">
                     <a href="${inviteUrl}" style="display:inline-block;background-color:#1A56A0;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:14px 40px;border-radius:6px;">
-                      Accept Invitation
+                      ${isReactivation ? "Restore Access" : "Accept Invitation"}
                     </a>
                   </td>
                 </tr>
@@ -259,7 +275,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, message: `Invitation sent to ${email}` }),
+      JSON.stringify({ success: true, message: `${isReactivation ? "Re-activation" : "Invitation"} sent to ${email}` }),
       { status: 201, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
