@@ -152,32 +152,33 @@ function EmployeeForm({
 
   useEffect(() => {
     setForm({
-      first_name: employee.first_name || "",
-      last_name: employee.last_name || "",
-      middle_name: employee.middle_name || "",
-      date_of_birth: employee.date_of_birth || "",
-      gender: employee.gender || "",
-      phone: employee.phone || "",
-      email: employee.email || "",
-      address: employee.address || "",
-      employee_number: employee.employee_number || "",
-      employed_since: employee.employed_since || "",
-      department_id: employee.department_id || "",
-      job_title_id: employee.job_title_id || "",
-      staff_type_id: employee.staff_type_id || "",
-      degree_id: employee.degree_id || "",
-      qualification_id: employee.qualification_id || "",
+      first_name: person.first_name || "",
+      last_name: person.last_name || "",
+      middle_name: person.middle_name || "",
+      date_of_birth: person.date_of_birth || "",
+      gender: person.gender || "",
+      phone: person.phone || "",
+      email: person.email || "",
+      address: person.address || "",
+      employee_number: employment.employee_number || "",
+      employed_since: employment.employed_since || "",
+      department_id: employment.department_id || "",
+      job_title_id: employment.job_title_id || "",
+      staff_type_id: employment.staff_type_id || "",
+      degree_id: employment.degree_id || "",
+      qualification_id: employment.qualification_id || "",
     });
-  }, [employee]);
+  }, [person, employment]);
 
   useEffect(() => {
-    if (physician) {
+    if (staffRole) {
       setPhysForm({
-        specialization_id: physician.specialization_id || "",
-        department_id: physician.department_id || "",
+        specialization_id: staffRole.specialization_id || "",
+        department_id: staffRole.department_id || "",
       });
     }
-  }, [physician]);
+  }, [staffRole]);
+
 
   const setField = (k: string, v: any) => setForm((p: any) => ({ ...p, [k]: v }));
   const setPhysField = (k: string, v: any) => setPhysForm((p: any) => ({ ...p, [k]: v }));
