@@ -424,7 +424,7 @@ function EmployeeForm({
 
       <section className="rounded-lg border bg-card p-5 space-y-3">
         <h3 className="font-semibold">Статус занятости</h3>
-        {employee.employment_status === "active" ? (
+        {employment.employment_status === "active" ? (
           <div className="flex gap-2">
             <Button
               variant="outline"
