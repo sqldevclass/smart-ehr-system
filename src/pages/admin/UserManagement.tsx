@@ -197,6 +197,7 @@ export default function UserManagement() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Employee #</TableHead>
                     <TableHead>Full Name</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Member Since</TableHead>
@@ -205,9 +206,10 @@ export default function UserManagement() {
                 </TableHeader>
                 <TableBody>
                   {filteredProfiles.length === 0 ? (
-                    <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-10">No active staff found.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-10">No active staff found.</TableCell></TableRow>
                   ) : filteredProfiles.map((p) => (
                     <TableRow key={p.id}>
+                      <TableCell className="text-muted-foreground">{p.employee_number || "—"}</TableCell>
                       <TableCell className="font-medium">{p.full_name || "—"}</TableCell>
                       <TableCell><RoleBadges codes={p.roles} /></TableCell>
                       <TableCell className="text-muted-foreground">
