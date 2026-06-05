@@ -55,9 +55,10 @@ export default function HREmployees() {
   if (selectedEmployee) {
     return (
       <EmployeeDetail
-        employeeId={selectedEmployee}
+        personId={selectedEmployee}
         onClose={() => setSelectedEmployee(null)}
       />
+
     );
   }
 
