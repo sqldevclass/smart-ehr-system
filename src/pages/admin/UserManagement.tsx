@@ -135,21 +135,22 @@ export default function UserManagement() {
     setRemoving(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const { data, error } = await supabase.functions.invoke("remove-staff-user", {
+      const { data, error } = await supabase.functions.invoke("revoke-staff-access", {
         body: { target_user_id: removeTarget.id },
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });
       if (error || data?.error) {
-        toast.error(data?.error || error?.message || "Failed to remove user.");
+        toast.error(data?.error || error?.message || "Failed to revoke access.");
         return;
       }
-      toast.success("User removed");
+      toast.success("Access revoked successfully");
       setRemoveTarget(null);
       fetchStaff();
     } finally {
       setRemoving(false);
     }
   };
+
 
   const handleRevoke = async () => {
     if (!revokeTarget) return;
