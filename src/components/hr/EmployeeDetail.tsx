@@ -57,7 +57,7 @@ export default function EmployeeDetail({ personId, onClose }: Props) {
     enabled: !!personId,
   });
 
-  const { data: staffRole } = useQuery({
+  const { data: staffRoles = [] } = useQuery({
     queryKey: ["hr-staff-role", personId],
     queryFn: async () => {
       const { data } = await supabase
@@ -67,11 +67,15 @@ export default function EmployeeDetail({ personId, onClose }: Props) {
           specializations!specialization_id(id, name)
         `)
         .eq("person_id", personId)
-        .maybeSingle();
-      return data;
+        .eq("is_active", true)
+        .order("role_type");
+      return data || [];
     },
     enabled: !!personId,
   });
+
+  const staffRole = staffRoles[0] ?? null;
+  const isPhysician = staffRoles.some((sr: any) => sr.role_type === "physician");
 
   return (
     <div className="space-y-4">
