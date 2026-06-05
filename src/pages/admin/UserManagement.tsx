@@ -113,6 +113,7 @@ export default function UserManagement() {
         full_name: profile.full_name,
         created_at: profile.created_at,
         roles,
+        employee_number: (profile as any).employees?.[0]?.employee_number ?? null,
       };
     });
 
