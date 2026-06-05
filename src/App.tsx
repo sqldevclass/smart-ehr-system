@@ -46,6 +46,8 @@ import AuthCallback from "./pages/auth/AuthCallback.tsx";
 import SetPassword from "./pages/auth/SetPassword.tsx";
 import CallbackError from "./pages/auth/CallbackError.tsx";
 import AcceptInvite from "./pages/AcceptInvite.tsx";
+import ForgotPassword from "./pages/ForgotPassword.tsx";
+import ResetPassword from "./pages/ResetPassword.tsx";
 import InpatientLayout from "./components/inpatient/InpatientLayout.tsx";
 import AdmissionsPage from "./pages/inpatient/AdmissionsPage.tsx";
 import HospitalizationPage from "./pages/inpatient/HospitalizationPage.tsx";
