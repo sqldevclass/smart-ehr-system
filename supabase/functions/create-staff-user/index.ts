@@ -28,9 +28,10 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
+    // Validate token — include person_id
     const { data: invitation, error: inviteError } = await supabaseAdmin
       .from("staff_invitations")
-      .select("id, email, full_name, role_codes, phone, hospital_id, status, token_expires_at, employee_id")
+      .select("id, email, full_name, role_codes, phone, hospital_id, status, token_expires_at, person_id")
       .eq("token", token)
       .single();
 
@@ -39,7 +40,9 @@ Deno.serve(async (req) => {
     }
 
     if (invitation.status !== "pending") {
-      return new Response(JSON.stringify({ error: invitation.status === "accepted" ? "This invitation has already been accepted" : "This invitation is no longer valid" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({
+        error: invitation.status === "accepted" ? "This invitation has already been accepted" : "This invitation is no longer valid",
+      }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     if (new Date(invitation.token_expires_at) < new Date()) {
@@ -50,32 +53,24 @@ Deno.serve(async (req) => {
     let newUserId: string;
     let isReactivation = false;
 
-    // Detect re-activation: employee has an existing inactive profile
-    if (invitation.employee_id) {
-      const { data: employee } = await supabaseAdmin
-        .from("employees")
-        .select("profile_id")
-        .eq("id", invitation.employee_id)
-        .single();
+    // Detect re-activation: person has an existing inactive profile
+    if (invitation.person_id) {
+      const { data: existingProfile } = await supabaseAdmin
+        .from("profiles")
+        .select("id, is_active")
+        .eq("person_id", invitation.person_id)
+        .maybeSingle();
 
-      if (employee?.profile_id) {
-        const { data: existingProfile } = await supabaseAdmin
-          .from("profiles")
-          .select("id, is_active")
-          .eq("id", employee.profile_id)
-          .single();
-
-        if (existingProfile && !existingProfile.is_active) {
-          isReactivation = true;
-          newUserId = existingProfile.id;
-        }
+      if (existingProfile && !existingProfile.is_active) {
+        isReactivation = true;
+        newUserId = existingProfile.id;
       }
     }
 
     if (isReactivation) {
-      // Update password
+      // Update password via REST API
       const pwResponse = await fetch(
-        `${supabaseUrl}/auth/v1/admin/users/${newUserId}`,
+        `${supabaseUrl}/auth/v1/admin/users/${newUserId!}`,
         {
           method: "PUT",
           headers: {
@@ -88,15 +83,12 @@ Deno.serve(async (req) => {
       );
       if (!pwResponse.ok) {
         const pwErr = await pwResponse.json();
-        return new Response(
-          JSON.stringify({ error: "Failed to update password", details: pwErr.message || pwErr.msg }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ error: "Failed to update password", details: pwErr.message || pwErr.msg }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
       // Unban via REST API
       const unbanResponse = await fetch(
-        `${supabaseUrl}/auth/v1/admin/users/${newUserId}`,
+        `${supabaseUrl}/auth/v1/admin/users/${newUserId!}`,
         {
           method: "PUT",
           headers: {
@@ -109,17 +101,14 @@ Deno.serve(async (req) => {
       );
       if (!unbanResponse.ok) {
         const unbanErr = await unbanResponse.json();
-        return new Response(
-          JSON.stringify({ error: "Failed to restore access", details: unbanErr.message || unbanErr.msg }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ error: "Failed to restore access", details: unbanErr.message || unbanErr.msg }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
       // Re-activate profile
       await supabaseAdmin.from("profiles").update({ is_active: true }).eq("id", newUserId!);
 
     } else {
-      // New user
+      // New user — create auth user
       const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
         email: invitation.email,
         password,
@@ -133,6 +122,7 @@ Deno.serve(async (req) => {
 
       newUserId = authData.user.id;
 
+      // Create profile
       const { data: existingProfile } = await supabaseAdmin.from("profiles").select("id").eq("id", newUserId).maybeSingle();
 
       if (!existingProfile) {
@@ -142,16 +132,20 @@ Deno.serve(async (req) => {
           full_name: invitation.full_name,
           phone: invitation.phone || null,
           is_active: true,
+          person_id: invitation.person_id || null,
         });
 
         if (profileError) {
           await supabaseAdmin.auth.admin.deleteUser(newUserId);
           return new Response(JSON.stringify({ error: "Account setup failed", details: profileError.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
+      } else {
+        // Profile exists (created by trigger) — set person_id
+        await supabaseAdmin.from("profiles").update({ person_id: invitation.person_id || null }).eq("id", newUserId);
       }
     }
 
-    // Assign roles — clear first then re-assign (handles re-activation cleanly)
+    // Assign roles — clear first then re-assign
     await supabaseAdmin.from("user_roles").delete().eq("user_id", newUserId!).eq("hospital_id", invitation.hospital_id);
 
     const { data: roles } = await supabaseAdmin.from("roles").select("id, code").in("code", roleCodes);
@@ -160,31 +154,78 @@ Deno.serve(async (req) => {
       const { error: rolesError } = await supabaseAdmin.from("user_roles").insert(
         roles.map((r: any) => ({ user_id: newUserId, role_id: r.id, hospital_id: invitation.hospital_id, granted_by: null }))
       );
-
       if (rolesError) {
         if (!isReactivation) await supabaseAdmin.auth.admin.deleteUser(newUserId!);
         return new Response(JSON.stringify({ error: "Failed to assign roles", details: rolesError.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
     }
 
-    // Link employee
-    if (invitation.employee_id) {
-      await supabaseAdmin.from("employees").update({ profile_id: newUserId }).eq("id", invitation.employee_id).eq("hospital_id", invitation.hospital_id);
-    }
+    // Create staff_roles row for clinical roles (new users only)
+    if (!isReactivation && invitation.person_id) {
+      const clinicalRoleMap: Record<string, string> = {
+        physician: "physician",
+        functional_diagnostics_physician: "functional_diagnostics_physician",
+        lab_physician: "lab_physician",
+        blood_draw_nurse: "blood_draw_nurse",
+        inpatient_nurse: "inpatient_nurse",
+        head_nurse: "head_nurse",
+        cashier: "cashier",
+        outpatient_registrar: "outpatient_registrar",
+        call_center_registrar: "call_center_registrar",
+        inpatient_registrar: "inpatient_registrar",
+        pharmacist: "pharmacist",
+        warehouse_staff: "warehouse_staff",
+        inventory_manager: "inventory_manager",
+        radiology_technician: "radiology_technician",
+      };
 
-    // Physician record — new users only
-    if (!isReactivation && roleCodes.includes("physician") && invitation.employee_id) {
-      const { data: existingPhysician } = await supabaseAdmin.from("physicians").select("id").eq("employee_id", invitation.employee_id).maybeSingle();
+      for (const roleCode of roleCodes) {
+        const staffRoleType = clinicalRoleMap[roleCode];
+        if (!staffRoleType) continue;
 
-      if (!existingPhysician) {
-        await supabaseAdmin.from("physicians").insert({
-          profile_id: newUserId,
-          hospital_id: invitation.hospital_id,
-          dashboard_type: "clinical",
-          employee_id: invitation.employee_id,
-        });
-      } else {
-        await supabaseAdmin.from("physicians").update({ profile_id: newUserId }).eq("id", existingPhysician.id);
+        // Check if staff_role already exists
+        const { data: existingStaffRole } = await supabaseAdmin
+          .from("staff_roles")
+          .select("id")
+          .eq("person_id", invitation.person_id)
+          .eq("hospital_id", invitation.hospital_id)
+          .eq("role_type", staffRoleType)
+          .maybeSingle();
+
+        if (!existingStaffRole) {
+          await supabaseAdmin.from("staff_roles").insert({
+            person_id: invitation.person_id,
+            hospital_id: invitation.hospital_id,
+            role_type: staffRoleType,
+            is_active: true,
+          });
+        }
+
+        // For physicians: also create/update physicians table (for schedule compatibility)
+        if (staffRoleType === "physician") {
+          const { data: newStaffRole } = await supabaseAdmin
+            .from("staff_roles")
+            .select("id")
+            .eq("person_id", invitation.person_id)
+            .eq("hospital_id", invitation.hospital_id)
+            .eq("role_type", "physician")
+            .single();
+
+          const { data: existingPhysician } = await supabaseAdmin
+            .from("physicians")
+            .select("id")
+            .eq("profile_id", newUserId)
+            .maybeSingle();
+
+          if (!existingPhysician) {
+            await supabaseAdmin.from("physicians").insert({
+              profile_id: newUserId,
+              hospital_id: invitation.hospital_id,
+              dashboard_type: "clinical",
+              staff_role_id: newStaffRole?.id || null,
+            });
+          }
+        }
       }
     }
 
