@@ -59,33 +59,92 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check caller has admin role via user_roles junction table
+    // Check caller has admin role
     const { data: userRoleRows } = await supabaseAdmin
-  .from("user_roles")
-  .select("roles(code)")
-  .eq("user_id", userId)
-  .eq("hospital_id", callerProfile.hospital_id);
+      .from("user_roles")
+      .select("roles(code)")
+      .eq("user_id", userId)
+      .eq("hospital_id", callerProfile.hospital_id);
 
-const isAdmin = (userRoleRows || []).some((r: any) => r.roles?.code === "admin");
+    const isAdmin = (userRoleRows || []).some((r: any) => r.roles?.code === "admin");
 
-if (!isAdmin) {
+    if (!isAdmin) {
       return new Response(
         JSON.stringify({ error: "Only admins can invite staff" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Parse request body
-    const { email, full_name, role_codes, phone } = await req.json();
+    // Parse request body — employee_id and role_codes required; no email/name from client
+    const { employee_id, role_codes } = await req.json();
 
-    if (!email || !full_name || !role_codes || !Array.isArray(role_codes) || role_codes.length === 0) {
+    if (!employee_id) {
       return new Response(
-        JSON.stringify({ error: "email, full_name and role_codes[] are required" }),
+        JSON.stringify({ error: "employee_id is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Validate role_codes exist in roles table
+    if (!role_codes || !Array.isArray(role_codes) || role_codes.length === 0) {
+      return new Response(
+        JSON.stringify({ error: "role_codes[] is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Look up employee server-side — verify it belongs to caller's hospital
+    const { data: employee, error: empError } = await supabaseAdmin
+      .from("employees")
+      .select("id, first_name, last_name, email, phone, profile_id, hospital_id, is_active")
+      .eq("id", employee_id)
+      .eq("hospital_id", callerProfile.hospital_id)
+      .single();
+
+    if (empError || !employee) {
+      return new Response(
+        JSON.stringify({ error: "Employee not found" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!employee.is_active) {
+      return new Response(
+        JSON.stringify({ error: "Cannot invite an inactive employee" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!employee.email) {
+      return new Response(
+        JSON.stringify({ error: "Employee has no email address. Ask HR to add one first." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (employee.profile_id) {
+      return new Response(
+        JSON.stringify({ error: "This employee already has a system account" }),
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Check for existing pending invitation for this employee
+    const { data: existingInvitation } = await supabaseAdmin
+      .from("staff_invitations")
+      .select("id, status")
+      .eq("hospital_id", callerProfile.hospital_id)
+      .eq("employee_id", employee_id)
+      .eq("status", "pending")
+      .maybeSingle();
+
+    if (existingInvitation) {
+      return new Response(
+        JSON.stringify({ error: "A pending invitation already exists for this employee" }),
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate role_codes
     const { data: validRoles } = await supabaseAdmin
       .from("roles")
       .select("code")
@@ -101,26 +160,8 @@ if (!isAdmin) {
       );
     }
 
-    // Check for duplicate pending invitation
-    const { data: existingInvitation } = await supabaseAdmin
-      .from("staff_invitations")
-      .select("id, status")
-      .eq("hospital_id", callerProfile.hospital_id)
-      .eq("email", email)
-      .maybeSingle();
-
-    if (existingInvitation?.status === "pending") {
-      return new Response(
-        JSON.stringify({ error: "A pending invitation already exists for this email" }),
-        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-    if (existingInvitation?.status === "accepted") {
-      return new Response(
-        JSON.stringify({ error: "A user with this email already exists in your hospital" }),
-        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const full_name = `${employee.first_name} ${employee.last_name}`.trim();
+    const email = employee.email;
 
     // Generate token
     const token = crypto.randomUUID();
@@ -129,18 +170,19 @@ if (!isAdmin) {
     // Record invitation
     const { error: invitationError } = await supabaseAdmin
       .from("staff_invitations")
-      .upsert({
+      .insert({
         hospital_id: callerProfile.hospital_id,
         invited_by: callerProfile.id,
+        employee_id: employee.id,
         email,
         full_name,
         role_codes,
-        phone: phone || null,
+        phone: employee.phone || null,
         status: "pending",
         token,
         token_expires_at: tokenExpiresAt,
         invited_at: new Date().toISOString(),
-      }, { onConflict: "hospital_id,email" });
+      });
 
     if (invitationError) {
       return new Response(

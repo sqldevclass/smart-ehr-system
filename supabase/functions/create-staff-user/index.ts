@@ -34,10 +34,10 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Step 1: Validate token
+    // Step 1: Validate token — include employee_id
     const { data: invitation, error: inviteError } = await supabaseAdmin
       .from("staff_invitations")
-      .select("id, email, full_name, role_codes, phone, hospital_id, status, token_expires_at")
+      .select("id, email, full_name, role_codes, phone, hospital_id, status, token_expires_at, employee_id")
       .eq("token", token)
       .single();
 
@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Step 4: Insert user_roles for each role_code
+    // Step 4: Assign roles
     const roleCodes: string[] = invitation.role_codes || [];
 
     const { data: roles } = await supabaseAdmin
@@ -141,46 +141,49 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Step 5: Create employees record for all staff
-    const nameParts = (invitation.full_name || "").trim().split(" ");
-    const firstName = nameParts[0] || invitation.full_name;
-    const lastName = nameParts.slice(1).join(" ") || "";
+    // Step 5: Link employee record — set profile_id on existing employee row
+    // Never create a new employee here; HR owns that record
+    if (invitation.employee_id) {
+      const { error: empLinkError } = await supabaseAdmin
+        .from("employees")
+        .update({ profile_id: newUserId })
+        .eq("id", invitation.employee_id)
+        .eq("hospital_id", invitation.hospital_id);
 
-    let employeeId: string | null = null;
-    const { data: empData, error: empError } = await supabaseAdmin
-      .from("employees")
-      .insert({
-        hospital_id: invitation.hospital_id,
-        profile_id: newUserId,
-        first_name: firstName,
-        last_name: lastName || firstName,
-        phone: invitation.phone || null,
-        is_active: true,
-      })
-      .select("id")
-      .single();
-
-    if (empError) {
-      console.error("Employee record failed:", empError.message);
-      // Non-fatal — HR can fix via HR module
-    } else {
-      employeeId = empData.id;
+      if (empLinkError) {
+        // Non-fatal — HR can fix, but log it
+        console.error("Failed to link employee profile:", empLinkError.message);
+      }
     }
 
-    // Step 6: If physician role, create physicians record linked to employee
-    if (roleCodes.includes("physician")) {
-      const { error: physicianError } = await supabaseAdmin
+    // Step 6: If physician role, ensure physicians record exists and is linked
+    if (roleCodes.includes("physician") && invitation.employee_id) {
+      // Check if physician record already exists for this employee
+      const { data: existingPhysician } = await supabaseAdmin
         .from("physicians")
-        .insert({
-          profile_id: newUserId,
-          hospital_id: invitation.hospital_id,
-          dashboard_type: "clinical",
-          employee_id: employeeId,
-        });
+        .select("id")
+        .eq("employee_id", invitation.employee_id)
+        .maybeSingle();
 
-      if (physicianError) {
-        console.error("Physician record failed:", physicianError.message);
-        // Non-fatal — admin can fix via HR module
+      if (!existingPhysician) {
+        const { error: physicianError } = await supabaseAdmin
+          .from("physicians")
+          .insert({
+            profile_id: newUserId,
+            hospital_id: invitation.hospital_id,
+            dashboard_type: "clinical",
+            employee_id: invitation.employee_id,
+          });
+
+        if (physicianError) {
+          console.error("Physician record failed:", physicianError.message);
+        }
+      } else {
+        // Physician record exists (created by HR), just ensure profile_id is set
+        await supabaseAdmin
+          .from("physicians")
+          .update({ profile_id: newUserId })
+          .eq("id", existingPhysician.id);
       }
     }
 
