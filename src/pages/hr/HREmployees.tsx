@@ -14,25 +14,27 @@ export default function HREmployees() {
   const { user } = useAuth();
   const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+  const [showFormer, setShowFormer] = useState(false);
 
   const { data: employees = [], isLoading } = useQuery({
-    queryKey: ["hr-employees-list", user?.hospitalId],
+    queryKey: ["hr-employees-list", user?.hospitalId, showFormer],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("employees")
         .select(`
-          id, employee_number, first_name, last_name, middle_name, gender, is_active,
+          id, employee_number, first_name, last_name, middle_name, gender, is_active, employment_status,
           departments!department_id(name),
           job_titles!job_title_id(name)
         `)
         .eq("hospital_id", user!.hospitalId)
-        .eq("is_active", true)
+        .in("employment_status", showFormer ? ["fired", "released"] : ["active"])
         .order("last_name");
       if (error) throw error;
       return data || [];
     },
     enabled: !!user,
   });
+
 
   if (!user) return null;
 
