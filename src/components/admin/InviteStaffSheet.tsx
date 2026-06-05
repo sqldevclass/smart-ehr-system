@@ -23,7 +23,7 @@ interface EligibleEmployee {
   last_name: string;
   middle_name: string | null;
   email: string;
-  profile_id?: string | null;
+  person_id: string;
   job_titles: { name: string } | null;
   departments: { name: string } | null;
 }
@@ -63,63 +63,81 @@ export default function InviteStaffSheet({ open, onOpenChange, onSuccess }: Prop
 
     Promise.all([
       supabase
-        .from("employees")
-        .select(`id, employee_number, first_name, last_name, middle_name, email,
-          job_titles!job_title_id(name), departments!department_id(name)`)
+        .from("persons")
+        .select(`
+          id, first_name, last_name, middle_name, email,
+          employments!inner(
+            employment_status,
+            job_titles!job_title_id(name),
+            departments!department_id(name)
+          )
+        `)
         .eq("hospital_id", user.hospitalId)
-        .eq("employment_status", "active")
         .not("email", "is", null)
-        .is("profile_id", null)
+        .eq("employments.employment_status", "active")
         .order("last_name"),
 
       supabase
-        .from("employees")
-        .select(`id, employee_number, first_name, last_name, middle_name, email,
-          profile_id, job_titles!job_title_id(name), departments!department_id(name)`)
+        .from("persons")
+        .select(`
+          id, first_name, last_name, middle_name, email,
+          profiles!person_id(id, is_active),
+          employments!inner(
+            employment_status,
+            job_titles!job_title_id(name),
+            departments!department_id(name)
+          )
+        `)
         .eq("hospital_id", user.hospitalId)
-        .eq("employment_status", "active")
         .not("email", "is", null)
-        .not("profile_id", "is", null)
+        .eq("employments.employment_status", "active")
+        .not("profiles", "is", null)
         .order("last_name"),
 
       supabase.from("roles").select("id, code, name_en").order("code"),
 
       supabase
         .from("staff_invitations")
-        .select("employee_id")
+        .select("person_id")
         .eq("hospital_id", user.hospitalId)
         .eq("status", "pending")
-        .not("employee_id", "is", null),
+        .not("person_id", "is", null),
     ]).then(async ([newRes, reactRes, rolesRes, pendingRes]) => {
       const pendingIds = new Set(
-        (pendingRes.data ?? []).map((i: any) => i.employee_id)
+        (pendingRes.data ?? []).map((i: any) => i.person_id)
       );
 
       const eligible = (newRes.data ?? []).filter(
-        (e: any) => !pendingIds.has(e.id)
-      );
-      setNewEmployees(eligible as unknown as EligibleEmployee[]);
+        (p: any) => !pendingIds.has(p.id) &&
+          (!p.profiles || p.profiles.length === 0)
+      ).map((p: any) => ({
+        id: p.id,
+        person_id: p.id,
+        employee_number: null,
+        first_name: p.first_name,
+        last_name: p.last_name,
+        middle_name: p.middle_name,
+        email: p.email,
+        job_titles: p.employments?.[0]?.job_titles ?? null,
+        departments: p.employments?.[0]?.departments ?? null,
+      }));
+      setNewEmployees(eligible as EligibleEmployee[]);
 
-      const reactCandidates = (reactRes.data ?? []).filter(
-        (e: any) => !pendingIds.has(e.id)
-      );
-
-      if (reactCandidates.length > 0) {
-        const profileIds = reactCandidates.map((e: any) => e.profile_id);
-        const { data: inactiveProfiles } = await supabase
-          .from("profiles")
-          .select("id")
-          .in("id", profileIds)
-          .eq("is_active", false);
-
-        const inactiveIds = new Set((inactiveProfiles ?? []).map((p: any) => p.id));
-        const reactivatable = reactCandidates.filter(
-          (e: any) => inactiveIds.has(e.profile_id)
-        );
-        setReactivateEmployees(reactivatable as unknown as EligibleEmployee[]);
-      } else {
-        setReactivateEmployees([]);
-      }
+      const reactivatable = (reactRes.data ?? []).filter(
+        (p: any) => !pendingIds.has(p.id) &&
+          p.profiles?.some((pr: any) => !pr.is_active)
+      ).map((p: any) => ({
+        id: p.id,
+        person_id: p.id,
+        employee_number: null,
+        first_name: p.first_name,
+        last_name: p.last_name,
+        middle_name: p.middle_name,
+        email: p.email,
+        job_titles: p.employments?.[0]?.job_titles ?? null,
+        departments: p.employments?.[0]?.departments ?? null,
+      }));
+      setReactivateEmployees(reactivatable as EligibleEmployee[]);
 
       setAllRoles((rolesRes.data as Role[]) ?? []);
       setLoading(false);
@@ -158,7 +176,7 @@ export default function InviteStaffSheet({ open, onOpenChange, onSuccess }: Prop
       const { data: { session } } = await supabase.auth.getSession();
       const { data, error } = await supabase.functions.invoke("invite-staff-user", {
         body: {
-          employee_id: selectedEmployee.id,
+          person_id: selectedEmployee.person_id,
           role_codes: Array.from(roleCodes),
         },
         headers: { Authorization: `Bearer ${session?.access_token}` },
