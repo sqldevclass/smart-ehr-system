@@ -105,7 +105,7 @@ export default function EmployeeDetail({ personId, onClose }: Props) {
         <TabsList>
           <TabsTrigger value="details">Сотрудник</TabsTrigger>
           {staffRole && <TabsTrigger value="privileges">Привилегии</TabsTrigger>}
-          {staffRole && staffRole.role_type === "physician" && <TabsTrigger value="schedule">График работы</TabsTrigger>}
+          {staffRole && isPhysician && <TabsTrigger value="schedule">График работы</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="details" className="mt-4">
