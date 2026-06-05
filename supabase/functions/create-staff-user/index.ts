@@ -74,9 +74,24 @@ Deno.serve(async (req) => {
 
     if (isReactivation) {
       // Update password
-      const { error: pwError } = await supabaseAdmin.auth.admin.updateUser(newUserId!, { password });
-      if (pwError) {
-        return new Response(JSON.stringify({ error: "Failed to update password", details: pwError.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const pwResponse = await fetch(
+        `${supabaseUrl}/auth/v1/admin/users/${newUserId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Authorization": `Bearer ${serviceRoleKey}`,
+            "apikey": serviceRoleKey,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ password }),
+        }
+      );
+      if (!pwResponse.ok) {
+        const pwErr = await pwResponse.json();
+        return new Response(
+          JSON.stringify({ error: "Failed to update password", details: pwErr.message || pwErr.msg }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
 
       // Unban via REST API
