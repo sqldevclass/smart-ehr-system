@@ -135,21 +135,22 @@ export default function UserManagement() {
     setRemoving(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const { data, error } = await supabase.functions.invoke("remove-staff-user", {
+      const { data, error } = await supabase.functions.invoke("revoke-staff-access", {
         body: { target_user_id: removeTarget.id },
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });
       if (error || data?.error) {
-        toast.error(data?.error || error?.message || "Failed to remove user.");
+        toast.error(data?.error || error?.message || "Failed to revoke access.");
         return;
       }
-      toast.success("User removed");
+      toast.success("Access revoked successfully");
       setRemoveTarget(null);
       fetchStaff();
     } finally {
       setRemoving(false);
     }
   };
+
 
   const handleRevoke = async () => {
     if (!revokeTarget) return;
@@ -217,7 +218,7 @@ export default function UserManagement() {
                       </TableCell>
                       <TableCell className="text-right space-x-2">
                         <Button size="sm" variant="outline" onClick={() => setRoleTarget(p)}>Change Role</Button>
-                        <Button size="sm" variant="destructive" onClick={() => setRemoveTarget(p)}>Remove</Button>
+                        <Button size="sm" variant="destructive" onClick={() => setRemoveTarget(p)}>Revoke Access</Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -279,9 +280,10 @@ export default function UserManagement() {
       <ConfirmDialog
         open={!!removeTarget}
         onOpenChange={(o) => { if (!o) setRemoveTarget(null); }}
-        title="Remove Staff Member"
-        description={`Are you sure you want to remove ${removeTarget?.full_name}? This cannot be undone.`}
-        confirmLabel="Remove"
+        title="Revoke Access"
+        description={`Revoke system access for ${removeTarget?.full_name}? They will be logged out immediately. Their data will be preserved. You can re-invite them later.`}
+        confirmLabel="Revoke Access"
+
         onConfirm={handleRemove}
         loading={removing}
         destructive
