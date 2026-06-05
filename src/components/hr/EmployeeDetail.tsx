@@ -77,6 +77,25 @@ export default function EmployeeDetail({ personId, onClose }: Props) {
   const staffRole = staffRoles[0] ?? null;
   const isPhysician = staffRoles.some((sr: any) => sr.role_type === "physician");
 
+  const { data: physicianRecord } = useQuery({
+    queryKey: ["hr-physician-record", personId],
+    queryFn: async () => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("person_id", personId)
+        .maybeSingle();
+      if (!profile) return null;
+      const { data } = await supabase
+        .from("physicians")
+        .select("id")
+        .eq("profile_id", profile.id)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!personId && isPhysician,
+  });
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
