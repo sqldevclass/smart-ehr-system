@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select";
 import { ArrowLeft, Plus, Minus } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import PhysicianPrivilegesSection from "./PhysicianPrivilegesSection";
 import ScheduleSection from "./ScheduleSection";
 
@@ -69,7 +70,18 @@ export default function EmployeeDetail({ employeeId, onClose }: Props) {
             {employee.last_name} {employee.first_name} {employee.middle_name || ""}
           </h1>
         )}
+        {employee && employee.employment_status !== "active" && (
+          <span className={cn(
+            "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
+            employee.employment_status === "fired"
+              ? "bg-destructive/10 text-destructive"
+              : "bg-yellow-100 text-yellow-800"
+          )}>
+            {employee.employment_status === "fired" ? "Уволен" : "Освобождён"}
+          </span>
+        )}
       </div>
+
 
       <Tabs defaultValue="details">
         <TabsList>
@@ -229,7 +241,63 @@ function EmployeeForm({
     }
   };
 
+  const handleStatusChange = async (
+    newStatus: "fired" | "released" | "active"
+  ) => {
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("employees")
+        .update({
+          employment_status: newStatus,
+          status_changed_at: new Date().toISOString(),
+        })
+        .eq("id", employee.id);
+
+      if (error) throw error;
+
+      if (newStatus !== "active" && employee.profile_id) {
+        const { data: { session } } = await supabase.auth.getSession();
+        const supabaseUrl = (supabase as any).supabaseUrl
+          ?? "https://efgyjxanyqrlifjzznae.supabase.co";
+        const supabaseKey = (supabase as any).supabaseKey
+          ?? "sb_publishable_NAV4xE-ROrGKl_-FF1Dw2w_BZ4Vdjyz";
+
+        const res = await fetch(
+          `${supabaseUrl}/functions/v1/revoke-staff-access`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "apikey": supabaseKey,
+              "Authorization": `Bearer ${session?.access_token}`,
+            },
+            body: JSON.stringify({ target_user_id: employee.profile_id }),
+          }
+        );
+        const data = await res.json();
+        if (!res.ok && data.error !== "User access is already revoked") {
+          throw new Error(data.error || "Failed to revoke access");
+        }
+      }
+
+      toast.success(
+        newStatus === "active"
+          ? "Сотрудник восстановлен"
+          : newStatus === "fired"
+          ? "Сотрудник уволен"
+          : "Сотрудник освобождён"
+      );
+      onSaved();
+    } catch (e: any) {
+      toast.error(e.message || "Ошибка");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const sel = (label: string, value: string, onChange: (v: string) => void, opts: any[], placeholder = "—") => (
+
     <div className="space-y-1.5">
       <Label>{label}</Label>
       <Select value={value || undefined} onValueChange={onChange}>
@@ -299,9 +367,46 @@ function EmployeeForm({
 
       {physician && <AssignedRoomsSection physicianId={physician.id} />}
 
+      <section className="rounded-lg border bg-card p-5 space-y-3">
+        <h3 className="font-semibold">Статус занятости</h3>
+        {employee.employment_status === "active" ? (
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="text-destructive border-destructive/40 hover:bg-destructive/10"
+              disabled={saving}
+              onClick={() => handleStatusChange("fired")}
+            >
+              Уволить
+            </Button>
+            <Button
+              variant="outline"
+              disabled={saving}
+              onClick={() => handleStatusChange("released")}
+            >
+              Освободить
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-muted-foreground">
+              {employee.employment_status === "fired" ? "Уволен" : "Освобождён"}
+            </span>
+            <Button
+              variant="outline"
+              disabled={saving}
+              onClick={() => handleStatusChange("active")}
+            >
+              Восстановить
+            </Button>
+          </div>
+        )}
+      </section>
+
       <div className="flex justify-end">
         <Button onClick={save} disabled={saving}>{saving ? "Сохранение…" : "Сохранить"}</Button>
       </div>
+
     </div>
   );
 }
