@@ -116,15 +116,24 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Step 1: Ban the auth user — prevents login immediately
-    const { error: banError } = await supabaseAdmin.auth.admin.updateUser(
-      target_user_id,
-      { ban_duration: "876000h" } // 100 years = effectively permanent
+    // Step 1: Ban the auth user via REST API — prevents login immediately
+    const banResponse = await fetch(
+      `${supabaseUrl}/auth/v1/admin/users/${target_user_id}`,
+      {
+        method: "PUT",
+        headers: {
+          "Authorization": `Bearer ${serviceRoleKey}`,
+          "apikey": serviceRoleKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ban_duration: "876000h" }),
+      }
     );
 
-    if (banError) {
+    if (!banResponse.ok) {
+      const banErr = await banResponse.json();
       return new Response(
-        JSON.stringify({ error: "Failed to revoke access", details: banError.message }),
+        JSON.stringify({ error: "Failed to revoke access", details: banErr.message || banErr.msg }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
