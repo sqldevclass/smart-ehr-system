@@ -60,10 +60,25 @@ export default function PatientDocumentSidebar({
     queryKey: ["user-doc-privileges", userId, hospitalId],
     enabled: !!userId && !!hospitalId,
     queryFn: async () => {
+      // Resolve user → person → staff_roles → privileges
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("person_id")
+        .eq("id", userId)
+        .maybeSingle();
+      if (!profile?.person_id) return [];
+      const { data: staffRoles } = await supabase
+        .from("staff_roles")
+        .select("id")
+        .eq("person_id", profile.person_id)
+        .eq("hospital_id", hospitalId)
+        .eq("is_active", true);
+      if (!staffRoles || staffRoles.length === 0) return [];
+      const staffRoleIds = staffRoles.map((sr: any) => sr.id);
       const { data } = await supabase
         .from("physician_document_privileges")
         .select("document_type_id")
-        .eq("physician_id", userId)
+        .in("staff_role_id", staffRoleIds)
         .eq("hospital_id", hospitalId);
       return data || [];
     },
