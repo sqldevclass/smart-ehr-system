@@ -16,8 +16,9 @@ import { toast } from "sonner";
 interface Props {
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  onCreated: (employeeId: string) => void;
+  onCreated: (personId: string) => void;
 }
+
 
 export default function AddEmployeeDialog({ open, onOpenChange, onCreated }: Props) {
   const { user } = useAuth();
