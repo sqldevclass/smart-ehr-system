@@ -57,7 +57,7 @@ export default function EmployeeDetail({ personId, onClose }: Props) {
     enabled: !!personId,
   });
 
-  const { data: staffRole } = useQuery({
+  const { data: staffRoles = [] } = useQuery({
     queryKey: ["hr-staff-role", personId],
     queryFn: async () => {
       const { data } = await supabase
@@ -67,11 +67,15 @@ export default function EmployeeDetail({ personId, onClose }: Props) {
           specializations!specialization_id(id, name)
         `)
         .eq("person_id", personId)
-        .maybeSingle();
-      return data;
+        .eq("is_active", true)
+        .order("role_type");
+      return data || [];
     },
     enabled: !!personId,
   });
+
+  const staffRole = staffRoles[0] ?? null;
+  const isPhysician = staffRoles.some((sr: any) => sr.role_type === "physician");
 
   return (
     <div className="space-y-4">
@@ -101,7 +105,7 @@ export default function EmployeeDetail({ personId, onClose }: Props) {
         <TabsList>
           <TabsTrigger value="details">Сотрудник</TabsTrigger>
           {staffRole && <TabsTrigger value="privileges">Привилегии</TabsTrigger>}
-          {staffRole && staffRole.role_type === "physician" && <TabsTrigger value="schedule">График работы</TabsTrigger>}
+          {staffRole && isPhysician && <TabsTrigger value="schedule">График работы</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="details" className="mt-4">
@@ -110,6 +114,7 @@ export default function EmployeeDetail({ personId, onClose }: Props) {
               person={person}
               employment={employment}
               staffRole={staffRole}
+              staffRoles={staffRoles}
               onSaved={() => {
                 queryClient.invalidateQueries({ queryKey: ["hr-person", personId] });
                 queryClient.invalidateQueries({ queryKey: ["hr-employment", personId] });
@@ -131,9 +136,9 @@ export default function EmployeeDetail({ personId, onClose }: Props) {
           </TabsContent>
         )}
 
-        {staffRole && staffRole.role_type === "physician" && (
+        {isPhysician && (
           <TabsContent value="schedule" className="mt-4">
-            <ScheduleSection physicianId={staffRole.id} />
+            <ScheduleSection physicianId={staffRoles.find((sr: any) => sr.role_type === "physician")?.id} />
           </TabsContent>
         )}
       </Tabs>
@@ -142,8 +147,9 @@ export default function EmployeeDetail({ personId, onClose }: Props) {
 }
 
 function EmployeeForm({
-  person, employment, staffRole, onSaved,
-}: { person: any; employment: any; staffRole: any; onSaved: () => void }) {
+  person, employment, staffRole, staffRoles, onSaved,
+}: { person: any; employment: any; staffRole: any; staffRoles: any[]; onSaved: () => void }) {
+  const isPhysician = staffRoles.some((sr: any) => sr.role_type === "physician");
 
   const { user } = useAuth();
   const [form, setForm] = useState<any>({});
@@ -417,8 +423,8 @@ function EmployeeForm({
         </section>
       )}
 
-      {staffRole && staffRole.role_type === "physician" && (
-        <AssignedRoomsSection physicianId={staffRole.id} />
+      {isPhysician && (
+        <AssignedRoomsSection physicianId={staffRoles.find((sr: any) => sr.role_type === "physician")?.id} />
       )}
 
 
