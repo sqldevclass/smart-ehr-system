@@ -16,19 +16,32 @@ import PhysicianPrivilegesSection from "./PhysicianPrivilegesSection";
 import ScheduleSection from "./ScheduleSection";
 
 interface Props {
-  employeeId: string;
+  personId: string;
   onClose: () => void;
 }
 
-export default function EmployeeDetail({ employeeId, onClose }: Props) {
+export default function EmployeeDetail({ personId, onClose }: Props) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const { data: employee } = useQuery({
-    queryKey: ["hr-employee", employeeId],
+  const { data: person } = useQuery({
+    queryKey: ["hr-person", personId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("employees")
+        .from("persons")
+        .select("*")
+        .eq("id", personId)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: employment } = useQuery({
+    queryKey: ["hr-employment", personId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("employments")
         .select(`
           *,
           departments!department_id(id, name),
@@ -37,26 +50,27 @@ export default function EmployeeDetail({ employeeId, onClose }: Props) {
           degrees!degree_id(id, name),
           qualifications!qualification_id(id, name)
         `)
-        .eq("id", employeeId)
+        .eq("person_id", personId)
         .single();
-      if (error) throw error;
       return data;
     },
+    enabled: !!personId,
   });
 
-  const { data: physician } = useQuery({
-    queryKey: ["hr-employee-physician", employeeId],
+  const { data: staffRole } = useQuery({
+    queryKey: ["hr-staff-role", personId],
     queryFn: async () => {
       const { data } = await supabase
-        .from("physicians")
+        .from("staff_roles")
         .select(`
-          id, specialization_id, department_id, is_active,
+          id, role_type, specialization_id, department_id, is_active,
           specializations!specialization_id(id, name)
         `)
-        .eq("employee_id", employeeId)
+        .eq("person_id", personId)
         .maybeSingle();
       return data;
     },
+    enabled: !!personId,
   });
 
   return (
@@ -65,19 +79,19 @@ export default function EmployeeDetail({ employeeId, onClose }: Props) {
         <Button size="sm" variant="outline" onClick={onClose} className="gap-1">
           <ArrowLeft className="h-4 w-4" /> Назад
         </Button>
-        {employee && (
+        {person && (
           <h1 className="font-heading text-2xl font-bold text-foreground">
-            {employee.last_name} {employee.first_name} {employee.middle_name || ""}
+            {person.last_name} {person.first_name} {person.middle_name || ""}
           </h1>
         )}
-        {employee && employee.employment_status !== "active" && (
+        {employment && employment.employment_status !== "active" && (
           <span className={cn(
             "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
-            employee.employment_status === "fired"
+            employment.employment_status === "fired"
               ? "bg-destructive/10 text-destructive"
               : "bg-yellow-100 text-yellow-800"
           )}>
-            {employee.employment_status === "fired" ? "Уволен" : "Освобождён"}
+            {employment.employment_status === "fired" ? "Уволен" : "Освобождён"}
           </span>
         )}
       </div>
@@ -86,18 +100,20 @@ export default function EmployeeDetail({ employeeId, onClose }: Props) {
       <Tabs defaultValue="details">
         <TabsList>
           <TabsTrigger value="details">Сотрудник</TabsTrigger>
-          {physician && <TabsTrigger value="privileges">Привилегии</TabsTrigger>}
-          {physician && <TabsTrigger value="schedule">График работы</TabsTrigger>}
+          {staffRole && <TabsTrigger value="privileges">Привилегии</TabsTrigger>}
+          {staffRole && staffRole.role_type === "physician" && <TabsTrigger value="schedule">График работы</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="details" className="mt-4">
-          {employee ? (
+          {person && employment ? (
             <EmployeeForm
-              employee={employee}
-              physician={physician}
+              person={person}
+              employment={employment}
+              staffRole={staffRole}
               onSaved={() => {
-                queryClient.invalidateQueries({ queryKey: ["hr-employee", employeeId] });
-                queryClient.invalidateQueries({ queryKey: ["hr-employee-physician", employeeId] });
+                queryClient.invalidateQueries({ queryKey: ["hr-person", personId] });
+                queryClient.invalidateQueries({ queryKey: ["hr-employment", personId] });
+                queryClient.invalidateQueries({ queryKey: ["hr-staff-role", personId] });
                 queryClient.invalidateQueries({ queryKey: ["hr-employees-list"] });
               }}
             />
@@ -106,18 +122,18 @@ export default function EmployeeDetail({ employeeId, onClose }: Props) {
           )}
         </TabsContent>
 
-        {physician && (
+        {staffRole && (
           <TabsContent value="privileges" className="mt-4">
             <PhysicianPrivilegesSection
-              physicianId={physician.id}
+              physicianId={staffRole.id}
               hospitalId={user!.hospitalId}
             />
           </TabsContent>
         )}
 
-        {physician && (
+        {staffRole && staffRole.role_type === "physician" && (
           <TabsContent value="schedule" className="mt-4">
-            <ScheduleSection physicianId={physician.id} />
+            <ScheduleSection physicianId={staffRole.id} />
           </TabsContent>
         )}
       </Tabs>
@@ -126,8 +142,9 @@ export default function EmployeeDetail({ employeeId, onClose }: Props) {
 }
 
 function EmployeeForm({
-  employee, physician, onSaved,
-}: { employee: any; physician: any; onSaved: () => void }) {
+  person, employment, staffRole, onSaved,
+}: { person: any; employment: any; staffRole: any; onSaved: () => void }) {
+
   const { user } = useAuth();
   const [form, setForm] = useState<any>({});
   const [physForm, setPhysForm] = useState<any>({});
