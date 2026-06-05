@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select";
 import { ArrowLeft, Plus, Minus } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import PhysicianPrivilegesSection from "./PhysicianPrivilegesSection";
 import ScheduleSection from "./ScheduleSection";
 
