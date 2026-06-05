@@ -17,6 +17,7 @@ interface Profile {
   full_name: string;
   roles: string[];
   created_at: string;
+  employee_number: string | null;
 }
 
 interface Invitation {
@@ -82,7 +83,7 @@ export default function UserManagement() {
     const [allProfilesRes, nonActiveRes, invitationsRes] = await Promise.all([
       supabase
         .from("profiles")
-        .select("id, full_name, created_at, user_roles!user_roles_user_id_fkey(roles(code))")
+        .select("id, full_name, created_at, user_roles!user_roles_user_id_fkey(roles(code)), employees!profile_id(employee_number)")
         .eq("hospital_id", user.hospitalId)
         .neq("id", user.id)
         .order("created_at", { ascending: false }),
@@ -112,6 +113,7 @@ export default function UserManagement() {
         full_name: profile.full_name,
         created_at: profile.created_at,
         roles,
+        employee_number: (profile as any).employees?.[0]?.employee_number ?? null,
       };
     });
 
@@ -195,6 +197,7 @@ export default function UserManagement() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Employee #</TableHead>
                     <TableHead>Full Name</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Member Since</TableHead>
@@ -203,9 +206,10 @@ export default function UserManagement() {
                 </TableHeader>
                 <TableBody>
                   {filteredProfiles.length === 0 ? (
-                    <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-10">No active staff found.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-10">No active staff found.</TableCell></TableRow>
                   ) : filteredProfiles.map((p) => (
                     <TableRow key={p.id}>
+                      <TableCell className="text-muted-foreground">{p.employee_number || "—"}</TableCell>
                       <TableCell className="font-medium">{p.full_name || "—"}</TableCell>
                       <TableCell><RoleBadges codes={p.roles} /></TableCell>
                       <TableCell className="text-muted-foreground">
