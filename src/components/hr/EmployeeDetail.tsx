@@ -16,19 +16,32 @@ import PhysicianPrivilegesSection from "./PhysicianPrivilegesSection";
 import ScheduleSection from "./ScheduleSection";
 
 interface Props {
-  employeeId: string;
+  personId: string;
   onClose: () => void;
 }
 
-export default function EmployeeDetail({ employeeId, onClose }: Props) {
+export default function EmployeeDetail({ personId, onClose }: Props) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const { data: employee } = useQuery({
-    queryKey: ["hr-employee", employeeId],
+  const { data: person } = useQuery({
+    queryKey: ["hr-person", personId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("employees")
+        .from("persons")
+        .select("*")
+        .eq("id", personId)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: employment } = useQuery({
+    queryKey: ["hr-employment", personId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("employments")
         .select(`
           *,
           departments!department_id(id, name),
@@ -37,26 +50,27 @@ export default function EmployeeDetail({ employeeId, onClose }: Props) {
           degrees!degree_id(id, name),
           qualifications!qualification_id(id, name)
         `)
-        .eq("id", employeeId)
+        .eq("person_id", personId)
         .single();
-      if (error) throw error;
       return data;
     },
+    enabled: !!personId,
   });
 
-  const { data: physician } = useQuery({
-    queryKey: ["hr-employee-physician", employeeId],
+  const { data: staffRole } = useQuery({
+    queryKey: ["hr-staff-role", personId],
     queryFn: async () => {
       const { data } = await supabase
-        .from("physicians")
+        .from("staff_roles")
         .select(`
-          id, specialization_id, department_id, is_active,
+          id, role_type, specialization_id, department_id, is_active,
           specializations!specialization_id(id, name)
         `)
-        .eq("employee_id", employeeId)
+        .eq("person_id", personId)
         .maybeSingle();
       return data;
     },
+    enabled: !!personId,
   });
 
   return (
@@ -65,19 +79,19 @@ export default function EmployeeDetail({ employeeId, onClose }: Props) {
         <Button size="sm" variant="outline" onClick={onClose} className="gap-1">
           <ArrowLeft className="h-4 w-4" /> Назад
         </Button>
-        {employee && (
+        {person && (
           <h1 className="font-heading text-2xl font-bold text-foreground">
-            {employee.last_name} {employee.first_name} {employee.middle_name || ""}
+            {person.last_name} {person.first_name} {person.middle_name || ""}
           </h1>
         )}
-        {employee && employee.employment_status !== "active" && (
+        {employment && employment.employment_status !== "active" && (
           <span className={cn(
             "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
-            employee.employment_status === "fired"
+            employment.employment_status === "fired"
               ? "bg-destructive/10 text-destructive"
               : "bg-yellow-100 text-yellow-800"
           )}>
-            {employee.employment_status === "fired" ? "Уволен" : "Освобождён"}
+            {employment.employment_status === "fired" ? "Уволен" : "Освобождён"}
           </span>
         )}
       </div>
@@ -86,18 +100,20 @@ export default function EmployeeDetail({ employeeId, onClose }: Props) {
       <Tabs defaultValue="details">
         <TabsList>
           <TabsTrigger value="details">Сотрудник</TabsTrigger>
-          {physician && <TabsTrigger value="privileges">Привилегии</TabsTrigger>}
-          {physician && <TabsTrigger value="schedule">График работы</TabsTrigger>}
+          {staffRole && <TabsTrigger value="privileges">Привилегии</TabsTrigger>}
+          {staffRole && staffRole.role_type === "physician" && <TabsTrigger value="schedule">График работы</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="details" className="mt-4">
-          {employee ? (
+          {person && employment ? (
             <EmployeeForm
-              employee={employee}
-              physician={physician}
+              person={person}
+              employment={employment}
+              staffRole={staffRole}
               onSaved={() => {
-                queryClient.invalidateQueries({ queryKey: ["hr-employee", employeeId] });
-                queryClient.invalidateQueries({ queryKey: ["hr-employee-physician", employeeId] });
+                queryClient.invalidateQueries({ queryKey: ["hr-person", personId] });
+                queryClient.invalidateQueries({ queryKey: ["hr-employment", personId] });
+                queryClient.invalidateQueries({ queryKey: ["hr-staff-role", personId] });
                 queryClient.invalidateQueries({ queryKey: ["hr-employees-list"] });
               }}
             />
@@ -106,18 +122,18 @@ export default function EmployeeDetail({ employeeId, onClose }: Props) {
           )}
         </TabsContent>
 
-        {physician && (
+        {staffRole && (
           <TabsContent value="privileges" className="mt-4">
             <PhysicianPrivilegesSection
-              physicianId={physician.id}
+              physicianId={staffRole.id}
               hospitalId={user!.hospitalId}
             />
           </TabsContent>
         )}
 
-        {physician && (
+        {staffRole && staffRole.role_type === "physician" && (
           <TabsContent value="schedule" className="mt-4">
-            <ScheduleSection physicianId={physician.id} />
+            <ScheduleSection physicianId={staffRole.id} />
           </TabsContent>
         )}
       </Tabs>
@@ -126,8 +142,9 @@ export default function EmployeeDetail({ employeeId, onClose }: Props) {
 }
 
 function EmployeeForm({
-  employee, physician, onSaved,
-}: { employee: any; physician: any; onSaved: () => void }) {
+  person, employment, staffRole, onSaved,
+}: { person: any; employment: any; staffRole: any; onSaved: () => void }) {
+
   const { user } = useAuth();
   const [form, setForm] = useState<any>({});
   const [physForm, setPhysForm] = useState<any>({});
@@ -135,32 +152,33 @@ function EmployeeForm({
 
   useEffect(() => {
     setForm({
-      first_name: employee.first_name || "",
-      last_name: employee.last_name || "",
-      middle_name: employee.middle_name || "",
-      date_of_birth: employee.date_of_birth || "",
-      gender: employee.gender || "",
-      phone: employee.phone || "",
-      email: employee.email || "",
-      address: employee.address || "",
-      employee_number: employee.employee_number || "",
-      employed_since: employee.employed_since || "",
-      department_id: employee.department_id || "",
-      job_title_id: employee.job_title_id || "",
-      staff_type_id: employee.staff_type_id || "",
-      degree_id: employee.degree_id || "",
-      qualification_id: employee.qualification_id || "",
+      first_name: person.first_name || "",
+      last_name: person.last_name || "",
+      middle_name: person.middle_name || "",
+      date_of_birth: person.date_of_birth || "",
+      gender: person.gender || "",
+      phone: person.phone || "",
+      email: person.email || "",
+      address: person.address || "",
+      employee_number: employment.employee_number || "",
+      employed_since: employment.employed_since || "",
+      department_id: employment.department_id || "",
+      job_title_id: employment.job_title_id || "",
+      staff_type_id: employment.staff_type_id || "",
+      degree_id: employment.degree_id || "",
+      qualification_id: employment.qualification_id || "",
     });
-  }, [employee]);
+  }, [person, employment]);
 
   useEffect(() => {
-    if (physician) {
+    if (staffRole) {
       setPhysForm({
-        specialization_id: physician.specialization_id || "",
-        department_id: physician.department_id || "",
+        specialization_id: staffRole.specialization_id || "",
+        department_id: staffRole.department_id || "",
       });
     }
-  }, [physician]);
+  }, [staffRole]);
+
 
   const setField = (k: string, v: any) => setForm((p: any) => ({ ...p, [k]: v }));
   const setPhysField = (k: string, v: any) => setPhysForm((p: any) => ({ ...p, [k]: v }));
@@ -217,20 +235,46 @@ function EmployeeForm({
   const save = async () => {
     setSaving(true);
     try {
-      const payload: any = { ...form };
-      delete payload.employee_number;
-      for (const k of ["date_of_birth", "employed_since", "department_id", "job_title_id",
-                       "staff_type_id", "degree_id", "qualification_id", "gender"]) {
-        if (payload[k] === "") payload[k] = null;
-      }
-      const { error } = await supabase.from("employees").update(payload).eq("id", employee.id);
-      if (error) throw error;
+      const personPayload: any = {
+        first_name: form.first_name,
+        last_name: form.last_name,
+        middle_name: form.middle_name || null,
+        date_of_birth: form.date_of_birth || null,
+        gender: form.gender || null,
+        phone: form.phone || null,
+        email: form.email || null,
+        address: form.address || null,
+      };
+      const { error: personErr } = await supabase
+        .from("persons")
+        .update(personPayload)
+        .eq("id", person.id);
+      if (personErr) throw personErr;
 
-      if (physician) {
-        const physPayload: any = { ...physForm };
-        for (const k of Object.keys(physPayload)) if (physPayload[k] === "") physPayload[k] = null;
-        const { error: pe } = await supabase.from("physicians").update(physPayload).eq("id", physician.id);
-        if (pe) throw pe;
+      const empPayload: any = {
+        employed_since: form.employed_since || null,
+        department_id: form.department_id || null,
+        job_title_id: form.job_title_id || null,
+        staff_type_id: form.staff_type_id || null,
+        degree_id: form.degree_id || null,
+        qualification_id: form.qualification_id || null,
+      };
+      const { error: empErr } = await supabase
+        .from("employments")
+        .update(empPayload)
+        .eq("id", employment.id);
+      if (empErr) throw empErr;
+
+      if (staffRole) {
+        const physPayload: any = {};
+        for (const k of Object.keys(physForm)) {
+          physPayload[k] = physForm[k] === "" ? null : physForm[k];
+        }
+        const { error: srErr } = await supabase
+          .from("staff_roles")
+          .update(physPayload)
+          .eq("id", staffRole.id);
+        if (srErr) throw srErr;
       }
       toast.success("Сохранено");
       onSaved();
@@ -241,22 +285,29 @@ function EmployeeForm({
     }
   };
 
+
   const handleStatusChange = async (
     newStatus: "fired" | "released" | "active"
   ) => {
     setSaving(true);
     try {
       const { error } = await supabase
-        .from("employees")
+        .from("employments")
         .update({
           employment_status: newStatus,
           status_changed_at: new Date().toISOString(),
         })
-        .eq("id", employee.id);
+        .eq("id", employment.id);
 
       if (error) throw error;
 
-      if (newStatus !== "active" && employee.profile_id) {
+      const { data: linkedProfile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("person_id", person.id)
+        .maybeSingle();
+
+      if (newStatus !== "active" && linkedProfile?.id) {
         const { data: { session } } = await supabase.auth.getSession();
         const supabaseUrl = (supabase as any).supabaseUrl
           ?? "https://efgyjxanyqrlifjzznae.supabase.co";
@@ -272,7 +323,7 @@ function EmployeeForm({
               "apikey": supabaseKey,
               "Authorization": `Bearer ${session?.access_token}`,
             },
-            body: JSON.stringify({ target_user_id: employee.profile_id }),
+            body: JSON.stringify({ target_user_id: linkedProfile.id }),
           }
         );
         const data = await res.json();
@@ -280,6 +331,7 @@ function EmployeeForm({
           throw new Error(data.error || "Failed to revoke access");
         }
       }
+
 
       toast.success(
         newStatus === "active"
@@ -355,7 +407,7 @@ function EmployeeForm({
         </div>
       </section>
 
-      {physician && (
+      {staffRole && (
         <section className="rounded-lg border bg-card p-5 space-y-4">
           <h3 className="font-semibold">Клинические данные</h3>
           <div className="grid grid-cols-2 gap-3">
@@ -365,11 +417,14 @@ function EmployeeForm({
         </section>
       )}
 
-      {physician && <AssignedRoomsSection physicianId={physician.id} />}
+      {staffRole && staffRole.role_type === "physician" && (
+        <AssignedRoomsSection physicianId={staffRole.id} />
+      )}
+
 
       <section className="rounded-lg border bg-card p-5 space-y-3">
         <h3 className="font-semibold">Статус занятости</h3>
-        {employee.employment_status === "active" ? (
+        {employment.employment_status === "active" ? (
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -390,7 +445,7 @@ function EmployeeForm({
         ) : (
           <div className="flex items-center gap-3">
             <span className="text-sm text-muted-foreground">
-              {employee.employment_status === "fired" ? "Уволен" : "Освобождён"}
+              {employment.employment_status === "fired" ? "Уволен" : "Освобождён"}
             </span>
             <Button
               variant="outline"
