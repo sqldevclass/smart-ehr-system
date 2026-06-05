@@ -18,7 +18,9 @@ interface Profile {
   roles: string[];
   created_at: string;
   employee_number: string | null;
+  is_active: boolean;
 }
+
 
 interface Invitation {
   id: string;
@@ -83,7 +85,7 @@ export default function UserManagement() {
     const [allProfilesRes, nonActiveRes, invitationsRes] = await Promise.all([
       supabase
         .from("profiles")
-        .select("id, full_name, created_at, user_roles!user_roles_user_id_fkey(roles(code)), employees!profile_id(employee_number)")
+        .select("id, full_name, created_at, is_active, user_roles!user_roles_user_id_fkey(roles(code)), employees!profile_id(employee_number)")
         .eq("hospital_id", user.hospitalId)
         .neq("id", user.id)
         .order("created_at", { ascending: false }),
@@ -114,10 +116,12 @@ export default function UserManagement() {
         created_at: profile.created_at,
         roles,
         employee_number: (profile as any).employees?.[0]?.employee_number ?? null,
+        is_active: profile.is_active ?? true,
       };
     });
 
-    const activeStaff = mapped.filter((p) => !nonActiveIds.has(p.id));
+    const activeStaff = mapped.filter((p) => p.is_active);
+
 
     setProfiles(activeStaff);
     setInvitations((invitationsRes.data as Invitation[]) || []);
