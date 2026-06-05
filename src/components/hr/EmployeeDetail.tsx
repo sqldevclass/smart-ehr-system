@@ -407,7 +407,7 @@ function EmployeeForm({
         </div>
       </section>
 
-      {physician && (
+      {staffRole && (
         <section className="rounded-lg border bg-card p-5 space-y-4">
           <h3 className="font-semibold">Клинические данные</h3>
           <div className="grid grid-cols-2 gap-3">
