@@ -54,10 +54,22 @@ export default function HREmployees() {
           <h1 className="font-heading text-2xl font-bold text-foreground">Сотрудники</h1>
           <p className="text-sm text-muted-foreground">Управление персоналом клиники.</p>
         </div>
-        <Button onClick={() => setAddOpen(true)} className="gap-1">
-          <Plus className="h-4 w-4" /> Добавить сотрудника
-        </Button>
+        <div className="flex gap-2">
+          {!showFormer && (
+            <Button onClick={() => setAddOpen(true)} className="gap-1">
+              <Plus className="h-4 w-4" /> Добавить сотрудника
+            </Button>
+          )}
+          <Button
+            variant={showFormer ? "default" : "outline"}
+            onClick={() => setShowFormer(!showFormer)}
+            className="gap-1"
+          >
+            {showFormer ? "← Активные сотрудники" : "Бывшие сотрудники"}
+          </Button>
+        </div>
       </div>
+
 
       <div className="rounded-lg border bg-card">
         <Table>
