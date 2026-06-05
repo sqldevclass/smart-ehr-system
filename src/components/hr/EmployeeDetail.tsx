@@ -70,7 +70,18 @@ export default function EmployeeDetail({ employeeId, onClose }: Props) {
             {employee.last_name} {employee.first_name} {employee.middle_name || ""}
           </h1>
         )}
+        {employee && employee.employment_status !== "active" && (
+          <span className={cn(
+            "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
+            employee.employment_status === "fired"
+              ? "bg-destructive/10 text-destructive"
+              : "bg-yellow-100 text-yellow-800"
+          )}>
+            {employee.employment_status === "fired" ? "Уволен" : "Освобождён"}
+          </span>
+        )}
       </div>
+
 
       <Tabs defaultValue="details">
         <TabsList>
