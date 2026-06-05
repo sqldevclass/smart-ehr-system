@@ -417,7 +417,10 @@ function EmployeeForm({
         </section>
       )}
 
-      {physician && <AssignedRoomsSection physicianId={physician.id} />}
+      {staffRole && staffRole.role_type === "physician" && (
+        <AssignedRoomsSection physicianId={staffRole.id} />
+      )}
+
 
       <section className="rounded-lg border bg-card p-5 space-y-3">
         <h3 className="font-semibold">Статус занятости</h3>
