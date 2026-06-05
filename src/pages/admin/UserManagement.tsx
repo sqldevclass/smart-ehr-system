@@ -83,7 +83,7 @@ export default function UserManagement() {
     const [allProfilesRes, nonActiveRes, invitationsRes] = await Promise.all([
       supabase
         .from("profiles")
-        .select("id, full_name, created_at, user_roles!user_roles_user_id_fkey(roles(code))")
+        .select("id, full_name, created_at, user_roles!user_roles_user_id_fkey(roles(code)), employees!profile_id(employee_number)")
         .eq("hospital_id", user.hospitalId)
         .neq("id", user.id)
         .order("created_at", { ascending: false }),
