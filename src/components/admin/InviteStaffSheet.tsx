@@ -81,7 +81,7 @@ export default function InviteStaffSheet({ open, onOpenChange, onSuccess }: Prop
       const eligible = (empRes.data ?? []).filter(
         (e: any) => !pendingIds.has(e.id)
       );
-      setEmployees(eligible as EligibleEmployee[]);
+      setEmployees(eligible as unknown as EligibleEmployee[]);
       setAllRoles((rolesRes.data as Role[]) ?? []);
       setLoading(false);
     });
