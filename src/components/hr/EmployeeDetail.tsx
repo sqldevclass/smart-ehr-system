@@ -155,9 +155,9 @@ export default function EmployeeDetail({ personId, onClose }: Props) {
           </TabsContent>
         )}
 
-        {isPhysician && (
+        {isPhysician && physicianRecord && (
           <TabsContent value="schedule" className="mt-4">
-            <ScheduleSection physicianId={staffRoles.find((sr: any) => sr.role_type === "physician")?.id} />
+            <ScheduleSection physicianId={physicianRecord.id} />
           </TabsContent>
         )}
       </Tabs>
