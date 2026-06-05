@@ -56,20 +56,33 @@ export default function AddEmployeeDialog({ open, onOpenChange, onCreated }: Pro
     }
     setSaving(true);
     try {
-      const { data, error } = await supabase.from("employees").insert({
-        hospital_id: user!.hospitalId,
-        first_name: firstName,
-        last_name: lastName,
-        job_title_id: jobTitleId,
-        department_id: departmentId,
-        employed_since: employedSince,
-        employee_number: "EMP-" + Date.now().toString().slice(-4),
-        is_active: true,
-      }).select("id").single();
-      if (error) throw error;
+      const { data: person, error: personError } = await supabase
+        .from("persons")
+        .insert({
+          hospital_id: user!.hospitalId,
+          first_name: firstName,
+          last_name: lastName,
+        })
+        .select("id")
+        .single();
+      if (personError) throw personError;
+
+      const { error: empError } = await supabase
+        .from("employments")
+        .insert({
+          person_id: person.id,
+          hospital_id: user!.hospitalId,
+          job_title_id: jobTitleId || null,
+          department_id: departmentId || null,
+          employed_since: employedSince || null,
+          employee_number: "EMP-" + Date.now().toString().slice(-4),
+          employment_status: "active",
+        });
+      if (empError) throw empError;
+
       toast.success("Сотрудник добавлен");
       onOpenChange(false);
-      onCreated(data.id);
+      onCreated(person.id);
       setFirstName(""); setLastName(""); setJobTitleId(""); setDepartmentId("");
     } catch (e: any) {
       toast.error(e.message || "Не удалось создать");
@@ -77,6 +90,7 @@ export default function AddEmployeeDialog({ open, onOpenChange, onCreated }: Pro
       setSaving(false);
     }
   };
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
