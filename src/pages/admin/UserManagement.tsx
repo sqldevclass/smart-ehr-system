@@ -17,6 +17,7 @@ interface Profile {
   full_name: string;
   roles: string[];
   created_at: string;
+  employee_number: string | null;
 }
 
 interface Invitation {
