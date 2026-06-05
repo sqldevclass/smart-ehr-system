@@ -196,7 +196,7 @@ Deno.serve(async (req) => {
     }).eq("token", token);
 
     return new Response(
-      JSON.stringify({ success: true, role_codes: roleCodes, hospital_id: invitation.hospital_id, reactivated: isReactivation }),
+      JSON.stringify({ success: true, role_codes: roleCodes, hospital_id: invitation.hospital_id, reactivated: isReactivation, email: invitation.email }),
       { status: 201, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
