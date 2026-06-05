@@ -16,7 +16,9 @@ export default function AcceptInvite() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [reactivated, setReactivated] = useState(false);
   const [errors, setErrors] = useState<{ password?: string; confirm?: string; general?: string }>({});
+
 
   if (!token) {
     return (
