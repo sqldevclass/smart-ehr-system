@@ -116,7 +116,7 @@ export default function InviteStaffSheet({ open, onOpenChange, onSuccess }: Prop
         const reactivatable = reactCandidates.filter(
           (e: any) => inactiveIds.has(e.profile_id)
         );
-        setReactivateEmployees(reactivatable as EligibleEmployee[]);
+        setReactivateEmployees(reactivatable as unknown as EligibleEmployee[]);
       } else {
         setReactivateEmployees([]);
       }
