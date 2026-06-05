@@ -16,7 +16,9 @@ export default function AcceptInvite() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [reactivated, setReactivated] = useState(false);
   const [errors, setErrors] = useState<{ password?: string; confirm?: string; general?: string }>({});
+
 
   if (!token) {
     return (
@@ -68,6 +70,10 @@ export default function AcceptInvite() {
         return;
       }
 
+      if (data.reactivated) setReactivated(true);
+
+
+
       // Auto sign-in
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: data.email,
@@ -80,7 +86,7 @@ export default function AcceptInvite() {
         return;
       }
 
-      toast.success("Account created successfully!");
+      toast.success(data.reactivated ? "Access restored successfully!" : "Account created successfully!");
       const target = Array.isArray(data.roles)
         ? routeForRoles(data.roles)
         : roleRoutes[data.role];
@@ -130,7 +136,10 @@ export default function AcceptInvite() {
               {errors.confirm && <p className="text-sm text-destructive">{errors.confirm}</p>}
             </div>
             <Button type="submit" className="w-full" disabled={submitting}>
-              {submitting ? "Creating Account…" : "Create Account"}
+              {submitting
+                ? (reactivated ? "Restoring…" : "Creating Account…")
+                : (reactivated ? "Restore Access" : "Create Account")}
+
             </Button>
           </form>
         </CardContent>
