@@ -445,7 +445,7 @@ function EmployeeForm({
         ) : (
           <div className="flex items-center gap-3">
             <span className="text-sm text-muted-foreground">
-              {employee.employment_status === "fired" ? "Уволен" : "Освобождён"}
+              {employment.employment_status === "fired" ? "Уволен" : "Освобождён"}
             </span>
             <Button
               variant="outline"
