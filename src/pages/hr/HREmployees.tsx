@@ -20,20 +20,34 @@ export default function HREmployees() {
     queryKey: ["hr-employees-list", user?.hospitalId, showFormer],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("employees")
+        .from("persons")
         .select(`
-          id, employee_number, first_name, last_name, middle_name, gender, is_active, employment_status,
-          departments!department_id(name),
-          job_titles!job_title_id(name)
+          id, first_name, last_name, middle_name, gender,
+          employments!inner(
+            employee_number, employment_status,
+            departments!department_id(name),
+            job_titles!job_title_id(name)
+          )
         `)
         .eq("hospital_id", user!.hospitalId)
-        .in("employment_status", showFormer ? ["fired", "released"] : ["active"])
+        .in("employments.employment_status", showFormer ? ["fired", "released"] : ["active"])
         .order("last_name");
       if (error) throw error;
-      return data || [];
+      return (data || []).map((p: any) => ({
+        id: p.id,
+        first_name: p.first_name,
+        last_name: p.last_name,
+        middle_name: p.middle_name,
+        gender: p.gender,
+        employee_number: p.employments?.[0]?.employee_number,
+        employment_status: p.employments?.[0]?.employment_status,
+        departments: p.employments?.[0]?.departments,
+        job_titles: p.employments?.[0]?.job_titles,
+      }));
     },
     enabled: !!user,
   });
+
 
 
   if (!user) return null;
