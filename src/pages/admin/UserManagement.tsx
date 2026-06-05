@@ -280,9 +280,10 @@ export default function UserManagement() {
       <ConfirmDialog
         open={!!removeTarget}
         onOpenChange={(o) => { if (!o) setRemoveTarget(null); }}
-        title="Remove Staff Member"
-        description={`Are you sure you want to remove ${removeTarget?.full_name}? This cannot be undone.`}
-        confirmLabel="Remove"
+        title="Revoke Access"
+        description={`Revoke system access for ${removeTarget?.full_name}? They will be logged out immediately. Their data will be preserved. You can re-invite them later.`}
+        confirmLabel="Revoke Access"
+
         onConfirm={handleRemove}
         loading={removing}
         destructive
