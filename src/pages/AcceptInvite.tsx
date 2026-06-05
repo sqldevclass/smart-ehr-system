@@ -136,7 +136,10 @@ export default function AcceptInvite() {
               {errors.confirm && <p className="text-sm text-destructive">{errors.confirm}</p>}
             </div>
             <Button type="submit" className="w-full" disabled={submitting}>
-              {submitting ? "Creating Account…" : "Create Account"}
+              {submitting
+                ? (reactivated ? "Restoring…" : "Creating Account…")
+                : (reactivated ? "Restore Access" : "Create Account")}
+
             </Button>
           </form>
         </CardContent>
