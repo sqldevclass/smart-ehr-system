@@ -147,8 +147,9 @@ export default function EmployeeDetail({ personId, onClose }: Props) {
 }
 
 function EmployeeForm({
-  person, employment, staffRole, onSaved,
-}: { person: any; employment: any; staffRole: any; onSaved: () => void }) {
+  person, employment, staffRole, staffRoles, onSaved,
+}: { person: any; employment: any; staffRole: any; staffRoles: any[]; onSaved: () => void }) {
+  const isPhysician = staffRoles.some((sr: any) => sr.role_type === "physician");
 
   const { user } = useAuth();
   const [form, setForm] = useState<any>({});
