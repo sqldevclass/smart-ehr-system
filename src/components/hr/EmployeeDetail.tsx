@@ -241,7 +241,63 @@ function EmployeeForm({
     }
   };
 
+  const handleStatusChange = async (
+    newStatus: "fired" | "released" | "active"
+  ) => {
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("employees")
+        .update({
+          employment_status: newStatus,
+          status_changed_at: new Date().toISOString(),
+        })
+        .eq("id", employee.id);
+
+      if (error) throw error;
+
+      if (newStatus !== "active" && employee.profile_id) {
+        const { data: { session } } = await supabase.auth.getSession();
+        const supabaseUrl = (supabase as any).supabaseUrl
+          ?? "https://efgyjxanyqrlifjzznae.supabase.co";
+        const supabaseKey = (supabase as any).supabaseKey
+          ?? "sb_publishable_NAV4xE-ROrGKl_-FF1Dw2w_BZ4Vdjyz";
+
+        const res = await fetch(
+          `${supabaseUrl}/functions/v1/revoke-staff-access`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "apikey": supabaseKey,
+              "Authorization": `Bearer ${session?.access_token}`,
+            },
+            body: JSON.stringify({ target_user_id: employee.profile_id }),
+          }
+        );
+        const data = await res.json();
+        if (!res.ok && data.error !== "User access is already revoked") {
+          throw new Error(data.error || "Failed to revoke access");
+        }
+      }
+
+      toast.success(
+        newStatus === "active"
+          ? "Сотрудник восстановлен"
+          : newStatus === "fired"
+          ? "Сотрудник уволен"
+          : "Сотрудник освобождён"
+      );
+      onSaved();
+    } catch (e: any) {
+      toast.error(e.message || "Ошибка");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const sel = (label: string, value: string, onChange: (v: string) => void, opts: any[], placeholder = "—") => (
+
     <div className="space-y-1.5">
       <Label>{label}</Label>
       <Select value={value || undefined} onValueChange={onChange}>
