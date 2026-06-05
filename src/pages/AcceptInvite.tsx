@@ -70,6 +70,10 @@ export default function AcceptInvite() {
         return;
       }
 
+      if (data.reactivated) setReactivated(true);
+
+
+
       // Auto sign-in
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: data.email,
