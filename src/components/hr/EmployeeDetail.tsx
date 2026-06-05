@@ -235,20 +235,46 @@ function EmployeeForm({
   const save = async () => {
     setSaving(true);
     try {
-      const payload: any = { ...form };
-      delete payload.employee_number;
-      for (const k of ["date_of_birth", "employed_since", "department_id", "job_title_id",
-                       "staff_type_id", "degree_id", "qualification_id", "gender"]) {
-        if (payload[k] === "") payload[k] = null;
-      }
-      const { error } = await supabase.from("employees").update(payload).eq("id", employee.id);
-      if (error) throw error;
+      const personPayload: any = {
+        first_name: form.first_name,
+        last_name: form.last_name,
+        middle_name: form.middle_name || null,
+        date_of_birth: form.date_of_birth || null,
+        gender: form.gender || null,
+        phone: form.phone || null,
+        email: form.email || null,
+        address: form.address || null,
+      };
+      const { error: personErr } = await supabase
+        .from("persons")
+        .update(personPayload)
+        .eq("id", person.id);
+      if (personErr) throw personErr;
 
-      if (physician) {
-        const physPayload: any = { ...physForm };
-        for (const k of Object.keys(physPayload)) if (physPayload[k] === "") physPayload[k] = null;
-        const { error: pe } = await supabase.from("physicians").update(physPayload).eq("id", physician.id);
-        if (pe) throw pe;
+      const empPayload: any = {
+        employed_since: form.employed_since || null,
+        department_id: form.department_id || null,
+        job_title_id: form.job_title_id || null,
+        staff_type_id: form.staff_type_id || null,
+        degree_id: form.degree_id || null,
+        qualification_id: form.qualification_id || null,
+      };
+      const { error: empErr } = await supabase
+        .from("employments")
+        .update(empPayload)
+        .eq("id", employment.id);
+      if (empErr) throw empErr;
+
+      if (staffRole) {
+        const physPayload: any = {};
+        for (const k of Object.keys(physForm)) {
+          physPayload[k] = physForm[k] === "" ? null : physForm[k];
+        }
+        const { error: srErr } = await supabase
+          .from("staff_roles")
+          .update(physPayload)
+          .eq("id", staffRole.id);
+        if (srErr) throw srErr;
       }
       toast.success("Сохранено");
       onSaved();
@@ -258,6 +284,7 @@ function EmployeeForm({
       setSaving(false);
     }
   };
+
 
   const handleStatusChange = async (
     newStatus: "fired" | "released" | "active"
