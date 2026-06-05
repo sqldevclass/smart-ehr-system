@@ -86,7 +86,7 @@ export default function AcceptInvite() {
         return;
       }
 
-      toast.success("Account created successfully!");
+      toast.success(data.reactivated ? "Access restored successfully!" : "Account created successfully!");
       const target = Array.isArray(data.roles)
         ? routeForRoles(data.roles)
         : roleRoutes[data.role];
