@@ -49,7 +49,7 @@ export function PhysicianCalendar({
       const { data, error } = await supabase
         .from("schedule_slots")
         .select("slot_datetime, booking_count, is_blocked")
-        .eq("physician_id", physician.id)
+        .eq("staff_role_id", physician.id)
         .eq("hospital_id", hospitalId)
         .gte("slot_datetime", rangeStart)
         .lte("slot_datetime", rangeEnd);
