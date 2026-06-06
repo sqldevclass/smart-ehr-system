@@ -73,9 +73,8 @@ export default function PhysiciansPage() {
     setSaving(true);
     try {
       const { error } = await supabase
-        .from("physicians")
+        .from("staff_roles")
         .update({
-          specialization: specialization.trim() || null,
           dashboard_type: dashboardType,
           is_active: isActive,
         })
