@@ -300,7 +300,7 @@ export default function MedicationTab({
     const { error } = await supabase.rpc("submit_prescriptions", {
       p_hospitalization_id: hospitalizationId,
       p_hospital_id: hospitalId,
-      p_physician_id: physicianId,
+      p_staff_role_id: physicianId,
     });
     if (error) {
       toast.error(error.message);

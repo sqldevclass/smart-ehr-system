@@ -120,7 +120,7 @@ export default function PhysicianPrivilegesSection({
       const { data, error } = await supabase
         .from("office_room_physicians")
         .select("room_id")
-        .eq("physician_id", staffRoleId)
+        .eq("staff_role_id", staffRoleId)
         .eq("hospital_id", hospitalId);
       if (error) throw error;
       return (data || []) as { room_id: string }[];
@@ -149,11 +149,11 @@ export default function PhysicianPrivilegesSection({
       const { error: delErr } = await supabase
         .from("office_room_physicians")
         .delete()
-        .eq("physician_id", staffRoleId)
+        .eq("staff_role_id", staffRoleId)
         .eq("hospital_id", hospitalId);
       if (delErr) throw delErr;
       const rows = Array.from(checkedRooms).map((room_id) => ({
-        room_id, physician_id: staffRoleId, hospital_id: hospitalId,
+        room_id, staff_role_id: staffRoleId, hospital_id: hospitalId,
       }));
       if (rows.length > 0) {
         const { error: insErr } = await supabase.from("office_room_physicians").insert(rows);
