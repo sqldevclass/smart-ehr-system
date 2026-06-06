@@ -166,7 +166,7 @@ export default function PhysicianPrivilegesPage() {
     if (!selectedId || !user) return;
     if (granted) {
       await supabase.from("physician_document_privileges").insert({
-        physician_id: selectedId,
+        staff_role_id: selectedId,
         document_type_id: docTypeId,
         hospital_id: user.hospitalId,
         granted_by: user.id,
