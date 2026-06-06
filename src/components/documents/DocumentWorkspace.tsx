@@ -219,10 +219,19 @@ export default function DocumentWorkspace(props: Props) {
     ...queryDefaults,
     enabled: !!user?.id,
     queryFn: async () => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("person_id")
+        .eq("id", user!.id)
+        .maybeSingle();
+      if (!profile?.person_id) return null;
       const { data } = await supabase
-        .from("physicians")
+        .from("staff_roles")
         .select("id")
-        .eq("profile_id", user!.id)
+        .eq("person_id", profile.person_id)
+        .eq("hospital_id", user!.hospitalId)
+        .eq("role_type", "physician")
+        .eq("is_active", true)
         .maybeSingle();
       return data;
     },
