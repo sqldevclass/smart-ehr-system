@@ -24,7 +24,7 @@ export function SlotPanel({ physicianId, hospitalId, selectedDate, onSlotSelect,
       const { data, error } = await supabase
         .from("schedule_slots")
         .select("id, slot_datetime, booking_count, is_blocked, block_reason")
-        .eq("physician_id", physicianId)
+        .eq("staff_role_id", physicianId)
         .eq("hospital_id", hospitalId)
         .gte("slot_datetime", start)
         .lte("slot_datetime", end)
