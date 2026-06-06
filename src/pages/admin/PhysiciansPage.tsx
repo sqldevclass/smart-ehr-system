@@ -43,13 +43,14 @@ export default function PhysiciansPage() {
     queryFn: async () => {
       if (!user) return [];
       const { data, error } = await supabase
-        .from("physicians")
-        .select("id, dashboard_type, is_active, profile_id, profiles!inner(full_name), specializations!specialization_id(name)")
-        .eq("hospital_id", user.hospitalId);
+        .from("staff_roles")
+        .select("id, dashboard_type, is_active, persons!inner(first_name, last_name), specializations!specialization_id(name)")
+        .eq("hospital_id", user.hospitalId)
+        .eq("role_type", "physician");
       if (error) throw error;
       return (data || []).map((p: any) => ({
         id: p.id,
-        full_name: p.profiles?.full_name || "Unknown",
+        full_name: `${p.persons?.last_name} ${p.persons?.first_name}` || "Unknown",
         specialization: (p as any).specializations?.name ?? null,
         specializations: p.specializations,
         dashboard_type: p.dashboard_type,
