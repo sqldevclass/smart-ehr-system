@@ -67,10 +67,10 @@ export default function NursePatientsList() {
         .select(`
           id, hospitalization_number, admitted_at,
           discharged_at, discharge_type,
-          department_id, primary_physician_id,
+          department_id, primary_staff_role_id,
           departments!department_id(name),
-          physicians!primary_physician_id(
-            profiles!inner(full_name)),
+          staff_roles!primary_staff_role_id(
+            persons!inner(first_name, last_name)),
           patients!inner(
             id, first_name, last_name,
             patient_number, date_of_birth),
