@@ -143,6 +143,8 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
     },
     enabled,
   });
+
+  const { data: officeRooms = [] } = useQuery({
     queryKey: ["booking-search-office-rooms", hospitalId, debounced],
     queryFn: async () => {
       const { data, error } = await supabase
