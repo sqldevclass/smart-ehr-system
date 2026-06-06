@@ -477,7 +477,7 @@ function ScheduleDialog({
             .eq("recur_time_from", c.recur_time_from)
             .eq("recur_time_to", c.recur_time_to);
           if (roomId) existQ = existQ.eq("room_id", roomId);
-          else existQ = existQ.eq("physician_id", physicianId!);
+          else existQ = existQ.eq("staff_role_id", physicianId!);
           const { data: existing } = await existQ;
           if (!existing || existing.length === 0) {
             blockRows.push({
