@@ -129,11 +129,19 @@ export default function MyPatientsList() {
     if (!user) return;
     setLoading(true);
 
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("person_id")
+      .eq("id", user.id)
+      .maybeSingle();
+
     const { data: phys, error: physErr } = await supabase
       .from("staff_roles")
       .select("id, dashboard_type")
-      .eq("profile_id", user.id)
+      .eq("person_id", profile?.person_id)
+      .eq("hospital_id", user.hospitalId)
       .eq("role_type", "physician")
+      .eq("is_active", true)
       .maybeSingle();
 
     if (physErr) toast.error(physErr.message);
