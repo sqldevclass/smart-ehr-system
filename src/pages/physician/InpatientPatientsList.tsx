@@ -194,9 +194,9 @@ export default function InpatientPatientsList() {
                         }}
                       >
                         <PopoverTrigger asChild>
-                          {physMap[h.primary_physician_id] ? (
+                          {physMap[h.primary_staff_role_id] ? (
                             <button className="text-sm font-medium text-primary hover:underline">
-                              {physMap[h.primary_physician_id]}
+                              {physMap[h.primary_staff_role_id]}
                             </button>
                           ) : (
                             <button className="text-sm text-muted-foreground hover:text-primary">
@@ -206,7 +206,7 @@ export default function InpatientPatientsList() {
                         </PopoverTrigger>
                         <PopoverContent className="w-72 p-2" align="start">
                           <div className="space-y-2">
-                            {currentPhysicianId && h.primary_physician_id !== currentPhysicianId && (
+                            {currentPhysicianId && h.primary_staff_role_id !== currentPhysicianId && (
                               <button
                                 onClick={() => handleAssignPhysician(h.id, currentPhysicianId)}
                                 className="w-full text-left px-3 py-2 text-sm rounded hover:bg-muted flex items-center gap-2 text-primary font-medium"
@@ -229,10 +229,10 @@ export default function InpatientPatientsList() {
                                   onClick={() => handleAssignPhysician(h.id, ph.id)}
                                   className={cn(
                                     "w-full text-left px-3 py-2 text-sm rounded hover:bg-muted",
-                                    ph.id === h.primary_physician_id && "bg-muted font-medium"
+                                    ph.id === h.primary_staff_role_id && "bg-muted font-medium"
                                   )}
                                 >
-                                  {ph.profiles?.full_name}
+                                  {`${ph.persons?.last_name} ${ph.persons?.first_name}`}
                                 </button>
                               ))}
                               {filteredPhysicians.length === 0 && (
