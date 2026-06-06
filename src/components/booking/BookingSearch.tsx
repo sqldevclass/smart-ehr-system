@@ -59,10 +59,10 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
       if (!restrictServiceId) return null;
       const { data } = await supabase
         .from("physician_service_privileges")
-        .select("physician_id")
+        .select("staff_role_id")
         .eq("hospital_id", hospitalId)
         .eq("service_id", restrictServiceId);
-      return new Set((data || []).map((r: any) => r.physician_id));
+      return new Set((data || []).map((r: any) => r.staff_role_id));
     },
     enabled: !!restrictServiceId,
   });
@@ -71,19 +71,20 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
     queryKey: ["booking-search-physicians", hospitalId, debounced],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("physicians")
-        .select("id, profiles!inner(full_name), specializations!specialization_id(name), physician_schedules(schedule_type, valid_from, valid_to, days_of_week)")
+        .from("staff_roles")
+        .select("id, role_type, persons!inner(first_name, last_name), specializations!specialization_id(name), physician_schedules!staff_role_id(schedule_type, valid_from, valid_to, days_of_week)")
         .eq("hospital_id", hospitalId)
+        .eq("role_type", "physician")
         .eq("is_active", true)
-        .ilike("profiles.full_name", `%${debounced}%`)
+        .ilike("persons.last_name", `%${debounced}%`)
         .limit(8);
       if (error) throw error;
-      return (data || []).map((p: any): PhysicianResult => ({
-        id: p.id,
-        fullName: p.profiles?.full_name || "—",
-        specialization: (p as any).specializations?.name ?? null,
-        specializations: p.specializations,
-        scheduleType: deriveScheduleType(p.physician_schedules),
+      return (data || []).map((sr: any): PhysicianResult => ({
+        id: sr.id,
+        fullName: `${sr.persons?.last_name} ${sr.persons?.first_name}` || "—",
+        specialization: sr.specializations?.name ?? null,
+        specializations: sr.specializations,
+        scheduleType: deriveScheduleType(sr.physician_schedules),
       }));
     },
     enabled,
@@ -116,21 +117,21 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
       const { data, error } = await supabase
         .from("physician_service_privileges")
         .select(
-          "physician_id, services!inner(id, name, cost_with_vat, service_types(name_en)), physicians!inner(id, specializations!specialization_id(name), is_active, profiles!inner(full_name), physician_schedules(schedule_type, valid_from, valid_to, days_of_week))"
+          "staff_role_id, services!inner(id, name, cost_with_vat, service_types(name_en)), staff_roles!inner(id, is_active, persons!inner(first_name, last_name), specializations!specialization_id(name), physician_schedules!staff_role_id(schedule_type, valid_from, valid_to, days_of_week))"
         )
         .eq("hospital_id", hospitalId)
         .ilike("services.name", `%${debounced}%`)
         .limit(12);
       if (error) throw error;
       return (data || [])
-        .filter((r: any) => r.physicians?.is_active !== false)
+        .filter((r: any) => r.staff_roles?.is_active !== false)
         .map((r: any) => ({
           physician: {
-            id: r.physician_id,
-            fullName: r.physicians?.profiles?.full_name || "—",
-            specialization: (r.physicians as any)?.specializations?.name ?? null,
-            specializations: r.physicians?.specializations,
-            scheduleType: deriveScheduleType(r.physicians?.physician_schedules),
+            id: r.staff_role_id,
+            fullName: `${r.staff_roles?.persons?.last_name} ${r.staff_roles?.persons?.first_name}` || "—",
+            specialization: r.staff_roles?.specializations?.name ?? null,
+            specializations: r.staff_roles?.specializations,
+            scheduleType: deriveScheduleType(r.staff_roles?.physician_schedules),
           } as PhysicianResult,
           service: {
             id: r.services?.id,
@@ -142,8 +143,6 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
     },
     enabled,
   });
-
-  const { data: officeRooms = [] } = useQuery({
     queryKey: ["booking-search-office-rooms", hospitalId, debounced],
     queryFn: async () => {
       const { data, error } = await supabase
