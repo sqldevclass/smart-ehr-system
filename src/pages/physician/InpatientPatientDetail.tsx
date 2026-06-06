@@ -202,14 +202,34 @@ export default function InpatientPatientDetail() {
   });
 
   const { data: docPrivileges = [] } = useQuery({
-    queryKey: ["physician-doc-privileges", physicianId],
-    enabled: !!physicianId,
+    queryKey: ["physician-doc-privileges", user?.id],
+    enabled: !!user?.id,
     queryFn: async () => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("person_id")
+        .eq("id", user!.id)
+        .maybeSingle();
+
+      if (!profile?.person_id) return [];
+
+      const { data: staffRoles } = await supabase
+        .from("staff_roles")
+        .select("id")
+        .eq("person_id", profile.person_id)
+        .eq("hospital_id", user!.hospitalId)
+        .eq("is_active", true);
+
+      if (!staffRoles || staffRoles.length === 0) return [];
+
+      const staffRoleIds = staffRoles.map((sr: any) => sr.id);
+
       const { data } = await supabase
         .from("physician_document_privileges")
         .select("document_type_id")
-        .eq("physician_id", physicianId!)
+        .in("staff_role_id", staffRoleIds)
         .eq("hospital_id", user!.hospitalId);
+
       return data || [];
     },
   });
