@@ -246,7 +246,7 @@ export default function RoomDetail({ roomId, onClose }: Props) {
                         ) : (
                           availablePhysicians.map((p: any) => (
                             <SelectItem key={p.id} value={p.id}>
-                              {p.profiles?.full_name}
+                              {`${p.persons?.last_name} ${p.persons?.first_name}`}
                               {p.specializations?.name ? ` · ${p.specializations.name}` : ""}
                             </SelectItem>
                           ))
