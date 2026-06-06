@@ -37,10 +37,18 @@ export default function PhysicianSchedule() {
     if (!user) return;
     setLoading(true);
 
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("person_id")
+      .eq("id", user.id)
+      .maybeSingle();
     const { data: phys } = await supabase
-      .from("physicians")
+      .from("staff_roles")
       .select("id")
-      .eq("profile_id", user.id)
+      .eq("person_id", profile?.person_id)
+      .eq("role_type", "physician")
+      .eq("hospital_id", user.hospitalId)
+      .eq("is_active", true)
       .maybeSingle();
 
     if (!phys) {
