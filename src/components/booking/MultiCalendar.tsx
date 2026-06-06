@@ -287,7 +287,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
           p_hospital_id: hospitalId,
           p_created_by: user.id,
           p_service_id: service.id,
-          p_assigned_physician_id: isRoom ? null : (selected.col as PhysCol).id,
+          p_assigned_staff_role_id: isRoom ? null : (selected.col as PhysCol).id,
           p_cost_at_time: service.costWithVat,
           p_registration_source: null,
           ...(officeRoomId ? { p_assigned_room_id: officeRoomId } : {}),
