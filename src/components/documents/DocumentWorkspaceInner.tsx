@@ -372,7 +372,7 @@ export default function DocumentWorkspaceInner({
           <Button variant="outline" size="sm" onClick={() => window.print()}>
             <Printer className="h-4 w-4 mr-1" /> Печать
           </Button>
-          {!isReadOnly && isPhysician && (
+          {!isReadOnly && (
             <Button size="sm" onClick={handleConfirm} disabled={!canConfirm}>
               {isConfirming ? "..." : "Подтвердить"}
             </Button>
