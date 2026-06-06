@@ -222,7 +222,7 @@ export function BookingModal(props: BookingModalProps) {
         if (existingVisitServiceId) {
           const { error: updateErr } = await supabase
             .from("visit_services")
-            .update({ assigned_physician_id: physician.id })
+            .update({ assigned_staff_role_id: physician.id })
             .eq("id", existingVisitServiceId);
           if (updateErr) throw updateErr;
           visitServiceId = existingVisitServiceId;
