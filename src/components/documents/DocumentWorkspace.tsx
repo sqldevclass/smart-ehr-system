@@ -199,8 +199,8 @@ export default function DocumentWorkspace(props: Props) {
     enabled: allPhysicianIds.length > 0,
     queryFn: async () => {
       const { data } = await supabase
-        .from("physicians")
-        .select("id, profiles!inner(full_name)")
+        .from("staff_roles")
+        .select("id, persons!inner(first_name, last_name)")
         .in("id", allPhysicianIds);
       return data || [];
     },
@@ -209,7 +209,7 @@ export default function DocumentWorkspace(props: Props) {
   const physicianNameMap = useMemo(() => {
     const map: Record<string, string> = {};
     (physicianNames || []).forEach((p: any) => {
-      map[p.id] = p.profiles?.full_name ?? "—";
+      map[p.id] = `${p.persons?.last_name} ${p.persons?.first_name}` || "—";
     });
     return map;
   }, [physicianNames]);
