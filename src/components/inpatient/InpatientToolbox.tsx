@@ -119,10 +119,10 @@ export default function InpatientToolbox({
   });
 
   const { data: physicianDept } = useQuery({
-    queryKey: ["toolbox-physician-dept", physicianId],
+    queryKey: ["toolbox-staff-role-dept", physicianId],
     queryFn: async () => {
       const { data } = await supabase
-        .from("physicians")
+        .from("staff_roles")
         .select("department_id")
         .eq("id", physicianId)
         .maybeSingle();
