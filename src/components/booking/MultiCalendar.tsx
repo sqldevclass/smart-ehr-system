@@ -277,7 +277,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
       if (existingVisitServiceId) {
         const { error: updateErr } = await supabase
           .from("visit_services")
-          .update({ assigned_physician_id: isRoom ? null : (selected.col as PhysCol).id })
+          .update({ assigned_staff_role_id: isRoom ? null : (selected.col as PhysCol).id })
           .eq("id", existingVisitServiceId);
         if (updateErr) throw updateErr;
         visitServiceId = existingVisitServiceId;
