@@ -39,7 +39,7 @@ export function SchedulesPanel({
     queryFn: async () => {
       let q = supabase.from("physician_schedules").select("*");
       if (isRoom) q = q.eq("room_id", selection.id);
-      else q = q.eq("physician_id", selection.id);
+      else q = q.eq("staff_role_id", selection.id);
       const { data, error } = await q.order("valid_from", { ascending: false });
       if (error) throw error;
       return data || [];
