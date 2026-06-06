@@ -119,7 +119,7 @@ export default function RoomDetail({ roomId, onClose }: Props) {
     if (!selectedPhysicianId) return;
     const { error } = await supabase.from("office_room_physicians").insert({
       room_id: roomId,
-      physician_id: selectedPhysicianId,
+      staff_role_id: selectedPhysicianId,
       hospital_id: user!.hospitalId,
       granted_by: user!.id,
     });
