@@ -284,7 +284,7 @@ export default function PhysicianPrivilegesPage() {
                       selectedId === p.id && "bg-primary/10 text-primary font-medium",
                     )}
                   >
-                    <div>{p.profiles?.full_name || "Unknown"}</div>
+                    <div>{`${p.persons?.last_name ?? ""} ${p.persons?.first_name ?? ""}`.trim() || "Unknown"}</div>
                     {p.specializations?.name && (
                       <div className="text-xs text-muted-foreground">{p.specializations.name}</div>
                     )}
