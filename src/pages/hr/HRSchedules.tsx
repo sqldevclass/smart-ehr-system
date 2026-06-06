@@ -502,7 +502,7 @@ function ScheduleDialog({
           if (blockErr) throw blockErr;
           if (physicianId) {
             await supabase.rpc("apply_block_to_existing_slots", {
-              p_physician_id: physicianId,
+              p_staff_role_id: physicianId,
               p_hospital_id: user!.hospitalId,
             });
           }
