@@ -47,7 +47,7 @@ export default function InpatientPatientsList() {
         .select(`
           id, hospitalization_number, admitted_at,
           discharged_at, discharge_type,
-          department_id, primary_physician_id,
+          department_id, primary_staff_role_id,
           departments!department_id(name),
           patients!inner(id, first_name, last_name, patient_number, date_of_birth),
           room_assignments(bed_number, rooms!inner(name))
@@ -72,7 +72,7 @@ export default function InpatientPatientsList() {
   });
 
   const physicianIds = Array.from(new Set(
-    hospitalizations.map((h: any) => h.primary_physician_id).filter(Boolean)
+    hospitalizations.map((h: any) => h.primary_staff_role_id).filter(Boolean)
   ));
 
   const { data: physicianNames = [] } = useQuery({
