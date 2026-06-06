@@ -67,10 +67,15 @@ export default function PhysicianPatientDetail() {
     queryKey: ["hospital-physicians-names", user?.hospitalId],
     queryFn: async () => {
       const { data } = await supabase
-        .from("physicians")
-        .select("id, full_name")
-        .eq("hospital_id", user!.hospitalId);
-      return data || [];
+        .from("staff_roles")
+        .select("id, persons!inner(first_name, last_name)")
+        .eq("hospital_id", user!.hospitalId)
+        .eq("role_type", "physician")
+        .eq("is_active", true);
+      return (data || []).map((p: any) => ({
+        id: p.id,
+        full_name: `${p.persons?.last_name} ${p.persons?.first_name}`,
+      }));
     },
     enabled: !!user,
   });
