@@ -184,7 +184,7 @@ export function BookingModal(props: BookingModalProps) {
         p_hospital_id: hospitalId,
         p_created_by: user!.id,
         p_service_id: svc.id,
-        p_assigned_physician_id: physician!.id,
+        p_assigned_staff_role_id: physician!.id,
         p_cost_at_time: svc.costWithVat,
         p_registration_source: registrationSource || null,
       });
