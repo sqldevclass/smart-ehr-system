@@ -95,7 +95,7 @@ export default function HospRecommendationSection({
             hosp_recommended_notes: notes || null,
             hosp_recommended_at: new Date().toISOString(),
             hosp_recommended_by: session?.user.id ?? null,
-            hospitalization_recommended: false,
+            hospitalization_recommended: true,
           })
           .eq("id", visitId);
       }
