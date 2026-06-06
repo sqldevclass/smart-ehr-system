@@ -6,15 +6,23 @@ export function usePhysicianId() {
   const { user } = useAuth();
 
   const { data: physicianId, isLoading } = useQuery({
-    queryKey: ["physician-id", user?.id],
+    queryKey: ["staff-role-id", user?.id],
     queryFn: async () => {
       if (!user) return null;
-      const { data, error } = await supabase
-        .from("physicians")
-        .select("id")
-        .eq("profile_id", user.id)
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("person_id")
+        .eq("id", user.id)
         .maybeSingle();
-      if (error) throw error;
+      if (!profile?.person_id) return null;
+      const { data } = await supabase
+        .from("staff_roles")
+        .select("id")
+        .eq("person_id", profile.person_id)
+        .eq("hospital_id", user.hospitalId)
+        .eq("role_type", "physician")
+        .eq("is_active", true)
+        .maybeSingle();
       return data?.id || null;
     },
     enabled: !!user,

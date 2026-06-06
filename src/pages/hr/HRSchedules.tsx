@@ -37,12 +37,19 @@ export default function HRSchedules() {
     queryKey: ["hr-physicians", user?.hospitalId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("physicians")
-        .select("id, profiles!inner(full_name), specializations!specialization_id(name)")
+        .from("staff_roles")
+        .select("id, role_type, persons!inner(first_name, last_name), specializations!specialization_id(name)")
         .eq("hospital_id", user!.hospitalId)
+        .eq("role_type", "physician")
         .eq("is_active", true);
       if (error) throw error;
-      return data || [];
+      return (data || []).map((sr: any) => ({
+        id: sr.id,
+        profiles: {
+          full_name: `${sr.persons.last_name} ${sr.persons.first_name}`,
+        },
+        specializations: sr.specializations,
+      }));
     },
     enabled: !!user,
   });
@@ -167,7 +174,7 @@ function SchedulesSection({
     queryKey: ["physician-schedules", selection.kind, selection.id],
     queryFn: async () => {
       let q = supabase.from("physician_schedules").select("*");
-      if (physicianId) q = q.eq("physician_id", physicianId);
+      if (physicianId) q = q.eq("staff_role_id", physicianId);
       else if (roomId) q = q.eq("room_id", roomId);
       const { data, error } = await q.order("valid_from", { ascending: false });
       if (error) throw error;
@@ -269,7 +276,7 @@ function BlocksSection({
     queryKey: ["physician-blocks", selection.kind, selection.id],
     queryFn: async () => {
       let q = supabase.from("physician_schedule_blocks").select("*");
-      if (physicianId) q = q.eq("physician_id", physicianId);
+      if (physicianId) q = q.eq("staff_role_id", physicianId);
       else if (roomId) q = q.eq("room_id", roomId);
       const { data, error } = await q
         .or(`blocked_to.gte.${new Date().toISOString()},is_recurring.eq.true`)
@@ -408,7 +415,7 @@ function ScheduleDialog({
     try {
       const payload: any = {
         hospital_id: user!.hospitalId,
-        physician_id: roomId ? null : physicianId,
+        staff_role_id: roomId ? null : physicianId,
         room_id: roomId || null,
         schedule_type: scheduleType,
         days_of_week: days,
@@ -470,11 +477,11 @@ function ScheduleDialog({
             .eq("recur_time_from", c.recur_time_from)
             .eq("recur_time_to", c.recur_time_to);
           if (roomId) existQ = existQ.eq("room_id", roomId);
-          else existQ = existQ.eq("physician_id", physicianId!);
+          else existQ = existQ.eq("staff_role_id", physicianId!);
           const { data: existing } = await existQ;
           if (!existing || existing.length === 0) {
             blockRows.push({
-              physician_id: roomId ? null : physicianId,
+              staff_role_id: roomId ? null : physicianId,
               room_id: roomId || null,
               hospital_id: user!.hospitalId,
               is_recurring: true,
@@ -495,7 +502,7 @@ function ScheduleDialog({
           if (blockErr) throw blockErr;
           if (physicianId) {
             await supabase.rpc("apply_block_to_existing_slots", {
-              p_physician_id: physicianId,
+              p_staff_role_id: physicianId,
               p_hospital_id: user!.hospitalId,
             });
           }
@@ -699,7 +706,7 @@ function BlockDialog({
       const tz = user!.timezone || "Asia/Tashkent";
       const { error } = await supabase.from("physician_schedule_blocks").insert({
         hospital_id: user!.hospitalId,
-        physician_id: roomId ? null : physicianId,
+        staff_role_id: roomId ? null : physicianId,
         room_id: roomId || null,
         blocked_from: toUTC(new Date(from), tz).toISOString(),
         blocked_to: toUTC(new Date(to), tz).toISOString(),
@@ -709,7 +716,7 @@ function BlockDialog({
       if (error) throw error;
       if (physicianId) {
         await supabase.rpc("apply_block_to_existing_slots", {
-          p_physician_id: physicianId,
+          p_staff_role_id: physicianId,
           p_hospital_id: user!.hospitalId,
         });
       }
