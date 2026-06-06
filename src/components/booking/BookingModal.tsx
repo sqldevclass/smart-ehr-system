@@ -247,7 +247,7 @@ export function BookingModal(props: BookingModalProps) {
           const { data: qData, error: qErr } = await supabase.rpc("assign_queue_number", {
             p_visit_service_id: visitServiceId,
             p_hospital_id: hospitalId,
-            p_physician_id: physician.id,
+            p_staff_role_id: physician.id,
           });
           if (qErr) throw qErr;
           const row = Array.isArray(qData) ? qData[0] : qData;
