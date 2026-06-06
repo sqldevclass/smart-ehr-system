@@ -52,9 +52,10 @@ export default function RegisterPatientSheet({ open, onOpenChange, hospitalId, u
     queryKey: ["physicians", hospitalId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("physicians")
-        .select("id, profiles!inner(full_name), specializations!specialization_id(name)")
+        .from("staff_roles")
+        .select("id, persons!inner(first_name, last_name), specializations!specialization_id(name)")
         .eq("hospital_id", hospitalId)
+        .eq("role_type", "physician")
         .eq("is_active", true);
       
       return data || [];
