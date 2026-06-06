@@ -104,7 +104,7 @@ export default function OutpatientPatientDetail() {
         .from("visit_services")
         .select("id, scheduled_at, queue_number, is_waitlist, cost_at_time, service_statuses(code, name_ru), services(name, linked_document_type_id)")
         .eq("patient_id", patientId!)
-        .eq("assigned_physician_id", physicianId!)
+        .eq("assigned_staff_role_id", physicianId!)
         .eq("hospital_id", user!.hospitalId);
       return (data || []).filter((vs: any) => {
         const code = vs.service_statuses?.code;
@@ -446,7 +446,7 @@ function OrdersTab({
         p_ordered_by: user!.id,
         p_services: [{
           service_id: serviceId,
-          assigned_physician_id: null,
+          assigned_staff_role_id: null,
           cost_at_time: (svc as any)?.cost_with_vat ?? 0,
         }],
       });
@@ -580,7 +580,7 @@ function LabTab({ patientId, physicianId, labTypeId, canOrder, hospMap }: { pati
         p_ordered_by: user!.id,
         p_services: [{
           service_id: serviceId,
-          assigned_physician_id: null,
+          assigned_staff_role_id: null,
           cost_at_time: (svc as any)?.cost_with_vat ?? 0,
         }],
       });
@@ -688,7 +688,7 @@ function ConsultTab({
     queryFn: async () => {
       const { data } = await supabase
         .from("visit_services")
-        .select("id, created_at, hospitalization_id, assigned_physician_id, service_statuses(code, name_ru), services(name, service_type_id), physicians!visit_services_assigned_physician_id_fkey(profiles(full_name)), invoice_items(id)")
+        .select("id, created_at, hospitalization_id, assigned_staff_role_id, service_statuses(code, name_ru), services(name, service_type_id), staff_roles!visit_services_assigned_staff_role_id_fkey(persons(first_name, last_name)), invoice_items(id)")
         .eq("patient_id", patientId)
         .eq("hospital_id", user!.hospitalId)
         .eq("created_by", user!.id)
@@ -724,7 +724,7 @@ function ConsultTab({
         p_ordered_by: user!.id,
         p_services: [{
           service_id: serviceId,
-          assigned_physician_id: null,
+          assigned_staff_role_id: null,
           cost_at_time: (svc as any)?.cost_with_vat ?? 0,
         }],
       });
@@ -760,7 +760,7 @@ function ConsultTab({
                 <div className="flex flex-col">
                   <span className="font-medium">{vs.services?.name}</span>
                   <span className="text-xs text-muted-foreground">
-                    {vs.physicians?.profiles?.full_name || "Unassigned"}
+                    {vs.staff_roles?.persons ? `${vs.staff_roles.persons.last_name} ${vs.staff_roles.persons.first_name}` : "Unassigned"}
                   </span>
                 </div>
                 <ContextBadge hospNumber={hospMap[vs.hospitalization_id] ?? null} />

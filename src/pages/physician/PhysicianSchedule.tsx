@@ -37,10 +37,18 @@ export default function PhysicianSchedule() {
     if (!user) return;
     setLoading(true);
 
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("person_id")
+      .eq("id", user.id)
+      .maybeSingle();
     const { data: phys } = await supabase
-      .from("physicians")
+      .from("staff_roles")
       .select("id")
-      .eq("profile_id", user.id)
+      .eq("person_id", profile?.person_id)
+      .eq("role_type", "physician")
+      .eq("hospital_id", user.hospitalId)
+      .eq("is_active", true)
       .maybeSingle();
 
     if (!phys) {
@@ -54,7 +62,7 @@ export default function PhysicianSchedule() {
       .select(
         "id, schedule_type, work_start, work_end, slot_duration_minutes, days_of_week, valid_from, valid_to"
       )
-      .eq("physician_id", phys.id);
+      .eq("staff_role_id", phys.id);
 
     if (sErr) toast.error(sErr.message);
     setSchedules((scheds || []) as ScheduleRow[]);
@@ -67,7 +75,7 @@ export default function PhysicianSchedule() {
     const { data: slotData, error: slErr } = await supabase
       .from("schedule_slots")
       .select("id, slot_datetime, is_booked, visit_service_id")
-      .eq("physician_id", phys.id)
+      .eq("staff_role_id", phys.id)
       .gte("slot_datetime", todayStart.toISOString())
       .lte("slot_datetime", todayEnd.toISOString())
       .order("slot_datetime");

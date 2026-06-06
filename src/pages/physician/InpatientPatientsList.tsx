@@ -47,7 +47,7 @@ export default function InpatientPatientsList() {
         .select(`
           id, hospitalization_number, admitted_at,
           discharged_at, discharge_type,
-          department_id, primary_physician_id,
+          department_id, primary_staff_role_id,
           departments!department_id(name),
           patients!inner(id, first_name, last_name, patient_number, date_of_birth),
           room_assignments(bed_number, rooms!inner(name))
@@ -72,15 +72,15 @@ export default function InpatientPatientsList() {
   });
 
   const physicianIds = Array.from(new Set(
-    hospitalizations.map((h: any) => h.primary_physician_id).filter(Boolean)
+    hospitalizations.map((h: any) => h.primary_staff_role_id).filter(Boolean)
   ));
 
   const { data: physicianNames = [] } = useQuery({
     queryKey: ["inpatient-physician-names", physicianIds],
     queryFn: async () => {
       const { data } = await supabase
-        .from("physicians")
-        .select("id, profiles!inner(full_name)")
+        .from("staff_roles")
+        .select("id, persons!inner(first_name, last_name)")
         .in("id", physicianIds);
       return data || [];
     },
@@ -89,16 +89,17 @@ export default function InpatientPatientsList() {
 
   const physMap: Record<string, string> = {};
   for (const p of physicianNames as any[]) {
-    physMap[p.id] = p.profiles?.full_name ?? "—";
+    physMap[p.id] = `${p.persons?.last_name} ${p.persons?.first_name}` || "—";
   }
 
   const { data: allPhysicians = [] } = useQuery({
     queryKey: ["inpatient-all-physicians", user?.hospitalId],
     queryFn: async () => {
       const { data } = await supabase
-        .from("physicians")
-        .select("id, profiles!inner(full_name)")
+        .from("staff_roles")
+        .select("id, persons!inner(first_name, last_name)")
         .eq("hospital_id", user!.hospitalId)
+        .eq("role_type", "physician")
         .eq("is_active", true);
       return data || [];
     },
@@ -107,7 +108,7 @@ export default function InpatientPatientsList() {
 
   const filteredPhysicians = (allPhysicians as any[])
     .filter((p: any) =>
-      p.profiles?.full_name
+      `${p.persons?.last_name} ${p.persons?.first_name}`
         .toLowerCase()
         .includes(physicianSearch.toLowerCase())
     ).slice(0, 10);
@@ -115,7 +116,7 @@ export default function InpatientPatientsList() {
   const handleAssignPhysician = async (hospId: string, physicianId: string) => {
     const { error } = await supabase
       .from("hospitalizations")
-      .update({ primary_physician_id: physicianId })
+      .update({ primary_staff_role_id: physicianId })
       .eq("id", hospId);
     if (error) return;
     queryClient.invalidateQueries({ queryKey: ["inpatient-list"] });
@@ -171,7 +172,7 @@ export default function InpatientPatientsList() {
                 const p = h.patients;
                 const ra = h.room_assignments?.[0];
                 const days = differenceInDays(new Date(), new Date(h.admitted_at));
-                const hasPhysician = !!h.primary_physician_id;
+                const hasPhysician = !!h.primary_staff_role_id;
 
                 const cells = (
                   <>
@@ -193,9 +194,9 @@ export default function InpatientPatientsList() {
                         }}
                       >
                         <PopoverTrigger asChild>
-                          {physMap[h.primary_physician_id] ? (
+                          {physMap[h.primary_staff_role_id] ? (
                             <button className="text-sm font-medium text-primary hover:underline">
-                              {physMap[h.primary_physician_id]}
+                              {physMap[h.primary_staff_role_id]}
                             </button>
                           ) : (
                             <button className="text-sm text-muted-foreground hover:text-primary">
@@ -205,7 +206,7 @@ export default function InpatientPatientsList() {
                         </PopoverTrigger>
                         <PopoverContent className="w-72 p-2" align="start">
                           <div className="space-y-2">
-                            {currentPhysicianId && h.primary_physician_id !== currentPhysicianId && (
+                            {currentPhysicianId && h.primary_staff_role_id !== currentPhysicianId && (
                               <button
                                 onClick={() => handleAssignPhysician(h.id, currentPhysicianId)}
                                 className="w-full text-left px-3 py-2 text-sm rounded hover:bg-muted flex items-center gap-2 text-primary font-medium"
@@ -228,10 +229,10 @@ export default function InpatientPatientsList() {
                                   onClick={() => handleAssignPhysician(h.id, ph.id)}
                                   className={cn(
                                     "w-full text-left px-3 py-2 text-sm rounded hover:bg-muted",
-                                    ph.id === h.primary_physician_id && "bg-muted font-medium"
+                                    ph.id === h.primary_staff_role_id && "bg-muted font-medium"
                                   )}
                                 >
-                                  {ph.profiles?.full_name}
+                                  {`${ph.persons?.last_name} ${ph.persons?.first_name}`}
                                 </button>
                               ))}
                               {filteredPhysicians.length === 0 && (

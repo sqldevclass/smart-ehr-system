@@ -128,7 +128,7 @@ export default function DocumentWorkspace(props: Props) {
         .from("visit_services")
         .select(`
           id, source, scheduled_at, queue_number,
-          completed_at, assigned_physician_id,
+          completed_at, assigned_staff_role_id,
           services!inner(name, service_type_id,
             service_types!inner(code)),
           service_statuses!inner(code, name_ru)
@@ -149,7 +149,7 @@ export default function DocumentWorkspace(props: Props) {
         .from("visit_services")
         .select(`
           id, source, scheduled_at, queue_number,
-          completed_at, assigned_physician_id,
+          completed_at, assigned_staff_role_id,
           services!inner(name, service_type_id,
             service_types!inner(code)),
           service_statuses!inner(code, name_ru)
@@ -171,7 +171,7 @@ export default function DocumentWorkspace(props: Props) {
         .from("visit_services")
         .select(`
           id, source, scheduled_at, queue_number,
-          completed_at, assigned_physician_id,
+          completed_at, assigned_staff_role_id,
           services!inner(name, service_type_id,
             service_types!inner(code)),
           service_statuses!inner(code, name_ru)
@@ -188,7 +188,7 @@ export default function DocumentWorkspace(props: Props) {
   const allPhysicianIds = useMemo(() => {
     const ids = new Set<string>();
     [...mainServices, ...childServices, ...pendingOrders].forEach((vs: any) => {
-      if (vs.assigned_physician_id) ids.add(vs.assigned_physician_id);
+      if (vs.assigned_staff_role_id) ids.add(vs.assigned_staff_role_id);
     });
     return Array.from(ids);
   }, [mainServices, childServices, pendingOrders]);
@@ -199,8 +199,8 @@ export default function DocumentWorkspace(props: Props) {
     enabled: allPhysicianIds.length > 0,
     queryFn: async () => {
       const { data } = await supabase
-        .from("physicians")
-        .select("id, profiles!inner(full_name)")
+        .from("staff_roles")
+        .select("id, persons!inner(first_name, last_name)")
         .in("id", allPhysicianIds);
       return data || [];
     },
@@ -209,7 +209,7 @@ export default function DocumentWorkspace(props: Props) {
   const physicianNameMap = useMemo(() => {
     const map: Record<string, string> = {};
     (physicianNames || []).forEach((p: any) => {
-      map[p.id] = p.profiles?.full_name ?? "—";
+      map[p.id] = `${p.persons?.last_name} ${p.persons?.first_name}` || "—";
     });
     return map;
   }, [physicianNames]);
@@ -219,10 +219,19 @@ export default function DocumentWorkspace(props: Props) {
     ...queryDefaults,
     enabled: !!user?.id,
     queryFn: async () => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("person_id")
+        .eq("id", user!.id)
+        .maybeSingle();
+      if (!profile?.person_id) return null;
       const { data } = await supabase
-        .from("physicians")
+        .from("staff_roles")
         .select("id")
-        .eq("profile_id", user!.id)
+        .eq("person_id", profile.person_id)
+        .eq("hospital_id", user!.hospitalId)
+        .eq("role_type", "physician")
+        .eq("is_active", true)
         .maybeSingle();
       return data;
     },

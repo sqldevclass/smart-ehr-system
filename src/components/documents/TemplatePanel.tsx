@@ -54,7 +54,7 @@ export default function TemplatePanel({
         .from("physician_document_templates" as any)
         .select("id, name, created_at")
         .eq("document_type_id", documentTypeId)
-        .eq("physician_id", physicianId!)
+        .eq("staff_role_id", physicianId!)
         .eq("hospital_id", hospitalId)
         .order("created_at", { ascending: false });
       return (data as any) || [];
@@ -89,7 +89,7 @@ export default function TemplatePanel({
       const { data: tmpl, error: tErr } = await supabase
         .from("physician_document_templates" as any)
         .insert({
-          physician_id: physicianId,
+          staff_role_id: physicianId,
           hospital_id: hospitalId,
           document_type_id: documentTypeId,
           name: templateName.trim(),

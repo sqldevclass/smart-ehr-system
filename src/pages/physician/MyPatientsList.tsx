@@ -130,9 +130,10 @@ export default function MyPatientsList() {
     setLoading(true);
 
     const { data: phys, error: physErr } = await supabase
-      .from("physicians")
+      .from("staff_roles")
       .select("id, dashboard_type")
       .eq("profile_id", user.id)
+      .eq("role_type", "physician")
       .maybeSingle();
 
     if (physErr) toast.error(physErr.message);
@@ -165,7 +166,7 @@ export default function MyPatientsList() {
       .select(
         "id, scheduled_at, queue_number, cost_at_time, visit_id, slot_id, is_waitlist, created_at, completed_by, assigned_room_id, created_by, service_statuses(code, name_ru), services(id, name, linked_document_type_id), profiles!visit_services_created_by_fkey(full_name), visits!visit_id(patient_id, visit_date, patients(first_name, last_name, patient_number, date_of_birth))"
       )
-      .eq("assigned_physician_id", (phys as Physician).id)
+      .eq("assigned_staff_role_id", (phys as Physician).id)
       .eq("hospital_id", user.hospitalId)
       .in("status_id", allowedStatusIds)
       .order("scheduled_at", { ascending: true, nullsFirst: false })
@@ -177,7 +178,7 @@ export default function MyPatientsList() {
     const { data: myRooms } = await supabase
       .from("office_room_physicians")
       .select("room_id, rooms(id, name)")
-      .eq("physician_id", (phys as Physician).id)
+      .eq("staff_role_id", (phys as Physician).id)
       .eq("hospital_id", user.hospitalId)
       .filter("rooms.is_active", "eq", true);
 

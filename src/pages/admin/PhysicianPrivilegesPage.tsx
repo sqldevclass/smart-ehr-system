@@ -10,7 +10,7 @@ import { toast } from "sonner";
 
 interface Physician {
   id: string;
-  profiles: { full_name: string | null } | null;
+  persons: { first_name: string | null; last_name: string | null } | null;
   specializations: { name: string | null } | null;
 }
 
@@ -36,9 +36,10 @@ export default function PhysicianPrivilegesPage() {
     queryFn: async () => {
       if (!user) return [];
       const { data, error } = await supabase
-        .from("physicians")
-        .select("id, profiles!inner(full_name), specializations!specialization_id(name)")
+        .from("staff_roles")
+        .select("id, persons!inner(first_name, last_name), specializations!specialization_id(name)")
         .eq("hospital_id", user.hospitalId)
+        .eq("role_type", "physician")
         .eq("is_active", true);
       if (error) throw error;
       return (data || []) as unknown as Physician[];
@@ -69,7 +70,7 @@ export default function PhysicianPrivilegesPage() {
       const { data, error } = await supabase
         .from("physician_service_privileges")
         .select("service_id")
-        .eq("physician_id", selectedId)
+        .eq("staff_role_id", selectedId)
         .eq("hospital_id", user.hospitalId);
       if (error) throw error;
       return data || [];
@@ -107,12 +108,12 @@ export default function PhysicianPrivilegesPage() {
       const { error: delErr } = await supabase
         .from("physician_service_privileges")
         .delete()
-        .eq("physician_id", selectedId)
+        .eq("staff_role_id", selectedId)
         .eq("hospital_id", user.hospitalId);
       if (delErr) throw delErr;
 
       const rows = Array.from(checked).map((service_id) => ({
-        physician_id: selectedId,
+        staff_role_id: selectedId,
         service_id,
         hospital_id: user.hospitalId,
       }));
@@ -138,7 +139,7 @@ export default function PhysicianPrivilegesPage() {
       const { data, error } = await supabase
         .from("physician_document_privileges")
         .select("*")
-        .eq("physician_id", selectedId);
+        .eq("staff_role_id", selectedId);
       if (error) throw error;
       return data || [];
     },
@@ -165,7 +166,7 @@ export default function PhysicianPrivilegesPage() {
     if (!selectedId || !user) return;
     if (granted) {
       await supabase.from("physician_document_privileges").insert({
-        physician_id: selectedId,
+        staff_role_id: selectedId,
         document_type_id: docTypeId,
         hospital_id: user.hospitalId,
         granted_by: user.id,
@@ -174,7 +175,7 @@ export default function PhysicianPrivilegesPage() {
       await supabase
         .from("physician_document_privileges")
         .delete()
-        .eq("physician_id", selectedId)
+        .eq("staff_role_id", selectedId)
         .eq("document_type_id", docTypeId);
     }
     queryClient.invalidateQueries({
@@ -206,7 +207,7 @@ export default function PhysicianPrivilegesPage() {
       const { data, error } = await supabase
         .from("office_room_physicians")
         .select("room_id")
-        .eq("physician_id", selectedId)
+        .eq("staff_role_id", selectedId)
         .eq("hospital_id", user.hospitalId);
       if (error) throw error;
       return (data || []) as { room_id: string }[];
@@ -236,12 +237,12 @@ export default function PhysicianPrivilegesPage() {
       const { error: delErr } = await supabase
         .from("office_room_physicians")
         .delete()
-        .eq("physician_id", selectedId)
+        .eq("staff_role_id", selectedId)
         .eq("hospital_id", user.hospitalId);
       if (delErr) throw delErr;
       const rows = Array.from(checkedRooms).map((room_id) => ({
         room_id,
-        physician_id: selectedId,
+        staff_role_id: selectedId,
         hospital_id: user.hospitalId,
       }));
       if (rows.length > 0) {
@@ -283,7 +284,7 @@ export default function PhysicianPrivilegesPage() {
                       selectedId === p.id && "bg-primary/10 text-primary font-medium",
                     )}
                   >
-                    <div>{p.profiles?.full_name || "Unknown"}</div>
+                    <div>{`${p.persons?.last_name ?? ""} ${p.persons?.first_name ?? ""}`.trim() || "Unknown"}</div>
                     {p.specializations?.name && (
                       <div className="text-xs text-muted-foreground">{p.specializations.name}</div>
                     )}
@@ -301,7 +302,7 @@ export default function PhysicianPrivilegesPage() {
             <div className="space-y-4">
               <div>
                 <h2 className="text-lg font-semibold text-foreground">
-                  {selected.profiles?.full_name}
+                  {`${selected.persons?.last_name ?? ""} ${selected.persons?.first_name ?? ""}`.trim()}
                 </h2>
                 {selected.specializations?.name && (
                   <p className="text-sm text-muted-foreground">{selected.specializations.name}</p>
