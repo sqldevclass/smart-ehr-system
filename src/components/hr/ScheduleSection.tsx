@@ -309,7 +309,7 @@ export function ScheduleDialog({
             .eq("recur_time_from", c.recur_time_from)
             .eq("recur_time_to", c.recur_time_to);
           if (isRoom) existQ = existQ.eq("room_id", selection.id);
-          else existQ = existQ.eq("physician_id", selection.id);
+          else existQ = existQ.eq("staff_role_id", selection.id);
           const { data: existing } = await existQ;
           if (!existing || existing.length === 0) {
             blockRows.push({
