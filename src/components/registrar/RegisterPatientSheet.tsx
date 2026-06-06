@@ -52,9 +52,10 @@ export default function RegisterPatientSheet({ open, onOpenChange, hospitalId, u
     queryKey: ["physicians", hospitalId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("physicians")
-        .select("id, profiles!inner(full_name), specializations!specialization_id(name)")
+        .from("staff_roles")
+        .select("id, persons!inner(first_name, last_name), specializations!specialization_id(name)")
         .eq("hospital_id", hospitalId)
+        .eq("role_type", "physician")
         .eq("is_active", true);
       
       return data || [];
@@ -125,7 +126,7 @@ export default function RegisterPatientSheet({ open, onOpenChange, hospitalId, u
         insurance_policy_number: insurancePolicy.trim() || null,
         insurance_company: insuranceCompany.trim() || null,
         insurance_type: insuranceType.trim() || null,
-        primary_physician_id: primaryPhysicianId || null,
+        primary_staff_role_id: primaryPhysicianId || null,
         primary_department_id: primaryDepartmentId || null,
         emergency_contacts: emergencyContacts.length > 0 ? emergencyContacts : null,
         hospital_id: hospitalId,
@@ -236,7 +237,7 @@ export default function RegisterPatientSheet({ open, onOpenChange, hospitalId, u
                 </SelectTrigger>
                 <SelectContent>
                   {physicians.map((p: any) => (
-                    <SelectItem key={p.id} value={p.id}>{p.profiles?.full_name} — {p.specializations?.name || "—"}</SelectItem>
+                    <SelectItem key={p.id} value={p.id}>{`${p.persons?.last_name} ${p.persons?.first_name}`} — {p.specializations?.name || "—"}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

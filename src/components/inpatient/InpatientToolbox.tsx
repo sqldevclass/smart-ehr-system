@@ -119,10 +119,10 @@ export default function InpatientToolbox({
   });
 
   const { data: physicianDept } = useQuery({
-    queryKey: ["toolbox-physician-dept", physicianId],
+    queryKey: ["toolbox-staff-role-dept", physicianId],
     queryFn: async () => {
       const { data } = await supabase
-        .from("physicians")
+        .from("staff_roles")
         .select("department_id")
         .eq("id", physicianId)
         .maybeSingle();
@@ -148,7 +148,7 @@ export default function InpatientToolbox({
         .select(
           `patient_id, hospitalization_id, viewed_at, patients!inner(first_name, last_name, patient_number)`,
         )
-        .eq("physician_id", physicianId)
+        .eq("staff_role_id", physicianId)
         .eq("hospital_id", hospitalId)
         .order("viewed_at", { ascending: false })
         .limit(50);

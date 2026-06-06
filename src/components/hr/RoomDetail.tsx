@@ -33,10 +33,10 @@ export default function RoomDetail({ roomId, onClose }: Props) {
           room_types!inner(id, name),
           departments!department_id(name),
           office_room_physicians(
-            physician_id,
-            physicians!inner(
+            staff_role_id,
+            staff_roles!inner(
               id,
-              profiles!inner(full_name),
+              persons!inner(first_name, last_name),
               specializations!specialization_id(name)
             )
           )
@@ -65,11 +65,12 @@ export default function RoomDetail({ roomId, onClose }: Props) {
     queryKey: ["hr-physicians-active", user?.hospitalId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("physicians")
-        .select("id, profiles!inner(full_name), specializations!specialization_id(name)")
+        .from("staff_roles")
+        .select("id, persons!inner(first_name, last_name), specializations!specialization_id(name)")
         .eq("hospital_id", user!.hospitalId)
+        .eq("role_type", "physician")
         .eq("is_active", true)
-        .order("profiles(full_name)");
+        .order("persons(last_name)");
       if (error) throw error;
       return data || [];
     },
@@ -108,7 +109,7 @@ export default function RoomDetail({ roomId, onClose }: Props) {
   };
 
   const assignedPhysicians = ((room as any)?.office_room_physicians || []) as any[];
-  const assignedPhysIds = new Set(assignedPhysicians.map((o) => o.physician_id));
+  const assignedPhysIds = new Set(assignedPhysicians.map((o) => o.staff_role_id));
   const availablePhysicians = (allPhysicians as any[]).filter((p) => !assignedPhysIds.has(p.id));
 
   const [showAssignPhysician, setShowAssignPhysician] = useState(false);
@@ -118,7 +119,7 @@ export default function RoomDetail({ roomId, onClose }: Props) {
     if (!selectedPhysicianId) return;
     const { error } = await supabase.from("office_room_physicians").insert({
       room_id: roomId,
-      physician_id: selectedPhysicianId,
+      staff_role_id: selectedPhysicianId,
       hospital_id: user!.hospitalId,
       granted_by: user!.id,
     });
@@ -132,7 +133,7 @@ export default function RoomDetail({ roomId, onClose }: Props) {
   const removePhysician = async (physicianId: string) => {
     const { error } = await supabase.from("office_room_physicians").delete()
       .eq("room_id", roomId)
-      .eq("physician_id", physicianId);
+      .eq("staff_role_id", physicianId);
     if (error) { toast.error(error.message); return; }
     toast.success("Врач удалён");
     refetchRoom();
@@ -245,7 +246,7 @@ export default function RoomDetail({ roomId, onClose }: Props) {
                         ) : (
                           availablePhysicians.map((p: any) => (
                             <SelectItem key={p.id} value={p.id}>
-                              {p.profiles?.full_name}
+                              {`${p.persons?.last_name} ${p.persons?.first_name}`}
                               {p.specializations?.name ? ` · ${p.specializations.name}` : ""}
                             </SelectItem>
                           ))
@@ -262,14 +263,14 @@ export default function RoomDetail({ roomId, onClose }: Props) {
                 ) : (
                   <ul className="space-y-1">
                     {assignedPhysicians.map((orp: any) => (
-                      <li key={orp.physician_id} className="flex items-center justify-between rounded-md border p-2">
+                      <li key={orp.staff_role_id} className="flex items-center justify-between rounded-md border p-2">
                         <span className="text-sm">
-                          {orp.physicians?.profiles?.full_name || "—"}
-                          {orp.physicians?.specializations?.name && (
-                            <span className="text-muted-foreground"> · {orp.physicians.specializations.name}</span>
+                          {orp.staff_roles?.persons ? `${orp.staff_roles.persons.last_name} ${orp.staff_roles.persons.first_name}` : "—"}
+                          {orp.staff_roles?.specializations?.name && (
+                            <span className="text-muted-foreground"> · {orp.staff_roles.specializations.name}</span>
                           )}
                         </span>
-                        <Button size="sm" variant="outline" className="text-destructive gap-1" onClick={() => removePhysician(orp.physician_id)}>
+                        <Button size="sm" variant="outline" className="text-destructive gap-1" onClick={() => removePhysician(orp.staff_role_id)}>
                           <Minus className="h-3 w-3" />
                         </Button>
                       </li>

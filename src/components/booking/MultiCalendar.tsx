@@ -80,24 +80,24 @@ export function MultiCalendar(props: MultiCalendarProps) {
         // Step 1: get physician IDs from office_room_physicians
         const { data: orpRows, error: orpErr } = await supabase
           .from("office_room_physicians")
-          .select("physician_id")
+          .select("staff_role_id")
           .eq("room_id", officeRoomId)
           .eq("hospital_id", hospitalId);
         if (orpErr) throw orpErr;
-        const physicianIds = (orpRows || []).map((r: any) => r.physician_id);
+        const physicianIds = (orpRows || []).map((r: any) => r.staff_role_id);
         if (physicianIds.length === 0) return [];
 
         // Step 2: fetch physician details + schedules directly
         const { data: phRows, error: phErr } = await supabase
-          .from("physicians")
-          .select("id, is_active, profiles!inner(full_name), specializations!specialization_id(name), physician_schedules(schedule_type, valid_from, valid_to, days_of_week)")
+          .from("staff_roles")
+          .select("id, is_active, persons!inner(first_name, last_name), specializations!specialization_id(name), physician_schedules!staff_role_id(schedule_type, valid_from, valid_to, days_of_week)")
           .in("id", physicianIds)
           .eq("is_active", true);
         if (phErr) throw phErr;
         return (phRows || []).map((p: any): PhysCol => ({
           kind: "physician",
           id: p.id,
-          fullName: p.profiles?.full_name || "—",
+          fullName: `${p.persons?.last_name} ${p.persons?.first_name}` || "—",
           specialization: p.specializations?.name ?? null,
           scheduleType: deriveScheduleType(p.physician_schedules, date),
         }));
