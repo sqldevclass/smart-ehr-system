@@ -174,7 +174,7 @@ function SchedulesSection({
     queryKey: ["physician-schedules", selection.kind, selection.id],
     queryFn: async () => {
       let q = supabase.from("physician_schedules").select("*");
-      if (physicianId) q = q.eq("physician_id", physicianId);
+      if (physicianId) q = q.eq("staff_role_id", physicianId);
       else if (roomId) q = q.eq("room_id", roomId);
       const { data, error } = await q.order("valid_from", { ascending: false });
       if (error) throw error;
