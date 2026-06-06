@@ -107,19 +107,19 @@ export function MultiCalendar(props: MultiCalendarProps) {
       const { data, error } = await supabase
         .from("physician_service_privileges")
         .select(
-          "physician_id, physicians!inner(id, is_active, profiles!inner(full_name), specializations!specialization_id(name), physician_schedules(schedule_type, valid_from, valid_to, days_of_week))"
+          "staff_role_id, staff_roles!inner(id, is_active, persons!inner(first_name, last_name), specializations!specialization_id(name), physician_schedules!staff_role_id(schedule_type, valid_from, valid_to, days_of_week))"
         )
         .eq("service_id", service.id)
         .eq("hospital_id", hospitalId);
       if (error) throw error;
       return (data || [])
-        .filter((r: any) => r.physicians?.is_active !== false)
+        .filter((r: any) => r.staff_roles?.is_active !== false)
         .map((r: any): PhysCol => ({
           kind: "physician",
-          id: r.physician_id,
-          fullName: r.physicians?.profiles?.full_name || "—",
-          specialization: r.physicians?.specializations?.name ?? null,
-          scheduleType: deriveScheduleType(r.physicians?.physician_schedules, date),
+          id: r.staff_role_id,
+          fullName: `${r.staff_roles?.persons?.last_name} ${r.staff_roles?.persons?.first_name}` || "—",
+          specialization: r.staff_roles?.specializations?.name ?? null,
+          scheduleType: deriveScheduleType(r.staff_roles?.physician_schedules, date),
         }));
     },
   });
