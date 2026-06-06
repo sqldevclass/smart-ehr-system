@@ -109,7 +109,7 @@ export default function RoomDetail({ roomId, onClose }: Props) {
   };
 
   const assignedPhysicians = ((room as any)?.office_room_physicians || []) as any[];
-  const assignedPhysIds = new Set(assignedPhysicians.map((o) => o.physician_id));
+  const assignedPhysIds = new Set(assignedPhysicians.map((o) => o.staff_role_id));
   const availablePhysicians = (allPhysicians as any[]).filter((p) => !assignedPhysIds.has(p.id));
 
   const [showAssignPhysician, setShowAssignPhysician] = useState(false);
