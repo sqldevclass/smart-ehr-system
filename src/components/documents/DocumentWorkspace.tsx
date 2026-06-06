@@ -171,7 +171,7 @@ export default function DocumentWorkspace(props: Props) {
         .from("visit_services")
         .select(`
           id, source, scheduled_at, queue_number,
-          completed_at, assigned_physician_id,
+          completed_at, assigned_staff_role_id,
           services!inner(name, service_type_id,
             service_types!inner(code)),
           service_statuses!inner(code, name_ru)
