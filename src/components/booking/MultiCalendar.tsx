@@ -208,7 +208,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
         .select("physician_id, queue_numbers(queue_number)")
         .eq("hospital_id", hospitalId)
         .eq("queue_date", dateStr)
-        .in("physician_id", queuePhysIds);
+        .in("staff_role_id", queuePhysIds);
       const map: Record<string, number> = {};
       (data || []).forEach((r: any) => {
         const numbers = (r.queue_numbers || []).map((q: any) => q.queue_number);
