@@ -706,7 +706,7 @@ function BlockDialog({
       const tz = user!.timezone || "Asia/Tashkent";
       const { error } = await supabase.from("physician_schedule_blocks").insert({
         hospital_id: user!.hospitalId,
-        physician_id: roomId ? null : physicianId,
+        staff_role_id: roomId ? null : physicianId,
         room_id: roomId || null,
         blocked_from: toUTC(new Date(from), tz).toISOString(),
         blocked_to: toUTC(new Date(to), tz).toISOString(),
