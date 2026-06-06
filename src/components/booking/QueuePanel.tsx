@@ -21,7 +21,7 @@ export function QueuePanel({ physicianId, hospitalId, selectedDate, onQueueSelec
       const { data } = await supabase
         .from("queue_configs")
         .select("id, last_number, queue_date")
-        .eq("physician_id", physicianId)
+        .eq("staff_role_id", physicianId)
         .eq("hospital_id", hospitalId)
         .eq("queue_date", dateStr)
         .maybeSingle();
