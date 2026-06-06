@@ -67,10 +67,10 @@ export default function NursePatientsList() {
         .select(`
           id, hospitalization_number, admitted_at,
           discharged_at, discharge_type,
-          department_id, primary_physician_id,
+          department_id, primary_staff_role_id,
           departments!department_id(name),
-          physicians!primary_physician_id(
-            profiles!inner(full_name)),
+          staff_roles!primary_staff_role_id(
+            persons!inner(first_name, last_name)),
           patients!inner(
             id, first_name, last_name,
             patient_number, date_of_birth),
@@ -382,7 +382,9 @@ export default function NursePatientsList() {
                             {ra ? `${ra.rooms?.name} / ${ra.bed_number}` : "—"}
                           </td>
                           <td className="px-3 py-2 text-xs">
-                            {(h as any).physicians?.profiles?.full_name || "—"}
+                            {(h as any).staff_roles?.persons
+                              ? `${(h as any).staff_roles.persons.last_name} ${(h as any).staff_roles.persons.first_name}`
+                              : "—"}
                           </td>
                           <td className="px-3 py-2 text-center text-xs">
                             {v?.bp_systolic ? `${v.bp_systolic}/${v.bp_diastolic}` : "—"}
@@ -482,7 +484,9 @@ export default function NursePatientsList() {
                         {hasRoom ? `${ra.rooms?.name} / ${ra.bed_number}` : "—"}
                       </TableCell>
                       <TableCell className="text-sm">
-                        {(h as any).physicians?.profiles?.full_name || "—"}
+                        {(h as any).staff_roles?.persons
+                          ? `${(h as any).staff_roles.persons.last_name} ${(h as any).staff_roles.persons.first_name}`
+                          : "—"}
                       </TableCell>
                       <TableCell>
                         {assessmentMap[h.id]?.pendingCount > 0 ? (
