@@ -79,8 +79,8 @@ export default function InpatientPatientsList() {
     queryKey: ["inpatient-physician-names", physicianIds],
     queryFn: async () => {
       const { data } = await supabase
-        .from("physicians")
-        .select("id, profiles!inner(full_name)")
+        .from("staff_roles")
+        .select("id, persons!inner(first_name, last_name)")
         .in("id", physicianIds);
       return data || [];
     },
@@ -89,16 +89,17 @@ export default function InpatientPatientsList() {
 
   const physMap: Record<string, string> = {};
   for (const p of physicianNames as any[]) {
-    physMap[p.id] = p.profiles?.full_name ?? "—";
+    physMap[p.id] = `${p.persons?.last_name} ${p.persons?.first_name}` || "—";
   }
 
   const { data: allPhysicians = [] } = useQuery({
     queryKey: ["inpatient-all-physicians", user?.hospitalId],
     queryFn: async () => {
       const { data } = await supabase
-        .from("physicians")
-        .select("id, profiles!inner(full_name)")
+        .from("staff_roles")
+        .select("id, persons!inner(first_name, last_name)")
         .eq("hospital_id", user!.hospitalId)
+        .eq("role_type", "physician")
         .eq("is_active", true);
       return data || [];
     },
@@ -107,7 +108,7 @@ export default function InpatientPatientsList() {
 
   const filteredPhysicians = (allPhysicians as any[])
     .filter((p: any) =>
-      p.profiles?.full_name
+      `${p.persons?.last_name} ${p.persons?.first_name}`
         .toLowerCase()
         .includes(physicianSearch.toLowerCase())
     ).slice(0, 10);
@@ -115,7 +116,7 @@ export default function InpatientPatientsList() {
   const handleAssignPhysician = async (hospId: string, physicianId: string) => {
     const { error } = await supabase
       .from("hospitalizations")
-      .update({ primary_physician_id: physicianId })
+      .update({ primary_staff_role_id: physicianId })
       .eq("id", hospId);
     if (error) return;
     queryClient.invalidateQueries({ queryKey: ["inpatient-list"] });
