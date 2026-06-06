@@ -512,10 +512,10 @@ export default function NurseMonitoringPanel({
           <p className="text-xs text-muted-foreground">Нет записей</p>
         ) : (
           (() => {
-            const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
+            const GLUCOSE_PAGE_SIZE = 5;
             const visibleGlucose = showAllGlucose
               ? glucoseReadings
-              : glucoseReadings.filter((g: any) => new Date(g.recorded_at) >= fiveDaysAgo);
+              : glucoseReadings.slice(0, GLUCOSE_PAGE_SIZE);
             return (
               <div className="space-y-2">
                 <div className="flex gap-6 overflow-x-auto pb-1 flex-wrap">
@@ -544,7 +544,7 @@ export default function NurseMonitoringPanel({
                     );
                   })}
                 </div>
-                {!showAllGlucose && glucoseReadings.length > visibleGlucose.length && (
+                {!showAllGlucose && glucoseReadings.length > GLUCOSE_PAGE_SIZE && (
                   <button
                     onClick={() => setShowAllGlucose(true)}
                     className="text-xs text-primary underline"
