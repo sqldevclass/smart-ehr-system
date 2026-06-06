@@ -178,7 +178,7 @@ export default function MyPatientsList() {
     const { data: myRooms } = await supabase
       .from("office_room_physicians")
       .select("room_id, rooms(id, name)")
-      .eq("physician_id", (phys as Physician).id)
+      .eq("staff_role_id", (phys as Physician).id)
       .eq("hospital_id", user.hospitalId)
       .filter("rooms.is_active", "eq", true);
 
