@@ -760,7 +760,7 @@ function ConsultTab({
                 <div className="flex flex-col">
                   <span className="font-medium">{vs.services?.name}</span>
                   <span className="text-xs text-muted-foreground">
-                    {vs.physicians?.profiles?.full_name || "Unassigned"}
+                    {vs.staff_roles?.persons ? `${vs.staff_roles.persons.last_name} ${vs.staff_roles.persons.first_name}` : "Unassigned"}
                   </span>
                 </div>
                 <ContextBadge hospNumber={hospMap[vs.hospitalization_id] ?? null} />
