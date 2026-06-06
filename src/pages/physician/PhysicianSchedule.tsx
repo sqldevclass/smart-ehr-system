@@ -62,7 +62,7 @@ export default function PhysicianSchedule() {
       .select(
         "id, schedule_type, work_start, work_end, slot_duration_minutes, days_of_week, valid_from, valid_to"
       )
-      .eq("physician_id", phys.id);
+      .eq("staff_role_id", phys.id);
 
     if (sErr) toast.error(sErr.message);
     setSchedules((scheds || []) as ScheduleRow[]);
