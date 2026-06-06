@@ -176,8 +176,8 @@ export default function EWSChart({
   return (
     <div className="space-y-0" ref={containerRef}>
       <div className="flex items-center gap-1 mb-3">
-        {(["1д", "3д", "5д", "7д", "Всё"] as const).map((w, i) => {
-          const key = (["1d", "3d", "5d", "7d", "all"] as const)[i];
+        {(["5д", "Всё"] as const).map((w, i) => {
+          const key = (["5d", "all"] as const)[i];
           return (
             <button
               key={w}
