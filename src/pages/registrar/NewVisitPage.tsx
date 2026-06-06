@@ -485,36 +485,38 @@ function BasketRow({
       // Privileged physicians for this service
       const { data: privs } = await supabase
         .from("physician_service_privileges")
-        .select("physician_id")
+        .select("staff_role_id")
         .eq("service_id", serviceId)
         .eq("hospital_id", user.hospitalId);
 
-      const ids = (privs || []).map((p: any) => p.physician_id);
+      const ids = (privs || []).map((p: any) => p.staff_role_id);
 
       if (ids.length > 0) {
         const { data, error } = await supabase
-          .from("physicians")
-          .select("id, profiles!inner(full_name)")
+          .from("staff_roles")
+          .select("id, persons!inner(first_name, last_name)")
           .eq("hospital_id", user.hospitalId)
+          .eq("role_type", "physician")
           .eq("is_active", true)
           .in("id", ids);
         if (error) throw error;
         return (data || []).map((p: any) => ({
           id: p.id,
-          full_name: p.profiles?.full_name || "Unknown",
+          full_name: `${p.persons?.last_name ?? ""} ${p.persons?.first_name ?? ""}`.trim() || "Unknown",
         })) as PhysicianOption[];
       }
 
       // Fallback: all active physicians
       const { data, error } = await supabase
-        .from("physicians")
-        .select("id, profiles!inner(full_name)")
+        .from("staff_roles")
+        .select("id, persons!inner(first_name, last_name)")
         .eq("hospital_id", user.hospitalId)
+        .eq("role_type", "physician")
         .eq("is_active", true);
       if (error) throw error;
       return (data || []).map((p: any) => ({
         id: p.id,
-        full_name: p.profiles?.full_name || "Unknown",
+        full_name: `${p.persons?.last_name ?? ""} ${p.persons?.first_name ?? ""}`.trim() || "Unknown",
       })) as PhysicianOption[];
     },
     enabled: !!user,
