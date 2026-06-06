@@ -75,7 +75,7 @@ export default function PhysicianSchedule() {
     const { data: slotData, error: slErr } = await supabase
       .from("schedule_slots")
       .select("id, slot_datetime, is_booked, visit_service_id")
-      .eq("physician_id", phys.id)
+      .eq("staff_role_id", phys.id)
       .gte("slot_datetime", todayStart.toISOString())
       .lte("slot_datetime", todayEnd.toISOString())
       .order("slot_datetime");
