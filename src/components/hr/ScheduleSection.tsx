@@ -39,7 +39,7 @@ export function SchedulesPanel({
     queryFn: async () => {
       let q = supabase.from("physician_schedules").select("*");
       if (isRoom) q = q.eq("room_id", selection.id);
-      else q = q.eq("physician_id", selection.id);
+      else q = q.eq("staff_role_id", selection.id);
       const { data, error } = await q.order("valid_from", { ascending: false });
       if (error) throw error;
       return data || [];
@@ -130,7 +130,7 @@ export function BlocksPanel({
     queryFn: async () => {
       let q = supabase.from("physician_schedule_blocks").select("*");
       if (isRoom) q = q.eq("room_id", selection.id);
-      else q = q.eq("physician_id", selection.id);
+      else q = q.eq("staff_role_id", selection.id);
       const { data, error } = await q
         .or(`blocked_to.gte.${new Date().toISOString()},is_recurring.eq.true`)
         .order("blocked_from");
@@ -211,8 +211,8 @@ export function ScheduleDialog({
   const today = new Date().toISOString().split("T")[0];
   const isRoom = selection.kind === "room";
   const idFilter = isRoom
-    ? { room_id: selection.id, physician_id: null }
-    : { physician_id: selection.id, room_id: null };
+    ? { room_id: selection.id, staff_role_id: null }
+    : { staff_role_id: selection.id, room_id: null };
 
   const tz = user?.timezone || "Asia/Tashkent";
   const [scheduleType, setScheduleType] = useState<"slots" | "queue">(editing?.schedule_type || "slots");
@@ -309,7 +309,7 @@ export function ScheduleDialog({
             .eq("recur_time_from", c.recur_time_from)
             .eq("recur_time_to", c.recur_time_to);
           if (isRoom) existQ = existQ.eq("room_id", selection.id);
-          else existQ = existQ.eq("physician_id", selection.id);
+          else existQ = existQ.eq("staff_role_id", selection.id);
           const { data: existing } = await existQ;
           if (!existing || existing.length === 0) {
             blockRows.push({
@@ -333,7 +333,7 @@ export function ScheduleDialog({
           if (blockErr) throw blockErr;
           if (!isRoom) {
             await supabase.rpc("apply_block_to_existing_slots", {
-              p_physician_id: selection.id, p_hospital_id: user!.hospitalId,
+              p_staff_role_id: selection.id, p_hospital_id: user!.hospitalId,
             });
           }
         }
@@ -491,8 +491,8 @@ export function BlockDialog({
   const [saving, setSaving] = useState(false);
   const isRoom = selection.kind === "room";
   const idFilter = isRoom
-    ? { room_id: selection.id, physician_id: null }
-    : { physician_id: selection.id, room_id: null };
+    ? { room_id: selection.id, staff_role_id: null }
+    : { staff_role_id: selection.id, room_id: null };
 
   const submit = async () => {
     if (!from || !to) { toast.error("Set start and end times."); return; }
@@ -511,7 +511,7 @@ export function BlockDialog({
       if (error) throw error;
       if (!isRoom) {
         await supabase.rpc("apply_block_to_existing_slots", {
-          p_physician_id: selection.id, p_hospital_id: user!.hospitalId,
+          p_staff_role_id: selection.id, p_hospital_id: user!.hospitalId,
         });
       }
       toast.success("Time blocked.");

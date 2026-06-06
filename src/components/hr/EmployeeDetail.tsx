@@ -488,7 +488,7 @@ function AssignedRoomsSection({ physicianId }: { physicianId: string }) {
       const { data, error } = await supabase
         .from("office_room_physicians")
         .select("room_id, rooms!inner(id, name)")
-        .eq("physician_id", physicianId)
+        .eq("staff_role_id", physicianId)
         .eq("hospital_id", user!.hospitalId);
       if (error) throw error;
       return data || [];
@@ -521,7 +521,7 @@ function AssignedRoomsSection({ physicianId }: { physicianId: string }) {
     if (!selectedRoomId) return;
     const { error } = await supabase.from("office_room_physicians").insert({
       room_id: selectedRoomId,
-      physician_id: physicianId,
+      staff_role_id: physicianId,
       hospital_id: user!.hospitalId,
       granted_by: user!.id,
     });
@@ -534,7 +534,7 @@ function AssignedRoomsSection({ physicianId }: { physicianId: string }) {
 
   const handleRemove = async (roomId: string) => {
     const { error } = await supabase.from("office_room_physicians").delete()
-      .eq("physician_id", physicianId)
+      .eq("staff_role_id", physicianId)
       .eq("room_id", roomId);
     if (error) { toast.error(error.message); return; }
     toast.success("Кабинет удалён");
