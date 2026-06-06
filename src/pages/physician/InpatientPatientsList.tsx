@@ -172,7 +172,7 @@ export default function InpatientPatientsList() {
                 const p = h.patients;
                 const ra = h.room_assignments?.[0];
                 const days = differenceInDays(new Date(), new Date(h.admitted_at));
-                const hasPhysician = !!h.primary_physician_id;
+                const hasPhysician = !!h.primary_staff_role_id;
 
                 const cells = (
                   <>
