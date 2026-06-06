@@ -580,7 +580,7 @@ function LabTab({ patientId, physicianId, labTypeId, canOrder, hospMap }: { pati
         p_ordered_by: user!.id,
         p_services: [{
           service_id: serviceId,
-          assigned_physician_id: null,
+          assigned_staff_role_id: null,
           cost_at_time: (svc as any)?.cost_with_vat ?? 0,
         }],
       });
