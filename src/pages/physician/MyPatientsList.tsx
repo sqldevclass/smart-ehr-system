@@ -130,9 +130,10 @@ export default function MyPatientsList() {
     setLoading(true);
 
     const { data: phys, error: physErr } = await supabase
-      .from("physicians")
+      .from("staff_roles")
       .select("id, dashboard_type")
       .eq("profile_id", user.id)
+      .eq("role_type", "physician")
       .maybeSingle();
 
     if (physErr) toast.error(physErr.message);
