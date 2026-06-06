@@ -70,7 +70,7 @@ export default function PhysicianPrivilegesPage() {
       const { data, error } = await supabase
         .from("physician_service_privileges")
         .select("service_id")
-        .eq("physician_id", selectedId)
+        .eq("staff_role_id", selectedId)
         .eq("hospital_id", user.hospitalId);
       if (error) throw error;
       return data || [];
