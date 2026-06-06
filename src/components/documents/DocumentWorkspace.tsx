@@ -188,7 +188,7 @@ export default function DocumentWorkspace(props: Props) {
   const allPhysicianIds = useMemo(() => {
     const ids = new Set<string>();
     [...mainServices, ...childServices, ...pendingOrders].forEach((vs: any) => {
-      if (vs.assigned_physician_id) ids.add(vs.assigned_physician_id);
+      if (vs.assigned_staff_role_id) ids.add(vs.assigned_staff_role_id);
     });
     return Array.from(ids);
   }, [mainServices, childServices, pendingOrders]);
