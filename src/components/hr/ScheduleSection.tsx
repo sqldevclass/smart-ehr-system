@@ -333,7 +333,7 @@ export function ScheduleDialog({
           if (blockErr) throw blockErr;
           if (!isRoom) {
             await supabase.rpc("apply_block_to_existing_slots", {
-              p_physician_id: selection.id, p_hospital_id: user!.hospitalId,
+              p_staff_role_id: selection.id, p_hospital_id: user!.hospitalId,
             });
           }
         }
