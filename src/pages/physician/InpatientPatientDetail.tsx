@@ -146,7 +146,7 @@ export default function InpatientPatientDetail() {
   useEffect(() => {
     if (!physicianId || !patientId || !user?.hospitalId) return;
     supabase.rpc("track_recent_patient", {
-      p_physician_id: physicianId,
+      p_staff_role_id: physicianId,
       p_hospital_id: user.hospitalId,
       p_patient_id: patientId,
       p_hospitalization_id: hospitalizationId,
