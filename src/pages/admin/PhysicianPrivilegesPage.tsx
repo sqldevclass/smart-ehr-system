@@ -175,7 +175,7 @@ export default function PhysicianPrivilegesPage() {
       await supabase
         .from("physician_document_privileges")
         .delete()
-        .eq("physician_id", selectedId)
+        .eq("staff_role_id", selectedId)
         .eq("document_type_id", docTypeId);
     }
     queryClient.invalidateQueries({
