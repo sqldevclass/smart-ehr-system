@@ -276,7 +276,7 @@ function BlocksSection({
     queryKey: ["physician-blocks", selection.kind, selection.id],
     queryFn: async () => {
       let q = supabase.from("physician_schedule_blocks").select("*");
-      if (physicianId) q = q.eq("physician_id", physicianId);
+      if (physicianId) q = q.eq("staff_role_id", physicianId);
       else if (roomId) q = q.eq("room_id", roomId);
       const { data, error } = await q
         .or(`blocked_to.gte.${new Date().toISOString()},is_recurring.eq.true`)
