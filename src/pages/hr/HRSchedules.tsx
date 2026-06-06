@@ -481,7 +481,7 @@ function ScheduleDialog({
           const { data: existing } = await existQ;
           if (!existing || existing.length === 0) {
             blockRows.push({
-              physician_id: roomId ? null : physicianId,
+              staff_role_id: roomId ? null : physicianId,
               room_id: roomId || null,
               hospital_id: user!.hospitalId,
               is_recurring: true,
