@@ -37,12 +37,19 @@ export default function HRSchedules() {
     queryKey: ["hr-physicians", user?.hospitalId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("physicians")
-        .select("id, profiles!inner(full_name), specializations!specialization_id(name)")
+        .from("staff_roles")
+        .select("id, role_type, persons!inner(first_name, last_name), specializations!specialization_id(name)")
         .eq("hospital_id", user!.hospitalId)
+        .eq("role_type", "physician")
         .eq("is_active", true);
       if (error) throw error;
-      return data || [];
+      return (data || []).map((sr: any) => ({
+        id: sr.id,
+        profiles: {
+          full_name: `${sr.persons.last_name} ${sr.persons.first_name}`,
+        },
+        specializations: sr.specializations,
+      }));
     },
     enabled: !!user,
   });
