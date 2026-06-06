@@ -36,9 +36,10 @@ export default function PhysicianPrivilegesPage() {
     queryFn: async () => {
       if (!user) return [];
       const { data, error } = await supabase
-        .from("physicians")
-        .select("id, profiles!inner(full_name), specializations!specialization_id(name)")
+        .from("staff_roles")
+        .select("id, persons!inner(first_name, last_name), specializations!specialization_id(name)")
         .eq("hospital_id", user.hospitalId)
+        .eq("role_type", "physician")
         .eq("is_active", true);
       if (error) throw error;
       return (data || []) as unknown as Physician[];
