@@ -382,7 +382,9 @@ export default function NursePatientsList() {
                             {ra ? `${ra.rooms?.name} / ${ra.bed_number}` : "—"}
                           </td>
                           <td className="px-3 py-2 text-xs">
-                            {(h as any).physicians?.profiles?.full_name || "—"}
+                            {(h as any).staff_roles?.persons
+                              ? `${(h as any).staff_roles.persons.last_name} ${(h as any).staff_roles.persons.first_name}`
+                              : "—"}
                           </td>
                           <td className="px-3 py-2 text-center text-xs">
                             {v?.bp_systolic ? `${v.bp_systolic}/${v.bp_diastolic}` : "—"}
@@ -482,7 +484,9 @@ export default function NursePatientsList() {
                         {hasRoom ? `${ra.rooms?.name} / ${ra.bed_number}` : "—"}
                       </TableCell>
                       <TableCell className="text-sm">
-                        {(h as any).physicians?.profiles?.full_name || "—"}
+                        {(h as any).staff_roles?.persons
+                          ? `${(h as any).staff_roles.persons.last_name} ${(h as any).staff_roles.persons.first_name}`
+                          : "—"}
                       </TableCell>
                       <TableCell>
                         {assessmentMap[h.id]?.pendingCount > 0 ? (
