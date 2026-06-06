@@ -33,10 +33,10 @@ export default function RoomDetail({ roomId, onClose }: Props) {
           room_types!inner(id, name),
           departments!department_id(name),
           office_room_physicians(
-            physician_id,
-            physicians!inner(
+            staff_role_id,
+            staff_roles!inner(
               id,
-              profiles!inner(full_name),
+              persons!inner(first_name, last_name),
               specializations!specialization_id(name)
             )
           )
