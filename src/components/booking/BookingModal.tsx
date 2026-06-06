@@ -184,7 +184,7 @@ export function BookingModal(props: BookingModalProps) {
         p_hospital_id: hospitalId,
         p_created_by: user!.id,
         p_service_id: svc.id,
-        p_assigned_physician_id: physician!.id,
+        p_assigned_staff_role_id: physician!.id,
         p_cost_at_time: svc.costWithVat,
         p_registration_source: registrationSource || null,
       });
@@ -201,7 +201,7 @@ export function BookingModal(props: BookingModalProps) {
       p_hospital_id: hospitalId,
       p_ordered_by: user!.id,
       p_service_id: svc.id,
-      p_assigned_physician_id: physician!.id,
+      p_assigned_staff_role_id: physician!.id,
       p_cost_at_time: svc.costWithVat,
     });
     if (error) throw error;
@@ -222,7 +222,7 @@ export function BookingModal(props: BookingModalProps) {
         if (existingVisitServiceId) {
           const { error: updateErr } = await supabase
             .from("visit_services")
-            .update({ assigned_physician_id: physician.id })
+            .update({ assigned_staff_role_id: physician.id })
             .eq("id", existingVisitServiceId);
           if (updateErr) throw updateErr;
           visitServiceId = existingVisitServiceId;
@@ -247,7 +247,7 @@ export function BookingModal(props: BookingModalProps) {
           const { data: qData, error: qErr } = await supabase.rpc("assign_queue_number", {
             p_visit_service_id: visitServiceId,
             p_hospital_id: hospitalId,
-            p_physician_id: physician.id,
+            p_staff_role_id: physician.id,
           });
           if (qErr) throw qErr;
           const row = Array.isArray(qData) ? qData[0] : qData;

@@ -107,19 +107,19 @@ export function MultiCalendar(props: MultiCalendarProps) {
       const { data, error } = await supabase
         .from("physician_service_privileges")
         .select(
-          "physician_id, physicians!inner(id, is_active, profiles!inner(full_name), specializations!specialization_id(name), physician_schedules(schedule_type, valid_from, valid_to, days_of_week))"
+          "staff_role_id, staff_roles!inner(id, is_active, persons!inner(first_name, last_name), specializations!specialization_id(name), physician_schedules!staff_role_id(schedule_type, valid_from, valid_to, days_of_week))"
         )
         .eq("service_id", service.id)
         .eq("hospital_id", hospitalId);
       if (error) throw error;
       return (data || [])
-        .filter((r: any) => r.physicians?.is_active !== false)
+        .filter((r: any) => r.staff_roles?.is_active !== false)
         .map((r: any): PhysCol => ({
           kind: "physician",
-          id: r.physician_id,
-          fullName: r.physicians?.profiles?.full_name || "—",
-          specialization: r.physicians?.specializations?.name ?? null,
-          scheduleType: deriveScheduleType(r.physicians?.physician_schedules, date),
+          id: r.staff_role_id,
+          fullName: `${r.staff_roles?.persons?.last_name} ${r.staff_roles?.persons?.first_name}` || "—",
+          specialization: r.staff_roles?.specializations?.name ?? null,
+          scheduleType: deriveScheduleType(r.staff_roles?.physician_schedules, date),
         }));
     },
   });
@@ -168,7 +168,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
         .from("schedule_slots")
         .select("id, slot_datetime, booking_count, is_blocked, block_reason, physician_id")
         .eq("hospital_id", hospitalId)
-        .in("physician_id", physicianIds)
+        .in("staff_role_id", physicianIds)
         .gte("slot_datetime", bounds.start)
         .lte("slot_datetime", bounds.end)
         .order("slot_datetime");
@@ -208,7 +208,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
         .select("physician_id, queue_numbers(queue_number)")
         .eq("hospital_id", hospitalId)
         .eq("queue_date", dateStr)
-        .in("physician_id", queuePhysIds);
+        .in("staff_role_id", queuePhysIds);
       const map: Record<string, number> = {};
       (data || []).forEach((r: any) => {
         const numbers = (r.queue_numbers || []).map((q: any) => q.queue_number);
@@ -277,7 +277,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
       if (existingVisitServiceId) {
         const { error: updateErr } = await supabase
           .from("visit_services")
-          .update({ assigned_physician_id: isRoom ? null : (selected.col as PhysCol).id })
+          .update({ assigned_staff_role_id: isRoom ? null : (selected.col as PhysCol).id })
           .eq("id", existingVisitServiceId);
         if (updateErr) throw updateErr;
         visitServiceId = existingVisitServiceId;
@@ -287,7 +287,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
           p_hospital_id: hospitalId,
           p_created_by: user.id,
           p_service_id: service.id,
-          p_assigned_physician_id: isRoom ? null : (selected.col as PhysCol).id,
+          p_assigned_staff_role_id: isRoom ? null : (selected.col as PhysCol).id,
           p_cost_at_time: service.costWithVat,
           p_registration_source: null,
           ...(officeRoomId ? { p_assigned_room_id: officeRoomId } : {}),
@@ -304,7 +304,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
           p_hospital_id: hospitalId,
           p_ordered_by: user.id,
           p_service_id: service.id,
-          p_assigned_physician_id: isRoom ? null : (selected.col as PhysCol).id,
+          p_assigned_staff_role_id: isRoom ? null : (selected.col as PhysCol).id,
           p_cost_at_time: service.costWithVat,
         });
         if (error) throw error;
@@ -332,7 +332,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
         const { data: qData, error: qErr } = await supabase.rpc("assign_queue_number", {
           p_visit_service_id: visitServiceId,
           p_hospital_id: hospitalId,
-          p_physician_id: physCol.id,
+          p_staff_role_id: physCol.id,
         });
         if (qErr) throw qErr;
         const row = Array.isArray(qData) ? qData[0] : qData;

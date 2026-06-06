@@ -24,7 +24,7 @@ export function ServicePicker({ physicianId, hospitalId, preselectedServiceId, o
       const { data, error } = await supabase
         .from("physician_service_privileges")
         .select("service_id, services(id, name, cost_with_vat, service_types(name_en))")
-        .eq("physician_id", physicianId)
+        .eq("staff_role_id", physicianId)
         .eq("hospital_id", hospitalId);
       if (error) throw error;
       return (data || [])
