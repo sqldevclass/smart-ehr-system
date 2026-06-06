@@ -211,7 +211,7 @@ export default function NewVisitPage() {
         patient_id: selectedPatient.id,
         hospital_id: user.hospitalId,
         service_id: b.service.id,
-        assigned_physician_id: b.assignedPhysicianId,
+        assigned_staff_role_id: b.assignedPhysicianId,
         status_id: prelim.id,
         source: "registrar",
         cost_at_time: Number(b.service.cost_with_vat ?? b.service.cost ?? 0),
