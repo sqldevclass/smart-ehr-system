@@ -126,7 +126,7 @@ export default function RegisterPatientSheet({ open, onOpenChange, hospitalId, u
         insurance_policy_number: insurancePolicy.trim() || null,
         insurance_company: insuranceCompany.trim() || null,
         insurance_type: insuranceType.trim() || null,
-        primary_physician_id: primaryPhysicianId || null,
+        primary_staff_role_id: primaryPhysicianId || null,
         primary_department_id: primaryDepartmentId || null,
         emergency_contacts: emergencyContacts.length > 0 ? emergencyContacts : null,
         hospital_id: hospitalId,
