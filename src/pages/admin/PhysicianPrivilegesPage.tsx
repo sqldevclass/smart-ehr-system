@@ -139,7 +139,7 @@ export default function PhysicianPrivilegesPage() {
       const { data, error } = await supabase
         .from("physician_document_privileges")
         .select("*")
-        .eq("physician_id", selectedId);
+        .eq("staff_role_id", selectedId);
       if (error) throw error;
       return data || [];
     },
