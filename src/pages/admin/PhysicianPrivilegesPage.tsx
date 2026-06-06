@@ -302,7 +302,7 @@ export default function PhysicianPrivilegesPage() {
             <div className="space-y-4">
               <div>
                 <h2 className="text-lg font-semibold text-foreground">
-                  {selected.profiles?.full_name}
+                  {`${selected.persons?.last_name ?? ""} ${selected.persons?.first_name ?? ""}`.trim()}
                 </h2>
                 {selected.specializations?.name && (
                   <p className="text-sm text-muted-foreground">{selected.specializations.name}</p>
