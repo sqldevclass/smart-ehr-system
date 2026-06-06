@@ -108,12 +108,12 @@ export default function PhysicianPrivilegesPage() {
       const { error: delErr } = await supabase
         .from("physician_service_privileges")
         .delete()
-        .eq("physician_id", selectedId)
+        .eq("staff_role_id", selectedId)
         .eq("hospital_id", user.hospitalId);
       if (delErr) throw delErr;
 
       const rows = Array.from(checked).map((service_id) => ({
-        physician_id: selectedId,
+        staff_role_id: selectedId,
         service_id,
         hospital_id: user.hospitalId,
       }));
