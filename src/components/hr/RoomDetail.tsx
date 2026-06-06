@@ -263,14 +263,14 @@ export default function RoomDetail({ roomId, onClose }: Props) {
                 ) : (
                   <ul className="space-y-1">
                     {assignedPhysicians.map((orp: any) => (
-                      <li key={orp.physician_id} className="flex items-center justify-between rounded-md border p-2">
+                      <li key={orp.staff_role_id} className="flex items-center justify-between rounded-md border p-2">
                         <span className="text-sm">
-                          {orp.physicians?.profiles?.full_name || "—"}
-                          {orp.physicians?.specializations?.name && (
-                            <span className="text-muted-foreground"> · {orp.physicians.specializations.name}</span>
+                          {orp.staff_roles?.persons ? `${orp.staff_roles.persons.last_name} ${orp.staff_roles.persons.first_name}` : "—"}
+                          {orp.staff_roles?.specializations?.name && (
+                            <span className="text-muted-foreground"> · {orp.staff_roles.specializations.name}</span>
                           )}
                         </span>
-                        <Button size="sm" variant="outline" className="text-destructive gap-1" onClick={() => removePhysician(orp.physician_id)}>
+                        <Button size="sm" variant="outline" className="text-destructive gap-1" onClick={() => removePhysician(orp.staff_role_id)}>
                           <Minus className="h-3 w-3" />
                         </Button>
                       </li>
