@@ -89,7 +89,7 @@ export default function TemplatePanel({
       const { data: tmpl, error: tErr } = await supabase
         .from("physician_document_templates" as any)
         .insert({
-          physician_id: physicianId,
+          staff_role_id: physicianId,
           hospital_id: hospitalId,
           document_type_id: documentTypeId,
           name: templateName.trim(),
