@@ -133,7 +133,7 @@ export default function RoomDetail({ roomId, onClose }: Props) {
   const removePhysician = async (physicianId: string) => {
     const { error } = await supabase.from("office_room_physicians").delete()
       .eq("room_id", roomId)
-      .eq("physician_id", physicianId);
+      .eq("staff_role_id", physicianId);
     if (error) { toast.error(error.message); return; }
     toast.success("Врач удалён");
     refetchRoom();
