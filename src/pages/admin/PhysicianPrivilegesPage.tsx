@@ -237,12 +237,12 @@ export default function PhysicianPrivilegesPage() {
       const { error: delErr } = await supabase
         .from("office_room_physicians")
         .delete()
-        .eq("physician_id", selectedId)
+        .eq("staff_role_id", selectedId)
         .eq("hospital_id", user.hospitalId);
       if (delErr) throw delErr;
       const rows = Array.from(checkedRooms).map((room_id) => ({
         room_id,
-        physician_id: selectedId,
+        staff_role_id: selectedId,
         hospital_id: user.hospitalId,
       }));
       if (rows.length > 0) {
