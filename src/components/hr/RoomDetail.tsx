@@ -65,11 +65,12 @@ export default function RoomDetail({ roomId, onClose }: Props) {
     queryKey: ["hr-physicians-active", user?.hospitalId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("physicians")
-        .select("id, profiles!inner(full_name), specializations!specialization_id(name)")
+        .from("staff_roles")
+        .select("id, persons!inner(first_name, last_name), specializations!specialization_id(name)")
         .eq("hospital_id", user!.hospitalId)
+        .eq("role_type", "physician")
         .eq("is_active", true)
-        .order("profiles(full_name)");
+        .order("persons(last_name)");
       if (error) throw error;
       return data || [];
     },
