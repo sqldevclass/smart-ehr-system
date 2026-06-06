@@ -547,7 +547,7 @@ export default function PatientDetail() {
               p_patient_id:            patientId!,
               p_hospital_id:           user!.hospitalId,
               p_assigned_by:           user!.id,
-              p_assigned_physician_id: result.physicianId ?? null,
+              p_assigned_staff_role_id: result.physicianId ?? null,
               p_assigned_room_id:      result.officeRoomId ?? null,
             }
           );
