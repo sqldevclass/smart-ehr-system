@@ -168,7 +168,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
         .from("schedule_slots")
         .select("id, slot_datetime, booking_count, is_blocked, block_reason, physician_id")
         .eq("hospital_id", hospitalId)
-        .in("physician_id", physicianIds)
+        .in("staff_role_id", physicianIds)
         .gte("slot_datetime", bounds.start)
         .lte("slot_datetime", bounds.end)
         .order("slot_datetime");
