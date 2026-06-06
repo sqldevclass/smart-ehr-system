@@ -10,7 +10,7 @@ import { toast } from "sonner";
 
 interface Physician {
   id: string;
-  profiles: { full_name: string | null } | null;
+  persons: { first_name: string | null; last_name: string | null } | null;
   specializations: { name: string | null } | null;
 }
 
