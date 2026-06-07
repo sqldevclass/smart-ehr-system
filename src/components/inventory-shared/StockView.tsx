@@ -85,13 +85,11 @@ export default function StockView({ warehouseTypeCode, title }: Props) {
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
             <tr className="text-left">
-              <th className="p-3">Product</th>
-              <th className="p-3">Type</th>
-              <th className="p-3">Series</th>
-              <th className="p-3">Expiry</th>
-              <th className="p-3">Pkgs</th>
-              <th className="p-3">Units</th>
-              <th className="p-3">Selling Price</th>
+              <th className="p-3">Наименование</th>
+              <th className="p-3">Серия</th>
+              <th className="p-3">Годен до</th>
+              <th className="p-3">Количество</th>
+              <th className="p-3">Цена</th>
             </tr>
           </thead>
           <tbody>
@@ -104,18 +102,16 @@ export default function StockView({ warehouseTypeCode, title }: Props) {
                   !r._low && r._expiring && "bg-orange-500/15"
                 )}
               >
-                <td className="p-3">{r.products?.name}</td>
-                <td className="p-3">{r.products?.product_types?.code || "—"}</td>
+                <td className="p-3">{r._name || "—"}</td>
                 <td className="p-3">{r.series_number || "—"}</td>
                 <td className="p-3">{r.expiry_date || "—"}</td>
-                <td className="p-3">{r.quantity_packages}</td>
                 <td className="p-3">{r.quantity_units}</td>
                 <td className="p-3">{r.selling_price ?? "—"}</td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="p-6 text-center text-muted-foreground">
+                <td colSpan={5} className="p-6 text-center text-muted-foreground">
                   No items.
                 </td>
               </tr>
