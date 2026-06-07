@@ -12,6 +12,7 @@ import NurseMonitoringPanel from "@/components/nurse/NurseMonitoringPanel";
 import PatientDocumentSidebar from "@/components/documents/PatientDocumentSidebar";
 import FallingPersonIcon from "@/components/assessments/FallingPersonIcon";
 import { cn } from "@/lib/utils";
+import NurseDrugAcceptModal from "@/components/medication/NurseDrugAcceptModal";
 
 export default function NursePatientDetail() {
   const { hospId } = useParams<{ hospId: string }>();
