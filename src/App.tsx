@@ -20,6 +20,7 @@ import PhysiciansPage from "./pages/admin/PhysiciansPage.tsx";
 import RoomsPage from "./pages/admin/RoomsPage.tsx";
 import ServicesPage from "./pages/admin/ServicesPage.tsx";
 import PhysicianPrivilegesPage from "./pages/admin/PhysicianPrivilegesPage.tsx";
+import WarehousesPage from "./pages/admin/WarehousesPage.tsx";
 import RegistrarLayout from "./components/registrar/RegistrarLayout.tsx";
 import PatientsList from "./pages/registrar/PatientsList.tsx";
 import PatientDetail from "./pages/registrar/PatientDetail.tsx";
@@ -114,6 +115,7 @@ const App = () => (
             <Route path="services" element={<ServicesPage />} />
             <Route path="physicians" element={<PhysiciansPage />} />
             <Route path="rooms" element={<RoomsPage />} />
+            <Route path="warehouses" element={<WarehousesPage />} />
             <Route path="physician-privileges" element={<PhysicianPrivilegesPage />} />
             <Route path="audit" element={<AdminPlaceholder title="Audit Log" />} />
             <Route path="profile" element={<AdminProfile />} />
