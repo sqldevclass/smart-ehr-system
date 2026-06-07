@@ -139,9 +139,10 @@ export default function TransfersView({ warehouseTypeCode, title }: Props) {
         transfer_record_id: record!.id,
         hospital_id: user.hospitalId,
         inventory_batch_id: i.batchId,
-        product_id: i.productId,
-        quantity_packages: parseFloat(i.quantityPackages),
-        quantity_units: parseFloat(i.quantityUnits) || parseFloat(i.quantityPackages),
+        product_id: i.productId || null,
+        drug_formulary_id: i.drugFormularyId || null,
+        quantity_packages: 0,
+        quantity_units: parseFloat(i.quantityUnits),
       }));
       const { error: itemsErr } = await supabase
         .from("transfer_record_items")
