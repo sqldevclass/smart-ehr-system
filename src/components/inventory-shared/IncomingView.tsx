@@ -306,7 +306,9 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
               {recent.map((r: any) => (
                 <tr key={r.id} className="border-t">
                   <td className="p-3">{r.received_at ? format(new Date(r.received_at), "yyyy-MM-dd") : "—"}</td>
-                  <td className="p-3">{r.products?.name}</td>
+                  <td className="p-3">
+                    {r.drug_formulary?.trade_name || r.products?.name || "—"}
+                  </td>
                   <td className="p-3">{r.series_number || "—"}</td>
                   <td className="p-3">{r.expiry_date || "—"}</td>
                   <td className="p-3">{r.quantity_packages}</td>
