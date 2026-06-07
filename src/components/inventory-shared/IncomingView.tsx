@@ -29,7 +29,6 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
   const [productId, setProductId] = useState("");
   const [series, setSeries] = useState("");
   const [expiry, setExpiry] = useState("");
-  const [qtyPackages, setQtyPackages] = useState("");
   const [qtyUnits, setQtyUnits] = useState("");
   const [purchasePrice, setPurchasePrice] = useState("");
   const [markup, setMarkup] = useState("0");
