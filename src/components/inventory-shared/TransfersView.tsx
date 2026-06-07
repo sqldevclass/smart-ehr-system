@@ -73,9 +73,9 @@ export default function TransfersView({ warehouseTypeCode, title }: Props) {
     queryFn: async () => {
       const { data } = await supabase
         .from("inventory_batches")
-        .select("id, product_id, series_number, expiry_date, quantity_packages, quantity_units, products(name)")
+        .select("id, product_id, drug_formulary_id, series_number, expiry_date, quantity_units, products(name), drug_formulary(trade_name)")
         .eq("warehouse_id", warehouse!.id)
-        .gt("quantity_packages", 0)
+        .gt("quantity_units", 0)
         .order("expiry_date", { ascending: true, nullsFirst: false });
       return data || [];
     },
