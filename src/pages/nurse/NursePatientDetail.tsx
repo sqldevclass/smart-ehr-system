@@ -304,6 +304,9 @@ export default function NursePatientDetail() {
             </div>
           </div>
         </div>
+      )}
+
+
 
       {showDrugAccept && (hosp as any)?.department_id && (
         <NurseDrugAcceptModal
