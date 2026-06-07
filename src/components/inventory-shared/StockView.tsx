@@ -39,14 +39,21 @@ export default function StockView({ warehouseTypeCode, title }: Props) {
   const today = useMemo(() => new Date(), []);
 
   const rows = stock.map((r: any) => {
-    const product = r.products;
+    const isPharmacy = !!r.drug_formulary_id;
+    const name = isPharmacy
+      ? r.drug_formulary?.trade_name
+      : r.products?.name;
+    const notifyDays = isPharmacy
+      ? (r.drug_formulary?.expiry_notify_days ?? 30)
+      : (r.products?.expiry_notify_days ?? 30);
+    const minQty = isPharmacy
+      ? r.drug_formulary?.min_quantity
+      : r.products?.min_stock_quantity;
     const expiring =
       r.expiry_date &&
-      parseISO(r.expiry_date) <= addDays(today, product?.expiry_notify_days ?? 30);
-    const low =
-      product?.min_stock_quantity != null &&
-      r.quantity_packages <= product.min_stock_quantity;
-    return { ...r, _expiring: expiring, _low: low };
+      parseISO(r.expiry_date) <= addDays(today, notifyDays);
+    const low = minQty != null && r.quantity_units <= minQty;
+    return { ...r, _name: name, _expiring: expiring, _low: low };
   });
 
   const filtered = rows.filter((r) => {
