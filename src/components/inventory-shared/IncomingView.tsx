@@ -159,7 +159,7 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
       setProductId("");
       setSeries("");
       setExpiry("");
-      setQtyPackages("");
+      
       setQtyUnits("");
       setPurchasePrice("");
       setMarkup("0");
