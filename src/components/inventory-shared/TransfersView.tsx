@@ -225,10 +225,10 @@ export default function TransfersView({ warehouseTypeCode, title }: Props) {
                         size="sm"
                         variant="outline"
                         onClick={() =>
-                          setItems([
-                            ...items,
-                            { batchId: "", productId: "", quantityPackages: "", quantityUnits: "" },
-                          ])
+                            setItems([
+                              ...items,
+                              { batchId: "", productId: null, drugFormularyId: null, quantityUnits: "" },
+                            ])
                         }
                       >
                         <Plus className="h-4 w-4 mr-1" /> Add row
@@ -237,7 +237,7 @@ export default function TransfersView({ warehouseTypeCode, title }: Props) {
                     {items.map((item, idx) => (
                       <div
                         key={idx}
-                        className="grid grid-cols-[1fr_100px_100px_40px] gap-2 items-end"
+                        className="grid grid-cols-[1fr_120px_40px] gap-2 items-end"
                       >
                         <Select
                           value={item.batchId}
@@ -245,7 +245,8 @@ export default function TransfersView({ warehouseTypeCode, title }: Props) {
                             const batch = myBatches.find((b: any) => b.id === v) as any;
                             const next = [...items];
                             next[idx].batchId = v;
-                            next[idx].productId = batch?.product_id || "";
+                            next[idx].productId = batch?.product_id || null;
+                            next[idx].drugFormularyId = batch?.drug_formulary_id || null;
                             setItems(next);
                           }}
                         >
@@ -255,25 +256,14 @@ export default function TransfersView({ warehouseTypeCode, title }: Props) {
                           <SelectContent>
                             {myBatches.map((b: any) => (
                               <SelectItem key={b.id} value={b.id}>
-                                {b.products?.name} — {b.series_number || "—"} (
-                                {b.quantity_packages} pkg)
+                                {b.drug_formulary?.trade_name || b.products?.name || "—"} — {b.series_number || "—"} ({b.quantity_units} ед.)
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                         <Input
                           type="number"
-                          placeholder="Pkgs"
-                          value={item.quantityPackages}
-                          onChange={(e) => {
-                            const next = [...items];
-                            next[idx].quantityPackages = e.target.value;
-                            setItems(next);
-                          }}
-                        />
-                        <Input
-                          type="number"
-                          placeholder="Units"
+                          placeholder="Кол-во"
                           value={item.quantityUnits}
                           onChange={(e) => {
                             const next = [...items];
