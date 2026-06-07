@@ -157,7 +157,7 @@ BEGIN
   -- Link dept batch to prescription and update status
   UPDATE public.drug_prescriptions
   SET dept_batch_id = v_new_batch_id,
-      status_code   = 'ready_for_administering',
+      status_code   = 'ready_for_execution',
       status_changed_at = now(),
       status_changed_by = p_accepted_by
   WHERE id = p_prescription_id;
