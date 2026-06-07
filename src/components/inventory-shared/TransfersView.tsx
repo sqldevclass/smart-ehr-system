@@ -34,8 +34,8 @@ interface Props {
 
 interface LineItem {
   batchId: string;
-  productId: string;
-  quantityPackages: string;
+  productId: string | null;
+  drugFormularyId: string | null;
   quantityUnits: string;
 }
 
