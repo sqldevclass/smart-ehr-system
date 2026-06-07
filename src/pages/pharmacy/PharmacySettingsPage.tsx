@@ -55,7 +55,7 @@ export default function PharmacySettingsPage() {
             table="units_of_measurement"
             label="Единица измерения"
             hasAbbr
-            hasHospitalId
+            hasHospitalId={false}
           />
         </TabsContent>
         <TabsContent value="release_forms">
@@ -586,9 +586,9 @@ function FormularySection() {
     queryFn: async () => {
       const { data } = await supabase
         .from("units_of_measurement")
-        .select("id, name_ru")
-        .eq("hospital_id", user!.hospitalId)
-        .eq("is_active", true)
+        .select("id, name_ru, abbreviation")
+        .or(`hospital_id.is.null,hospital_id.eq.${user!.hospitalId}`)
+        .order("sort_order")
         .order("name_ru");
       return data || [];
     },
