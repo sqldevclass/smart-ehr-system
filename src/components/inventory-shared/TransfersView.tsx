@@ -34,8 +34,8 @@ interface Props {
 
 interface LineItem {
   batchId: string;
-  productId: string;
-  quantityPackages: string;
+  productId: string | null;
+  drugFormularyId: string | null;
   quantityUnits: string;
 }
 
@@ -48,7 +48,7 @@ export default function TransfersView({ warehouseTypeCode, title }: Props) {
   const [destId, setDestId] = useState("");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<LineItem[]>([
-    { batchId: "", productId: "", quantityPackages: "", quantityUnits: "" },
+    { batchId: "", productId: null, drugFormularyId: null, quantityUnits: "" },
   ]);
 
   // Destinations: department warehouses (department_id IS NOT NULL) or all other warehouses
@@ -73,9 +73,9 @@ export default function TransfersView({ warehouseTypeCode, title }: Props) {
     queryFn: async () => {
       const { data } = await supabase
         .from("inventory_batches")
-        .select("id, product_id, series_number, expiry_date, quantity_packages, quantity_units, products(name)")
+        .select("id, product_id, drug_formulary_id, series_number, expiry_date, quantity_units, products(name), drug_formulary(trade_name)")
         .eq("warehouse_id", warehouse!.id)
-        .gt("quantity_packages", 0)
+        .gt("quantity_units", 0)
         .order("expiry_date", { ascending: true, nullsFirst: false });
       return data || [];
     },
@@ -110,7 +110,7 @@ export default function TransfersView({ warehouseTypeCode, title }: Props) {
   const reset = () => {
     setDestId("");
     setNotes("");
-    setItems([{ batchId: "", productId: "", quantityPackages: "", quantityUnits: "" }]);
+    setItems([{ batchId: "", productId: null, drugFormularyId: null, quantityUnits: "" }]);
   };
 
   const sendMutation = useMutation({
@@ -118,7 +118,7 @@ export default function TransfersView({ warehouseTypeCode, title }: Props) {
       if (!warehouse || !user) throw new Error("Warehouse missing");
       if (!destId) throw new Error("Pick destination");
       const cleanItems = items.filter(
-        (i) => i.batchId && i.productId && parseFloat(i.quantityPackages) > 0
+        (i) => i.batchId && parseFloat(i.quantityUnits) > 0
       );
       if (cleanItems.length === 0) throw new Error("Add at least one item");
 
@@ -139,9 +139,10 @@ export default function TransfersView({ warehouseTypeCode, title }: Props) {
         transfer_record_id: record!.id,
         hospital_id: user.hospitalId,
         inventory_batch_id: i.batchId,
-        product_id: i.productId,
-        quantity_packages: parseFloat(i.quantityPackages),
-        quantity_units: parseFloat(i.quantityUnits) || parseFloat(i.quantityPackages),
+        product_id: i.productId || null,
+        drug_formulary_id: i.drugFormularyId || null,
+        quantity_packages: 0,
+        quantity_units: parseFloat(i.quantityUnits),
       }));
       const { error: itemsErr } = await supabase
         .from("transfer_record_items")
@@ -224,10 +225,10 @@ export default function TransfersView({ warehouseTypeCode, title }: Props) {
                         size="sm"
                         variant="outline"
                         onClick={() =>
-                          setItems([
-                            ...items,
-                            { batchId: "", productId: "", quantityPackages: "", quantityUnits: "" },
-                          ])
+                            setItems([
+                              ...items,
+                              { batchId: "", productId: null, drugFormularyId: null, quantityUnits: "" },
+                            ])
                         }
                       >
                         <Plus className="h-4 w-4 mr-1" /> Add row
@@ -236,7 +237,7 @@ export default function TransfersView({ warehouseTypeCode, title }: Props) {
                     {items.map((item, idx) => (
                       <div
                         key={idx}
-                        className="grid grid-cols-[1fr_100px_100px_40px] gap-2 items-end"
+                        className="grid grid-cols-[1fr_120px_40px] gap-2 items-end"
                       >
                         <Select
                           value={item.batchId}
@@ -244,7 +245,8 @@ export default function TransfersView({ warehouseTypeCode, title }: Props) {
                             const batch = myBatches.find((b: any) => b.id === v) as any;
                             const next = [...items];
                             next[idx].batchId = v;
-                            next[idx].productId = batch?.product_id || "";
+                            next[idx].productId = batch?.product_id || null;
+                            next[idx].drugFormularyId = batch?.drug_formulary_id || null;
                             setItems(next);
                           }}
                         >
@@ -254,25 +256,14 @@ export default function TransfersView({ warehouseTypeCode, title }: Props) {
                           <SelectContent>
                             {myBatches.map((b: any) => (
                               <SelectItem key={b.id} value={b.id}>
-                                {b.products?.name} — {b.series_number || "—"} (
-                                {b.quantity_packages} pkg)
+                                {b.drug_formulary?.trade_name || b.products?.name || "—"} — {b.series_number || "—"} ({b.quantity_units} ед.)
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                         <Input
                           type="number"
-                          placeholder="Pkgs"
-                          value={item.quantityPackages}
-                          onChange={(e) => {
-                            const next = [...items];
-                            next[idx].quantityPackages = e.target.value;
-                            setItems(next);
-                          }}
-                        />
-                        <Input
-                          type="number"
-                          placeholder="Units"
+                          placeholder="Кол-во"
                           value={item.quantityUnits}
                           onChange={(e) => {
                             const next = [...items];

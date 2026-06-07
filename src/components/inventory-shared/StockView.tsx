@@ -26,11 +26,11 @@ export default function StockView({ warehouseTypeCode, title }: Props) {
       const { data } = await supabase
         .from("inventory_batches")
         .select(
-          "id, product_id, series_number, expiry_date, quantity_packages, quantity_units, selling_price, products(name, min_stock_quantity, expiry_notify_days, product_types(code))"
+          "id, product_id, drug_formulary_id, series_number, expiry_date, quantity_packages, quantity_units, selling_price, products(name, min_stock_quantity, expiry_notify_days), drug_formulary(trade_name, min_quantity, expiry_notify_days)"
         )
         .eq("hospital_id", user!.hospitalId)
         .eq("warehouse_id", warehouse!.id)
-        .gt("quantity_packages", 0)
+        .gt("quantity_units", 0)
         .order("expiry_date", { ascending: true, nullsFirst: false });
       return data || [];
     },
@@ -39,14 +39,21 @@ export default function StockView({ warehouseTypeCode, title }: Props) {
   const today = useMemo(() => new Date(), []);
 
   const rows = stock.map((r: any) => {
-    const product = r.products;
+    const isPharmacy = !!r.drug_formulary_id;
+    const name = isPharmacy
+      ? r.drug_formulary?.trade_name
+      : r.products?.name;
+    const notifyDays = isPharmacy
+      ? (r.drug_formulary?.expiry_notify_days ?? 30)
+      : (r.products?.expiry_notify_days ?? 30);
+    const minQty = isPharmacy
+      ? r.drug_formulary?.min_quantity
+      : r.products?.min_stock_quantity;
     const expiring =
       r.expiry_date &&
-      parseISO(r.expiry_date) <= addDays(today, product?.expiry_notify_days ?? 30);
-    const low =
-      product?.min_stock_quantity != null &&
-      r.quantity_packages <= product.min_stock_quantity;
-    return { ...r, _expiring: expiring, _low: low };
+      parseISO(r.expiry_date) <= addDays(today, notifyDays);
+    const low = minQty != null && r.quantity_units <= minQty;
+    return { ...r, _name: name, _expiring: expiring, _low: low };
   });
 
   const filtered = rows.filter((r) => {
@@ -78,13 +85,11 @@ export default function StockView({ warehouseTypeCode, title }: Props) {
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
             <tr className="text-left">
-              <th className="p-3">Product</th>
-              <th className="p-3">Type</th>
-              <th className="p-3">Series</th>
-              <th className="p-3">Expiry</th>
-              <th className="p-3">Pkgs</th>
-              <th className="p-3">Units</th>
-              <th className="p-3">Selling Price</th>
+              <th className="p-3">Наименование</th>
+              <th className="p-3">Серия</th>
+              <th className="p-3">Годен до</th>
+              <th className="p-3">Количество</th>
+              <th className="p-3">Цена</th>
             </tr>
           </thead>
           <tbody>
@@ -97,18 +102,16 @@ export default function StockView({ warehouseTypeCode, title }: Props) {
                   !r._low && r._expiring && "bg-orange-500/15"
                 )}
               >
-                <td className="p-3">{r.products?.name}</td>
-                <td className="p-3">{r.products?.product_types?.code || "—"}</td>
+                <td className="p-3">{r._name || "—"}</td>
                 <td className="p-3">{r.series_number || "—"}</td>
                 <td className="p-3">{r.expiry_date || "—"}</td>
-                <td className="p-3">{r.quantity_packages}</td>
                 <td className="p-3">{r.quantity_units}</td>
                 <td className="p-3">{r.selling_price ?? "—"}</td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="p-6 text-center text-muted-foreground">
+                <td colSpan={5} className="p-6 text-center text-muted-foreground">
                   No items.
                 </td>
               </tr>
