@@ -26,11 +26,11 @@ export default function StockView({ warehouseTypeCode, title }: Props) {
       const { data } = await supabase
         .from("inventory_batches")
         .select(
-          "id, product_id, series_number, expiry_date, quantity_packages, quantity_units, selling_price, products(name, min_stock_quantity, expiry_notify_days, product_types(code))"
+          "id, product_id, drug_formulary_id, series_number, expiry_date, quantity_packages, quantity_units, selling_price, products(name, min_stock_quantity, expiry_notify_days), drug_formulary(trade_name, min_quantity, expiry_notify_days)"
         )
         .eq("hospital_id", user!.hospitalId)
         .eq("warehouse_id", warehouse!.id)
-        .gt("quantity_packages", 0)
+        .gt("quantity_units", 0)
         .order("expiry_date", { ascending: true, nullsFirst: false });
       return data || [];
     },
