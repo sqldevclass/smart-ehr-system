@@ -479,7 +479,7 @@ export default function PrescriptionGrid({
                                       ?? `${p.dose}${p.dose_unit ?? ""}`}
                                   </span>
                                 </div>
-                                {viewerRole === "nurse" && !isReadOnly && (
+                                {viewerRole === "nurse" && !isReadOnly && p.status_code === "ready_for_execution" && (
                                   <div className="flex gap-1 mt-0.5">
                                     <button
                                       className="text-primary underline text-xs"
