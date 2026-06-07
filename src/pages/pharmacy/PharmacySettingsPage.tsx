@@ -495,6 +495,7 @@ interface DrugForm {
   release_form_id: string | null;
   manufacturer_id: string | null;
   dose: string;
+  unit_id: string | null;
   min_write_off_qty: string;
   min_quantity: string;
   shelf_life_days: string;
@@ -510,6 +511,7 @@ const emptyDrug: DrugForm = {
   release_form_id: null,
   manufacturer_id: null,
   dose: "",
+  unit_id: null,
   min_write_off_qty: "",
   min_quantity: "",
   shelf_life_days: "",
@@ -531,7 +533,7 @@ function FormularySection() {
       const { data } = await supabase
         .from("drug_formulary")
         .select(
-          "id, trade_name, inn, dose, is_active, packaging_id, release_form_id, manufacturer_id, min_write_off_qty, min_quantity, shelf_life_days, expiry_notify_days, notify_below_min_qty, release_forms(name_ru), manufacturers(name)"
+          "id, trade_name, inn, dose, unit_id, is_active, packaging_id, release_form_id, manufacturer_id, min_write_off_qty, min_quantity, shelf_life_days, expiry_notify_days, notify_below_min_qty, release_forms(name_ru), manufacturers(name), units_of_measurement(id, name_ru)"
         )
         .eq("hospital_id", user!.hospitalId)
         .order("trade_name");
@@ -574,6 +576,20 @@ function FormularySection() {
         .select("id, name")
         .eq("hospital_id", user!.hospitalId)
         .order("name");
+      return data || [];
+    },
+  });
+
+  const { data: units = [] } = useQuery({
+    queryKey: ["units_of_measurement", user?.hospitalId],
+    enabled: !!user?.hospitalId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("units_of_measurement")
+        .select("id, name_ru")
+        .eq("hospital_id", user!.hospitalId)
+        .eq("is_active", true)
+        .order("name_ru");
       return data || [];
     },
   });
