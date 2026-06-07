@@ -48,7 +48,7 @@ export default function TransfersView({ warehouseTypeCode, title }: Props) {
   const [destId, setDestId] = useState("");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<LineItem[]>([
-    { batchId: "", productId: "", quantityPackages: "", quantityUnits: "" },
+    { batchId: "", productId: null, drugFormularyId: null, quantityUnits: "" },
   ]);
 
   // Destinations: department warehouses (department_id IS NOT NULL) or all other warehouses
