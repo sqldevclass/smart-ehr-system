@@ -231,12 +231,12 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
           <Input type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} />
         </div>
         <div className="space-y-1.5">
-          <Label>Qty packages</Label>
+          <Label>Qty units</Label>
           <Input
             type="number"
             step="0.01"
-            value={qtyPackages}
-            onChange={(e) => setQtyPackages(e.target.value)}
+            value={qtyUnits}
+            onChange={(e) => setQtyUnits(e.target.value)}
           />
         </div>
         <div className="space-y-1.5">
