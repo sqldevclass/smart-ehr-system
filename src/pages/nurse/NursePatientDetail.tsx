@@ -21,6 +21,7 @@ export default function NursePatientDetail() {
   const { setPatientContext } = useNurseLayoutContext();
   const [showPrescriptions, setShowPrescriptions] = useState(false);
   const [showMedDocs, setShowMedDocs] = useState(false);
+  const [showDrugAccept, setShowDrugAccept] = useState(false);
   const [selectedDoc, setSelectedDoc] = useState<{ id: string; typeId: string } | null>(null);
 
   const { data: hosp, isLoading } = useQuery({
