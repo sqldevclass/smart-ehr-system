@@ -295,7 +295,7 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
                 <th className="p-3">Product</th>
                 <th className="p-3">Series</th>
                 <th className="p-3">Expiry</th>
-                <th className="p-3">Pkgs</th>
+                
                 <th className="p-3">Units</th>
                 <th className="p-3">Purchase</th>
                 <th className="p-3">Selling</th>
