@@ -606,6 +606,7 @@ function FormularySection() {
         release_form_id: form.release_form_id,
         manufacturer_id: form.manufacturer_id,
         dose: form.dose || null,
+        unit_id: form.unit_id || null,
         min_write_off_qty: numOrNull(form.min_write_off_qty),
         min_quantity: numOrNull(form.min_quantity),
         shelf_life_days: intOrNull(form.shelf_life_days),
@@ -641,6 +642,7 @@ function FormularySection() {
       release_form_id: d.release_form_id,
       manufacturer_id: d.manufacturer_id,
       dose: d.dose || "",
+      unit_id: d.unit_id ?? null,
       min_write_off_qty: d.min_write_off_qty?.toString() ?? "",
       min_quantity: d.min_quantity?.toString() ?? "",
       shelf_life_days: d.shelf_life_days?.toString() ?? "",
@@ -757,28 +759,53 @@ function FormularySection() {
                 <Input value={form.dose} onChange={(e) => setForm({ ...form, dose: e.target.value })} />
               </div>
               <div className="space-y-1.5">
+                <Label>Единица измерения</Label>
+                <Select
+                  value={form.unit_id ?? "none"}
+                  onValueChange={(v) =>
+                    setForm({ ...form, unit_id: v === "none" ? null : v })
+                  }
+                >
+                  <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">—</SelectItem>
+                    {units.map((u: any) => (
+                      <SelectItem key={u.id} value={u.id}>{u.name_ru}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
                 <Label>Минимальное списание</Label>
-                <Input
-                  type="number" step="0.001"
-                  value={form.min_write_off_qty}
-                  onChange={(e) => setForm({ ...form, min_write_off_qty: e.target.value })}
-                />
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number" step="0.001"
+                    value={form.min_write_off_qty}
+                    onChange={(e) =>
+                      setForm({ ...form, min_write_off_qty: e.target.value })
+                    }
+                    className="flex-1"
+                  />
+                  <span className="text-sm text-muted-foreground min-w-[60px]">
+                    {units.find((u: any) => u.id === form.unit_id)?.name_ru ?? ""}
+                  </span>
+                </div>
               </div>
               <div className="space-y-1.5">
                 <Label>Минимальное количество</Label>
-                <Input
-                  type="number" step="0.001"
-                  value={form.min_quantity}
-                  onChange={(e) => setForm({ ...form, min_quantity: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Срок, дней</Label>
-                <Input
-                  type="number"
-                  value={form.shelf_life_days}
-                  onChange={(e) => setForm({ ...form, shelf_life_days: e.target.value })}
-                />
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number" step="0.001"
+                    value={form.min_quantity}
+                    onChange={(e) =>
+                      setForm({ ...form, min_quantity: e.target.value })
+                    }
+                    className="flex-1"
+                  />
+                  <span className="text-sm text-muted-foreground min-w-[60px]">
+                    {releaseForms.find((r: any) => r.id === form.release_form_id)?.name_ru ?? ""}
+                  </span>
+                </div>
               </div>
               <div className="space-y-1.5">
                 <Label>Уведомить о сроке за (дней)</Label>
