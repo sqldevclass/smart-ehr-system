@@ -83,7 +83,7 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
       const { data } = await supabase
         .from("inventory_batches")
         .select(
-          "id, received_at, series_number, expiry_date, quantity_packages, quantity_units, purchase_price, selling_price, products(name), suppliers(name)"
+          "id, received_at, series_number, expiry_date, quantity_units, purchase_price, selling_price, products(name), drug_formulary(trade_name), suppliers(name)"
         )
         .eq("warehouse_id", warehouse!.id)
         .order("received_at", { ascending: false })
