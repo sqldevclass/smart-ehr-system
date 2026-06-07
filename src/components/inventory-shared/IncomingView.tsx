@@ -240,15 +240,6 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
           />
         </div>
         <div className="space-y-1.5">
-          <Label>Qty units</Label>
-          <Input
-            type="number"
-            step="0.01"
-            value={qtyUnits}
-            onChange={(e) => setQtyUnits(e.target.value)}
-          />
-        </div>
-        <div className="space-y-1.5">
           <Label>Purchase price</Label>
           <Input
             type="number"
