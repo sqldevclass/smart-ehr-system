@@ -12,6 +12,7 @@ import NurseMonitoringPanel from "@/components/nurse/NurseMonitoringPanel";
 import PatientDocumentSidebar from "@/components/documents/PatientDocumentSidebar";
 import FallingPersonIcon from "@/components/assessments/FallingPersonIcon";
 import { cn } from "@/lib/utils";
+import NurseDrugAcceptModal from "@/components/medication/NurseDrugAcceptModal";
 
 export default function NursePatientDetail() {
   const { hospId } = useParams<{ hospId: string }>();
@@ -20,6 +21,7 @@ export default function NursePatientDetail() {
   const { setPatientContext } = useNurseLayoutContext();
   const [showPrescriptions, setShowPrescriptions] = useState(false);
   const [showMedDocs, setShowMedDocs] = useState(false);
+  const [showDrugAccept, setShowDrugAccept] = useState(false);
   const [selectedDoc, setSelectedDoc] = useState<{ id: string; typeId: string } | null>(null);
 
   const { data: hosp, isLoading } = useQuery({
@@ -180,7 +182,7 @@ export default function NursePatientDetail() {
             variant="outline"
             size="sm"
             className="h-7 px-2 text-xs"
-            disabled
+            onClick={() => setShowDrugAccept(true)}
           >
             Приход / Списание
           </Button>
@@ -302,6 +304,16 @@ export default function NursePatientDetail() {
             </div>
           </div>
         </div>
+      )}
+
+
+
+      {showDrugAccept && (hosp as any)?.department_id && (
+        <NurseDrugAcceptModal
+          departmentId={(hosp as any).department_id}
+          hospitalId={user!.hospitalId}
+          onClose={() => setShowDrugAccept(false)}
+        />
       )}
     </div>
   );
