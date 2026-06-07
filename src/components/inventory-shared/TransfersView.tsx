@@ -118,7 +118,7 @@ export default function TransfersView({ warehouseTypeCode, title }: Props) {
       if (!warehouse || !user) throw new Error("Warehouse missing");
       if (!destId) throw new Error("Pick destination");
       const cleanItems = items.filter(
-        (i) => i.batchId && i.productId && parseFloat(i.quantityPackages) > 0
+        (i) => i.batchId && parseFloat(i.quantityUnits) > 0
       );
       if (cleanItems.length === 0) throw new Error("Add at least one item");
 
