@@ -182,7 +182,7 @@ export default function NursePatientDetail() {
             variant="outline"
             size="sm"
             className="h-7 px-2 text-xs"
-            disabled
+            onClick={() => setShowDrugAccept(true)}
           >
             Приход / Списание
           </Button>
