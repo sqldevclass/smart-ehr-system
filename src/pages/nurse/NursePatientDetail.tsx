@@ -304,6 +304,13 @@ export default function NursePatientDetail() {
             </div>
           </div>
         </div>
+
+      {showDrugAccept && (hosp as any)?.department_id && (
+        <NurseDrugAcceptModal
+          departmentId={(hosp as any).department_id}
+          hospitalId={user!.hospitalId}
+          onClose={() => setShowDrugAccept(false)}
+        />
       )}
     </div>
   );
