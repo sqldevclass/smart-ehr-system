@@ -110,7 +110,7 @@ export default function TransfersView({ warehouseTypeCode, title }: Props) {
   const reset = () => {
     setDestId("");
     setNotes("");
-    setItems([{ batchId: "", productId: "", quantityPackages: "", quantityUnits: "" }]);
+    setItems([{ batchId: "", productId: null, drugFormularyId: null, quantityUnits: "" }]);
   };
 
   const sendMutation = useMutation({
