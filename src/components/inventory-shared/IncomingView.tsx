@@ -311,7 +311,7 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
                   </td>
                   <td className="p-3">{r.series_number || "—"}</td>
                   <td className="p-3">{r.expiry_date || "—"}</td>
-                  <td className="p-3">{r.quantity_packages}</td>
+                  
                   <td className="p-3">{r.quantity_units}</td>
                   <td className="p-3">{r.purchase_price ?? "—"}</td>
                   <td className="p-3">{r.selling_price ?? "—"}</td>
