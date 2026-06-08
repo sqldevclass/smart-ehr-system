@@ -119,7 +119,7 @@ export default function MedicationTab({
         .from("physician_favorites")
         .select(`
           drug_formulary_id, use_count,
-          drug_formulary!drug_formulary_id(id, trade_name, inn, dose)
+          drug_formulary!drug_formulary_id(id, trade_name, inn, dose, unit_id, release_form_id, units_of_measurement!unit_id(abbreviation), release_forms!release_form_id(name_ru))
         `)
         .eq("physician_id", physicianId)
         .order("use_count", { ascending: false })
