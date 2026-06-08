@@ -734,6 +734,12 @@ export default function MedicationTab({
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {fav.drug_formulary?.inn} · {fav.drug_formulary?.dose}
+                  {fav.drug_formulary?.units_of_measurement?.abbreviation
+                    ? ` ${fav.drug_formulary.units_of_measurement.abbreviation}`
+                    : ""}
+                  {fav.drug_formulary?.release_forms?.name_ru
+                    ? ` · ${fav.drug_formulary.release_forms.name_ru}`
+                    : ""}
                 </p>
               </button>
             ))}
