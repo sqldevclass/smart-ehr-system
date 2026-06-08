@@ -547,10 +547,7 @@ export default function MedicationTab({
                                 ...prev.scheduleTimes,
                                 {
                                   time: t,
-                                  dose:
-                                    prev.dose && prev.doseUnit
-                                      ? `${prev.dose}${prev.doseUnit}`
-                                      : prev.dose ?? "",
+                                  dose: prev.dose ?? "",
                                 },
                               ].sort((a, b) => a.time.localeCompare(b.time)),
                             }));
