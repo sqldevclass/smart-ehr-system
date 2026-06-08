@@ -136,7 +136,7 @@ export default function PhysicianPatientDetail() {
     }
   };
 
-  const physicianName = physicians.find((p) => p.id === patient?.primary_physician_id)?.full_name || "—";
+  const physicianName = physicians.find((p) => p.id === patient?.primary_staff_role_id)?.full_name || "—";
   const departmentName = departments.find((d) => d.id === patient?.primary_department_id)?.name || "—";
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
