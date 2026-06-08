@@ -119,14 +119,24 @@ export default function InpatientToolbox({
   });
 
   const { data: physicianDept } = useQuery({
-    queryKey: ["toolbox-staff-role-dept", physicianId],
+    queryKey: ["toolbox-physician-dept", physicianId],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data: sr } = await supabase
         .from("staff_roles")
-        .select("department_id")
+        .select("person_id")
         .eq("id", physicianId)
         .maybeSingle();
-      return data?.department_id || null;
+
+      if (!sr?.person_id) return null;
+
+      const { data: emp } = await supabase
+        .from("employments")
+        .select("department_id")
+        .eq("person_id", sr.person_id)
+        .eq("employment_status", "active")
+        .maybeSingle();
+
+      return emp?.department_id || null;
     },
     enabled: !!physicianId,
   });

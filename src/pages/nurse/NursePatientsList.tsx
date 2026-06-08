@@ -57,15 +57,15 @@ export default function NursePatientsList() {
         .eq("id", user!.id)
         .maybeSingle();
       if (!(profile as any)?.person_id) return null;
-      const { data } = await supabase
-        .from("staff_roles")
+      const { data: emp } = await supabase
+        .from("employments")
         .select("department_id")
         .eq("person_id", (profile as any).person_id)
         .eq("hospital_id", user!.hospitalId)
-        .eq("is_active", true)
+        .eq("employment_status", "active")
         .not("department_id", "is", null)
         .maybeSingle();
-      return (data as any)?.department_id ?? null;
+      return (emp as any)?.department_id ?? null;
     },
   });
 
