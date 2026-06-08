@@ -787,7 +787,7 @@ function FormularySection() {
                     className="flex-1"
                   />
                   <span className="text-sm text-muted-foreground min-w-[60px]">
-                    {units.find((u: any) => u.id === form.unit_id)?.name_ru ?? ""}
+                    {releaseForms.find((r: any) => r.id === form.release_form_id)?.name_ru ?? ""}
                   </span>
                 </div>
               </div>
