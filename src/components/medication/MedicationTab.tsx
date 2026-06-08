@@ -563,21 +563,24 @@ export default function MedicationTab({
                         {t}
                       </button>
                       {selected && (
-                        <input
-                          type="text"
-                          value={selected.dose}
-                          onChange={(e) =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              scheduleTimes: prev.scheduleTimes.map((s) =>
-                                s.time === t ? { ...s, dose: e.target.value } : s,
-                              ),
-                            }))
-                          }
-                          className="w-14 text-xs border rounded px-1 py-0.5 text-center mt-0.5"
-                          placeholder="доза"
-                          onClick={(e) => e.stopPropagation()}
-                        />
+                        <div className="flex items-center gap-0.5 mt-0.5">
+                          <input
+                            type="text"
+                            value={selected.dose}
+                            onChange={(e) =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                scheduleTimes: prev.scheduleTimes.map((s) =>
+                                  s.time === t ? { ...s, dose: e.target.value } : s,
+                                ),
+                              }))
+                            }
+                            className="w-10 text-xs border rounded px-1 py-0.5 text-center"
+                            placeholder="доза"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <span className="text-xs text-muted-foreground">{formData.doseUnit}</span>
+                        </div>
                       )}
                     </div>
                   );
