@@ -27,6 +27,7 @@ import {
 import AssessmentIndicator from "@/components/assessments/AssessmentIndicator";
 import StatusToggle from "@/components/shared/StatusToggle";
 import { cn } from "@/lib/utils";
+import NurseInventoryModal from "@/components/medication/NurseInventoryModal";
 
 export default function NursePatientsList() {
   const { user } = useAuth();
@@ -44,6 +45,29 @@ export default function NursePatientsList() {
   const [roomBed, setRoomBed] = useState<RoomBedValue>({ roomId: "", bedNumber: null });
   const [submitting, setSubmitting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<"active" | "discharged">("active");
+  const [showInventory, setShowInventory] = useState(false);
+
+  const { data: nurseDept } = useQuery({
+    queryKey: ["nurse-own-dept", user?.id, user?.hospitalId],
+    enabled: !!user?.id && !!user?.hospitalId,
+    queryFn: async () => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("person_id")
+        .eq("id", user!.id)
+        .maybeSingle();
+      if (!(profile as any)?.person_id) return null;
+      const { data } = await supabase
+        .from("staff_roles")
+        .select("department_id")
+        .eq("person_id", (profile as any).person_id)
+        .eq("hospital_id", user!.hospitalId)
+        .eq("is_active", true)
+        .not("department_id", "is", null)
+        .maybeSingle();
+      return (data as any)?.department_id ?? null;
+    },
+  });
 
 
   const { data: departments = [] } = useQuery({
@@ -267,6 +291,13 @@ export default function NursePatientsList() {
         <div className="flex items-center justify-between gap-2">
           <StatusToggle value={statusFilter} onChange={setStatusFilter} />
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowInventory(true)}
+              disabled={!nurseDept}
+            >
+              Приход / Списание
+            </Button>
             <Switch
               id="tablet-toggle"
               checked={tabletMode}
@@ -580,6 +611,14 @@ export default function NursePatientsList() {
           </DialogContent>
         </Dialog>
       </CardContent>
+
+      {showInventory && nurseDept && (
+        <NurseInventoryModal
+          departmentId={nurseDept}
+          hospitalId={user!.hospitalId}
+          onClose={() => setShowInventory(false)}
+        />
+      )}
     </Card>
   );
 }
