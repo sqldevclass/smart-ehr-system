@@ -122,7 +122,7 @@ export default function NurseInventoryModal({
         .select(`
           id, dose, dose_unit, route, status_code, created_at,
           drug_formulary!drug_formulary_id(trade_name, inn),
-          hospitalizations!hospitalization_id(
+          hospitalizations!inner(
             id, department_id,
             patients!inner(id, first_name, last_name, patient_number)
           )
