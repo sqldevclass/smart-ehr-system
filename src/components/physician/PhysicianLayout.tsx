@@ -91,15 +91,24 @@ export default function PhysicianLayout() {
         .eq("id", user!.id)
         .maybeSingle();
       if (!profile?.person_id) return null;
-      const { data } = await supabase
+      const { data: staffRole } = await supabase
         .from("staff_roles")
-        .select("id, department_id")
+        .select("id")
         .eq("person_id", profile.person_id)
         .eq("hospital_id", user!.hospitalId)
         .eq("role_type", "physician")
         .eq("is_active", true)
         .maybeSingle();
-      return data;
+
+      const { data: employment } = await supabase
+        .from("employments")
+        .select("department_id")
+        .eq("person_id", profile.person_id)
+        .eq("hospital_id", user!.hospitalId)
+        .eq("employment_status", "active")
+        .maybeSingle();
+
+      return staffRole ? { id: staffRole.id, department_id: employment?.department_id ?? null } : null;
     },
   });
 
