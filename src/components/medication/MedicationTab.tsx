@@ -157,7 +157,7 @@ export default function MedicationTab({
     const t = setTimeout(async () => {
       const { data } = await supabase
         .from("drug_formulary")
-        .select("id, trade_name, inn, dose")
+        .select("id, trade_name, inn, dose, unit_id, release_form_id, units_of_measurement!unit_id(abbreviation), release_forms!release_form_id(name_ru)")
         .eq("hospital_id", hospitalId)
         .eq("is_active", true)
         .or(`trade_name.ilike.%${searchQuery}%,inn.ilike.%${searchQuery}%`)
