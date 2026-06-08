@@ -707,6 +707,12 @@ export default function MedicationTab({
               <p className="text-sm font-medium">{drug.trade_name}</p>
               <p className="text-xs text-muted-foreground">
                 {drug.inn} · {drug.dose}
+                {(drug as any).units_of_measurement?.abbreviation
+                  ? ` ${(drug as any).units_of_measurement.abbreviation}`
+                  : ""}
+                {(drug as any).release_forms?.name_ru
+                  ? ` · ${(drug as any).release_forms.name_ru}`
+                  : ""}
               </p>
             </button>
           ))}
