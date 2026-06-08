@@ -296,7 +296,7 @@ export default function NursePatientsList() {
               onClick={() => setShowInventory(true)}
               disabled={!nurseDept}
             >
-              Приход / Списание
+              Приход/Списание/Склад
             </Button>
             <Switch
               id="tablet-toggle"
