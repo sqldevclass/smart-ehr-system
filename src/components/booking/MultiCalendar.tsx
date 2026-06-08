@@ -166,14 +166,14 @@ export function MultiCalendar(props: MultiCalendarProps) {
       if (physicianIds.length === 0) return [];
       const { data, error } = await supabase
         .from("schedule_slots")
-        .select("id, slot_datetime, booking_count, is_blocked, block_reason, physician_id")
+        .select("id, slot_datetime, booking_count, is_blocked, block_reason, staff_role_id")
         .eq("hospital_id", hospitalId)
         .in("staff_role_id", physicianIds)
         .gte("slot_datetime", bounds.start)
         .lte("slot_datetime", bounds.end)
         .order("slot_datetime");
       if (error) throw error;
-      return (data || []) as (SlotRow & { physician_id: string })[];
+      return (data || []) as (SlotRow & { staff_role_id: string })[];
     },
     enabled: physicianIds.length > 0,
   });
@@ -205,14 +205,14 @@ export function MultiCalendar(props: MultiCalendarProps) {
       if (queuePhysIds.length === 0) return {} as Record<string, number>;
       const { data } = await supabase
         .from("queue_configs")
-        .select("physician_id, queue_numbers(queue_number)")
+        .select("staff_role_id, queue_numbers(queue_number)")
         .eq("hospital_id", hospitalId)
         .eq("queue_date", dateStr)
         .in("staff_role_id", queuePhysIds);
       const map: Record<string, number> = {};
       (data || []).forEach((r: any) => {
         const numbers = (r.queue_numbers || []).map((q: any) => q.queue_number);
-        map[r.physician_id] = numbers.length > 0 ? Math.max(...numbers) : 0;
+        if (r.staff_role_id) map[r.staff_role_id] = numbers.length > 0 ? Math.max(...numbers) : 0;
       });
       return map;
     },
@@ -247,11 +247,13 @@ export function MultiCalendar(props: MultiCalendarProps) {
   const roomQueueConfigs = roomQueueConfigsData ?? {};
 
   const slotsByPhysician = useMemo(() => {
-    const map = new Map<string, (SlotRow & { physician_id: string })[]>();
+    const map = new Map<string, (SlotRow & { staff_role_id: string })[]>();
     for (const s of slots) {
-      const arr = map.get(s.physician_id) || [];
-      arr.push(s);
-      map.set(s.physician_id, arr);
+      const key = (s as any).staff_role_id;
+      if (!key) continue;
+      const arr = map.get(key) || [];
+      arr.push(s as any);
+      map.set(key, arr);
     }
     return map;
   }, [slots]);
