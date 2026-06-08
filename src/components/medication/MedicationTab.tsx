@@ -119,7 +119,7 @@ export default function MedicationTab({
         .from("physician_favorites")
         .select(`
           drug_formulary_id, use_count,
-          drug_formulary!drug_formulary_id(id, trade_name, inn, dose)
+          drug_formulary!drug_formulary_id(id, trade_name, inn, dose, unit_id, release_form_id, units_of_measurement!unit_id(abbreviation), release_forms!release_form_id(name_ru))
         `)
         .eq("physician_id", physicianId)
         .order("use_count", { ascending: false })
@@ -157,7 +157,7 @@ export default function MedicationTab({
     const t = setTimeout(async () => {
       const { data } = await supabase
         .from("drug_formulary")
-        .select("id, trade_name, inn, dose")
+        .select("id, trade_name, inn, dose, unit_id, release_form_id, units_of_measurement!unit_id(abbreviation), release_forms!release_form_id(name_ru)")
         .eq("hospital_id", hospitalId)
         .eq("is_active", true)
         .or(`trade_name.ilike.%${searchQuery}%,inn.ilike.%${searchQuery}%`)
@@ -231,11 +231,14 @@ export default function MedicationTab({
       return;
     }
     const doseMatch = drug.dose?.match(/^([\d.]+)\s*(.*)$/);
+    const unitAbbr = (drug as any).units_of_measurement?.abbreviation
+      ?? doseMatch?.[2]
+      ?? "мг";
     setFormData({
       ...initialFormData,
       drug,
       dose: doseMatch?.[1] ?? "",
-      doseUnit: doseMatch?.[2] ?? "мг",
+      doseUnit: unitAbbr,
     });
     setShowForm(true);
   };
@@ -340,12 +343,9 @@ export default function MedicationTab({
                   placeholder="Доза"
                   className="w-20 h-8 text-sm"
                 />
-                <Input
-                  value={formData.doseUnit}
-                  onChange={(e) => setFormData((p) => ({ ...p, doseUnit: e.target.value }))}
-                  placeholder="мг"
-                  className="w-14 h-8 text-sm"
-                />
+                <span className="text-sm text-muted-foreground px-1 min-w-[32px]">
+                  {formData.doseUnit}
+                </span>
               </div>
               <div className="flex gap-1 shrink-0 flex-wrap">
                 {["regular", "prn", "antibiotic_prophylaxis"].map((t) => (
@@ -547,10 +547,7 @@ export default function MedicationTab({
                                 ...prev.scheduleTimes,
                                 {
                                   time: t,
-                                  dose:
-                                    prev.dose && prev.doseUnit
-                                      ? `${prev.dose}${prev.doseUnit}`
-                                      : prev.dose ?? "",
+                                  dose: prev.dose ?? "",
                                 },
                               ].sort((a, b) => a.time.localeCompare(b.time)),
                             }));
@@ -566,21 +563,24 @@ export default function MedicationTab({
                         {t}
                       </button>
                       {selected && (
-                        <input
-                          type="text"
-                          value={selected.dose}
-                          onChange={(e) =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              scheduleTimes: prev.scheduleTimes.map((s) =>
-                                s.time === t ? { ...s, dose: e.target.value } : s,
-                              ),
-                            }))
-                          }
-                          className="w-14 text-xs border rounded px-1 py-0.5 text-center mt-0.5"
-                          placeholder="доза"
-                          onClick={(e) => e.stopPropagation()}
-                        />
+                        <div className="flex items-center gap-0.5 mt-0.5">
+                          <input
+                            type="text"
+                            value={selected.dose}
+                            onChange={(e) =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                scheduleTimes: prev.scheduleTimes.map((s) =>
+                                  s.time === t ? { ...s, dose: e.target.value } : s,
+                                ),
+                              }))
+                            }
+                            className="w-10 text-xs border rounded px-1 py-0.5 text-center"
+                            placeholder="доза"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <span className="text-xs text-muted-foreground">{formData.doseUnit}</span>
+                        </div>
                       )}
                     </div>
                   );
@@ -707,6 +707,12 @@ export default function MedicationTab({
               <p className="text-sm font-medium">{drug.trade_name}</p>
               <p className="text-xs text-muted-foreground">
                 {drug.inn} · {drug.dose}
+                {(drug as any).units_of_measurement?.abbreviation
+                  ? ` ${(drug as any).units_of_measurement.abbreviation}`
+                  : ""}
+                {(drug as any).release_forms?.name_ru
+                  ? ` · ${(drug as any).release_forms.name_ru}`
+                  : ""}
               </p>
             </button>
           ))}
@@ -728,6 +734,12 @@ export default function MedicationTab({
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {fav.drug_formulary?.inn} · {fav.drug_formulary?.dose}
+                  {fav.drug_formulary?.units_of_measurement?.abbreviation
+                    ? ` ${fav.drug_formulary.units_of_measurement.abbreviation}`
+                    : ""}
+                  {fav.drug_formulary?.release_forms?.name_ru
+                    ? ` · ${fav.drug_formulary.release_forms.name_ru}`
+                    : ""}
                 </p>
               </button>
             ))}
