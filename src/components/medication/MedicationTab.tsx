@@ -231,11 +231,14 @@ export default function MedicationTab({
       return;
     }
     const doseMatch = drug.dose?.match(/^([\d.]+)\s*(.*)$/);
+    const unitAbbr = (drug as any).units_of_measurement?.abbreviation
+      ?? doseMatch?.[2]
+      ?? "мг";
     setFormData({
       ...initialFormData,
       drug,
       dose: doseMatch?.[1] ?? "",
-      doseUnit: doseMatch?.[2] ?? "мг",
+      doseUnit: unitAbbr,
     });
     setShowForm(true);
   };
