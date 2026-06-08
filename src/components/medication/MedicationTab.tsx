@@ -343,12 +343,9 @@ export default function MedicationTab({
                   placeholder="Доза"
                   className="w-20 h-8 text-sm"
                 />
-                <Input
-                  value={formData.doseUnit}
-                  onChange={(e) => setFormData((p) => ({ ...p, doseUnit: e.target.value }))}
-                  placeholder="мг"
-                  className="w-14 h-8 text-sm"
-                />
+                <span className="text-sm text-muted-foreground px-1 min-w-[32px]">
+                  {formData.doseUnit}
+                </span>
               </div>
               <div className="flex gap-1 shrink-0 flex-wrap">
                 {["regular", "prn", "antibiotic_prophylaxis"].map((t) => (
