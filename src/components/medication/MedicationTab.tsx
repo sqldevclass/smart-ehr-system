@@ -253,7 +253,7 @@ export default function MedicationTab({
   };
 
 
-  const handleAddDrug = (drug: any) => {
+  const handleAddDrug = async (drug: any) => {
     if (mixMode && formData.drug) {
       setFormData((prev) => ({
         ...prev,
@@ -267,11 +267,47 @@ export default function MedicationTab({
     const unitAbbr = (drug as any).units_of_measurement?.abbreviation
       ?? doseMatch?.[2]
       ?? "мг";
+
+    let prefill = {
+      route: initialFormData.route,
+      scheduleTimes: initialFormData.scheduleTimes,
+      durationDays: initialFormData.durationDays,
+      prescriptionType: initialFormData.prescriptionType,
+      foodRule: initialFormData.foodRule,
+      prnCondition: initialFormData.prnCondition,
+      notes: initialFormData.notes,
+    };
+
+    if (drug.id && physicianId) {
+      const { data: lastPres } = await supabase
+        .from("drug_prescriptions")
+        .select("route, schedule_times, duration_days, prescription_type, food_rule, prn_condition, notes")
+        .eq("drug_formulary_id", drug.id)
+        .eq("physician_id", physicianId)
+        .eq("is_patient_own_drug", false)
+        .neq("status_code", "cancelled")
+        .order("prescribed_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (lastPres) {
+        prefill = {
+          route: lastPres.route ?? initialFormData.route,
+          scheduleTimes: (lastPres.schedule_times as any) ?? initialFormData.scheduleTimes,
+          durationDays: lastPres.duration_days ?? initialFormData.durationDays,
+          prescriptionType: lastPres.prescription_type ?? initialFormData.prescriptionType,
+          foodRule: lastPres.food_rule ?? initialFormData.foodRule,
+          prnCondition: lastPres.prn_condition ?? initialFormData.prnCondition,
+          notes: lastPres.notes ?? initialFormData.notes,
+        };
+      }
+    }
+
     setFormData({
       ...initialFormData,
       drug,
       dose: doseMatch?.[1] ?? "",
       doseUnit: unitAbbr,
+      ...prefill,
     });
     setShowForm(true);
   };
