@@ -87,9 +87,41 @@ export default function MedicationTab({
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
   const [mixMode, setMixMode] = useState(false);
+  const [isOwnDrugMode, setIsOwnDrugMode] = useState(false);
+  const [ownDrugName, setOwnDrugName] = useState("");
+  const [ownDrugInn, setOwnDrugInn] = useState("");
+  const [ownDrugUnitId, setOwnDrugUnitId] = useState("");
 
   const [startDay, setStartDay] = useState(new Date());
   const formatStartDay = (d: Date) => format(d, "dd.MM.yyyy");
+
+  const { data: units = [] } = useQuery({
+    queryKey: ["units_of_measurement", hospitalId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("units_of_measurement")
+        .select("id, name_ru, abbreviation")
+        .or(`hospital_id.is.null,hospital_id.eq.${hospitalId}`)
+        .order("sort_order")
+        .order("name_ru");
+      return data || [];
+    },
+    enabled: !!hospitalId,
+  });
+
+  useEffect(() => {
+    if (isOwnDrugMode && ownDrugName && ownDrugInn && ownDrugUnitId) {
+      const unit = units.find((u: any) => u.id === ownDrugUnitId);
+      setFormData((prev) => ({
+        ...initialFormData,
+        drug: { id: null, trade_name: ownDrugName, inn: ownDrugInn } as any,
+        doseUnit: unit?.abbreviation ?? "",
+        dose: prev.dose,
+        scheduleTimes: prev.scheduleTimes,
+      }));
+      setShowForm(true);
+    }
+  }, [isOwnDrugMode, ownDrugName, ownDrugInn, ownDrugUnitId, units]);
 
   const { data: prescriptions = [] } = useQuery({
     queryKey: ["drug-prescriptions", hospitalizationId],
@@ -100,6 +132,7 @@ export default function MedicationTab({
           id, patient_id, dose, dose_unit, route, schedule_times, duration_days,
           food_rule, prescription_type, prn_condition, notes, is_drafted,
           status_code, prescribed_at, mix_with_drug_id, mix_dose,
+          is_patient_own_drug, custom_drug_name, custom_inn,
           drug_formulary!drug_formulary_id(id, trade_name, inn, dose),
           mix_drug:drug_formulary!mix_with_drug_id(id, trade_name, inn, dose),
           profiles!prescribed_by(full_name)
@@ -250,7 +283,11 @@ export default function MedicationTab({
       hospitalization_id: hospitalizationId,
       patient_id: patientId,
       physician_id: physicianId,
-      drug_formulary_id: formData.drug.id,
+      drug_formulary_id: isOwnDrugMode ? null : formData.drug!.id,
+      is_patient_own_drug: isOwnDrugMode,
+      custom_drug_name: isOwnDrugMode ? ownDrugName : null,
+      custom_inn: isOwnDrugMode ? ownDrugInn : null,
+      custom_dose_unit_id: isOwnDrugMode ? ownDrugUnitId : null,
       dose: formData.dose,
       dose_unit: formData.doseUnit,
       route: formData.route,
@@ -283,6 +320,10 @@ export default function MedicationTab({
     setShowForm(false);
     setFormData(initialFormData);
     setMixMode(false);
+    setIsOwnDrugMode(false);
+    setOwnDrugName("");
+    setOwnDrugInn("");
+    setOwnDrugUnitId("");
     invalidate();
   };
 
@@ -629,10 +670,14 @@ export default function MedicationTab({
 
             <Button
               size="sm"
-              disabled={!formData.dose || !formData.drug}
+              disabled={
+                !formData.dose ||
+                !formData.drug ||
+                (isOwnDrugMode && (!ownDrugName || !ownDrugInn || !ownDrugUnitId))
+              }
               onClick={handleSaveDraft}
             >
-              Добавить в список
+              {isOwnDrugMode ? "Назначить" : "Добавить в список"}
             </Button>
           </div>
         )}
@@ -690,65 +735,136 @@ export default function MedicationTab({
             Выберите препарат для смешивания
           </div>
         )}
-        <div className="space-y-2">
-          <Input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Поиск препарата..."
-            className="h-8 text-sm"
-          />
-          {searching && <p className="text-xs text-muted-foreground">Поиск...</p>}
-          {searchResults.map((drug) => (
-            <button
-              key={drug.id}
-              onClick={() => handleAddDrug(drug)}
-              className="w-full text-left p-2 rounded border hover:bg-muted/50 space-y-0.5"
-            >
-              <p className="text-sm font-medium">{drug.trade_name}</p>
-              <p className="text-xs text-muted-foreground">
-                {drug.inn} · {drug.dose}
-                {(drug as any).units_of_measurement?.abbreviation
-                  ? ` ${(drug as any).units_of_measurement.abbreviation}`
-                  : ""}
-                {(drug as any).release_forms?.name_ru
-                  ? ` · ${(drug as any).release_forms.name_ru}`
-                  : ""}
-              </p>
-            </button>
-          ))}
-        </div>
 
-        {!searchQuery && (
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Часто назначаемые
-            </p>
-            {favorites.map((fav: any) => (
+        {isOwnDrugMode ? (
+          <div className="space-y-3 p-3 border rounded-lg bg-muted/30">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Препарат пациента</span>
               <button
-                key={fav.drug_formulary_id}
-                onClick={() => handleAddDrug(fav.drug_formulary)}
-                className="w-full text-left p-2 rounded border hover:bg-muted/50 space-y-0.5"
+                className="text-xs text-muted-foreground hover:text-foreground"
+                onClick={() => {
+                  setIsOwnDrugMode(false);
+                  setOwnDrugName("");
+                  setOwnDrugInn("");
+                  setOwnDrugUnitId("");
+                  setShowForm(false);
+                  setFormData(initialFormData);
+                }}
               >
-                <p className="text-sm font-medium">
-                  {fav.drug_formulary?.trade_name}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {fav.drug_formulary?.inn} · {fav.drug_formulary?.dose}
-                  {fav.drug_formulary?.units_of_measurement?.abbreviation
-                    ? ` ${fav.drug_formulary.units_of_measurement.abbreviation}`
-                    : ""}
-                  {fav.drug_formulary?.release_forms?.name_ru
-                    ? ` · ${fav.drug_formulary.release_forms.name_ru}`
-                    : ""}
-                </p>
+                ✕
               </button>
-            ))}
-            {favorites.length === 0 && (
-              <p className="text-xs text-muted-foreground">
-                Нет часто назначаемых препаратов
-              </p>
-            )}
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Название препарата *</Label>
+              <Input
+                value={ownDrugName}
+                onChange={(e) => setOwnDrugName(e.target.value)}
+                placeholder="Название"
+                className="h-8 text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Действующее вещество (МНН) *</Label>
+              <Input
+                value={ownDrugInn}
+                onChange={(e) => setOwnDrugInn(e.target.value)}
+                placeholder="МНН"
+                className="h-8 text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Единица измерения *</Label>
+              <Select value={ownDrugUnitId} onValueChange={setOwnDrugUnitId}>
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue placeholder="Выберите единицу" />
+                </SelectTrigger>
+                <SelectContent>
+                  {units.map((u: any) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.name_ru} ({u.abbreviation})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
+        ) : (
+          <>
+            <div className="space-y-2">
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Поиск препарата..."
+                className="h-8 text-sm"
+              />
+              {searching && <p className="text-xs text-muted-foreground">Поиск...</p>}
+              {searchResults.map((drug) => (
+                <button
+                  key={drug.id}
+                  onClick={() => handleAddDrug(drug)}
+                  className="w-full text-left p-2 rounded border hover:bg-muted/50 space-y-0.5"
+                >
+                  <p className="text-sm font-medium">{drug.trade_name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {drug.inn} · {drug.dose}
+                    {(drug as any).units_of_measurement?.abbreviation
+                      ? ` ${(drug as any).units_of_measurement.abbreviation}`
+                      : ""}
+                    {(drug as any).release_forms?.name_ru
+                      ? ` · ${(drug as any).release_forms.name_ru}`
+                      : ""}
+                  </p>
+                </button>
+              ))}
+            </div>
+
+            {!searchQuery && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Часто назначаемые
+                  </p>
+                  <button
+                    className="text-xs text-primary underline hover:no-underline"
+                    onClick={() => {
+                      setIsOwnDrugMode(true);
+                      setOwnDrugName("");
+                      setOwnDrugInn("");
+                      setOwnDrugUnitId("");
+                      setFormData(initialFormData);
+                    }}
+                  >
+                    + Своё лекарство
+                  </button>
+                </div>
+                {favorites.map((fav: any) => (
+                  <button
+                    key={fav.drug_formulary_id}
+                    onClick={() => handleAddDrug(fav.drug_formulary)}
+                    className="w-full text-left p-2 rounded border hover:bg-muted/50 space-y-0.5"
+                  >
+                    <p className="text-sm font-medium">
+                      {fav.drug_formulary?.trade_name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {fav.drug_formulary?.inn} · {fav.drug_formulary?.dose}
+                      {fav.drug_formulary?.units_of_measurement?.abbreviation
+                        ? ` ${fav.drug_formulary.units_of_measurement.abbreviation}`
+                        : ""}
+                      {fav.drug_formulary?.release_forms?.name_ru
+                        ? ` · ${fav.drug_formulary.release_forms.name_ru}`
+                        : ""}
+                    </p>
+                  </button>
+                ))}
+                {favorites.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Нет часто назначаемых препаратов
+                  </p>
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
