@@ -18,6 +18,7 @@ interface Props {
   patientDateOfBirth?: string;
   patientGender?: string;
   fallRiskScaleCode?: string;
+  isReadOnly?: boolean;
 }
 
 const SEPSIS_SIGN_LABELS: Record<string, string> = {
