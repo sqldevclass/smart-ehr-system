@@ -476,7 +476,7 @@ export default function NurseMonitoringPanel({
       <div className="border-2 border-gray-200 rounded-lg p-4 space-y-3">
         <div className="flex items-center justify-between">
           <h4 className="text-sm font-semibold">Глюкоза крови</h4>
-          <Button size="sm" variant="outline" onClick={() => setShowGlucoseForm(true)}>
+          <Button size="sm" variant="outline" onClick={() => setShowGlucoseForm(true)} disabled={isReadOnly}>
             + Внести
           </Button>
         </div>
