@@ -320,6 +320,10 @@ export default function MedicationTab({
     setShowForm(false);
     setFormData(initialFormData);
     setMixMode(false);
+    setIsOwnDrugMode(false);
+    setOwnDrugName("");
+    setOwnDrugInn("");
+    setOwnDrugUnitId("");
     invalidate();
   };
 
