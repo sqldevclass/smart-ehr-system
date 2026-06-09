@@ -446,6 +446,7 @@ export default function NurseMonitoringPanel({
             size="sm"
             className="text-xs"
             onClick={() => setShowAddForm(!showAddForm)}
+            disabled={isReadOnly}
           >
             Добавить форму ▾
           </Button>
