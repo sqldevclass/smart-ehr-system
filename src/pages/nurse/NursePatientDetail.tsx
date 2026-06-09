@@ -301,6 +301,16 @@ export default function NursePatientDetail() {
         </div>
       )}
 
+      {showPatientCard && hospId && (
+        <PatientCardModal
+          hospitalizationId={hospId}
+          open={showPatientCard}
+          onOpenChange={setShowPatientCard}
+        />
+      )}
+
+
+
 
 
     </div>
