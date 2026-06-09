@@ -102,7 +102,7 @@ export default function NursePrescriptions({ hospitalizationId, hospitalId, isRe
         prescriptions={prescriptions}
         slots={allSlots}
         viewerRole="nurse"
-        isReadOnly={false}
+        isReadOnly={isReadOnly}
         hospitalId={hospitalId}
         hospitalizationId={hospitalizationId}
         onExtend={() => {}}
