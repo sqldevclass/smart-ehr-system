@@ -21,6 +21,7 @@ import DischargeDialog from "@/components/inpatient/DischargeDialog";
 import EWSSection from "@/components/ews/EWSSection";
 import MedicationTab from "@/components/medication/MedicationTab";
 import { usePhysicianLayoutContext } from "@/components/physician/PhysicianLayout";
+import PatientCardModal from "@/components/patient/PatientCardModal";
 
 type TabKey = "medication" | "imaging" | "lab" | "consultation" | "care" | "diagnosis" | "ews";
 
