@@ -959,7 +959,7 @@ export default function NurseMonitoringPanel({
               </div>
             </div>
           ) : (
-            <Button size="sm" variant="outline" onClick={() => setShowFluidForm(true)}>
+            <Button size="sm" variant="outline" onClick={() => setShowFluidForm(true)} disabled={isReadOnly}>
               + Добавить запись
             </Button>
           )}
