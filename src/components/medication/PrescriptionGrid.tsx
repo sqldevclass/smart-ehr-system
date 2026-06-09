@@ -458,14 +458,15 @@ export default function PrescriptionGrid({
                                   new Date(slot.administered_at),
                                   "HH:mm",
                                 )}{" "}
-                                {slot.dose_given}
+                                {slot.dose_given}{p.dose_unit ?? ""}
                               </div>
                             ) : slot.status === "skipped" ? (
                               <div className="text-gray-400 line-through text-xs">
                                 {format(new Date(slot.scheduled_at), "HH:mm")}
                                 {" · "}
                                 {slot.override_dose
-                                  ?? `${p.dose}${p.dose_unit ?? ""}`}
+                                  ? `${slot.override_dose}${p.dose_unit ?? ""}`
+                                  : `${p.dose}${p.dose_unit ?? ""}`}
                               </div>
                             ) : (
                               <div>
@@ -476,7 +477,8 @@ export default function PrescriptionGrid({
                                   )}
                                   <span className="text-muted-foreground ml-1">
                                     {slot.override_dose
-                                      ?? `${p.dose}${p.dose_unit ?? ""}`}
+                                      ? `${slot.override_dose}${p.dose_unit ?? ""}`
+                                      : `${p.dose}${p.dose_unit ?? ""}`}
                                   </span>
                                 </div>
                                 {viewerRole === "nurse" && !isReadOnly && p.status_code === "ready_for_execution" && (
