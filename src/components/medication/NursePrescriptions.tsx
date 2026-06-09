@@ -26,6 +26,7 @@ export default function NursePrescriptions({ hospitalizationId, hospitalId, isRe
           food_rule, prescription_type,
           prn_condition, notes, status_code,
           prescribed_at,
+          is_patient_own_drug, custom_drug_name, custom_inn,
           drug_formulary!drug_formulary_id(trade_name, inn),
           profiles!prescribed_by(full_name)
         `)
