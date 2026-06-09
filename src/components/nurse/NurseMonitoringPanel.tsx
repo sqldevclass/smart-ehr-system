@@ -940,7 +940,7 @@ export default function NurseMonitoringPanel({
               <div className="flex gap-2">
                 <Button
                   size="sm"
-                  disabled={!fluidCategory || !fluidVolume}
+                  disabled={!fluidCategory || !fluidVolume || isReadOnly}
                   onClick={handleAddFluidEntry}
                 >
                   Добавить
