@@ -1,6 +1,7 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import AssessmentSection from "./AssessmentSection";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   hospitalizationId: string;
@@ -15,9 +16,36 @@ export default function CpotSection({
   hospitalId,
   isReadOnly = false,
 }: Props) {
-  const [patientType, setPatientType] = useState<
-    "intubated" | "non_intubated" | null
-  >(null);
+  const qc = useQueryClient();
+
+  const { data: patientType = null } = useQuery({
+    queryKey: ["cpot-patient-type", hospitalizationId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("hospitalizations")
+        .select("cpot_patient_type")
+        .eq("id", hospitalizationId)
+        .maybeSingle();
+      return ((data as any)?.cpot_patient_type as "intubated" | "non_intubated") ?? null;
+    },
+    enabled: !!hospitalizationId,
+  });
+
+  const selectPatientType = async (type: "intubated" | "non_intubated") => {
+    await (supabase as any)
+      .from("hospitalizations")
+      .update({ cpot_patient_type: type })
+      .eq("id", hospitalizationId);
+    qc.invalidateQueries({ queryKey: ["cpot-patient-type", hospitalizationId] });
+  };
+
+  const clearPatientType = async () => {
+    await (supabase as any)
+      .from("hospitalizations")
+      .update({ cpot_patient_type: null })
+      .eq("id", hospitalizationId);
+    qc.invalidateQueries({ queryKey: ["cpot-patient-type", hospitalizationId] });
+  };
 
   return (
     <div className="border-2 border-gray-200 rounded-lg p-4 space-y-3">
@@ -29,8 +57,9 @@ export default function CpotSection({
             {patientType === "intubated" ? "Интубирован" : "Не интубирован"}
           </span>
           <button
-            onClick={() => setPatientType(null)}
-            className="text-xs text-primary underline"
+            onClick={clearPatientType}
+            disabled={isReadOnly}
+            className="text-xs text-primary underline disabled:opacity-50 disabled:no-underline"
           >
             Изменить
           </button>
@@ -50,6 +79,8 @@ export default function CpotSection({
               : ["ventilator_compliance"]
           }
         />
+      ) : isReadOnly ? (
+        <p className="text-sm text-muted-foreground">Нет данных</p>
       ) : (
         <div className="space-y-2">
           <p className="text-sm text-muted-foreground">
@@ -59,14 +90,14 @@ export default function CpotSection({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPatientType("intubated")}
+              onClick={() => selectPatientType("intubated")}
             >
               Интубирован (ИВЛ)
             </Button>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPatientType("non_intubated")}
+              onClick={() => selectPatientType("non_intubated")}
             >
               Не интубирован
             </Button>
