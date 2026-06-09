@@ -391,10 +391,15 @@ export default function PrescriptionGrid({
                       <td
                         key={di}
                         className={cn(
-                          "border p-1.5 min-w-24 align-top",
+                          "border p-1.5 min-w-24 align-top relative",
                           isToday ? "bg-blue-50/30" : "",
                         )}
                       >
+                        {p.is_patient_own_drug && (
+                          <span className="absolute top-1 right-1 text-xs bg-amber-100 text-amber-700 px-1 py-0 rounded-full font-medium leading-4">
+                            Своё
+                          </span>
+                        )}
                         {viewerRole === "physician" && !isReadOnly && (
                           <div className="flex items-center gap-1 mb-1">
                             <button
