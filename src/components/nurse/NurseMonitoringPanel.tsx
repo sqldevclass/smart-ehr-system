@@ -648,6 +648,7 @@ export default function NurseMonitoringPanel({
                       onChange={(e) => setPainLocation(e.target.value)}
                       placeholder="Укажите, где болит"
                       className="h-8 text-sm mt-1"
+                      disabled={isReadOnly}
                     />
                   </div>
                 </div>
