@@ -670,10 +670,14 @@ export default function MedicationTab({
 
             <Button
               size="sm"
-              disabled={!formData.dose || !formData.drug}
+              disabled={
+                !formData.dose ||
+                !formData.drug ||
+                (isOwnDrugMode && (!ownDrugName || !ownDrugInn || !ownDrugUnitId))
+              }
               onClick={handleSaveDraft}
             >
-              Добавить в список
+              {isOwnDrugMode ? "Назначить" : "Добавить в список"}
             </Button>
           </div>
         )}
