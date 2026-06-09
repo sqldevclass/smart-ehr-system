@@ -219,7 +219,7 @@ export default function NursePatientDetail() {
             hospitalId={user!.hospitalId}
             patientDateOfBirth={patient.date_of_birth}
             admittedAt={(hosp as any).admitted_at}
-            isReadOnly={false}
+            isReadOnly={!isOwnDept}
             viewerRole="nurse"
           />
         </div>
@@ -231,6 +231,7 @@ export default function NursePatientDetail() {
             patientDateOfBirth={patient.date_of_birth}
             patientGender={patient.gender}
             fallRiskScaleCode={fallRiskScaleCode ?? undefined}
+            isReadOnly={!isOwnDept}
           />
         </div>
       </div>
