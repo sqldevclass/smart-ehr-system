@@ -87,9 +87,41 @@ export default function MedicationTab({
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
   const [mixMode, setMixMode] = useState(false);
+  const [isOwnDrugMode, setIsOwnDrugMode] = useState(false);
+  const [ownDrugName, setOwnDrugName] = useState("");
+  const [ownDrugInn, setOwnDrugInn] = useState("");
+  const [ownDrugUnitId, setOwnDrugUnitId] = useState("");
 
   const [startDay, setStartDay] = useState(new Date());
   const formatStartDay = (d: Date) => format(d, "dd.MM.yyyy");
+
+  const { data: units = [] } = useQuery({
+    queryKey: ["units_of_measurement", hospitalId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("units_of_measurement")
+        .select("id, name_ru, abbreviation")
+        .or(`hospital_id.is.null,hospital_id.eq.${hospitalId}`)
+        .order("sort_order")
+        .order("name_ru");
+      return data || [];
+    },
+    enabled: !!hospitalId,
+  });
+
+  useEffect(() => {
+    if (isOwnDrugMode && ownDrugName && ownDrugInn && ownDrugUnitId) {
+      const unit = units.find((u: any) => u.id === ownDrugUnitId);
+      setFormData((prev) => ({
+        ...initialFormData,
+        drug: { id: null, trade_name: ownDrugName, inn: ownDrugInn } as any,
+        doseUnit: unit?.abbreviation ?? "",
+        dose: prev.dose,
+        scheduleTimes: prev.scheduleTimes,
+      }));
+      setShowForm(true);
+    }
+  }, [isOwnDrugMode, ownDrugName, ownDrugInn, ownDrugUnitId, units]);
 
   const { data: prescriptions = [] } = useQuery({
     queryKey: ["drug-prescriptions", hospitalizationId],
