@@ -90,6 +90,7 @@ export default function NurseMonitoringPanel({
   patientDateOfBirth,
   patientGender,
   fallRiskScaleCode,
+  isReadOnly = false,
 }: Props) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
