@@ -599,6 +599,7 @@ export default function NurseMonitoringPanel({
                       className="h-8 text-sm mt-1 w-24"
                       placeholder="0–10"
                       autoFocus
+                      disabled={isReadOnly}
                     />
                   </div>
                   <div>
