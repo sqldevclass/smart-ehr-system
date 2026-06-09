@@ -735,65 +735,136 @@ export default function MedicationTab({
             Выберите препарат для смешивания
           </div>
         )}
-        <div className="space-y-2">
-          <Input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Поиск препарата..."
-            className="h-8 text-sm"
-          />
-          {searching && <p className="text-xs text-muted-foreground">Поиск...</p>}
-          {searchResults.map((drug) => (
-            <button
-              key={drug.id}
-              onClick={() => handleAddDrug(drug)}
-              className="w-full text-left p-2 rounded border hover:bg-muted/50 space-y-0.5"
-            >
-              <p className="text-sm font-medium">{drug.trade_name}</p>
-              <p className="text-xs text-muted-foreground">
-                {drug.inn} · {drug.dose}
-                {(drug as any).units_of_measurement?.abbreviation
-                  ? ` ${(drug as any).units_of_measurement.abbreviation}`
-                  : ""}
-                {(drug as any).release_forms?.name_ru
-                  ? ` · ${(drug as any).release_forms.name_ru}`
-                  : ""}
-              </p>
-            </button>
-          ))}
-        </div>
 
-        {!searchQuery && (
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Часто назначаемые
-            </p>
-            {favorites.map((fav: any) => (
+        {isOwnDrugMode ? (
+          <div className="space-y-3 p-3 border rounded-lg bg-muted/30">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Препарат пациента</span>
               <button
-                key={fav.drug_formulary_id}
-                onClick={() => handleAddDrug(fav.drug_formulary)}
-                className="w-full text-left p-2 rounded border hover:bg-muted/50 space-y-0.5"
+                className="text-xs text-muted-foreground hover:text-foreground"
+                onClick={() => {
+                  setIsOwnDrugMode(false);
+                  setOwnDrugName("");
+                  setOwnDrugInn("");
+                  setOwnDrugUnitId("");
+                  setShowForm(false);
+                  setFormData(initialFormData);
+                }}
               >
-                <p className="text-sm font-medium">
-                  {fav.drug_formulary?.trade_name}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {fav.drug_formulary?.inn} · {fav.drug_formulary?.dose}
-                  {fav.drug_formulary?.units_of_measurement?.abbreviation
-                    ? ` ${fav.drug_formulary.units_of_measurement.abbreviation}`
-                    : ""}
-                  {fav.drug_formulary?.release_forms?.name_ru
-                    ? ` · ${fav.drug_formulary.release_forms.name_ru}`
-                    : ""}
-                </p>
+                ✕
               </button>
-            ))}
-            {favorites.length === 0 && (
-              <p className="text-xs text-muted-foreground">
-                Нет часто назначаемых препаратов
-              </p>
-            )}
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Название препарата *</Label>
+              <Input
+                value={ownDrugName}
+                onChange={(e) => setOwnDrugName(e.target.value)}
+                placeholder="Название"
+                className="h-8 text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Действующее вещество (МНН) *</Label>
+              <Input
+                value={ownDrugInn}
+                onChange={(e) => setOwnDrugInn(e.target.value)}
+                placeholder="МНН"
+                className="h-8 text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Единица измерения *</Label>
+              <Select value={ownDrugUnitId} onValueChange={setOwnDrugUnitId}>
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue placeholder="Выберите единицу" />
+                </SelectTrigger>
+                <SelectContent>
+                  {units.map((u: any) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.name_ru} ({u.abbreviation})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
+        ) : (
+          <>
+            <div className="space-y-2">
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Поиск препарата..."
+                className="h-8 text-sm"
+              />
+              {searching && <p className="text-xs text-muted-foreground">Поиск...</p>}
+              {searchResults.map((drug) => (
+                <button
+                  key={drug.id}
+                  onClick={() => handleAddDrug(drug)}
+                  className="w-full text-left p-2 rounded border hover:bg-muted/50 space-y-0.5"
+                >
+                  <p className="text-sm font-medium">{drug.trade_name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {drug.inn} · {drug.dose}
+                    {(drug as any).units_of_measurement?.abbreviation
+                      ? ` ${(drug as any).units_of_measurement.abbreviation}`
+                      : ""}
+                    {(drug as any).release_forms?.name_ru
+                      ? ` · ${(drug as any).release_forms.name_ru}`
+                      : ""}
+                  </p>
+                </button>
+              ))}
+            </div>
+
+            {!searchQuery && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Часто назначаемые
+                  </p>
+                  <button
+                    className="text-xs text-primary underline hover:no-underline"
+                    onClick={() => {
+                      setIsOwnDrugMode(true);
+                      setOwnDrugName("");
+                      setOwnDrugInn("");
+                      setOwnDrugUnitId("");
+                      setFormData(initialFormData);
+                    }}
+                  >
+                    + Своё лекарство
+                  </button>
+                </div>
+                {favorites.map((fav: any) => (
+                  <button
+                    key={fav.drug_formulary_id}
+                    onClick={() => handleAddDrug(fav.drug_formulary)}
+                    className="w-full text-left p-2 rounded border hover:bg-muted/50 space-y-0.5"
+                  >
+                    <p className="text-sm font-medium">
+                      {fav.drug_formulary?.trade_name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {fav.drug_formulary?.inn} · {fav.drug_formulary?.dose}
+                      {fav.drug_formulary?.units_of_measurement?.abbreviation
+                        ? ` ${fav.drug_formulary.units_of_measurement.abbreviation}`
+                        : ""}
+                      {fav.drug_formulary?.release_forms?.name_ru
+                        ? ` · ${fav.drug_formulary.release_forms.name_ru}`
+                        : ""}
+                    </p>
+                  </button>
+                ))}
+                {favorites.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Нет часто назначаемых препаратов
+                  </p>
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
