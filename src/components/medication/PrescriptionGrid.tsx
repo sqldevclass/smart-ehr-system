@@ -316,11 +316,7 @@ export default function PrescriptionGrid({
                       {p.is_patient_own_drug
                         ? p.custom_drug_name
                         : p.drug_formulary?.trade_name ?? "—"}
-                      {p.is_patient_own_drug && (
-                        <span className="ml-1 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">
-                          Своё
-                        </span>
-                      )}{" "}
+                      {" "}
                       <span className="font-normal">
                         {p.dose}
                         {p.dose_unit}
