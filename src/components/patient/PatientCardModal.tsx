@@ -35,14 +35,14 @@ export default function PatientCardModal({ hospitalizationId, open, onOpenChange
         .select(`
           id, department_id, admitted_at, status,
           departments!department_id(id, name),
-          patients!inner(
+          patients!patient_id(
             id, first_name, last_name, middle_name,
             patient_number, date_of_birth, gender,
             blood_type, national_id, phone, email, address
           ),
           room_assignments(
             id, bed_number, assigned_at, discharged_at,
-            rooms!inner(id, name, departments!department_id(name))
+            rooms!room_id(id, name)
           )
         `)
         .eq("id", hospitalizationId)
