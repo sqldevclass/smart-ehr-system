@@ -580,7 +580,7 @@ export default function NurseMonitoringPanel({
                 ({painScaleType === "nrs" ? "NRS 0–10" : "Шкала лиц"})
               </span>
             </h4>
-            <Button size="sm" variant="outline" onClick={() => setShowPainForm(!showPainForm)}>
+            <Button size="sm" variant="outline" onClick={() => setShowPainForm(!showPainForm)} disabled={isReadOnly}>
               + Внести
             </Button>
           </div>
