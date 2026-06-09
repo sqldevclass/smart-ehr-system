@@ -8,9 +8,10 @@ interface Props {
   hospitalizationId: string;
   patientId: string;
   hospitalId: string;
+  isReadOnly?: boolean;
 }
 
-export default function NursePrescriptions({ hospitalizationId, hospitalId }: Props) {
+export default function NursePrescriptions({ hospitalizationId, hospitalId, isReadOnly = false }: Props) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -101,7 +102,7 @@ export default function NursePrescriptions({ hospitalizationId, hospitalId }: Pr
         prescriptions={prescriptions}
         slots={allSlots}
         viewerRole="nurse"
-        isReadOnly={false}
+        isReadOnly={isReadOnly}
         hospitalId={hospitalId}
         hospitalizationId={hospitalizationId}
         onExtend={() => {}}
