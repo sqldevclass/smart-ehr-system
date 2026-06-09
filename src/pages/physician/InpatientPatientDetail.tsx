@@ -571,6 +571,14 @@ export default function InpatientPatientDetail() {
           navigate("/physician/inpatient");
         }}
       />
+
+      {showPatientCard && hospitalizationId && (
+        <PatientCardModal
+          hospitalizationId={hospitalizationId}
+          open={showPatientCard}
+          onOpenChange={setShowPatientCard}
+        />
+      )}
     </div>
   );
 }
