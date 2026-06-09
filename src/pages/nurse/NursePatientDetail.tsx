@@ -81,6 +81,31 @@ export default function NursePatientDetail() {
     },
   });
 
+  const { data: nurseDept } = useQuery({
+    queryKey: ["nurse-own-dept", user?.id, user?.hospitalId],
+    enabled: !!user?.id && !!user?.hospitalId,
+    queryFn: async () => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("person_id")
+        .eq("id", user!.id)
+        .maybeSingle();
+      if (!profile?.person_id) return null;
+      const { data: emp } = await supabase
+        .from("employments")
+        .select("department_id")
+        .eq("person_id", profile.person_id)
+        .eq("hospital_id", user!.hospitalId)
+        .eq("employment_status", "active")
+        .maybeSingle();
+      return emp?.department_id ?? null;
+    },
+  });
+
+  const isOwnDept = !!nurseDept &&
+    !!(hosp as any)?.department_id &&
+    (hosp as any).department_id === nurseDept;
+
   const { data: medDocs = [] } = useQuery({
     queryKey: ["nurse-med-docs", hospId],
     enabled: !!hospId && !!user?.hospitalId && showMedDocs,
