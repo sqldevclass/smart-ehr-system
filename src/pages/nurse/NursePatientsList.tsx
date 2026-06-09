@@ -35,7 +35,6 @@ export default function NursePatientsList() {
   const {
     selectedDeptIds,
     nameSearch,
-    idSearch,
     tabletMode,
     setTabletMode,
   } = useNurseContext();
@@ -313,13 +312,10 @@ export default function NursePatientsList() {
           const filtered = hospitalizations.filter((h: any) => {
             const p = h.patients;
             const name = `${p?.last_name} ${p?.first_name}`.toLowerCase();
-            const matchName = nameSearch
-              ? name.includes(nameSearch.toLowerCase())
-              : true;
-            const matchId = idSearch
-              ? p?.patient_number?.toLowerCase().includes(idSearch.toLowerCase())
-              : true;
-            return matchName && matchId;
+            const q = nameSearch.toLowerCase();
+            const matchName = !nameSearch || name.includes(q);
+            const matchId = !nameSearch || (p?.patient_number?.toLowerCase().includes(q) ?? false);
+            return matchName || matchId;
           });
 
           if (isLoading) {

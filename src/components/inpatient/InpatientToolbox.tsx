@@ -24,15 +24,14 @@ interface Props {
 
 interface SearchProps {
   search: string;
-  type: "name" | "id";
   hospitalId: string;
   selectedDeptIds: string[];
   onSelect: (hospId: string) => void;
 }
 
-function SearchResultsDropdown({ search, type, hospitalId, selectedDeptIds, onSelect }: SearchProps) {
+function SearchResultsDropdown({ search, hospitalId, selectedDeptIds, onSelect }: SearchProps) {
   const { data: results = [] } = useQuery({
-    queryKey: ["inpatient-search", hospitalId, selectedDeptIds, search, type],
+    queryKey: ["inpatient-search", hospitalId, selectedDeptIds, search],
     queryFn: async () => {
       if (!selectedDeptIds.length) return [];
       const { data } = await supabase
@@ -46,10 +45,10 @@ function SearchResultsDropdown({ search, type, hospitalId, selectedDeptIds, onSe
       return (data || []).filter((h: any) => {
         const p = h.patients;
         if (!p) return false;
-        if (type === "name") {
-          return `${p.last_name} ${p.first_name}`.toLowerCase().includes(q);
-        }
-        return (p.patient_number || "").toLowerCase().includes(q);
+        return (
+          `${p.last_name} ${p.first_name}`.toLowerCase().includes(q) ||
+          (p.patient_number || "").toLowerCase().includes(q)
+        );
       });
     },
     enabled: search.length >= 2 && selectedDeptIds.length > 0,
@@ -91,8 +90,6 @@ export default function InpatientToolbox({
     setSelectedDeptIds,
     nameSearch,
     setNameSearch,
-    idSearch,
-    setIdSearch,
   } = useInpatientContext();
 
   const [deptOpen, setDeptOpen] = useState(false);

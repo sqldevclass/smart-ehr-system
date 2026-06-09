@@ -6,8 +6,6 @@ interface NurseContextValue {
   setSelectedDeptIds: (ids: string[] | ((prev: string[]) => string[])) => void;
   nameSearch: string;
   setNameSearch: (s: string) => void;
-  idSearch: string;
-  setIdSearch: (s: string) => void;
   tabletMode: boolean;
   setTabletMode: (v: boolean) => void;
 }
@@ -24,8 +22,6 @@ function NurseInner({ children }: { children: ReactNode }) {
         setSelectedDeptIds: inp.setSelectedDeptIds,
         nameSearch: inp.nameSearch,
         setNameSearch: inp.setNameSearch,
-        idSearch: inp.idSearch,
-        setIdSearch: inp.setIdSearch,
         tabletMode,
         setTabletMode,
       }}
