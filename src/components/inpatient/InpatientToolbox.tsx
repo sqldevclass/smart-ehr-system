@@ -257,51 +257,23 @@ export default function InpatientToolbox({
 
       <div className="relative">
         <Input
-          placeholder="Поиск по ФИО..."
+          placeholder="Поиск по ФИО или ID..."
           value={nameSearch}
           onChange={(e) => {
             setNameSearch(e.target.value);
-            setIdSearch("");
             setShowSearchResults(e.target.value.length >= 2);
           }}
-          className="w-44 h-8 text-sm"
+          className="w-52 h-8 text-sm"
         />
         {showSearchResults && nameSearch.length >= 2 && (
           <SearchResultsDropdown
             search={nameSearch}
-            type="name"
             hospitalId={hospitalId}
             selectedDeptIds={selectedDeptIds}
             onSelect={(hospId) => {
               navigate(`${detailPathPrefix}${hospId}`);
               setShowSearchResults(false);
               setNameSearch("");
-            }}
-          />
-        )}
-      </div>
-
-      <div className="relative">
-        <Input
-          placeholder="Поиск по ID..."
-          value={idSearch}
-          onChange={(e) => {
-            setIdSearch(e.target.value);
-            setNameSearch("");
-            setShowSearchResults(e.target.value.length >= 2);
-          }}
-          className="w-36 h-8 text-sm"
-        />
-        {showSearchResults && idSearch.length >= 2 && (
-          <SearchResultsDropdown
-            search={idSearch}
-            type="id"
-            hospitalId={hospitalId}
-            selectedDeptIds={selectedDeptIds}
-            onSelect={(hospId) => {
-              navigate(`${detailPathPrefix}${hospId}`);
-              setShowSearchResults(false);
-              setIdSearch("");
             }}
           />
         )}
