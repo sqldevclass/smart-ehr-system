@@ -33,7 +33,7 @@ export default function PatientCardModal({ hospitalizationId, open, onOpenChange
       const { data, error } = await supabase
         .from("hospitalizations")
         .select(`
-          id, department_id, admitted_at, status,
+          id, department_id, admitted_at,
           departments!department_id(id, name),
           patients!patient_id(
             id, first_name, last_name, middle_name,
