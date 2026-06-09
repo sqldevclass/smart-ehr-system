@@ -18,6 +18,7 @@ interface Props {
   patientDateOfBirth?: string;
   patientGender?: string;
   fallRiskScaleCode?: string;
+  isReadOnly?: boolean;
 }
 
 const SEPSIS_SIGN_LABELS: Record<string, string> = {
@@ -89,6 +90,7 @@ export default function NurseMonitoringPanel({
   patientDateOfBirth,
   patientGender,
   fallRiskScaleCode,
+  isReadOnly = false,
 }: Props) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -444,6 +446,7 @@ export default function NurseMonitoringPanel({
             size="sm"
             className="text-xs"
             onClick={() => setShowAddForm(!showAddForm)}
+            disabled={isReadOnly}
           >
             Добавить форму ▾
           </Button>
@@ -473,7 +476,7 @@ export default function NurseMonitoringPanel({
       <div className="border-2 border-gray-200 rounded-lg p-4 space-y-3">
         <div className="flex items-center justify-between">
           <h4 className="text-sm font-semibold">Глюкоза крови</h4>
-          <Button size="sm" variant="outline" onClick={() => setShowGlucoseForm(true)}>
+          <Button size="sm" variant="outline" onClick={() => setShowGlucoseForm(true)} disabled={isReadOnly}>
             + Внести
           </Button>
         </div>
@@ -490,9 +493,10 @@ export default function NurseMonitoringPanel({
                   className="h-8 text-sm mt-1"
                   placeholder="5.5"
                   autoFocus
+                  disabled={isReadOnly}
                 />
               </div>
-              <Button size="sm" disabled={!glucoseValue} onClick={handleSubmitGlucose}>
+              <Button size="sm" disabled={!glucoseValue || isReadOnly} onClick={handleSubmitGlucose}>
                 Сохранить
               </Button>
               <Button
@@ -576,7 +580,7 @@ export default function NurseMonitoringPanel({
                 ({painScaleType === "nrs" ? "NRS 0–10" : "Шкала лиц"})
               </span>
             </h4>
-            <Button size="sm" variant="outline" onClick={() => setShowPainForm(!showPainForm)}>
+            <Button size="sm" variant="outline" onClick={() => setShowPainForm(!showPainForm)} disabled={isReadOnly}>
               + Внести
             </Button>
           </div>
@@ -595,6 +599,7 @@ export default function NurseMonitoringPanel({
                       className="h-8 text-sm mt-1 w-24"
                       placeholder="0–10"
                       autoFocus
+                      disabled={isReadOnly}
                     />
                   </div>
                   <div>
@@ -643,6 +648,7 @@ export default function NurseMonitoringPanel({
                       onChange={(e) => setPainLocation(e.target.value)}
                       placeholder="Укажите, где болит"
                       className="h-8 text-sm mt-1"
+                      disabled={isReadOnly}
                     />
                   </div>
                 </div>
@@ -678,7 +684,7 @@ export default function NurseMonitoringPanel({
                 </div>
               )}
               <div className="flex gap-2 items-end">
-                <Button size="sm" disabled={!painScore} onClick={handleSubmitPain}>
+                <Button size="sm" disabled={!painScore || isReadOnly} onClick={handleSubmitPain}>
                   Сохранить
                 </Button>
                 <Button
@@ -930,13 +936,14 @@ export default function NurseMonitoringPanel({
                   onChange={(e) => setFluidVolume(e.target.value)}
                   placeholder="Объём"
                   className="h-8 text-sm w-28"
+                  disabled={isReadOnly}
                 />
                 <span className="text-sm text-muted-foreground">мл</span>
               </div>
               <div className="flex gap-2">
                 <Button
                   size="sm"
-                  disabled={!fluidCategory || !fluidVolume}
+                  disabled={!fluidCategory || !fluidVolume || isReadOnly}
                   onClick={handleAddFluidEntry}
                 >
                   Добавить
@@ -955,7 +962,7 @@ export default function NurseMonitoringPanel({
               </div>
             </div>
           ) : (
-            <Button size="sm" variant="outline" onClick={() => setShowFluidForm(true)}>
+            <Button size="sm" variant="outline" onClick={() => setShowFluidForm(true)} disabled={isReadOnly}>
               + Добавить запись
             </Button>
           )}

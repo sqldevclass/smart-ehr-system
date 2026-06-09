@@ -81,6 +81,31 @@ export default function NursePatientDetail() {
     },
   });
 
+  const { data: nurseDept } = useQuery({
+    queryKey: ["nurse-own-dept", user?.id, user?.hospitalId],
+    enabled: !!user?.id && !!user?.hospitalId,
+    queryFn: async () => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("person_id")
+        .eq("id", user!.id)
+        .maybeSingle();
+      if (!profile?.person_id) return null;
+      const { data: emp } = await supabase
+        .from("employments")
+        .select("department_id")
+        .eq("person_id", profile.person_id)
+        .eq("hospital_id", user!.hospitalId)
+        .eq("employment_status", "active")
+        .maybeSingle();
+      return emp?.department_id ?? null;
+    },
+  });
+
+  const isOwnDept = !!nurseDept &&
+    !!(hosp as any)?.department_id &&
+    (hosp as any).department_id === nurseDept;
+
   const { data: medDocs = [] } = useQuery({
     queryKey: ["nurse-med-docs", hospId],
     enabled: !!hospId && !!user?.hospitalId && showMedDocs,
@@ -158,6 +183,7 @@ export default function NursePatientDetail() {
           size="sm"
           className="h-7 px-2 text-xs"
           onClick={() => setShowPrescriptions(true)}
+          disabled={!isOwnDept}
         >
           Лист назначения
         </Button>
@@ -166,6 +192,7 @@ export default function NursePatientDetail() {
           variant="outline"
           className="h-7 px-2 text-xs"
           onClick={() => setShowMedDocs(true)}
+          disabled={!isOwnDept}
         >
           Мед. документы
         </Button>
@@ -192,7 +219,7 @@ export default function NursePatientDetail() {
             hospitalId={user!.hospitalId}
             patientDateOfBirth={patient.date_of_birth}
             admittedAt={(hosp as any).admitted_at}
-            isReadOnly={false}
+            isReadOnly={!isOwnDept}
             viewerRole="nurse"
           />
         </div>
@@ -204,6 +231,7 @@ export default function NursePatientDetail() {
             patientDateOfBirth={patient.date_of_birth}
             patientGender={patient.gender}
             fallRiskScaleCode={fallRiskScaleCode ?? undefined}
+            isReadOnly={!isOwnDept}
           />
         </div>
       </div>
@@ -295,6 +323,7 @@ export default function NursePatientDetail() {
                 patientId={patient.id}
                 hospitalId={user!.hospitalId}
                 userId={user!.id}
+                isReadOnly={!isOwnDept}
               />
             </div>
           </div>
