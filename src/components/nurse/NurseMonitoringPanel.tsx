@@ -749,6 +749,7 @@ export default function NurseMonitoringPanel({
         hospitalizationId={hospitalizationId}
         patientId={patientId}
         hospitalId={hospitalId}
+        isReadOnly={isReadOnly}
       />
 
       {/* Fall risk */}
@@ -758,7 +759,7 @@ export default function NurseMonitoringPanel({
           hospitalizationId={hospitalizationId}
           patientId={patientId}
           hospitalId={hospitalId}
-          isReadOnly={false}
+          isReadOnly={isReadOnly}
           patientDateOfBirth={patientDateOfBirth}
           patientGender={patientGender}
         />
@@ -778,6 +779,7 @@ export default function NurseMonitoringPanel({
             hospitalizationId={hospitalizationId}
             patientId={patientId}
             hospitalId={hospitalId}
+            isReadOnly={isReadOnly}
           />
         </div>
       )}
@@ -788,6 +790,7 @@ export default function NurseMonitoringPanel({
           hospitalizationId={hospitalizationId}
           patientId={patientId}
           hospitalId={hospitalId}
+          isReadOnly={isReadOnly}
         />
       )}
 
