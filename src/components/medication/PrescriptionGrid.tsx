@@ -311,7 +311,12 @@ export default function PrescriptionGrid({
                       {format(new Date(p.prescribed_at), "HH:mm")}
                     </div>
                   </td>
-                  <td className="border p-1.5 bg-white sticky left-[82px] z-10 min-w-48">
+                  <td className="border p-1.5 bg-white sticky left-[82px] z-10 min-w-48 relative">
+                    {p.is_patient_own_drug && (
+                      <span className="absolute top-1 right-1 text-xs bg-amber-100 text-amber-700 px-1.5 py-0 rounded-full font-medium">
+                        Своё
+                      </span>
+                    )}
                     <div className="font-medium">
                       {p.is_patient_own_drug
                         ? p.custom_drug_name
@@ -391,15 +396,10 @@ export default function PrescriptionGrid({
                       <td
                         key={di}
                         className={cn(
-                          "border p-1.5 min-w-24 align-top relative",
+                          "border p-1.5 min-w-24 align-top",
                           isToday ? "bg-blue-50/30" : "",
                         )}
                       >
-                        {p.is_patient_own_drug && (
-                          <span className="absolute top-1 right-1 text-xs bg-amber-100 text-amber-700 px-1 py-0 rounded-full font-medium leading-4">
-                            Своё
-                          </span>
-                        )}
                         {viewerRole === "physician" && !isReadOnly && (
                           <div className="flex items-center gap-1 mb-1">
                             <button
