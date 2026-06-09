@@ -936,6 +936,7 @@ export default function NurseMonitoringPanel({
                   onChange={(e) => setFluidVolume(e.target.value)}
                   placeholder="Объём"
                   className="h-8 text-sm w-28"
+                  disabled={isReadOnly}
                 />
                 <span className="text-sm text-muted-foreground">мл</span>
               </div>
