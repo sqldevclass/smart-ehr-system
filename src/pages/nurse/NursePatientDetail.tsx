@@ -283,6 +283,7 @@ export default function NursePatientDetail() {
                 hospitalizationId={hospId!}
                 patientId={patient.id}
                 hospitalId={user!.hospitalId}
+                isReadOnly={!isOwnDept}
               />
             </div>
           </div>
