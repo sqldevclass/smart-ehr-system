@@ -12,6 +12,7 @@ import NurseMonitoringPanel from "@/components/nurse/NurseMonitoringPanel";
 import PatientDocumentSidebar from "@/components/documents/PatientDocumentSidebar";
 import FallingPersonIcon from "@/components/assessments/FallingPersonIcon";
 import { cn } from "@/lib/utils";
+import PatientCardModal from "@/components/patient/PatientCardModal";
 
 
 export default function NursePatientDetail() {
@@ -21,6 +22,7 @@ export default function NursePatientDetail() {
   const { setPatientContext } = useNurseLayoutContext();
   const [showPrescriptions, setShowPrescriptions] = useState(false);
   const [showMedDocs, setShowMedDocs] = useState(false);
+  const [showPatientCard, setShowPatientCard] = useState(false);
   
   const [selectedDoc, setSelectedDoc] = useState<{ id: string; typeId: string } | null>(null);
 
@@ -115,9 +117,12 @@ export default function NursePatientDetail() {
     }
     setPatientContext(
       <div className="flex items-center gap-2 text-sm">
-        <span className="font-semibold">
+        <button
+          className="font-semibold hover:underline hover:text-primary transition-colors"
+          onClick={() => setShowPatientCard(true)}
+        >
           {patient.last_name} {patient.first_name}
-        </span>
+        </button>
         <span className="text-muted-foreground">
           ДР: {patient.date_of_birth ? format(new Date(patient.date_of_birth), "dd.MM.yyyy") : "—"}
         </span>
@@ -295,6 +300,16 @@ export default function NursePatientDetail() {
           </div>
         </div>
       )}
+
+      {showPatientCard && hospId && (
+        <PatientCardModal
+          hospitalizationId={hospId}
+          open={showPatientCard}
+          onOpenChange={setShowPatientCard}
+        />
+      )}
+
+
 
 
 
