@@ -493,9 +493,10 @@ export default function NurseMonitoringPanel({
                   className="h-8 text-sm mt-1"
                   placeholder="5.5"
                   autoFocus
+                  disabled={isReadOnly}
                 />
               </div>
-              <Button size="sm" disabled={!glucoseValue} onClick={handleSubmitGlucose}>
+              <Button size="sm" disabled={!glucoseValue || isReadOnly} onClick={handleSubmitGlucose}>
                 Сохранить
               </Button>
               <Button
