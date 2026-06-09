@@ -314,7 +314,7 @@ export default function MedicationTab({
 
   const handleSaveDraft = async () => {
     if (!formData.drug || !formData.dose) return;
-    const { error } = await supabase.from("drug_prescriptions").insert({
+    const payload = {
       hospital_id: hospitalId,
       hospitalization_id: hospitalizationId,
       patient_id: patientId,
@@ -328,7 +328,7 @@ export default function MedicationTab({
       dose_unit: formData.doseUnit,
       route: formData.route,
       schedule_times: formData.scheduleTimes,
-      duration_days: formData.durationDays,
+      duration_days: parseInt(String(formData.durationDays)) || 0,
       food_rule: formData.foodRule,
       mix_with_drug_id: formData.mixWithDrug?.id ?? null,
       mix_dose: formData.mixDose || null,
@@ -343,16 +343,56 @@ export default function MedicationTab({
         ]
           .filter(Boolean)
           .join(" | ") || null,
-      is_drafted: true,
-      status_code: "preliminary",
+      is_drafted: isOwnDrugMode ? false : true,
+      status_code: isOwnDrugMode ? "ready_for_execution" : "preliminary",
       prescribed_by: physicianId,
       prescribed_at: new Date().toISOString(),
       start_date: format(startDay, "yyyy-MM-dd"),
-    });
+    };
+    const { error } = await supabase.from("drug_prescriptions").insert(payload);
     if (error) {
       toast.error(error.message);
       return;
     }
+
+    if (isOwnDrugMode) {
+      const { data: newPres } = await supabase
+        .from("drug_prescriptions")
+        .select("id")
+        .eq("hospital_id", hospitalId)
+        .eq("hospitalization_id", hospitalizationId)
+        .eq("is_patient_own_drug", true)
+        .eq("status_code", "ready_for_execution")
+        .order("prescribed_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (newPres?.id && formData.scheduleTimes.length > 0 && formData.durationDays) {
+        const slots: any[] = [];
+        for (let day = 0; day < parseInt(String(formData.durationDays)); day++) {
+          for (const s of formData.scheduleTimes) {
+            const [hh, mm] = s.time.split(":");
+            const d = new Date(startDay);
+            d.setDate(d.getDate() + day);
+            d.setHours(parseInt(hh), parseInt(mm), 0, 0);
+            slots.push({
+              prescription_id: newPres.id,
+              hospital_id: hospitalId,
+              hospitalization_id: hospitalizationId,
+              patient_id: patientId,
+              scheduled_at: d.toISOString(),
+              status: "pending",
+              override_dose: s.dose || null,
+            });
+          }
+        }
+        if (slots.length > 0) {
+          await supabase.from("drug_administration_slots").insert(slots);
+        }
+      }
+      toast.success("Препарат пациента назначен");
+      invalidateSlots();
+    }
+
     setShowForm(false);
     setFormData(initialFormData);
     setMixMode(false);
