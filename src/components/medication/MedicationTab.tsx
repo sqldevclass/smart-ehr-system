@@ -132,6 +132,7 @@ export default function MedicationTab({
           id, patient_id, dose, dose_unit, route, schedule_times, duration_days,
           food_rule, prescription_type, prn_condition, notes, is_drafted,
           status_code, prescribed_at, mix_with_drug_id, mix_dose,
+          is_patient_own_drug, custom_drug_name, custom_inn,
           drug_formulary!drug_formulary_id(id, trade_name, inn, dose),
           mix_drug:drug_formulary!mix_with_drug_id(id, trade_name, inn, dose),
           profiles!prescribed_by(full_name)
