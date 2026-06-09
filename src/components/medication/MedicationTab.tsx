@@ -749,7 +749,8 @@ export default function MedicationTab({
               disabled={
                 !formData.dose ||
                 !formData.drug ||
-                (isOwnDrugMode && (!ownDrugName || !ownDrugInn || !ownDrugUnitId))
+                (isOwnDrugMode && (!ownDrugName || !ownDrugInn || !ownDrugUnitId)) ||
+                (!isOwnDrugMode && (!formData.durationDays || formData.scheduleTimes.length === 0))
               }
               onClick={handleSaveDraft}
             >
