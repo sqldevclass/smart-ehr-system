@@ -128,9 +128,12 @@ export default function InpatientPatientDetail() {
     if (hosp && patientForCtx) {
       setPatientContext(
         <div className="flex items-center gap-2 text-sm">
-          <span className="font-semibold">
+          <button
+            className="font-semibold hover:underline hover:text-primary transition-colors"
+            onClick={() => setShowPatientCard(true)}
+          >
             {patientForCtx.last_name} {patientForCtx.first_name}
-          </span>
+          </button>
           {patientForCtx.date_of_birth && (
             <span className="text-muted-foreground">
               ДР: {format(new Date(patientForCtx.date_of_birth), "dd.MM.yyyy")}
