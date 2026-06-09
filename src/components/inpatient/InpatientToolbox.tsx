@@ -24,15 +24,14 @@ interface Props {
 
 interface SearchProps {
   search: string;
-  type: "name" | "id";
   hospitalId: string;
   selectedDeptIds: string[];
   onSelect: (hospId: string) => void;
 }
 
-function SearchResultsDropdown({ search, type, hospitalId, selectedDeptIds, onSelect }: SearchProps) {
+function SearchResultsDropdown({ search, hospitalId, selectedDeptIds, onSelect }: SearchProps) {
   const { data: results = [] } = useQuery({
-    queryKey: ["inpatient-search", hospitalId, selectedDeptIds, search, type],
+    queryKey: ["inpatient-search", hospitalId, selectedDeptIds, search],
     queryFn: async () => {
       if (!selectedDeptIds.length) return [];
       const { data } = await supabase
@@ -46,10 +45,10 @@ function SearchResultsDropdown({ search, type, hospitalId, selectedDeptIds, onSe
       return (data || []).filter((h: any) => {
         const p = h.patients;
         if (!p) return false;
-        if (type === "name") {
-          return `${p.last_name} ${p.first_name}`.toLowerCase().includes(q);
-        }
-        return (p.patient_number || "").toLowerCase().includes(q);
+        return (
+          `${p.last_name} ${p.first_name}`.toLowerCase().includes(q) ||
+          (p.patient_number || "").toLowerCase().includes(q)
+        );
       });
     },
     enabled: search.length >= 2 && selectedDeptIds.length > 0,
@@ -91,8 +90,6 @@ export default function InpatientToolbox({
     setSelectedDeptIds,
     nameSearch,
     setNameSearch,
-    idSearch,
-    setIdSearch,
   } = useInpatientContext();
 
   const [deptOpen, setDeptOpen] = useState(false);
@@ -260,51 +257,23 @@ export default function InpatientToolbox({
 
       <div className="relative">
         <Input
-          placeholder="Поиск по ФИО..."
+          placeholder="Поиск по ФИО или ID..."
           value={nameSearch}
           onChange={(e) => {
             setNameSearch(e.target.value);
-            setIdSearch("");
             setShowSearchResults(e.target.value.length >= 2);
           }}
-          className="w-44 h-8 text-sm"
+          className="w-52 h-8 text-sm"
         />
         {showSearchResults && nameSearch.length >= 2 && (
           <SearchResultsDropdown
             search={nameSearch}
-            type="name"
             hospitalId={hospitalId}
             selectedDeptIds={selectedDeptIds}
             onSelect={(hospId) => {
               navigate(`${detailPathPrefix}${hospId}`);
               setShowSearchResults(false);
               setNameSearch("");
-            }}
-          />
-        )}
-      </div>
-
-      <div className="relative">
-        <Input
-          placeholder="Поиск по ID..."
-          value={idSearch}
-          onChange={(e) => {
-            setIdSearch(e.target.value);
-            setNameSearch("");
-            setShowSearchResults(e.target.value.length >= 2);
-          }}
-          className="w-36 h-8 text-sm"
-        />
-        {showSearchResults && idSearch.length >= 2 && (
-          <SearchResultsDropdown
-            search={idSearch}
-            type="id"
-            hospitalId={hospitalId}
-            selectedDeptIds={selectedDeptIds}
-            onSelect={(hospId) => {
-              navigate(`${detailPathPrefix}${hospId}`);
-              setShowSearchResults(false);
-              setIdSearch("");
             }}
           />
         )}

@@ -28,7 +28,7 @@ export default function InpatientPatientsList() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { selectedDeptIds, nameSearch, idSearch } = useInpatientContext();
+  const { selectedDeptIds, nameSearch } = useInpatientContext();
   const { physicianId: currentPhysicianId } = usePhysicianId();
 
   const { getStatus, scheduleMap } = useEWSSchedule(user?.hospitalId);
@@ -127,11 +127,10 @@ export default function InpatientPatientsList() {
   const filtered = hospitalizations.filter((h: any) => {
     const p = h.patients;
     const name = `${p.last_name} ${p.first_name}`.toLowerCase();
-    const matchName = nameSearch ? name.includes(nameSearch.toLowerCase()) : true;
-    const matchId = idSearch
-      ? p.patient_number?.toLowerCase().includes(idSearch.toLowerCase())
-      : true;
-    return matchName && matchId;
+    const q = nameSearch.toLowerCase();
+    const matchName = !nameSearch || name.includes(q);
+    const matchId = !nameSearch || (p.patient_number?.toLowerCase().includes(q));
+    return matchName || matchId;
   });
 
   return (
