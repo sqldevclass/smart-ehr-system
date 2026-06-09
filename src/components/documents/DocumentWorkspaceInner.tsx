@@ -271,6 +271,14 @@ export default function DocumentWorkspaceInner({
     return () => clearTimeout(timer);
   }, [values, isDirty, isReadOnly, ensureDocument, persistValues]);
 
+  // Create document immediately on mount for new docs
+  useEffect(() => {
+    if (!existingDocumentId && !isReadOnly) {
+      ensureDocument();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleConfirm = async () => {
     setIsConfirming(true);
     try {
