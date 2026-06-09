@@ -682,7 +682,7 @@ export default function NurseMonitoringPanel({
                 </div>
               )}
               <div className="flex gap-2 items-end">
-                <Button size="sm" disabled={!painScore} onClick={handleSubmitPain}>
+                <Button size="sm" disabled={!painScore || isReadOnly} onClick={handleSubmitPain}>
                   Сохранить
                 </Button>
                 <Button
