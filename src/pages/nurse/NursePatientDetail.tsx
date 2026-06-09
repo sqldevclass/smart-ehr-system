@@ -183,7 +183,6 @@ export default function NursePatientDetail() {
           size="sm"
           className="h-7 px-2 text-xs"
           onClick={() => setShowPrescriptions(true)}
-          disabled={!isOwnDept}
         >
           Лист назначения
         </Button>
@@ -192,7 +191,6 @@ export default function NursePatientDetail() {
           variant="outline"
           className="h-7 px-2 text-xs"
           onClick={() => setShowMedDocs(true)}
-          disabled={!isOwnDept}
         >
           Мед. документы
         </Button>
