@@ -6,6 +6,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -460,14 +466,29 @@ export default function PrescriptionGrid({
                         {daySlots.map((slot: any) => (
                           <div key={slot.id} className="mb-1">
                             {slot.status === "done" ? (
-                              <div className="text-green-700 text-xs">
-                                ✅{" "}
-                                {format(
-                                  new Date(slot.administered_at),
-                                  "HH:mm",
-                                )}{" "}
-                                {slot.dose_given}{p.dose_unit ?? ""}
-                              </div>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div className="text-green-700 text-xs cursor-default">
+                                      ✅{" "}
+                                      {format(new Date(slot.scheduled_at), "HH:mm")}{" "}
+                                      {slot.dose_given}{p.dose_unit ?? ""}
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top">
+                                    <p className="text-xs">
+                                      Выполнено в {slot.administered_at
+                                        ? format(new Date(slot.administered_at), "HH:mm dd.MM")
+                                        : "—"}
+                                    </p>
+                                    {slot.profiles?.full_name && (
+                                      <p className="text-xs text-muted-foreground">
+                                        {slot.profiles.full_name}
+                                      </p>
+                                    )}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
                             ) : slot.status === "skipped" ? (
                               <div className="text-gray-400 line-through text-xs">
                                 {format(new Date(slot.scheduled_at), "HH:mm")}
