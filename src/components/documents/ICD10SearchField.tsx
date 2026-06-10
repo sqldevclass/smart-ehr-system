@@ -8,10 +8,11 @@ interface Props {
   label: string;
   value: string;
   onChange: (val: string) => void;
+  onBlur?: () => void;
   isReadOnly: boolean;
 }
 
-export default function ICD10SearchField({ fieldId, value, onChange, isReadOnly }: Props) {
+export default function ICD10SearchField({ fieldId, value, onChange, onBlur, isReadOnly }: Props) {
   const [searchTerm, setSearchTerm] = useState<string>(() => value || "");
   const [isOpen, setIsOpen] = useState(false);
 
