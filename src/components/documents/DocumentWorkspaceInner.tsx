@@ -483,27 +483,18 @@ export default function DocumentWorkspaceInner({
                       : "—"}
                   </div>
                 )}
-                {s.code === "diagnosis" ? (() => {
-                  const mainDiagFieldId =
-                    s.fields.find((f: any) => f.def.attribute_code === "diag.main")?.def.id ?? null;
-                  return (
-                    <DiagnosisTab
-                      hospitalizationId={hospitalizationId}
-                      visitId={visitId}
-                      patientId={patientId}
-                      hospitalId={hospitalId}
-                      documentId={documentId}
-                      documentTypeId={documentTypeId}
-                      isReadOnly={isReadOnly}
-                      currentUserId={user!.id}
-                      mainDiagnosisFieldId={mainDiagFieldId}
-                      mainDiagnosisValue={mainDiagFieldId ? (values[mainDiagFieldId] ?? "") : ""}
-                      onMainDiagnosisChange={(val) => {
-                        if (mainDiagFieldId) setVal(mainDiagFieldId, val);
-                      }}
-                    />
-                  );
-                })() : (
+                {s.code === "diagnosis" ? (
+                  <DiagnosisTab
+                    hospitalizationId={hospitalizationId}
+                    visitId={visitId}
+                    patientId={patientId}
+                    hospitalId={hospitalId}
+                    documentId={documentId}
+                    documentTypeId={documentTypeId}
+                    isReadOnly={isReadOnly}
+                    currentUserId={user!.id}
+                  />
+                ) : (
                   <DocumentSection
                     section={s}
                     values={values}
