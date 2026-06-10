@@ -113,6 +113,7 @@ export default function DiagnosisTab({
     setAddSelected(null);
     setAddNote("");
     setAddType("main");
+    setPendingSelection(null);
   };
 
   const handleSaveNote = async (id: string, note: string) => {
