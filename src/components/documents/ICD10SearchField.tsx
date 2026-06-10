@@ -50,7 +50,7 @@ export default function ICD10SearchField({ fieldId, value, onChange, onBlur, isR
           if (!e.target.value) onChange("");
         }}
         onFocus={() => setIsOpen(true)}
-        onBlur={() => setTimeout(() => setIsOpen(false), 200)}
+        onBlur={() => { setTimeout(() => setIsOpen(false), 200); onBlur?.(); }}
         placeholder="Поиск по МКБ-10..."
       />
       {isOpen && results.length > 0 && (
