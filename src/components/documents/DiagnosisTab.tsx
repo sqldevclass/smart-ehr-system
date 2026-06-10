@@ -7,7 +7,6 @@ import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import ICD10SearchField from "./ICD10SearchField";
 
 interface Props {
   hospitalizationId?: string;
@@ -18,9 +17,6 @@ interface Props {
   documentTypeId: string;
   isReadOnly: boolean;
   currentUserId: string;
-  mainDiagnosisFieldId: string | null;
-  onMainDiagnosisChange: (value: string) => void;
-  mainDiagnosisValue: string;
 }
 
 const diagTypes = [
@@ -31,6 +27,14 @@ const diagTypes = [
   { value: "comorbid", label: "Сопутствующий" },
 ];
 
+const diagGroups = [
+  { type: "main", label: "Основной" },
+  { type: "competing", label: "Конкурирующий" },
+  { type: "complication", label: "Осложнение" },
+  { type: "comorbid", label: "Сопутствующий" },
+  { type: "background", label: "Фоновый" },
+];
+
 export default function DiagnosisTab({
   hospitalizationId,
   visitId,
@@ -38,8 +42,6 @@ export default function DiagnosisTab({
   hospitalId,
   isReadOnly,
   currentUserId,
-  mainDiagnosisValue,
-  onMainDiagnosisChange,
 }: Props) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [addSearch, setAddSearch] = useState("");
@@ -103,10 +105,6 @@ export default function DiagnosisTab({
       notes: addNote || null,
       recorded_by: currentUserId,
     });
-    if (addType === "main") {
-      const displayValue = `${addSelected.code} — ${addSelected.name_ru}`;
-      onMainDiagnosisChange(displayValue);
-    }
     refetchDiagnoses();
     setShowAddForm(false);
     setAddSearch("");
@@ -129,133 +127,22 @@ export default function DiagnosisTab({
 
   return (
     <div className="space-y-4">
-      <div>
-        <label className="text-sm font-medium">
-          Основной диагноз
-          <span className="text-red-500 ml-1">*</span>
-        </label>
-        {isReadOnly ? (
-          <div className="text-sm mt-1">{mainDiagnosisValue || "—"}</div>
-        ) : (
-          <ICD10SearchField
-            fieldId="main-diagnosis-field"
-            label=""
-            value={mainDiagnosisValue}
-            onChange={(val) => {
-              onMainDiagnosisChange(val);
-            }}
-            onBlur={() => {
-              const val = mainDiagnosisValue;
-              const code = val.split(" — ")[0];
-              const name = val.split(" — ")[1] || "";
-              if (code && name) {
-                supabase
-                  .from("patient_diagnoses")
-                  .upsert(
-                    {
-                      patient_id: patientId,
-                      hospital_id: hospitalId,
-                      hospitalization_id: hospitalizationId || null,
-                      visit_id: visitId || null,
-                      icd10_code: code,
-                      diagnosis_type: "main",
-                      recorded_by: currentUserId,
-                    },
-                    {
-                      onConflict:
-                        "patient_id,hospitalization_id,icd10_code,diagnosis_type",
-                    }
-                  )
-                  .then(() => refetchDiagnoses());
-              }
-            }}
-            isReadOnly={isReadOnly}
-          />
-        )}
-      </div>
-
-      <hr className="border-gray-200" />
-
-      <div className="space-y-2">
-        {diagnoses.map((d: any) => {
-          const canEdit = !isReadOnly && d.recorded_by === currentUserId;
-          const isEditing = editingNoteId === d.id;
-          const typeLabel =
-            diagTypes.find((t) => t.value === d.diagnosis_type)?.label ??
-            d.diagnosis_type;
-          return (
-            <div
-              key={d.id}
-              className="p-3 rounded-md border bg-card space-y-1"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    {typeLabel}
-                  </span>
-                  <div className="text-sm font-medium">
-                    {d.icd10_codes?.code || d.icd10_code}
-                    {" — "}
-                    {d.icd10_codes?.name_ru}
-                  </div>
-                </div>
-                {canEdit && (
-                  <button
-                    onClick={() => handleDelete(d.id)}
-                    className="text-muted-foreground hover:text-destructive text-xs shrink-0"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-              {isEditing ? (
-                <div className="flex gap-1 mt-1">
-                  <textarea
-                    value={editingNoteText}
-                    onChange={(e) => setEditingNoteText(e.target.value)}
-                    className="flex-1 text-sm border rounded px-2 py-1 resize-none"
-                    rows={2}
-                    autoFocus
-                  />
-                  <div className="flex flex-col gap-1">
-                    <button
-                      onClick={() => handleSaveNote(d.id, editingNoteText)}
-                      className="text-green-600 hover:text-green-700 text-lg"
-                    >
-                      ✓
-                    </button>
-                    <button
-                      onClick={() => setEditingNoteId(null)}
-                      className="text-red-500 hover:text-red-600 text-lg"
-                    >
-                      ✗
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div
-                  onClick={() => {
-                    if (!canEdit) return;
-                    setEditingNoteId(d.id);
-                    setEditingNoteText(d.notes || "");
-                  }}
-                  className={cn(
-                    "text-xs text-muted-foreground mt-1 min-h-[1.25rem]",
-                    canEdit && "cursor-pointer hover:bg-muted rounded px-1"
-                  )}
-                >
-                  {d.notes || (canEdit ? "Добавить заметку..." : "")}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
       {!isReadOnly && (
         <div>
           {showAddForm ? (
             <div className="border rounded-md p-3 space-y-3 bg-muted/30">
+              <Select value={addType} onValueChange={setAddType}>
+                <SelectTrigger className="text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {diagTypes.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <div className="relative">
                 <Input
                   placeholder="Поиск по МКБ-10..."
@@ -324,18 +211,6 @@ export default function DiagnosisTab({
                   </div>
                 )}
               </div>
-              <Select value={addType} onValueChange={setAddType}>
-                <SelectTrigger className="text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {diagTypes.map((t) => (
-                    <SelectItem key={t.value} value={t.value}>
-                      {t.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
               <textarea
                 placeholder="Заметка (необязательно)"
                 value={addNote}
@@ -376,6 +251,79 @@ export default function DiagnosisTab({
           )}
         </div>
       )}
+
+      {diagGroups.map(({ type, label }) => {
+        const group = diagnoses.filter((d: any) => d.diagnosis_type === type);
+        if (group.length === 0) return null;
+        return (
+          <div key={type} className="space-y-2">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b pb-1">
+              {label}
+            </h4>
+            {group.map((d: any) => {
+              const canEdit = !isReadOnly && d.recorded_by === currentUserId;
+              const isEditing = editingNoteId === d.id;
+              return (
+                <div
+                  key={d.id}
+                  className="p-3 rounded-md border bg-card space-y-1"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="text-sm font-medium">
+                      {d.icd10_codes?.code || d.icd10_code}
+                      {" — "}
+                      {d.icd10_codes?.name_ru}
+                    </div>
+                    {canEdit && (
+                      <button
+                        onClick={() => handleDelete(d.id)}
+                        className="text-muted-foreground hover:text-destructive text-xs shrink-0"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                  {isEditing ? (
+                    <div className="flex gap-1 mt-1">
+                      <textarea
+                        value={editingNoteText}
+                        onChange={(e) => setEditingNoteText(e.target.value)}
+                        className="flex-1 text-sm border rounded px-2 py-1 resize-none"
+                        rows={2}
+                        autoFocus
+                      />
+                      <div className="flex flex-col gap-1">
+                        <button
+                          onClick={() => handleSaveNote(d.id, editingNoteText)}
+                          className="text-green-600 hover:text-green-700 text-lg"
+                        >✓</button>
+                        <button
+                          onClick={() => setEditingNoteId(null)}
+                          className="text-red-500 hover:text-red-600 text-lg"
+                        >✗</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => {
+                        if (!canEdit) return;
+                        setEditingNoteId(d.id);
+                        setEditingNoteText(d.notes || "");
+                      }}
+                      className={cn(
+                        "text-xs text-muted-foreground mt-1 min-h-[1.25rem]",
+                        canEdit && "cursor-pointer hover:bg-muted rounded px-1"
+                      )}
+                    >
+                      {d.notes || (canEdit ? "Добавить заметку..." : "")}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
     </div>
   );
 }
