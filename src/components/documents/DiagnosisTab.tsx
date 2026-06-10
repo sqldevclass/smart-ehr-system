@@ -143,6 +143,9 @@ export default function DiagnosisTab({
             value={mainDiagnosisValue}
             onChange={(val) => {
               onMainDiagnosisChange(val);
+            }}
+            onBlur={() => {
+              const val = mainDiagnosisValue;
               const code = val.split(" — ")[0];
               const name = val.split(" — ")[1] || "";
               if (code && name) {
