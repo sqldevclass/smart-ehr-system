@@ -48,6 +48,9 @@ export default function DiagnosisTab({
   const [addSelected, setAddSelected] = useState<
     { code: string; name_ru: string } | null
   >(null);
+  const [pendingSelection, setPendingSelection] = useState<{
+    code: string; name_ru: string;
+  } | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editingNoteText, setEditingNoteText] = useState("");
 
