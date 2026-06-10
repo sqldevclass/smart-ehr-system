@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -188,6 +188,8 @@ export default function DocumentWorkspaceInner({
       }))
       .filter((s) => s.fields.length > 0);
   }, [sectionsData, fieldsData]);
+
+  const isOnDiagnosisTab = sections[parseInt(activeTab)]?.code === "diagnosis";
 
   const allMandatoryFilled = useMemo(() => {
     for (const s of sections) {
@@ -586,24 +588,167 @@ export default function DocumentWorkspaceInner({
         </div>
         {(!isReadOnly || (physicianId !== null)) && (
           <div className="w-56 shrink-0 print:hidden">
-            <TemplatePanel
-              documentTypeId={documentTypeId}
-              hospitalId={hospitalId}
-              physicianId={physicianId}
-              patientId={patientId}
-              currentDocumentId={documentId}
-              values={values}
-              sections={sections}
-              onApply={(templateValues) => {
-                setValues((prev) => ({ ...prev, ...templateValues }));
-                setIsDirty(true);
-              }}
-              isReadOnly={isReadOnly}
-            />
+            {isOnDiagnosisTab ? (
+              <DiagnosisHistoryPanel
+                patientId={patientId}
+                hospitalizationId={hospitalizationId ?? ""}
+                hospitalId={hospitalId}
+                isReadOnly={isReadOnly}
+                onCopy={async (d) => {
+                  await supabase.from("patient_diagnoses").insert({
+                    patient_id: patientId,
+                    hospital_id: hospitalId,
+                    hospitalization_id: hospitalizationId || null,
+                    icd10_code: d.icd10_code,
+                    diagnosis_type: d.diagnosis_type,
+                    notes: d.notes || null,
+                    recorded_by: user!.id,
+                  });
+                }}
+              />
+            ) : (
+              <TemplatePanel
+                documentTypeId={documentTypeId}
+                hospitalId={hospitalId}
+                physicianId={physicianId}
+                patientId={patientId}
+                currentDocumentId={documentId}
+                values={values}
+                sections={sections}
+                onApply={(templateValues) => {
+                  setValues((prev) => ({ ...prev, ...templateValues }));
+                  setIsDirty(true);
+                }}
+                isReadOnly={isReadOnly}
+              />
+            )}
           </div>
         )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function DiagnosisHistoryPanel({
+  patientId, hospitalizationId, hospitalId, isReadOnly, onCopy,
+}: {
+  patientId: string;
+  hospitalizationId: string;
+  hospitalId: string;
+  isReadOnly: boolean;
+  onCopy: (d: any) => Promise<void>;
+}) {
+  const qc = useQueryClient();
+  const [copying, setCopying] = useState<string | null>(null);
+
+  const { data: history = [] } = useQuery({
+    queryKey: ["doc-diag-history", patientId, hospitalizationId],
+    enabled: !!patientId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("patient_diagnoses")
+        .select(`
+          id, icd10_code, diagnosis_type, notes, recorded_at,
+          icd10_codes!icd10_code(code, name_ru),
+          profiles!recorded_by(full_name),
+          hospitalizations!hospitalization_id(
+            hospitalization_number, admitted_at
+          )
+        `)
+        .eq("hospital_id", hospitalId)
+        .eq("patient_id", patientId)
+        .neq("hospitalization_id", hospitalizationId)
+        .order("recorded_at", { ascending: false });
+      return data || [];
+    },
+  });
+
+  const { data: otherPhysicianDiags = [] } = useQuery({
+    queryKey: ["doc-diag-other-physicians", hospitalizationId],
+    enabled: !!hospitalizationId,
+    queryFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return [];
+      const { data } = await supabase
+        .from("patient_diagnoses")
+        .select(`
+          id, icd10_code, diagnosis_type, notes, recorded_at,
+          icd10_codes!icd10_code(code, name_ru),
+          profiles!recorded_by(full_name)
+        `)
+        .eq("hospital_id", hospitalId)
+        .eq("hospitalization_id", hospitalizationId)
+        .neq("recorded_by", session.user.id)
+        .order("recorded_at", { ascending: false });
+      return data || [];
+    },
+  });
+
+  const diagTypeLabel = (t: string) => ({
+    main: "Основной", complication: "Осложнение",
+    competing: "Конкурирующий", background: "Фоновый",
+    comorbid: "Сопутствующий",
+  }[t] ?? t);
+
+  const handleCopy = async (d: any) => {
+    setCopying(d.id);
+    try {
+      await onCopy(d);
+      qc.invalidateQueries({ queryKey: ["doc-diagnoses"] });
+    } finally {
+      setCopying(null);
+    }
+  };
+
+  const renderDiag = (d: any, showHosp = false) => (
+    <div key={d.id} className="border rounded p-2 mb-2 text-xs space-y-0.5 group relative">
+      <div className="text-[10px] text-muted-foreground uppercase">
+        {diagTypeLabel(d.diagnosis_type)}
+      </div>
+      <div className="font-medium leading-tight">
+        {d.icd10_codes?.code} — {d.icd10_codes?.name_ru}
+      </div>
+      <div className="text-muted-foreground text-[10px]">
+        {d.profiles?.full_name}
+        {showHosp && d.hospitalizations && (
+          <span> · {d.hospitalizations.hospitalization_number}</span>
+        )}
+      </div>
+      {!isReadOnly && (
+        <button
+          onClick={() => handleCopy(d)}
+          disabled={copying === d.id}
+          className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 text-primary text-[10px] border rounded px-1.5 py-0.5 bg-white hover:bg-primary hover:text-white transition-all disabled:opacity-50"
+        >
+          {copying === d.id ? "..." : "+ Добавить"}
+        </button>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="space-y-3 text-xs">
+      <div className="font-semibold text-sm">История диагнозов</div>
+      {otherPhysicianDiags.length > 0 && (
+        <div>
+          <div className="text-[10px] text-muted-foreground uppercase mb-1">
+            Текущая госпитализация
+          </div>
+          {otherPhysicianDiags.map((d: any) => renderDiag(d, false))}
+        </div>
+      )}
+      {history.length > 0 && (
+        <div>
+          <div className="text-[10px] text-muted-foreground uppercase mb-1">
+            Предыдущие госпитализации
+          </div>
+          {history.map((d: any) => renderDiag(d, true))}
+        </div>
+      )}
+      {history.length === 0 && otherPhysicianDiags.length === 0 && (
+        <p className="text-muted-foreground text-xs">История пуста</p>
+      )}
     </div>
   );
 }

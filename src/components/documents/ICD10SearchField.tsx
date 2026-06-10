@@ -8,10 +8,11 @@ interface Props {
   label: string;
   value: string;
   onChange: (val: string) => void;
+  onBlur?: () => void;
   isReadOnly: boolean;
 }
 
-export default function ICD10SearchField({ fieldId, value, onChange, isReadOnly }: Props) {
+export default function ICD10SearchField({ fieldId, value, onChange, onBlur, isReadOnly }: Props) {
   const [searchTerm, setSearchTerm] = useState<string>(() => value || "");
   const [isOpen, setIsOpen] = useState(false);
 
@@ -49,7 +50,7 @@ export default function ICD10SearchField({ fieldId, value, onChange, isReadOnly 
           if (!e.target.value) onChange("");
         }}
         onFocus={() => setIsOpen(true)}
-        onBlur={() => setTimeout(() => setIsOpen(false), 200)}
+        onBlur={() => { setTimeout(() => setIsOpen(false), 200); onBlur?.(); }}
         placeholder="Поиск по МКБ-10..."
       />
       {isOpen && results.length > 0 && (

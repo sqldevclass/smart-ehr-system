@@ -48,6 +48,9 @@ export default function DiagnosisTab({
   const [addSelected, setAddSelected] = useState<
     { code: string; name_ru: string } | null
   >(null);
+  const [pendingSelection, setPendingSelection] = useState<{
+    code: string; name_ru: string;
+  } | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editingNoteText, setEditingNoteText] = useState("");
 
@@ -110,6 +113,7 @@ export default function DiagnosisTab({
     setAddSelected(null);
     setAddNote("");
     setAddType("main");
+    setPendingSelection(null);
   };
 
   const handleSaveNote = async (id: string, note: string) => {
@@ -139,6 +143,9 @@ export default function DiagnosisTab({
             value={mainDiagnosisValue}
             onChange={(val) => {
               onMainDiagnosisChange(val);
+            }}
+            onBlur={() => {
+              const val = mainDiagnosisValue;
               const code = val.split(" — ")[0];
               const name = val.split(" — ")[1] || "";
               if (code && name) {
@@ -256,8 +263,18 @@ export default function DiagnosisTab({
                   onChange={(e) => {
                     setAddSearch(e.target.value);
                     setAddSelected(null);
+                    setPendingSelection(null);
                   }}
-                  className="text-sm"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && pendingSelection) {
+                      e.preventDefault();
+                      handleAddDiagnosis();
+                    }
+                  }}
+                  className={cn(
+                    "text-sm",
+                    pendingSelection ? "bg-yellow-50 border-yellow-300" : ""
+                  )}
                 />
                 {addSearch.length >= 1 &&
                   !addSelected &&
@@ -269,11 +286,9 @@ export default function DiagnosisTab({
                           className="px-3 py-2 text-sm hover:bg-muted cursor-pointer"
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => {
-                            setAddSelected({
-                              code: r.code,
-                              name_ru: r.name_ru,
-                            });
+                            setPendingSelection({ code: r.code, name_ru: r.name_ru });
                             setAddSearch(`${r.code} — ${r.name_ru}`);
+                            setAddSelected({ code: r.code, name_ru: r.name_ru });
                           }}
                         >
                           <span className="font-medium">{r.code}</span>
@@ -283,6 +298,31 @@ export default function DiagnosisTab({
                       ))}
                     </div>
                   )}
+                {pendingSelection && (
+                  <div className="flex items-center gap-1 mt-1">
+                    <span className="text-xs text-muted-foreground flex-1 truncate">
+                      Нажмите Enter для добавления
+                    </span>
+                    <button
+                      className="text-xs text-primary border rounded px-2 py-0.5 hover:bg-primary hover:text-white"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={handleAddDiagnosis}
+                    >
+                      ✓ Добавить
+                    </button>
+                    <button
+                      className="text-xs text-muted-foreground"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setPendingSelection(null);
+                        setAddSearch("");
+                        setAddSelected(null);
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
               </div>
               <Select value={addType} onValueChange={setAddType}>
                 <SelectTrigger className="text-sm">
