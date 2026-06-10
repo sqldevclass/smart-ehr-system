@@ -189,6 +189,8 @@ export default function DocumentWorkspaceInner({
       .filter((s) => s.fields.length > 0);
   }, [sectionsData, fieldsData]);
 
+  const isOnDiagnosisTab = sections[parseInt(activeTab)]?.code === "diagnosis";
+
   const allMandatoryFilled = useMemo(() => {
     for (const s of sections) {
       for (const f of s.fields) {
