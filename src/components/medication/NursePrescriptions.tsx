@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import PrescriptionGrid from "@/components/medication/PrescriptionGrid";
+import PrnPrescriptionList from "@/components/medication/PrnPrescriptionList";
 
 interface Props {
   hospitalizationId: string;
