@@ -27,7 +27,7 @@ interface Slot {
 
 interface Props {
   prescriptions: any[];
-  slots: Slot[];
+  slots: any[];
   viewerRole: "physician" | "nurse";
   isReadOnly?: boolean;
   hospitalId: string;
