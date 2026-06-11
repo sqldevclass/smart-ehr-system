@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import PrescriptionGrid from "@/components/medication/PrescriptionGrid";
+import { useAuth } from "@/hooks/useAuth";
 
 const TIME_CHIPS = Array.from({ length: 48 }, (_, i) => {
   const h = Math.floor(i / 2).toString().padStart(2, "0");
