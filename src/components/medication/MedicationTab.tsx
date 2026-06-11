@@ -82,6 +82,7 @@ export default function MedicationTab({
   isReadOnly,
 }: Props) {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState(initialFormData);
   const [searchQuery, setSearchQuery] = useState("");
