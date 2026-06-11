@@ -104,7 +104,9 @@ export default function NursePrescriptions({ hospitalizationId, hospitalId, isRe
     <div className="space-y-3">
       <h3 className="font-semibold">Назначения</h3>
       <PrescriptionGrid
-        prescriptions={prescriptions}
+        prescriptions={prescriptions.filter(
+          (p: any) => p.prescription_type !== "prn",
+        )}
         slots={allSlots}
         viewerRole="nurse"
         isReadOnly={isReadOnly}
@@ -112,6 +114,16 @@ export default function NursePrescriptions({ hospitalizationId, hospitalId, isRe
         hospitalizationId={hospitalizationId}
         onExtend={() => {}}
         onCancelDay={() => {}}
+        onAdministerSlot={handleAdministerSlot}
+        onSkipSlot={handleSkipSlot}
+      />
+      <PrnPrescriptionList
+        prescriptions={prescriptions}
+        slots={allSlots}
+        viewerRole="nurse"
+        isReadOnly={isReadOnly}
+        hospitalId={hospitalId}
+        hospitalizationId={hospitalizationId}
         onAdministerSlot={handleAdministerSlot}
         onSkipSlot={handleSkipSlot}
       />
