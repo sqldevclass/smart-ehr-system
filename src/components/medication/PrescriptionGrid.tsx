@@ -110,42 +110,8 @@ export default function PrescriptionGrid({
     doseGiven: string;
     notes: string;
   } | null>(null);
-  const [prnOrderCell, setPrnOrderCell] = useState<{
-    prescriptionId: string;
-    patientId: string;
-    date: Date;
-  } | null>(null);
-  const [prnTime, setPrnTime] = useState("08:00");
-  const [prnOrdering, setPrnOrdering] = useState(false);
 
-  const handleOrderPrn = async () => {
-    if (!prnOrderCell || !user) return;
-    setPrnOrdering(true);
-    try {
-      const [hh, mm] = prnTime.split(":");
-      const scheduledAt = new Date(prnOrderCell.date);
-      scheduledAt.setHours(parseInt(hh), parseInt(mm), 0, 0);
-      const { error } = await supabase.rpc("order_prn_drug", {
-        p_prescription_id: prnOrderCell.prescriptionId,
-        p_hospital_id: hospitalId,
-        p_scheduled_at: scheduledAt.toISOString(),
-        p_ordered_by: user.id,
-      });
-      if (error) throw error;
-      toast.success("Препарат заказан");
-      setPrnOrderCell(null);
-      setPrnTime("08:00");
-      queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
-      queryClient.invalidateQueries({ queryKey: ["nurse-prescriptions", hospitalizationId] });
-      queryClient.invalidateQueries({ queryKey: ["nurse-admin-slots", hospitalizationId] });
-      queryClient.invalidateQueries({ queryKey: ["drug-prescriptions", hospitalizationId] });
-      queryClient.invalidateQueries({ queryKey: ["all-slots", hospitalizationId] });
-    } catch (e: any) {
-      toast.error(e.message || "Ошибка заказа");
-    } finally {
-      setPrnOrdering(false);
-    }
-  };
+
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
