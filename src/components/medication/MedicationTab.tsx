@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import PrescriptionGrid from "@/components/medication/PrescriptionGrid";
+import PrnPrescriptionList from "@/components/medication/PrnPrescriptionList";
 import { useAuth } from "@/hooks/useAuth";
 
 const TIME_CHIPS = Array.from({ length: 48 }, (_, i) => {
@@ -790,7 +791,9 @@ export default function MedicationTab({
         )}
 
         <PrescriptionGrid
-          prescriptions={submittedPrescriptions}
+          prescriptions={submittedPrescriptions.filter(
+            (p: any) => p.prescription_type !== "prn",
+          )}
           slots={allSlots}
           viewerRole="physician"
           isReadOnly={isReadOnly}
@@ -798,6 +801,17 @@ export default function MedicationTab({
           hospitalizationId={hospitalizationId}
           onExtend={handleExtend}
           onCancelDay={handleCancelDay}
+          onAdministerSlot={() => {}}
+          onSkipSlot={() => {}}
+        />
+
+        <PrnPrescriptionList
+          prescriptions={submittedPrescriptions}
+          slots={allSlots}
+          viewerRole="physician"
+          isReadOnly={isReadOnly}
+          hospitalId={hospitalId}
+          hospitalizationId={hospitalizationId}
           onAdministerSlot={() => {}}
           onSkipSlot={() => {}}
         />

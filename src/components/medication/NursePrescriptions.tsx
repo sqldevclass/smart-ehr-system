@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import PrescriptionGrid from "@/components/medication/PrescriptionGrid";
+import PrnPrescriptionList from "@/components/medication/PrnPrescriptionList";
 
 interface Props {
   hospitalizationId: string;
@@ -31,7 +32,10 @@ export default function NursePrescriptions({ hospitalizationId, hospitalId, isRe
           profiles!prescribed_by(full_name)
         `)
         .eq("hospitalization_id", hospitalizationId)
-        .in("status_code", ["in_progress", "ready_for_execution"])
+        .or(
+          "status_code.in.(in_progress,ready_for_execution)," +
+          "and(prescription_type.eq.prn,status_code.eq.preliminary)"
+        )
         .order("prescribed_at", { ascending: false });
       if (error) throw error;
       return data || [];
@@ -100,7 +104,9 @@ export default function NursePrescriptions({ hospitalizationId, hospitalId, isRe
     <div className="space-y-3">
       <h3 className="font-semibold">Назначения</h3>
       <PrescriptionGrid
-        prescriptions={prescriptions}
+        prescriptions={prescriptions.filter(
+          (p: any) => p.prescription_type !== "prn",
+        )}
         slots={allSlots}
         viewerRole="nurse"
         isReadOnly={isReadOnly}
@@ -108,6 +114,16 @@ export default function NursePrescriptions({ hospitalizationId, hospitalId, isRe
         hospitalizationId={hospitalizationId}
         onExtend={() => {}}
         onCancelDay={() => {}}
+        onAdministerSlot={handleAdministerSlot}
+        onSkipSlot={handleSkipSlot}
+      />
+      <PrnPrescriptionList
+        prescriptions={prescriptions}
+        slots={allSlots}
+        viewerRole="nurse"
+        isReadOnly={isReadOnly}
+        hospitalId={hospitalId}
+        hospitalizationId={hospitalizationId}
         onAdministerSlot={handleAdministerSlot}
         onSkipSlot={handleSkipSlot}
       />

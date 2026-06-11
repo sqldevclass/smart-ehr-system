@@ -84,6 +84,9 @@ export default function PrescriptionGrid({
   onAdministerSlot,
   onSkipSlot,
 }: Props) {
+  const regularPrescriptions = prescriptions.filter(
+    (p: any) => p.prescription_type !== "prn",
+  );
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [editCell, setEditCell] = useState<{
@@ -107,42 +110,8 @@ export default function PrescriptionGrid({
     doseGiven: string;
     notes: string;
   } | null>(null);
-  const [prnOrderCell, setPrnOrderCell] = useState<{
-    prescriptionId: string;
-    patientId: string;
-    date: Date;
-  } | null>(null);
-  const [prnTime, setPrnTime] = useState("08:00");
-  const [prnOrdering, setPrnOrdering] = useState(false);
 
-  const handleOrderPrn = async () => {
-    if (!prnOrderCell || !user) return;
-    setPrnOrdering(true);
-    try {
-      const [hh, mm] = prnTime.split(":");
-      const scheduledAt = new Date(prnOrderCell.date);
-      scheduledAt.setHours(parseInt(hh), parseInt(mm), 0, 0);
-      const { error } = await supabase.rpc("order_prn_drug", {
-        p_prescription_id: prnOrderCell.prescriptionId,
-        p_hospital_id: hospitalId,
-        p_scheduled_at: scheduledAt.toISOString(),
-        p_ordered_by: user.id,
-      });
-      if (error) throw error;
-      toast.success("Препарат заказан");
-      setPrnOrderCell(null);
-      setPrnTime("08:00");
-      queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
-      queryClient.invalidateQueries({ queryKey: ["nurse-prescriptions", hospitalizationId] });
-      queryClient.invalidateQueries({ queryKey: ["nurse-admin-slots", hospitalizationId] });
-      queryClient.invalidateQueries({ queryKey: ["drug-prescriptions", hospitalizationId] });
-      queryClient.invalidateQueries({ queryKey: ["all-slots", hospitalizationId] });
-    } catch (e: any) {
-      toast.error(e.message || "Ошибка заказа");
-    } finally {
-      setPrnOrdering(false);
-    }
-  };
+
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -175,33 +144,15 @@ export default function PrescriptionGrid({
     const set = new Set<string>();
     const todayNorm = new Date();
     todayNorm.setHours(0, 0, 0, 0);
-    prescriptions.forEach((p: any) => {
+    regularPrescriptions.forEach((p: any) => {
       const start = new Date(p.prescribed_at);
       start.setHours(0, 0, 0, 0);
-      if (p.prescription_type === "prn") {
-        const endDate = new Date(
-          Math.max(start.getTime(), todayNorm.getTime())
-        );
-        let d = new Date(start);
-        while (d <= endDate) {
-          set.add(new Date(d).toISOString());
-          d.setDate(d.getDate() + 1);
-        }
-        slots
-          .filter((s: any) => s.prescription_id === p.id)
-          .forEach((s: any) => {
-            const slotDate = new Date(s.scheduled_at);
-            slotDate.setHours(0, 0, 0, 0);
-            set.add(slotDate.toISOString());
-          });
-      } else {
-        const days = p.duration_days ?? 1;
-        for (let i = 0; i < days; i++) {
-          const d = new Date(start);
-          d.setDate(d.getDate() + i);
-          d.setHours(0, 0, 0, 0);
-          set.add(d.toISOString());
-        }
+      const days = p.duration_days ?? 1;
+      for (let i = 0; i < days; i++) {
+        const d = new Date(start);
+        d.setDate(d.getDate() + i);
+        d.setHours(0, 0, 0, 0);
+        set.add(d.toISOString());
       }
     });
     const sortedDates = Array.from(set)
@@ -290,7 +241,7 @@ export default function PrescriptionGrid({
     setEditCell(null);
   };
 
-  if (prescriptions.length === 0) {
+  if (regularPrescriptions.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">Нет активных назначений</p>
     );
@@ -358,16 +309,14 @@ export default function PrescriptionGrid({
             </tr>
           </thead>
           <tbody>
-            {prescriptions.map((p: any, pIdx: number) => {
+            {regularPrescriptions.map((p: any, pIdx: number) => {
               const pStart = new Date(p.prescribed_at);
               pStart.setHours(0, 0, 0, 0);
-              const pEnd = p.prescription_type === "prn"
-                ? new Date("9999-12-31")
-                : (() => {
-                    const d = new Date(pStart);
-                    d.setDate(d.getDate() + (p.duration_days ?? 1) - 1);
-                    return d;
-                  })();
+              const pEnd = (() => {
+                const d = new Date(pStart);
+                d.setDate(d.getDate() + (p.duration_days ?? 1) - 1);
+                return d;
+              })();
               return (
                 <tr key={p.id} className="align-top">
                   <td className="border p-1.5 text-center font-medium bg-white sticky left-0 z-10 w-6">
@@ -408,20 +357,10 @@ export default function PrescriptionGrid({
                         + {p.mix_drug.trade_name} {p.mix_dose}
                       </div>
                     )}
-                    {p.prescription_type === "prn" && (
-                      <span className="text-xs bg-purple-100 text-purple-700 px-1 rounded">
-                        PRN
-                      </span>
-                    )}
                     {p.prescription_type === "antibiotic_prophylaxis" && (
                       <span className="text-xs bg-orange-100 text-orange-700 px-1 rounded">
                         Антибиотикопрофилактика
                       </span>
-                    )}
-                    {p.prn_condition && (
-                      <div className="text-xs text-purple-700">
-                        При: {p.prn_condition}
-                      </div>
                     )}
                     {p.notes && <NoteCell note={p.notes} />}
                   </td>
@@ -518,7 +457,7 @@ export default function PrescriptionGrid({
                             >
                               <X size={11} className="text-red-500" />
                             </button>
-                            {!isPastDate && daySlots.length === 0 && p.prescription_type !== "prn" && (
+                            {!isPastDate && daySlots.length === 0 && (
                               <button
                                 onClick={() => onExtend(p.id, date)}
                                 className="text-xs text-primary hover:underline"
@@ -528,62 +467,6 @@ export default function PrescriptionGrid({
                             )}
                           </div>
                         )}
-                        {p.prescription_type === "prn" &&
-                          daySlots.length === 0 &&
-                          viewerRole === "nurse" &&
-                          !isReadOnly &&
-                          inRange && (
-                            prnOrderCell?.prescriptionId === p.id &&
-                            prnOrderCell?.date.toDateString() === date.toDateString() ? (
-                              <div className="space-y-1">
-                                <input
-                                  type="time"
-                                  value={prnTime}
-                                  onChange={e => setPrnTime(e.target.value)}
-                                  className="w-full text-xs border rounded px-1 py-0.5"
-                                />
-                                <div className="flex gap-1">
-                                  <button
-                                    onClick={handleOrderPrn}
-                                    disabled={prnOrdering}
-                                    className="flex-1 text-xs bg-primary text-white rounded px-1 py-0.5 hover:bg-primary/90 disabled:opacity-50"
-                                  >
-                                    {prnOrdering ? "..." : "✓"}
-                                  </button>
-                                  <button
-                                    onClick={() => setPrnOrderCell(null)}
-                                    className="text-xs text-muted-foreground px-1"
-                                  >
-                                    ✕
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => {
-                                  setPrnOrderCell({
-                                    prescriptionId: p.id,
-                                    patientId: p.patient_id,
-                                    date,
-                                  });
-                                  setPrnTime("08:00");
-                                }}
-                                className="text-xs text-primary border border-primary rounded px-1.5 py-0.5 hover:bg-primary hover:text-white transition-colors"
-                              >
-                                Заказать
-                              </button>
-                            )
-                          )
-                        }
-                        {p.prescription_type === "prn" &&
-                          daySlots.length === 0 &&
-                          viewerRole === "physician" &&
-                          inRange && (
-                            <div className="text-xs text-purple-600 italic">
-                              {p.prn_condition || "По требованию"}
-                            </div>
-                          )
-                        }
                         {daySlots.map((slot: any) => (
                           <div key={slot.id} className="mb-1">
                             {slot.status === "done" ? (
