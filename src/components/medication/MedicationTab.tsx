@@ -318,7 +318,7 @@ export default function MedicationTab({
       hospital_id: hospitalId,
       hospitalization_id: hospitalizationId,
       patient_id: patientId,
-      physician_id: physicianId,
+      physician_id: user!.id,
       drug_formulary_id: isOwnDrugMode ? null : formData.drug!.id,
       is_patient_own_drug: isOwnDrugMode,
       custom_drug_name: isOwnDrugMode ? ownDrugName : null,
