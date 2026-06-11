@@ -173,14 +173,35 @@ export default function PrescriptionGrid({
 
   const allDateColumns = (() => {
     const set = new Set<string>();
+    const todayNorm = new Date();
+    todayNorm.setHours(0, 0, 0, 0);
     prescriptions.forEach((p: any) => {
       const start = new Date(p.prescribed_at);
-      const days = p.duration_days ?? 1;
-      for (let i = 0; i < days; i++) {
-        const d = new Date(start);
-        d.setDate(d.getDate() + i);
-        d.setHours(0, 0, 0, 0);
-        set.add(d.toISOString());
+      start.setHours(0, 0, 0, 0);
+      if (p.prescription_type === "prn") {
+        const endDate = new Date(
+          Math.max(start.getTime(), todayNorm.getTime())
+        );
+        let d = new Date(start);
+        while (d <= endDate) {
+          set.add(new Date(d).toISOString());
+          d.setDate(d.getDate() + 1);
+        }
+        slots
+          .filter((s: any) => s.prescription_id === p.id)
+          .forEach((s: any) => {
+            const slotDate = new Date(s.scheduled_at);
+            slotDate.setHours(0, 0, 0, 0);
+            set.add(slotDate.toISOString());
+          });
+      } else {
+        const days = p.duration_days ?? 1;
+        for (let i = 0; i < days; i++) {
+          const d = new Date(start);
+          d.setDate(d.getDate() + i);
+          d.setHours(0, 0, 0, 0);
+          set.add(d.toISOString());
+        }
       }
     });
     const sortedDates = Array.from(set)
