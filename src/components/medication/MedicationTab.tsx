@@ -745,6 +745,7 @@ export default function MedicationTab({
                 !formData.drug ||
                 (!formData.durationDays && formData.prescriptionType !== "prn") ||
                 (formData.prescriptionType !== "prn" && formData.scheduleTimes.length === 0) ||
+                (formData.prescriptionType === "prn" && (!formData.prnCondition?.trim() || !formData.maxDailyDose?.trim())) ||
                 (isOwnDrugMode && (!ownDrugName || !ownDrugInn || !ownDrugUnitId))
               }
               onClick={handleSaveDraft}
