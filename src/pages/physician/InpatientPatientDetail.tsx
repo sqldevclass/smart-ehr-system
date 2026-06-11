@@ -827,24 +827,39 @@ function DiagnosisTab({
     <div className="grid grid-cols-2 gap-4 p-4 h-full overflow-hidden">
       <div className="overflow-y-auto">
         <h3 className="font-semibold text-sm mb-3">Текущая госпитализация</h3>
-        {currentDiagnoses.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Диагнозов нет</p>
-        ) : currentDiagnoses.map((d: any) => (
-          <div key={d.id} className="p-3 rounded border mb-2">
-            <span className="text-xs text-muted-foreground uppercase">
-              {diagTypeLabel(d.diagnosis_type)}
-            </span>
-            <div className="text-sm font-medium">
-              {d.icd10_codes?.code} — {d.icd10_codes?.name_ru}
+        {(() => {
+          const diagOrder = ["main", "competing", "complication", "comorbid", "background"];
+          const diagGroups = diagOrder
+            .map(type => ({
+              type,
+              label: diagTypeLabel(type),
+              items: currentDiagnoses.filter((d: any) => d.diagnosis_type === type),
+            }))
+            .filter(g => g.items.length > 0);
+          if (diagGroups.length === 0) {
+            return <p className="text-sm text-muted-foreground">Диагнозов нет</p>;
+          }
+          return diagGroups.map(({ type, label, items }) => (
+            <div key={type} className="mb-4">
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b pb-1 mb-2">
+                {label}
+              </h4>
+              {items.map((d: any) => (
+                <div key={d.id} className="p-3 rounded border mb-2">
+                  <div className="text-sm font-medium">
+                    {d.icd10_codes?.code} — {d.icd10_codes?.name_ru}
+                  </div>
+                  {d.notes && (
+                    <div className="text-xs text-muted-foreground mt-1">{d.notes}</div>
+                  )}
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {d.profiles?.full_name} · {format(new Date(d.recorded_at), "dd.MM.yyyy HH:mm")}
+                  </div>
+                </div>
+              ))}
             </div>
-            {d.notes && (
-              <div className="text-xs text-muted-foreground mt-1">{d.notes}</div>
-            )}
-            <div className="text-xs text-muted-foreground mt-1">
-              {d.profiles?.full_name} · {format(new Date(d.recorded_at), "dd.MM.yyyy HH:mm")}
-            </div>
-          </div>
-        ))}
+          ));
+        })()}
       </div>
 
       <div className="overflow-y-auto border-l pl-4">
