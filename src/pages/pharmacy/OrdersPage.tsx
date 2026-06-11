@@ -176,7 +176,9 @@ export default function OrdersPage() {
       (p: any) =>
         (deptFilter === "all" ||
           p.hospitalizations?.departments?.name === deptFilter) &&
-        !(p.prescription_type === "prn" && p.status_code === "preliminary")
+        !(p.prescription_type === "prn" &&
+          p.status_code === "preliminary" &&
+          (!p.drug_administration_slots || p.drug_administration_slots.length === 0))
     );
     const map: Record<string, any[]> = {};
     filtered.forEach((p: any) => {
