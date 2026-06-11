@@ -457,7 +457,7 @@ export default function PrescriptionGrid({
                             >
                               <X size={11} className="text-red-500" />
                             </button>
-                            {!isPastDate && daySlots.length === 0 && p.prescription_type !== "prn" && (
+                            {!isPastDate && daySlots.length === 0 && (
                               <button
                                 onClick={() => onExtend(p.id, date)}
                                 className="text-xs text-primary hover:underline"
@@ -467,62 +467,6 @@ export default function PrescriptionGrid({
                             )}
                           </div>
                         )}
-                        {p.prescription_type === "prn" &&
-                          daySlots.length === 0 &&
-                          viewerRole === "nurse" &&
-                          !isReadOnly &&
-                          inRange && (
-                            prnOrderCell?.prescriptionId === p.id &&
-                            prnOrderCell?.date.toDateString() === date.toDateString() ? (
-                              <div className="space-y-1">
-                                <input
-                                  type="time"
-                                  value={prnTime}
-                                  onChange={e => setPrnTime(e.target.value)}
-                                  className="w-full text-xs border rounded px-1 py-0.5"
-                                />
-                                <div className="flex gap-1">
-                                  <button
-                                    onClick={handleOrderPrn}
-                                    disabled={prnOrdering}
-                                    className="flex-1 text-xs bg-primary text-white rounded px-1 py-0.5 hover:bg-primary/90 disabled:opacity-50"
-                                  >
-                                    {prnOrdering ? "..." : "✓"}
-                                  </button>
-                                  <button
-                                    onClick={() => setPrnOrderCell(null)}
-                                    className="text-xs text-muted-foreground px-1"
-                                  >
-                                    ✕
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => {
-                                  setPrnOrderCell({
-                                    prescriptionId: p.id,
-                                    patientId: p.patient_id,
-                                    date,
-                                  });
-                                  setPrnTime("08:00");
-                                }}
-                                className="text-xs text-primary border border-primary rounded px-1.5 py-0.5 hover:bg-primary hover:text-white transition-colors"
-                              >
-                                Заказать
-                              </button>
-                            )
-                          )
-                        }
-                        {p.prescription_type === "prn" &&
-                          daySlots.length === 0 &&
-                          viewerRole === "physician" &&
-                          inRange && (
-                            <div className="text-xs text-purple-600 italic">
-                              {p.prn_condition || "По требованию"}
-                            </div>
-                          )
-                        }
                         {daySlots.map((slot: any) => (
                           <div key={slot.id} className="mb-1">
                             {slot.status === "done" ? (
