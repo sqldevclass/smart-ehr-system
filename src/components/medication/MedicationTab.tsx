@@ -636,13 +636,9 @@ export default function MedicationTab({
 
             <div>
               <Label className="text-xs">Время приёма</Label>
+              {formData.prescriptionType !== "prn" && (
               <div
-                className={cn(
-                  "flex flex-wrap gap-1 max-h-32 overflow-y-auto p-1 border rounded mt-1",
-                  formData.prescriptionType === "prn"
-                    ? "opacity-40 pointer-events-none bg-gray-50"
-                    : "bg-white",
-                )}
+                className="flex flex-wrap gap-1 max-h-32 overflow-y-auto p-1 border rounded mt-1 bg-white"
               >
                 {TIME_CHIPS.map((t) => {
                   const selected = formData.scheduleTimes.find((s) => s.time === t);
@@ -703,10 +699,6 @@ export default function MedicationTab({
                   );
                 })}
               </div>
-              {formData.prescriptionType === "prn" && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  PRN — время не требуется
-                </p>
               )}
             </div>
 
@@ -749,13 +741,17 @@ export default function MedicationTab({
               disabled={
                 !formData.dose ||
                 !formData.drug ||
-                !formData.durationDays ||
-                formData.scheduleTimes.length === 0 ||
+                (!formData.durationDays && formData.prescriptionType !== "prn") ||
+                (formData.prescriptionType !== "prn" && formData.scheduleTimes.length === 0) ||
                 (isOwnDrugMode && (!ownDrugName || !ownDrugInn || !ownDrugUnitId))
               }
               onClick={handleSaveDraft}
             >
-              {isOwnDrugMode ? "Назначить" : "Добавить в список"}
+              {isOwnDrugMode
+                ? "Назначить"
+                : formData.prescriptionType === "prn"
+                ? "Заказать"
+                : "Добавить в список"}
             </Button>
           </div>
         )}
