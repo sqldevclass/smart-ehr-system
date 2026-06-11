@@ -518,7 +518,7 @@ export default function PrescriptionGrid({
                             >
                               <X size={11} className="text-red-500" />
                             </button>
-                            {!isPastDate && daySlots.length === 0 && (
+                            {!isPastDate && daySlots.length === 0 && p.prescription_type !== "prn" && (
                               <button
                                 onClick={() => onExtend(p.id, date)}
                                 className="text-xs text-primary hover:underline"
