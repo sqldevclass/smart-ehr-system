@@ -241,7 +241,7 @@ export default function PrescriptionGrid({
     setEditCell(null);
   };
 
-  if (prescriptions.length === 0) {
+  if (regularPrescriptions.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">Нет активных назначений</p>
     );
