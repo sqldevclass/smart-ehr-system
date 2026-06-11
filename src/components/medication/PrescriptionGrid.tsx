@@ -357,20 +357,10 @@ export default function PrescriptionGrid({
                         + {p.mix_drug.trade_name} {p.mix_dose}
                       </div>
                     )}
-                    {p.prescription_type === "prn" && (
-                      <span className="text-xs bg-purple-100 text-purple-700 px-1 rounded">
-                        PRN
-                      </span>
-                    )}
                     {p.prescription_type === "antibiotic_prophylaxis" && (
                       <span className="text-xs bg-orange-100 text-orange-700 px-1 rounded">
                         Антибиотикопрофилактика
                       </span>
-                    )}
-                    {p.prn_condition && (
-                      <div className="text-xs text-purple-700">
-                        При: {p.prn_condition}
-                      </div>
                     )}
                     {p.notes && <NoteCell note={p.notes} />}
                   </td>
