@@ -309,16 +309,14 @@ export default function PrescriptionGrid({
             </tr>
           </thead>
           <tbody>
-            {prescriptions.map((p: any, pIdx: number) => {
+            {regularPrescriptions.map((p: any, pIdx: number) => {
               const pStart = new Date(p.prescribed_at);
               pStart.setHours(0, 0, 0, 0);
-              const pEnd = p.prescription_type === "prn"
-                ? new Date("9999-12-31")
-                : (() => {
-                    const d = new Date(pStart);
-                    d.setDate(d.getDate() + (p.duration_days ?? 1) - 1);
-                    return d;
-                  })();
+              const pEnd = (() => {
+                const d = new Date(pStart);
+                d.setDate(d.getDate() + (p.duration_days ?? 1) - 1);
+                return d;
+              })();
               return (
                 <tr key={p.id} className="align-top">
                   <td className="border p-1.5 text-center font-medium bg-white sticky left-0 z-10 w-6">
