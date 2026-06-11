@@ -791,7 +791,9 @@ export default function MedicationTab({
         )}
 
         <PrescriptionGrid
-          prescriptions={submittedPrescriptions}
+          prescriptions={submittedPrescriptions.filter(
+            (p: any) => p.prescription_type !== "prn",
+          )}
           slots={allSlots}
           viewerRole="physician"
           isReadOnly={isReadOnly}
@@ -799,6 +801,17 @@ export default function MedicationTab({
           hospitalizationId={hospitalizationId}
           onExtend={handleExtend}
           onCancelDay={handleCancelDay}
+          onAdministerSlot={() => {}}
+          onSkipSlot={() => {}}
+        />
+
+        <PrnPrescriptionList
+          prescriptions={submittedPrescriptions}
+          slots={allSlots}
+          viewerRole="physician"
+          isReadOnly={isReadOnly}
+          hospitalId={hospitalId}
+          hospitalizationId={hospitalizationId}
           onAdministerSlot={() => {}}
           onSkipSlot={() => {}}
         />
