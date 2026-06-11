@@ -343,7 +343,7 @@ export default function MedicationTab({
         ]
           .filter(Boolean)
           .join(" | ") || null,
-      is_drafted: isOwnDrugMode ? false : true,
+      is_drafted: (isOwnDrugMode || formData.prescriptionType === "prn") ? false : true,
       status_code: isOwnDrugMode ? "ready_for_execution" : "preliminary",
       prescribed_by: physicianId,
       prescribed_at: new Date().toISOString(),
