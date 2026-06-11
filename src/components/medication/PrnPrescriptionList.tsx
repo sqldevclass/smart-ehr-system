@@ -266,7 +266,7 @@ export default function PrnPrescriptionList({
                           {slot.override_dose
                             ? `${slot.override_dose}${p.dose_unit ?? ""}`
                             : `${p.dose}${p.dose_unit ?? ""}`}
-                          {slot.status === "pending" && !p.dept_batch_id && (
+                          {slot.status === "pending" && p.status_code === "preliminary" && (
                             <span className="ml-1 text-muted-foreground">
                               · ожидает аптеку
                             </span>
