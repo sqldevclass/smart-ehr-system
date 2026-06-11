@@ -347,7 +347,7 @@ export default function MedicationTab({
           .join(" | ") || null,
       is_drafted: (isOwnDrugMode || formData.prescriptionType === "prn") ? false : true,
       status_code: isOwnDrugMode ? "ready_for_execution" : "preliminary",
-      prescribed_by: physicianId,
+      prescribed_by: user!.id,
       prescribed_at: new Date().toISOString(),
       start_date: format(startDay, "yyyy-MM-dd"),
     };
