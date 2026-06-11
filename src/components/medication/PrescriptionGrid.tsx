@@ -84,6 +84,9 @@ export default function PrescriptionGrid({
   onAdministerSlot,
   onSkipSlot,
 }: Props) {
+  const regularPrescriptions = prescriptions.filter(
+    (p: any) => p.prescription_type !== "prn",
+  );
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [editCell, setEditCell] = useState<{
