@@ -161,8 +161,9 @@ export default function OrdersPage() {
   const grouped = useMemo(() => {
     const filtered = orders.filter(
       (p: any) =>
-        deptFilter === "all" ||
-        p.hospitalizations?.departments?.name === deptFilter,
+        (deptFilter === "all" ||
+          p.hospitalizations?.departments?.name === deptFilter) &&
+        !(p.prescription_type === "prn" && p.status_code === "preliminary")
     );
     const map: Record<string, any[]> = {};
     filtered.forEach((p: any) => {
