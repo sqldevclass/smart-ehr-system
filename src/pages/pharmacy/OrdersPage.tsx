@@ -70,7 +70,8 @@ export default function OrdersPage() {
                 description, reaction)
             )
           ),
-          profiles!prescribed_by(full_name)
+          profiles!prescribed_by(full_name),
+          drug_administration_slots(id)
         `)
         .eq("hospital_id", user!.hospitalId)
         .in("status_code", codes)
