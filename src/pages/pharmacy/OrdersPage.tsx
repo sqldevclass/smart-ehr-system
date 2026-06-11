@@ -144,25 +144,38 @@ export default function OrdersPage() {
     prescriptionId: string,
     newStatus: string,
   ) => {
-    const { error } = await supabase.rpc("update_prescription_status", {
-      p_prescription_id: prescriptionId,
-      p_new_status: newStatus,
-    });
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success("Статус обновлён");
-      queryClient.invalidateQueries({
-        queryKey: ["pharmacist-orders", user?.hospitalId],
+    if (newStatus === "in_progress") {
+      const { error } = await supabase.rpc("dispense_prescription", {
+        p_prescription_id: prescriptionId,
+        p_hospital_id: user!.hospitalId,
+        p_accepted_by: user!.id,
       });
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+    } else {
+      const { error } = await supabase.rpc("update_prescription_status", {
+        p_prescription_id: prescriptionId,
+        p_new_status: newStatus,
+      });
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
     }
+    toast.success("Статус обновлён");
+    queryClient.invalidateQueries({
+      queryKey: ["pharmacist-orders", user?.hospitalId],
+    });
   };
 
   const grouped = useMemo(() => {
     const filtered = orders.filter(
       (p: any) =>
-        deptFilter === "all" ||
-        p.hospitalizations?.departments?.name === deptFilter,
+        (deptFilter === "all" ||
+          p.hospitalizations?.departments?.name === deptFilter) &&
+        !(p.prescription_type === "prn" && p.status_code === "preliminary")
     );
     const map: Record<string, any[]> = {};
     filtered.forEach((p: any) => {

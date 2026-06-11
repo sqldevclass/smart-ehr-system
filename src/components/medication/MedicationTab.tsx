@@ -343,7 +343,7 @@ export default function MedicationTab({
         ]
           .filter(Boolean)
           .join(" | ") || null,
-      is_drafted: isOwnDrugMode ? false : true,
+      is_drafted: (isOwnDrugMode || formData.prescriptionType === "prn") ? false : true,
       status_code: isOwnDrugMode ? "ready_for_execution" : "preliminary",
       prescribed_by: physicianId,
       prescribed_at: new Date().toISOString(),
@@ -585,18 +585,20 @@ export default function MedicationTab({
                 </SelectContent>
               </Select>
 
-              <div className="flex items-center gap-1">
-                <Input
-                  type="number"
-                  value={formData.durationDays}
-                  onChange={(e) =>
-                    setFormData((p) => ({ ...p, durationDays: Number(e.target.value) }))
-                  }
-                  className="w-14 h-8 text-sm"
-                  min={0}
-                />
-                <span className="text-sm text-muted-foreground">дней</span>
-              </div>
+              {formData.prescriptionType !== "prn" && (
+                <div className="flex items-center gap-1">
+                  <Input
+                    type="number"
+                    value={formData.durationDays}
+                    onChange={(e) =>
+                      setFormData((p) => ({ ...p, durationDays: Number(e.target.value) }))
+                    }
+                    className="w-14 h-8 text-sm"
+                    min={0}
+                  />
+                  <span className="text-sm text-muted-foreground">дней</span>
+                </div>
+              )}
             </div>
 
             <div>
@@ -743,6 +745,7 @@ export default function MedicationTab({
                 !formData.drug ||
                 (!formData.durationDays && formData.prescriptionType !== "prn") ||
                 (formData.prescriptionType !== "prn" && formData.scheduleTimes.length === 0) ||
+                (formData.prescriptionType === "prn" && (!formData.prnCondition?.trim() || !formData.maxDailyDose?.trim())) ||
                 (isOwnDrugMode && (!ownDrugName || !ownDrugInn || !ownDrugUnitId))
               }
               onClick={handleSaveDraft}
