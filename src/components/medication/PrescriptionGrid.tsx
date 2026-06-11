@@ -173,14 +173,35 @@ export default function PrescriptionGrid({
 
   const allDateColumns = (() => {
     const set = new Set<string>();
+    const todayNorm = new Date();
+    todayNorm.setHours(0, 0, 0, 0);
     prescriptions.forEach((p: any) => {
       const start = new Date(p.prescribed_at);
-      const days = p.duration_days ?? 1;
-      for (let i = 0; i < days; i++) {
-        const d = new Date(start);
-        d.setDate(d.getDate() + i);
-        d.setHours(0, 0, 0, 0);
-        set.add(d.toISOString());
+      start.setHours(0, 0, 0, 0);
+      if (p.prescription_type === "prn") {
+        const endDate = new Date(
+          Math.max(start.getTime(), todayNorm.getTime())
+        );
+        let d = new Date(start);
+        while (d <= endDate) {
+          set.add(new Date(d).toISOString());
+          d.setDate(d.getDate() + 1);
+        }
+        slots
+          .filter((s: any) => s.prescription_id === p.id)
+          .forEach((s: any) => {
+            const slotDate = new Date(s.scheduled_at);
+            slotDate.setHours(0, 0, 0, 0);
+            set.add(slotDate.toISOString());
+          });
+      } else {
+        const days = p.duration_days ?? 1;
+        for (let i = 0; i < days; i++) {
+          const d = new Date(start);
+          d.setDate(d.getDate() + i);
+          d.setHours(0, 0, 0, 0);
+          set.add(d.toISOString());
+        }
       }
     });
     const sortedDates = Array.from(set)
@@ -340,8 +361,13 @@ export default function PrescriptionGrid({
             {prescriptions.map((p: any, pIdx: number) => {
               const pStart = new Date(p.prescribed_at);
               pStart.setHours(0, 0, 0, 0);
-              const pEnd = new Date(pStart);
-              pEnd.setDate(pEnd.getDate() + (p.duration_days ?? 1) - 1);
+              const pEnd = p.prescription_type === "prn"
+                ? new Date("9999-12-31")
+                : (() => {
+                    const d = new Date(pStart);
+                    d.setDate(d.getDate() + (p.duration_days ?? 1) - 1);
+                    return d;
+                  })();
               return (
                 <tr key={p.id} className="align-top">
                   <td className="border p-1.5 text-center font-medium bg-white sticky left-0 z-10 w-6">
@@ -492,7 +518,7 @@ export default function PrescriptionGrid({
                             >
                               <X size={11} className="text-red-500" />
                             </button>
-                            {!isPastDate && daySlots.length === 0 && (
+                            {!isPastDate && daySlots.length === 0 && p.prescription_type !== "prn" && (
                               <button
                                 onClick={() => onExtend(p.id, date)}
                                 className="text-xs text-primary hover:underline"
