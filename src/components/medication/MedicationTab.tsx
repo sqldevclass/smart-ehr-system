@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import PrescriptionGrid from "@/components/medication/PrescriptionGrid";
+import { useAuth } from "@/hooks/useAuth";
 
 const TIME_CHIPS = Array.from({ length: 48 }, (_, i) => {
   const h = Math.floor(i / 2).toString().padStart(2, "0");
@@ -81,6 +82,7 @@ export default function MedicationTab({
   isReadOnly,
 }: Props) {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState(initialFormData);
   const [searchQuery, setSearchQuery] = useState("");
@@ -318,7 +320,7 @@ export default function MedicationTab({
       hospital_id: hospitalId,
       hospitalization_id: hospitalizationId,
       patient_id: patientId,
-      physician_id: physicianId,
+      physician_id: user!.id,
       drug_formulary_id: isOwnDrugMode ? null : formData.drug!.id,
       is_patient_own_drug: isOwnDrugMode,
       custom_drug_name: isOwnDrugMode ? ownDrugName : null,
@@ -345,7 +347,7 @@ export default function MedicationTab({
           .join(" | ") || null,
       is_drafted: (isOwnDrugMode || formData.prescriptionType === "prn") ? false : true,
       status_code: isOwnDrugMode ? "ready_for_execution" : "preliminary",
-      prescribed_by: physicianId,
+      prescribed_by: user!.id,
       prescribed_at: new Date().toISOString(),
       start_date: format(startDay, "yyyy-MM-dd"),
     };

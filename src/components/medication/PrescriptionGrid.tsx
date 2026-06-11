@@ -445,7 +445,7 @@ export default function PrescriptionGrid({
                           isToday ? "bg-blue-50/30" : "",
                         )}
                       >
-                        {viewerRole === "physician" && !isReadOnly && (
+                        {viewerRole === "physician" && !isReadOnly && p.prescription_type !== "prn" && (
                           <div className="flex items-center gap-1 mb-1">
                             <button
                               title="Изменить"
