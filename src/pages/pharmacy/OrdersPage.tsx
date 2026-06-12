@@ -170,14 +170,28 @@ export default function OrdersPage() {
   }, [slots]);
 
   useEffect(() => {
-    if (!gridScrollRef.current) return;
-    if (isToday) {
+    if (isLoading) return;
+    const raf = requestAnimationFrame(() => {
+      const container = gridScrollRef.current;
+      if (!container) return;
+      if (!isToday) {
+        container.scrollLeft = 0;
+        return;
+      }
       const targetHour = Math.max(0, currentHour - 1);
-      gridScrollRef.current.scrollLeft = targetHour * 144;
-    } else {
-      gridScrollRef.current.scrollLeft = 0;
-    }
-  }, [isToday, currentHour, activeDeptId, dayStart, patientRows.length]);
+      const headerCell = container.querySelector(
+        `[data-hour-header="${targetHour}"]`
+      ) as HTMLElement | null;
+      const stickyCol = container.querySelector(
+        "thead th"
+      ) as HTMLElement | null;
+      if (headerCell) {
+        const stickyWidth = stickyCol?.offsetWidth ?? 180;
+        container.scrollLeft = headerCell.offsetLeft - stickyWidth;
+      }
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [isLoading, isToday, currentHour, activeDeptId, dayStart, patientRows.length]);
 
 
 
@@ -281,7 +295,7 @@ export default function OrdersPage() {
   };
 
   return (
-    <div className="h-full flex flex-col p-4 space-y-3 overflow-hidden">
+    <div className="h-[calc(100vh-6.5rem)] flex flex-col p-4 space-y-3 overflow-hidden min-h-0 min-w-0">
       {/* Department tabs */}
       <div className="flex flex-wrap gap-2">
         {(departments as any[]).map((d: any) => {
@@ -327,7 +341,7 @@ export default function OrdersPage() {
       </div>
 
       {/* Grid */}
-      <div ref={gridScrollRef} className="flex-1 overflow-auto border rounded">
+      <div ref={gridScrollRef} className="flex-1 min-h-0 min-w-0 overflow-auto border rounded">
         {isLoading ? (
           <div className="flex items-center justify-center h-32">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -346,6 +360,7 @@ export default function OrdersPage() {
                 {HOURS.map(h => (
                   <th
                     key={h}
+                    data-hour-header={h}
                     className={cn(
                       "border p-1.5 text-center min-w-36 font-medium",
                       isToday && h === currentHour
