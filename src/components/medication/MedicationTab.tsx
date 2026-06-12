@@ -452,6 +452,7 @@ export default function MedicationTab({
     <div className="flex h-full overflow-hidden">
       {/* Left — prescriptions */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <InteractionWarnings hospitalizationId={hospitalizationId} hospitalId={hospitalId} />
         {showForm && formData.drug && (
           <div className="border-2 border-gray-200 rounded-lg p-4 space-y-3 bg-muted/20">
             <div className="flex items-start gap-3 flex-wrap">
