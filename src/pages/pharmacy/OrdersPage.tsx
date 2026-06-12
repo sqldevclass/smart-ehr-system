@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -10,6 +10,8 @@ import { Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
+import PrescriptionGrid from "@/components/medication/PrescriptionGrid";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const STATUS_LABELS: Record<string, string> = {
   preliminary: "Предварительное",
@@ -43,6 +45,10 @@ export default function OrdersPage() {
     return d;
   });
   const [actingSlot, setActingSlot] = useState<string | null>(null);
+  const gridScrollRef = useRef<HTMLDivElement | null>(null);
+  const [listModalPatient, setListModalPatient] = useState<{
+    hospId: string; patientId: string; name: string;
+  } | null>(null);
 
   const isToday = isSameDay(day, new Date());
   const currentHour = new Date().getHours();
@@ -162,6 +168,18 @@ export default function OrdersPage() {
       `${a.patient.last_name}`.localeCompare(`${b.patient.last_name}`)
     );
   }, [slots]);
+
+  useEffect(() => {
+    if (!gridScrollRef.current) return;
+    if (isToday) {
+      const targetHour = Math.max(0, currentHour - 1);
+      gridScrollRef.current.scrollLeft = targetHour * 144;
+    } else {
+      gridScrollRef.current.scrollLeft = 0;
+    }
+  }, [isToday, currentHour, activeDeptId, dayStart, patientRows.length]);
+
+
 
   const handleSlotAction = async (slotId: string, newStatus: string) => {
     if (!user) return;
@@ -309,7 +327,7 @@ export default function OrdersPage() {
       </div>
 
       {/* Grid */}
-      <div className="flex-1 overflow-auto border rounded">
+      <div ref={gridScrollRef} className="flex-1 overflow-auto border rounded">
         {isLoading ? (
           <div className="flex items-center justify-center h-32">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -329,7 +347,7 @@ export default function OrdersPage() {
                   <th
                     key={h}
                     className={cn(
-                      "border p-1.5 text-center min-w-[110px] font-medium",
+                      "border p-1.5 text-center min-w-36 font-medium",
                       isToday && h === currentHour
                         ? "bg-emerald-100 text-emerald-700"
                         : "text-muted-foreground"
@@ -341,27 +359,49 @@ export default function OrdersPage() {
               </tr>
             </thead>
             <tbody>
-              {patientRows.map(({ patient, byHour }) => (
+              {patientRows.map(({ patient, hospId, byHour }) => (
                 <tr key={patient.id} className="align-top">
                   <td className="border p-1.5 sticky left-0 z-10 bg-white min-w-[180px]">
-                    <div className="font-medium text-sm">
-                      {patient.last_name} {patient.first_name}
-                    </div>
-                    <div className="text-[10px] text-muted-foreground">
-                      {patient.date_of_birth
-                        ? `${differenceInYears(new Date(), new Date(patient.date_of_birth))} лет`
-                        : ""}
-                    </div>
-                    <div className="text-[10px] text-muted-foreground">
-                      {patient.weight_kg ? `Вес:${patient.weight_kg}кг ` : ""}
-                      {patient.height_cm ? `Рост:${patient.height_cm}см` : ""}
+                    <div className="flex flex-col gap-1">
+                      <div>
+                        <div className="font-medium text-sm">
+                          {patient.last_name} {patient.first_name}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {patient.date_of_birth
+                            ? `${differenceInYears(new Date(), new Date(patient.date_of_birth))} лет`
+                            : ""}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {patient.weight_kg ? `Вес:${patient.weight_kg}кг ` : ""}
+                          {patient.height_cm ? `Рост:${patient.height_cm}см` : ""}
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-1 mt-1">
+                        <button
+                          onClick={() => setListModalPatient({
+                            hospId,
+                            patientId: patient.id,
+                            name: `${patient.last_name} ${patient.first_name}`,
+                          })}
+                          className="text-[11px] text-primary border border-primary/40 rounded px-2 py-1 hover:bg-primary hover:text-white transition-colors"
+                        >
+                          Лист назначения
+                        </button>
+                        <button
+                          disabled
+                          className="text-[11px] text-muted-foreground border border-border rounded px-2 py-1 opacity-60 cursor-not-allowed"
+                        >
+                          Взаимодействия
+                        </button>
+                      </div>
                     </div>
                   </td>
                   {HOURS.map(h => (
                     <td
                       key={h}
                       className={cn(
-                        "border p-1 align-top min-w-[110px]",
+                        "border p-1 align-top min-w-36",
                         isToday && h === currentHour ? "bg-emerald-50/40" : ""
                       )}
                     >
@@ -376,6 +416,89 @@ export default function OrdersPage() {
           </table>
         )}
       </div>
+
+      {listModalPatient && user && (
+        <PharmacistPrescriptionListModal
+          hospitalizationId={listModalPatient.hospId}
+          patientId={listModalPatient.patientId}
+          patientName={listModalPatient.name}
+          hospitalId={user.hospitalId}
+          onClose={() => setListModalPatient(null)}
+        />
+      )}
     </div>
   );
 }
+
+function PharmacistPrescriptionListModal({
+  hospitalizationId, patientId, patientName, hospitalId, onClose,
+}: {
+  hospitalizationId: string;
+  patientId: string;
+  patientName: string;
+  hospitalId: string;
+  onClose: () => void;
+}) {
+  const { data: prescriptions = [] } = useQuery({
+    queryKey: ["pharm-list-prescriptions", hospitalizationId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("drug_prescriptions")
+        .select(`
+          id, dose, dose_unit, route, schedule_times, duration_days,
+          food_rule, prescription_type, prn_condition, notes,
+          is_drafted, status_code, prescribed_at,
+          mix_with_drug_id, mix_dose,
+          is_patient_own_drug, custom_drug_name, custom_inn,
+          drug_formulary!drug_formulary_id(trade_name, inn),
+          profiles!prescribed_by(full_name)
+        `)
+        .eq("hospitalization_id", hospitalizationId)
+        .eq("is_drafted", false)
+        .neq("status_code", "cancelled")
+        .order("prescribed_at", { ascending: true });
+      return data || [];
+    },
+  });
+
+  const { data: slots = [] } = useQuery({
+    queryKey: ["pharm-list-slots", hospitalizationId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("drug_administration_slots")
+        .select(`
+          id, prescription_id, scheduled_at,
+          administered_at, dose_given, override_dose,
+          original_scheduled_at, status, notes,
+          dispense_status, dept_batch_id,
+          profiles!administered_by(full_name)
+        `)
+        .eq("hospitalization_id", hospitalizationId)
+        .order("scheduled_at", { ascending: true });
+      return data || [];
+    },
+  });
+
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-auto">
+        <DialogHeader>
+          <DialogTitle>Лист назначения — {patientName}</DialogTitle>
+        </DialogHeader>
+        <PrescriptionGrid
+          prescriptions={prescriptions}
+          slots={slots}
+          viewerRole="physician"
+          isReadOnly={true}
+          hospitalId={hospitalId}
+          hospitalizationId={hospitalizationId}
+          onExtend={() => {}}
+          onCancelDay={() => {}}
+          onAdministerSlot={() => {}}
+          onSkipSlot={() => {}}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
