@@ -90,6 +90,8 @@ export default function PatientCardModal({ hospitalizationId, open, onOpenChange
       roomId: currentRa?.rooms?.id ?? "",
       bedNumber: currentRa?.bed_number != null ? Number(currentRa.bed_number) : null,
     });
+    setEditWeight(patient?.weight_kg != null ? String(patient.weight_kg) : "");
+    setEditHeight(patient?.height_cm != null ? String(patient.height_cm) : "");
     setEditing(true);
   };
 
@@ -125,6 +127,17 @@ export default function PatientCardModal({ hospitalizationId, open, onOpenChange
             bed_number: editRoomBed.bedNumber as any,
             assigned_by: user.id,
           } as any);
+        if (error) throw error;
+      }
+
+      if (patient?.id) {
+        const { error } = await supabase
+          .from("patients")
+          .update({
+            weight_kg: editWeight ? parseFloat(editWeight) : null,
+            height_cm: editHeight ? parseFloat(editHeight) : null,
+          })
+          .eq("id", patient.id);
         if (error) throw error;
       }
 
