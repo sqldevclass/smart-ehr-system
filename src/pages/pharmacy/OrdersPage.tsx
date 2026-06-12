@@ -327,7 +327,7 @@ export default function OrdersPage() {
       </div>
 
       {/* Grid */}
-      <div className="flex-1 overflow-auto border rounded">
+      <div ref={gridScrollRef} className="flex-1 overflow-auto border rounded">
         {isLoading ? (
           <div className="flex items-center justify-center h-32">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
