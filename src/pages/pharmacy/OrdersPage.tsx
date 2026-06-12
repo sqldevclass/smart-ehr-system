@@ -347,7 +347,7 @@ export default function OrdersPage() {
                   <th
                     key={h}
                     className={cn(
-                      "border p-1.5 text-center min-w-[110px] font-medium",
+                      "border p-1.5 text-center min-w-36 font-medium",
                       isToday && h === currentHour
                         ? "bg-emerald-100 text-emerald-700"
                         : "text-muted-foreground"
@@ -359,27 +359,49 @@ export default function OrdersPage() {
               </tr>
             </thead>
             <tbody>
-              {patientRows.map(({ patient, byHour }) => (
+              {patientRows.map(({ patient, hospId, byHour }) => (
                 <tr key={patient.id} className="align-top">
                   <td className="border p-1.5 sticky left-0 z-10 bg-white min-w-[180px]">
-                    <div className="font-medium text-sm">
-                      {patient.last_name} {patient.first_name}
-                    </div>
-                    <div className="text-[10px] text-muted-foreground">
-                      {patient.date_of_birth
-                        ? `${differenceInYears(new Date(), new Date(patient.date_of_birth))} лет`
-                        : ""}
-                    </div>
-                    <div className="text-[10px] text-muted-foreground">
-                      {patient.weight_kg ? `Вес:${patient.weight_kg}кг ` : ""}
-                      {patient.height_cm ? `Рост:${patient.height_cm}см` : ""}
+                    <div className="flex flex-col gap-1">
+                      <div>
+                        <div className="font-medium text-sm">
+                          {patient.last_name} {patient.first_name}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {patient.date_of_birth
+                            ? `${differenceInYears(new Date(), new Date(patient.date_of_birth))} лет`
+                            : ""}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {patient.weight_kg ? `Вес:${patient.weight_kg}кг ` : ""}
+                          {patient.height_cm ? `Рост:${patient.height_cm}см` : ""}
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-1 mt-1">
+                        <button
+                          onClick={() => setListModalPatient({
+                            hospId,
+                            patientId: patient.id,
+                            name: `${patient.last_name} ${patient.first_name}`,
+                          })}
+                          className="text-[11px] text-primary border border-primary/40 rounded px-2 py-1 hover:bg-primary hover:text-white transition-colors"
+                        >
+                          Лист назначения
+                        </button>
+                        <button
+                          disabled
+                          className="text-[11px] text-muted-foreground border border-border rounded px-2 py-1 opacity-60 cursor-not-allowed"
+                        >
+                          Взаимодействия
+                        </button>
+                      </div>
                     </div>
                   </td>
                   {HOURS.map(h => (
                     <td
                       key={h}
                       className={cn(
-                        "border p-1 align-top min-w-[110px]",
+                        "border p-1 align-top min-w-36",
                         isToday && h === currentHour ? "bg-emerald-50/40" : ""
                       )}
                     >
