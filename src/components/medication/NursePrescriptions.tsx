@@ -32,10 +32,8 @@ export default function NursePrescriptions({ hospitalizationId, hospitalId, isRe
           profiles!prescribed_by(full_name)
         `)
         .eq("hospitalization_id", hospitalizationId)
-        .or(
-          "status_code.in.(in_progress,ready_for_execution)," +
-          "and(prescription_type.eq.prn,status_code.eq.preliminary)"
-        )
+        .eq("is_drafted", false)
+        .neq("status_code", "cancelled")
         .order("prescribed_at", { ascending: false });
       if (error) throw error;
       return data || [];
