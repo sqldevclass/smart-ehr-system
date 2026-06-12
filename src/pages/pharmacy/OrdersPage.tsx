@@ -11,6 +11,7 @@ import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
 import PrescriptionGrid from "@/components/medication/PrescriptionGrid";
+import InteractionWarnings, { useInteractionCount } from "@/components/medication/InteractionWarnings";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -48,6 +49,9 @@ export default function OrdersPage() {
   const gridScrollRef = useRef<HTMLDivElement | null>(null);
   const [listModalPatient, setListModalPatient] = useState<{
     hospId: string; patientId: string; name: string;
+  } | null>(null);
+  const [ixModalPatient, setIxModalPatient] = useState<{
+    hospId: string; name: string;
   } | null>(null);
 
   const isToday = isSameDay(day, new Date());
@@ -404,8 +408,11 @@ export default function OrdersPage() {
                           Лист назначения
                         </button>
                         <button
-                          disabled
-                          className="text-[11px] text-muted-foreground border border-border rounded px-2 py-1 opacity-60 cursor-not-allowed"
+                          onClick={() => setIxModalPatient({
+                            hospId,
+                            name: `${patient.last_name} ${patient.first_name}`,
+                          })}
+                          className="text-[11px] text-amber-700 border border-amber-300 rounded px-2 py-1 hover:bg-amber-100 transition-colors"
                         >
                           Взаимодействия
                         </button>
@@ -441,6 +448,47 @@ export default function OrdersPage() {
           onClose={() => setListModalPatient(null)}
         />
       )}
+
+      {ixModalPatient && user && (
+        <Dialog open onOpenChange={(o) => { if (!o) setIxModalPatient(null); }}>
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-auto">
+            <DialogHeader>
+              <DialogTitle>Взаимодействия — {ixModalPatient.name}</DialogTitle>
+            </DialogHeader>
+            <InteractionsModalBody
+              hospitalizationId={ixModalPatient.hospId}
+              hospitalId={user.hospitalId}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  );
+}
+
+function InteractionsModalBody({
+  hospitalizationId, hospitalId,
+}: { hospitalizationId: string; hospitalId: string }) {
+  return (
+    <div className="space-y-3">
+      <EmptyInteractionsNote hospitalizationId={hospitalizationId} hospitalId={hospitalId} />
+      <InteractionWarnings
+        hospitalizationId={hospitalizationId}
+        hospitalId={hospitalId}
+        variant="list"
+      />
+    </div>
+  );
+}
+
+function EmptyInteractionsNote({
+  hospitalizationId, hospitalId,
+}: { hospitalizationId: string; hospitalId: string }) {
+  const { data = [] } = useInteractionCount(hospitalizationId, hospitalId);
+  if (data.length > 0) return null;
+  return (
+    <div className="text-sm text-muted-foreground text-center py-8">
+      Взаимодействий не обнаружено
     </div>
   );
 }
