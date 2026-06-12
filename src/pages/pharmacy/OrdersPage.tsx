@@ -11,6 +11,7 @@ import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
 import PrescriptionGrid from "@/components/medication/PrescriptionGrid";
+import InteractionWarnings, { useInteractionCount } from "@/components/medication/InteractionWarnings";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const STATUS_LABELS: Record<string, string> = {
