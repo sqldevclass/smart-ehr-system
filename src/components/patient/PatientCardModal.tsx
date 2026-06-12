@@ -24,6 +24,8 @@ export default function PatientCardModal({ hospitalizationId, open, onOpenChange
   const [saving, setSaving] = useState(false);
   const [editDeptId, setEditDeptId] = useState<string>("");
   const [editRoomBed, setEditRoomBed] = useState<RoomBedValue>({ roomId: "", bedNumber: null });
+  const [editWeight, setEditWeight] = useState<string>("");
+  const [editHeight, setEditHeight] = useState<string>("");
   const [editing, setEditing] = useState(false);
 
   const { data: hosp, isLoading } = useQuery({
@@ -38,7 +40,8 @@ export default function PatientCardModal({ hospitalizationId, open, onOpenChange
           patients!patient_id(
             id, first_name, last_name, middle_name,
             patient_number, date_of_birth, gender,
-            blood_type, national_id, phone, email, address
+            blood_type, national_id, phone, email, address,
+            weight_kg, height_cm
           ),
           room_assignments(
             id, bed_number, assigned_at, discharged_at,
