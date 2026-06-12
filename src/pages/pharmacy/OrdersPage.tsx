@@ -448,6 +448,47 @@ export default function OrdersPage() {
           onClose={() => setListModalPatient(null)}
         />
       )}
+
+      {ixModalPatient && user && (
+        <Dialog open onOpenChange={(o) => { if (!o) setIxModalPatient(null); }}>
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-auto">
+            <DialogHeader>
+              <DialogTitle>Взаимодействия — {ixModalPatient.name}</DialogTitle>
+            </DialogHeader>
+            <InteractionsModalBody
+              hospitalizationId={ixModalPatient.hospId}
+              hospitalId={user.hospitalId}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  );
+}
+
+function InteractionsModalBody({
+  hospitalizationId, hospitalId,
+}: { hospitalizationId: string; hospitalId: string }) {
+  return (
+    <div className="space-y-3">
+      <EmptyInteractionsNote hospitalizationId={hospitalizationId} hospitalId={hospitalId} />
+      <InteractionWarnings
+        hospitalizationId={hospitalizationId}
+        hospitalId={hospitalId}
+        variant="list"
+      />
+    </div>
+  );
+}
+
+function EmptyInteractionsNote({
+  hospitalizationId, hospitalId,
+}: { hospitalizationId: string; hospitalId: string }) {
+  const { data = [] } = useInteractionCount(hospitalizationId, hospitalId);
+  if (data.length > 0) return null;
+  return (
+    <div className="text-sm text-muted-foreground text-center py-8">
+      Взаимодействий не обнаружено
     </div>
   );
 }
