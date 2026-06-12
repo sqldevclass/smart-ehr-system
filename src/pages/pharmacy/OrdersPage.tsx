@@ -45,6 +45,10 @@ export default function OrdersPage() {
     return d;
   });
   const [actingSlot, setActingSlot] = useState<string | null>(null);
+  const gridScrollRef = useRef<HTMLDivElement | null>(null);
+  const [listModalPatient, setListModalPatient] = useState<{
+    hospId: string; patientId: string; name: string;
+  } | null>(null);
 
   const isToday = isSameDay(day, new Date());
   const currentHour = new Date().getHours();
