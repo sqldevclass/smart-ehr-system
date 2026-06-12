@@ -416,6 +416,89 @@ export default function OrdersPage() {
           </table>
         )}
       </div>
+
+      {listModalPatient && user && (
+        <PharmacistPrescriptionListModal
+          hospitalizationId={listModalPatient.hospId}
+          patientId={listModalPatient.patientId}
+          patientName={listModalPatient.name}
+          hospitalId={user.hospitalId}
+          onClose={() => setListModalPatient(null)}
+        />
+      )}
     </div>
   );
 }
+
+function PharmacistPrescriptionListModal({
+  hospitalizationId, patientId, patientName, hospitalId, onClose,
+}: {
+  hospitalizationId: string;
+  patientId: string;
+  patientName: string;
+  hospitalId: string;
+  onClose: () => void;
+}) {
+  const { data: prescriptions = [] } = useQuery({
+    queryKey: ["pharm-list-prescriptions", hospitalizationId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("drug_prescriptions")
+        .select(`
+          id, dose, dose_unit, route, schedule_times, duration_days,
+          food_rule, prescription_type, prn_condition, notes,
+          is_drafted, status_code, prescribed_at,
+          mix_with_drug_id, mix_dose,
+          is_patient_own_drug, custom_drug_name, custom_inn,
+          drug_formulary!drug_formulary_id(trade_name, inn),
+          profiles!prescribed_by(full_name)
+        `)
+        .eq("hospitalization_id", hospitalizationId)
+        .eq("is_drafted", false)
+        .neq("status_code", "cancelled")
+        .order("prescribed_at", { ascending: true });
+      return data || [];
+    },
+  });
+
+  const { data: slots = [] } = useQuery({
+    queryKey: ["pharm-list-slots", hospitalizationId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("drug_administration_slots")
+        .select(`
+          id, prescription_id, scheduled_at,
+          administered_at, dose_given, override_dose,
+          original_scheduled_at, status, notes,
+          dispense_status, dept_batch_id,
+          profiles!administered_by(full_name)
+        `)
+        .eq("hospitalization_id", hospitalizationId)
+        .order("scheduled_at", { ascending: true });
+      return data || [];
+    },
+  });
+
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-auto">
+        <DialogHeader>
+          <DialogTitle>Лист назначения — {patientName}</DialogTitle>
+        </DialogHeader>
+        <PrescriptionGrid
+          prescriptions={prescriptions}
+          slots={slots}
+          viewerRole="physician"
+          isReadOnly={true}
+          hospitalId={hospitalId}
+          hospitalizationId={hospitalizationId}
+          onExtend={() => {}}
+          onCancelDay={() => {}}
+          onAdministerSlot={() => {}}
+          onSkipSlot={() => {}}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
