@@ -1,390 +1,381 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import StatusBadge from "@/components/medication/StatusBadge";
+import { cn } from "@/lib/utils";
+import { format, addDays, differenceInYears, isSameDay } from "date-fns";
+import { Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Popover, PopoverContent, PopoverTrigger,
+} from "@/components/ui/popover";
 
-const ROUTES: Record<string, string> = {
-  per_os: "Перорально",
-  iv_bolus: "В/в болюсно",
-  iv_drip: "В/в капельно",
-  im: "В/м",
-  sc: "Подкожно",
-  nasal: "Назально",
-  rectal: "Ректально",
-  nasogastric: "Назогастрально",
-  sublingual: "Подъязык",
-  ear: "В ухо",
-  eye: "В глаз",
-  vaginal: "Вагинально",
-  epidural: "Эпидурально",
-  transdermal: "Трансдермально",
-  intrathecal: "Интратекально",
-  intraosseous: "Внутрикостно",
-  endotracheal: "Эндотрахеально",
-  other: "Другое",
+const STATUS_LABELS: Record<string, string> = {
+  preliminary: "Предварительное",
+  in_progress: "В процессе",
+  ready_for_execution: "Готов к исполнению",
+  completed: "Выполнен",
+  cancelled: "Отменён",
+  return: "Возврат",
+  returned_accepted: "Обратно принято",
 };
 
-type StatusFilter = "all" | "preliminary" | "in_progress" | "return";
+const STATUS_COLORS: Record<string, string> = {
+  preliminary: "text-orange-600",
+  in_progress: "text-blue-600",
+  ready_for_execution: "text-emerald-600",
+  completed: "text-green-700",
+  cancelled: "text-gray-400",
+  return: "text-red-600",
+  returned_accepted: "text-gray-500",
+};
+
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 export default function OrdersPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [deptFilter, setDeptFilter] = useState<string>("all");
+  const [selectedDeptId, setSelectedDeptId] = useState<string | null>(null);
+  const [day, setDay] = useState<Date>(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
+  const [actingSlot, setActingSlot] = useState<string | null>(null);
 
-  const { data: orders = [] } = useQuery({
-    queryKey: ["pharmacist-orders", user?.hospitalId, statusFilter],
+  const isToday = isSameDay(day, new Date());
+  const currentHour = new Date().getHours();
+
+  const { data: departments = [] } = useQuery({
+    queryKey: ["pharm-grid-depts", user?.hospitalId],
     enabled: !!user?.hospitalId,
     queryFn: async () => {
-      const codes =
-        statusFilter === "all"
-          ? ["preliminary", "in_progress", "return"]
-          : [statusFilter];
+      const { data } = await supabase
+        .from("departments")
+        .select("id, name")
+        .eq("hospital_id", user!.hospitalId)
+        .eq("is_active", true)
+        .order("name");
+      return data || [];
+    },
+  });
+
+  const activeDeptId = selectedDeptId ?? departments[0]?.id ?? null;
+
+  const { data: alertSlots = [] } = useQuery({
+    queryKey: ["pharm-grid-alerts", user?.hospitalId],
+    enabled: !!user?.hospitalId,
+    refetchInterval: 60000,
+    queryFn: async () => {
+      const now = new Date();
+      const inOneHour = new Date(now.getTime() + 60 * 60 * 1000);
       const { data, error } = await supabase
-        .from("drug_prescriptions")
+        .from("drug_administration_slots")
         .select(`
-          id, dose, dose_unit, route,
-          schedule_times, duration_days,
-          food_rule, prescription_type,
-          prn_condition, notes,
-          status_code, prescribed_at,
-          mix_dose,
-          drug_formulary!drug_formulary_id(
-            id, trade_name, inn, dose),
-          mix_drug:drug_formulary!mix_with_drug_id(
-            trade_name, inn),
-          hospitalizations!hospitalization_id(
-            id,
-            departments!department_id(name),
-            patients!patient_id(
-              id, first_name, last_name,
-              date_of_birth, gender,
-              patient_number,
-              patient_allergies(
-                id, allergy_type, severity,
-                description, reaction)
-            )
-          ),
-          profiles!prescribed_by(full_name),
-          drug_administration_slots(id)
+          id, dispense_status, scheduled_at,
+          drug_prescriptions!prescription_id(is_patient_own_drug),
+          hospitalizations!inner(department_id)
         `)
         .eq("hospital_id", user!.hospitalId)
-        .in("status_code", codes)
-        .order("prescribed_at", { ascending: false });
+        .in("dispense_status", ["preliminary", "return"]);
       if (error) throw error;
-      return data || [];
+      return (data || []).filter((s: any) => {
+        if (s.drug_prescriptions?.is_patient_own_drug) return false;
+        if (s.dispense_status === "return") return true;
+        const at = new Date(s.scheduled_at);
+        return at >= now && at <= inOneHour;
+      });
     },
   });
 
-  const { data: interactions = [] } = useQuery({
-    queryKey: ["drug-interactions", user?.hospitalId],
-    enabled: !!user?.hospitalId,
+  const deptDots = useMemo(() => {
+    const map: Record<string, { red: boolean; orange: boolean }> = {};
+    for (const s of alertSlots as any[]) {
+      const deptId = s.hospitalizations?.department_id;
+      if (!deptId) continue;
+      if (!map[deptId]) map[deptId] = { red: false, orange: false };
+      if (s.dispense_status === "preliminary") map[deptId].red = true;
+      if (s.dispense_status === "return") map[deptId].orange = true;
+    }
+    return map;
+  }, [alertSlots]);
+
+  const dayStart = useMemo(() => {
+    const d = new Date(day);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, [day]);
+  const dayEnd = useMemo(() => addDays(dayStart, 1), [dayStart]);
+
+  const { data: slots = [], isLoading } = useQuery({
+    queryKey: ["pharm-grid-slots", user?.hospitalId, activeDeptId, dayStart.toISOString()],
+    enabled: !!user?.hospitalId && !!activeDeptId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("drug_interactions")
+        .from("drug_administration_slots")
         .select(`
-          drug_a_id, drug_b_id,
-          clinical_effect, clinical_significance
+          id, scheduled_at, status, dispense_status, override_dose,
+          drug_prescriptions!prescription_id(
+            id, dose, dose_unit, route, prescription_type, prn_condition,
+            is_patient_own_drug, custom_drug_name,
+            drug_formulary!drug_formulary_id(trade_name, inn)
+          ),
+          hospitalizations!inner(
+            id, department_id,
+            patients!inner(
+              id, first_name, last_name, patient_number,
+              date_of_birth, weight_kg, height_cm
+            )
+          )
         `)
-        .eq("hospital_id", user!.hospitalId);
+        .eq("hospital_id", user!.hospitalId)
+        .eq("hospitalizations.department_id", activeDeptId)
+        .gte("scheduled_at", dayStart.toISOString())
+        .lt("scheduled_at", dayEnd.toISOString())
+        .order("scheduled_at");
       if (error) throw error;
       return data || [];
     },
   });
 
-  const hasAllergyWarning = (p: any) => {
-    const allergies = p.hospitalizations?.patients?.patient_allergies ?? [];
-    const drugName = p.drug_formulary?.trade_name?.toLowerCase() ?? "";
-    const inn = p.drug_formulary?.inn?.toLowerCase() ?? "";
-    return allergies.some(
-      (a: any) =>
-        (a.allergy_type &&
-          drugName.includes(a.allergy_type.toLowerCase())) ||
-        (a.allergy_type && inn.includes(a.allergy_type.toLowerCase())),
-    );
-  };
-
-  const hasInteractionWarning = (p: any, allOrders: any[]) => {
-    const samePatientOrders = allOrders.filter(
-      (o: any) =>
-        o.hospitalizations?.patients?.id ===
-          p.hospitalizations?.patients?.id &&
-        o.id !== p.id &&
-        o.status_code !== "cancelled",
-    );
-    return samePatientOrders.some((o: any) =>
-      interactions.some(
-        (i: any) =>
-          (i.drug_a_id === p.drug_formulary?.id &&
-            i.drug_b_id === o.drug_formulary?.id) ||
-          (i.drug_b_id === p.drug_formulary?.id &&
-            i.drug_a_id === o.drug_formulary?.id),
-      ),
-    );
-  };
-
-  const hasDuplicateWarning = (p: any, allOrders: any[]) => {
-    return allOrders.some(
-      (o: any) =>
-        o.id !== p.id &&
-        o.drug_formulary?.id === p.drug_formulary?.id &&
-        o.hospitalizations?.patients?.id ===
-          p.hospitalizations?.patients?.id &&
-        !["cancelled", "completed", "returned_accepted"].includes(
-          o.status_code,
-        ),
-    );
-  };
-
-  const handleStatusChange = async (
-    prescriptionId: string,
-    newStatus: string,
-  ) => {
-    const { error } = await supabase.rpc("update_prescription_status", {
-      p_prescription_id: prescriptionId,
-      p_new_status: newStatus,
-    });
-    if (error) {
-      toast.error(error.message);
-      return;
+  const patientRows = useMemo(() => {
+    const map = new Map<string, { patient: any; hospId: string; byHour: Map<number, any[]> }>();
+    for (const s of slots as any[]) {
+      const patient = s.hospitalizations?.patients;
+      if (!patient) continue;
+      const key = patient.id;
+      if (!map.has(key)) {
+        map.set(key, {
+          patient,
+          hospId: s.hospitalizations.id,
+          byHour: new Map(),
+        });
+      }
+      const hour = new Date(s.scheduled_at).getHours();
+      const row = map.get(key)!;
+      const arr = row.byHour.get(hour) || [];
+      arr.push(s);
+      row.byHour.set(hour, arr);
     }
-    toast.success("Статус обновлён");
-    queryClient.invalidateQueries({
-      queryKey: ["pharmacist-orders", user?.hospitalId],
-    });
+    return Array.from(map.values()).sort((a, b) =>
+      `${a.patient.last_name}`.localeCompare(`${b.patient.last_name}`)
+    );
+  }, [slots]);
+
+  const handleSlotAction = async (slotId: string, newStatus: string) => {
+    if (!user) return;
+    setActingSlot(slotId);
+    try {
+      const { error } = await supabase.rpc("update_slot_status", {
+        p_slot_id: slotId,
+        p_hospital_id: user.hospitalId,
+        p_new_status: newStatus,
+        p_changed_by: user.id,
+      });
+      if (error) throw error;
+      toast.success("Статус обновлён");
+      queryClient.invalidateQueries({ queryKey: ["pharm-grid-slots"] });
+      queryClient.invalidateQueries({ queryKey: ["pharm-grid-alerts"] });
+    } catch (e: any) {
+      toast.error(e.message || "Ошибка");
+    } finally {
+      setActingSlot(null);
+    }
   };
 
-  const grouped = useMemo(() => {
-    const filtered = orders.filter(
-      (p: any) =>
-        (deptFilter === "all" ||
-          p.hospitalizations?.departments?.name === deptFilter) &&
-        !(p.prescription_type === "prn" &&
-          p.status_code === "preliminary" &&
-          (!p.drug_administration_slots || p.drug_administration_slots.length === 0))
-    );
-    const map: Record<string, any[]> = {};
-    filtered.forEach((p: any) => {
-      const dept =
-        p.hospitalizations?.departments?.name ?? "Без отделения";
-      if (!map[dept]) map[dept] = [];
-      map[dept].push(p);
-    });
-    return map;
-  }, [orders, deptFilter]);
+  const drugName = (s: any) => {
+    const p = s.drug_prescriptions;
+    return p?.is_patient_own_drug
+      ? p.custom_drug_name
+      : p?.drug_formulary?.trade_name ?? "—";
+  };
 
-  const departments = useMemo(
-    () => [
-      ...new Set(
-        orders
-          .map((p: any) => p.hospitalizations?.departments?.name)
-          .filter(Boolean),
-      ),
-    ],
-    [orders],
-  );
+  const slotCell = (s: any) => {
+    const p = s.drug_prescriptions;
+    const isOwn = !!p?.is_patient_own_drug;
+    const status = s.dispense_status;
+    const canAct = !isOwn && (status === "preliminary" || status === "return");
+
+    const content = (
+      <div className={cn(
+        "rounded border px-1.5 py-1 text-[11px] leading-tight bg-white",
+        isOwn ? "border-amber-200 bg-amber-50" : "border-border hover:border-primary cursor-pointer"
+      )}>
+        <div className="font-medium truncate">
+          {drugName(s)} {p?.dose}{p?.dose_unit ?? ""}
+        </div>
+        <div className="text-muted-foreground truncate">
+          {p?.route} · {format(new Date(s.scheduled_at), "HH:mm")}
+          {p?.prescription_type === "prn" && " · PRN"}
+        </div>
+        {isOwn && (
+          <div className="text-[10px] text-amber-700 font-medium">
+            Своё (справочно)
+          </div>
+        )}
+        <div className={cn("text-[10px]", STATUS_COLORS[status] ?? "text-muted-foreground")}>
+          {STATUS_LABELS[status] ?? status}
+        </div>
+      </div>
+    );
+
+    if (!canAct) return <div key={s.id}>{content}</div>;
+
+    return (
+      <Popover key={s.id}>
+        <PopoverTrigger asChild>{content}</PopoverTrigger>
+        <PopoverContent className="w-64 p-3 space-y-2">
+          <div className="text-sm font-semibold">
+            {drugName(s)} {p?.dose}{p?.dose_unit ?? ""}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {p?.route} · {format(new Date(s.scheduled_at), "dd.MM HH:mm")}
+          </div>
+          {status === "preliminary" && (
+            <Button
+              size="sm"
+              className="w-full"
+              disabled={actingSlot === s.id}
+              onClick={() => handleSlotAction(s.id, "in_progress")}
+            >
+              {actingSlot === s.id
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : "В процессе ▶"}
+            </Button>
+          )}
+          {status === "return" && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full"
+              disabled={actingSlot === s.id}
+              onClick={() => handleSlotAction(s.id, "returned_accepted")}
+            >
+              {actingSlot === s.id
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : "Обратно принято"}
+            </Button>
+          )}
+        </PopoverContent>
+      </Popover>
+    );
+  };
 
   return (
-    <div className="p-4 space-y-4">
-      <div className="flex items-center gap-3 flex-wrap">
-        <h2 className="font-semibold text-lg">Заказы лекарств</h2>
-        <div className="flex rounded-md border overflow-hidden">
-          {[
-            { code: "all", label: "Все" },
-            { code: "preliminary", label: "Предварительное" },
-            { code: "in_progress", label: "В процессе" },
-            { code: "return", label: "Возврат" },
-          ].map((f) => (
+    <div className="h-full flex flex-col p-4 space-y-3 overflow-hidden">
+      {/* Department tabs */}
+      <div className="flex flex-wrap gap-2">
+        {(departments as any[]).map((d: any) => {
+          const dots = deptDots[d.id];
+          return (
             <button
-              key={f.code}
-              onClick={() => setStatusFilter(f.code as StatusFilter)}
+              key={d.id}
+              onClick={() => setSelectedDeptId(d.id)}
               className={cn(
-                "px-3 py-1.5 text-xs font-medium transition-colors border-r last:border-r-0",
-                statusFilter === f.code
+                "relative px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
+                activeDeptId === d.id
                   ? "bg-primary text-white"
-                  : "bg-white text-muted-foreground hover:bg-muted",
+                  : "bg-muted text-foreground hover:bg-muted/70"
               )}
             >
-              {f.label}
+              {d.name}
+              {dots?.red && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-red-500 border border-white" />
+              )}
+              {dots?.orange && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-orange-500 border border-white" style={{ right: dots.red ? "10px" : undefined }} />
+              )}
             </button>
-          ))}
-        </div>
-        {departments.length > 1 && (
-          <select
-            value={deptFilter}
-            onChange={(e) => setDeptFilter(e.target.value)}
-            className="h-8 text-xs border rounded px-2 bg-white"
-          >
-            <option value="all">Все отделения</option>
-            {departments.map((d: any) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </select>
-        )}
+          );
+        })}
       </div>
 
-      {Object.entries(grouped).map(([dept, deptOrders]) => (
-        <div key={dept} className="space-y-2">
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            {dept}
-          </h3>
-          {(deptOrders as any[]).map((p: any) => {
-            const patient = p.hospitalizations?.patients;
-            const allergies = patient?.patient_allergies ?? [];
-            const allergyWarning = hasAllergyWarning(p);
-            const interactionWarning = hasInteractionWarning(p, orders);
-            const duplicateWarning = hasDuplicateWarning(p, orders);
-            return (
-              <div
-                key={p.id}
-                className={cn(
-                  "border-2 rounded-lg p-3 space-y-2",
-                  allergyWarning
-                    ? "border-red-300 bg-red-50/30"
-                    : "border-gray-200 bg-white",
-                )}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm">
-                        {patient?.last_name} {patient?.first_name}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {patient?.date_of_birth
-                          ? format(
-                              new Date(patient.date_of_birth),
-                              "dd.MM.yyyy",
-                            )
-                          : "—"}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {patient?.patient_number}
-                      </span>
-                    </div>
-                    {allergies.length > 0 && (
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <span
-                          className={cn(
-                            "text-xs font-semibold",
-                            allergyWarning
-                              ? "text-red-700"
-                              : "text-orange-600",
-                          )}
-                        >
-                          {allergyWarning ? "🔴 АЛЛЕРГИЯ" : "⚠ Аллергия"}:
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {allergies.map((a: any) =>
-                            a.reaction
-                              ? `${a.allergy_type} (${a.reaction})`
-                              : a.allergy_type
-                          ).join(", ")}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <StatusBadge status={p.status_code} />
-                </div>
-
-                <div className="text-sm">
-                  <span className="font-medium">
-                    {p.drug_formulary?.trade_name}
-                  </span>
-                  {p.prescription_type === "prn" && (
-                    <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">
-                      PRN
-                    </span>
-                  )}
-                  {p.prescription_type === "antibiotic_prophylaxis" && (
-                    <span className="ml-2 text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">
-                      Антибиотикопрофилактика
-                    </span>
-                  )}
-                </div>
-
-                <div className="text-xs text-muted-foreground">
-                  {p.dose}
-                  {p.dose_unit}
-                  {" · "}
-                  {ROUTES[p.route] ?? p.route}
-                  {p.schedule_times?.length > 0 &&
-                    ` · ${p.schedule_times.join(", ")}`}
-                  {p.duration_days && ` · ${p.duration_days} дней`}
-                </div>
-
-                {p.mix_drug && (
-                  <div className="text-xs text-blue-600 mt-0.5">
-                    + {p.mix_drug.trade_name} {p.mix_dose}
-                  </div>
-                )}
-
-                {p.prn_condition && (
-                  <div className="text-xs text-purple-700">
-                    При: {p.prn_condition}
-                  </div>
-                )}
-
-                {interactionWarning && (
-                  <div className="flex items-center gap-1 text-xs text-orange-700 bg-orange-50 rounded px-2 py-1">
-                    <span>⚠</span>
-                    <span>Взаимодействие с другим препаратом пациента</span>
-                  </div>
-                )}
-
-                {duplicateWarning && (
-                  <div className="flex items-center gap-1 text-xs text-blue-700 bg-blue-50 rounded px-2 py-1">
-                    <span>📋</span>
-                    <span>Дублирующий препарат</span>
-                  </div>
-                )}
-
-                <div className="text-xs text-muted-foreground">
-                  Назначил: {p.profiles?.full_name} ·{" "}
-                  {format(new Date(p.prescribed_at), "dd.MM.yyyy HH:mm")}
-                </div>
-
-                <div className="flex gap-2 pt-1">
-                  {p.status_code === "preliminary" && (
-                    <Button
-                      size="sm"
-                      onClick={() =>
-                        handleStatusChange(p.id, "in_progress")
-                      }
-                    >
-                      В процессе ▶
-                    </Button>
-                  )}
-                  {p.status_code === "return" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        handleStatusChange(p.id, "returned_accepted")
-                      }
-                    >
-                      Принять возврат ▶
-                    </Button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+      {/* Day navigation */}
+      <div className="flex items-center gap-2">
+        <Button size="sm" variant="outline" onClick={() => setDay(d => addDays(d, -1))}>
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => { const d = new Date(); d.setHours(0,0,0,0); setDay(d); }}>
+          Сегодня
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => setDay(d => addDays(d, 1))}>
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+        <div className="text-sm text-muted-foreground">
+          {format(day, "dd.MM.yyyy")}
+          {isToday && <span className="text-emerald-600"> · сегодня</span>}
         </div>
-      ))}
+      </div>
 
-      {orders.length === 0 && (
-        <p className="text-muted-foreground text-sm text-center py-8">
-          Нет активных заказов
-        </p>
-      )}
+      {/* Grid */}
+      <div className="flex-1 overflow-auto border rounded">
+        {isLoading ? (
+          <div className="flex items-center justify-center h-32">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : patientRows.length === 0 ? (
+          <div className="text-center text-muted-foreground py-12">
+            Нет назначений на этот день
+          </div>
+        ) : (
+          <table className="text-xs border-collapse">
+            <thead>
+              <tr className="bg-muted/50">
+                <th className="border p-1.5 text-left sticky left-0 z-20 bg-white min-w-[180px]">
+                  Пациент
+                </th>
+                {HOURS.map(h => (
+                  <th
+                    key={h}
+                    className={cn(
+                      "border p-1.5 text-center min-w-[110px] font-medium",
+                      isToday && h === currentHour
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    {String(h).padStart(2, "0")}:00
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {patientRows.map(({ patient, byHour }) => (
+                <tr key={patient.id} className="align-top">
+                  <td className="border p-1.5 sticky left-0 z-10 bg-white min-w-[180px]">
+                    <div className="font-medium text-sm">
+                      {patient.last_name} {patient.first_name}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground">
+                      {patient.date_of_birth
+                        ? `${differenceInYears(new Date(), new Date(patient.date_of_birth))} лет`
+                        : ""}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground">
+                      {patient.weight_kg ? `Вес:${patient.weight_kg}кг ` : ""}
+                      {patient.height_cm ? `Рост:${patient.height_cm}см` : ""}
+                    </div>
+                  </td>
+                  {HOURS.map(h => (
+                    <td
+                      key={h}
+                      className={cn(
+                        "border p-1 align-top min-w-[110px]",
+                        isToday && h === currentHour ? "bg-emerald-50/40" : ""
+                      )}
+                    >
+                      <div className="space-y-1">
+                        {(byHour.get(h) || []).map((s: any) => slotCell(s))}
+                      </div>
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }
