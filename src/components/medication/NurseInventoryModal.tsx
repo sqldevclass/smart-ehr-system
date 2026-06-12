@@ -111,24 +111,27 @@ export default function NurseInventoryModal({
   });
 
   const {
-    data: prescriptions = [],
+    data: pendingSlots = [],
     isLoading: presLoading,
     refetch: refetchPres,
   } = useQuery({
-    queryKey: ["nurse-inv-prescriptions", departmentId, hospitalId],
+    queryKey: ["nurse-inv-slots", departmentId, hospitalId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("drug_prescriptions")
+        .from("drug_administration_slots")
         .select(`
-          id, dose, dose_unit, route, status_code, created_at,
-          drug_formulary!drug_formulary_id(trade_name, inn),
+          id, scheduled_at, dispense_status,
+          drug_prescriptions!prescription_id(
+            id, dose, dose_unit, route, created_at,
+            drug_formulary!drug_formulary_id(trade_name, inn)
+          ),
           hospitalizations!inner(
             id, department_id,
             patients!inner(id, first_name, last_name, patient_number)
           )
         `)
         .eq("hospital_id", hospitalId)
-        .eq("status_code", "in_progress")
+        .eq("dispense_status", "in_progress")
         .eq("hospitalizations.department_id", departmentId);
       if (error) throw error;
       return data || [];
@@ -221,17 +224,18 @@ export default function NurseInventoryModal({
   });
 
   // Filtered data
-  const filteredPres = useMemo(() => (prescriptions as any[]).filter((p) => {
-    const drug = p.drug_formulary?.trade_name?.toLowerCase() ?? "";
-    const patient = `${p.hospitalizations?.patients?.last_name ?? ""} ${p.hospitalizations?.patients?.first_name ?? ""}`.toLowerCase();
-    const patientNum = p.hospitalizations?.patients?.patient_number?.toLowerCase() ?? "";
-    const date = p.created_at?.slice(0, 10) ?? "";
+  const filteredPres = useMemo(() => (pendingSlots as any[]).filter((s) => {
+    const pres = s.drug_prescriptions;
+    const drug = pres?.drug_formulary?.trade_name?.toLowerCase() ?? "";
+    const patient = `${s.hospitalizations?.patients?.last_name ?? ""} ${s.hospitalizations?.patients?.first_name ?? ""}`.toLowerCase();
+    const patientNum = s.hospitalizations?.patients?.patient_number?.toLowerCase() ?? "";
+    const date = pres?.created_at?.slice(0, 10) ?? "";
     if (filters.drug && !drug.includes(filters.drug.toLowerCase())) return false;
     if (filters.patient && !patient.includes(filters.patient.toLowerCase())) return false;
     if (filters.patientId && !patientNum.includes(filters.patientId.toLowerCase())) return false;
     if (filters.presDate && date !== filters.presDate) return false;
     return true;
-  }), [prescriptions, filters]);
+  }), [pendingSlots, filters]);
 
   const filteredTrans = useMemo(() => (transfers as any[]).filter((t) => {
     const drug = (t.transfer_record_items || [])
@@ -250,12 +254,12 @@ export default function NurseInventoryModal({
   }), [deptStock, filters]);
 
   // Actions
-  const acceptPrescription = async (id: string) => {
+  const acceptSlot = async (slotId: string) => {
     if (!user) return;
-    setBusy((prev) => new Set(prev).add(id));
+    setBusy((prev) => new Set(prev).add(slotId));
     try {
-      const { error } = await supabase.rpc("dispense_prescription", {
-        p_prescription_id: id,
+      const { error } = await supabase.rpc("dispense_slot", {
+        p_slot_id: slotId,
         p_hospital_id: hospitalId,
         p_accepted_by: user.id,
       });
@@ -263,10 +267,12 @@ export default function NurseInventoryModal({
       toast.success("Принято");
       refetchPres(); refetchStock();
       qc.invalidateQueries({ queryKey: ["nurse-prescriptions"] });
+      qc.invalidateQueries({ queryKey: ["nurse-admin-slots"] });
+      qc.invalidateQueries({ queryKey: ["all-slots"] });
     } catch (e: any) {
       toast.error(e.message);
     } finally {
-      setBusy((prev) => { const n = new Set(prev); n.delete(id); return n; });
+      setBusy((prev) => { const n = new Set(prev); n.delete(slotId); return n; });
     }
   };
 
@@ -274,10 +280,10 @@ export default function NurseInventoryModal({
     if (!user || filteredPres.length === 0) return;
     setBusyAll(true);
     let ok = 0, err = 0;
-    for (const p of filteredPres) {
+    for (const s of filteredPres) {
       try {
-        const { error } = await supabase.rpc("dispense_prescription", {
-          p_prescription_id: p.id,
+        const { error } = await supabase.rpc("dispense_slot", {
+          p_slot_id: s.id,
           p_hospital_id: hospitalId,
           p_accepted_by: user.id,
         });
@@ -489,27 +495,30 @@ export default function NurseInventoryModal({
                           <th className={th}>Пациент</th>
                           <th className={th}>ID пациента</th>
                           <th className={th}>Дата назначения</th>
+                          <th className={th}>Время</th>
                           <th className={th}>Доза</th>
                           <th className={th}>Путь</th>
                           <th className={th}></th>
                         </tr>
                       </thead>
                       <tbody>
-                        {filteredPres.map((p: any) => {
-                          const patient = p.hospitalizations?.patients;
-                          const drug = p.drug_formulary;
+                        {filteredPres.map((s: any) => {
+                          const patient = s.hospitalizations?.patients;
+                          const pres = s.drug_prescriptions;
+                          const drug = pres?.drug_formulary;
                           return (
-                            <tr key={p.id} className="border-t">
+                            <tr key={s.id} className="border-t">
                               <td className={td}>{drug?.trade_name || "—"}</td>
                               <td className={td}>{drug?.inn || "—"}</td>
                               <td className={td}>{patient ? `${patient.last_name} ${patient.first_name}` : "—"}</td>
                               <td className={td}>{patient?.patient_number || "—"}</td>
-                              <td className={td}>{p.created_at ? format(new Date(p.created_at), "dd.MM.yyyy") : "—"}</td>
-                              <td className={td}>{p.dose} {p.dose_unit}</td>
-                              <td className={td}>{p.route || "—"}</td>
+                              <td className={td}>{pres?.created_at ? format(new Date(pres.created_at), "dd.MM.yyyy") : "—"}</td>
+                              <td className={td}>{s.scheduled_at ? format(new Date(s.scheduled_at), "dd.MM HH:mm") : "—"}</td>
+                              <td className={td}>{pres?.dose} {pres?.dose_unit}</td>
+                              <td className={td}>{pres?.route || "—"}</td>
                               <td className={td}>
-                                <Button size="sm" onClick={() => acceptPrescription(p.id)} disabled={busy.has(p.id) || busyAll}>
-                                  {busy.has(p.id) ? <Loader2 className="h-4 w-4 animate-spin" /> : "Принять"}
+                                <Button size="sm" onClick={() => acceptSlot(s.id)} disabled={busy.has(s.id) || busyAll}>
+                                  {busy.has(s.id) ? <Loader2 className="h-4 w-4 animate-spin" /> : "Принять"}
                                 </Button>
                               </td>
                             </tr>
