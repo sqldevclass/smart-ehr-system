@@ -22,6 +22,8 @@ interface Slot {
   dose_given?: string;
   override_dose?: string;
   status: string;
+  dispense_status?: string;
+  dept_batch_id?: string | null;
   profiles?: { full_name: string };
 }
 
@@ -266,9 +268,14 @@ export default function PrnPrescriptionList({
                           {slot.override_dose
                             ? `${slot.override_dose}${p.dose_unit ?? ""}`
                             : `${p.dose}${p.dose_unit ?? ""}`}
-                          {slot.status === "pending" && p.status_code === "preliminary" && (
+                          {slot.status === "pending" && slot.dispense_status === "preliminary" && (
                             <span className="ml-1 text-muted-foreground">
                               · ожидает аптеку
+                            </span>
+                          )}
+                          {slot.status === "pending" && slot.dispense_status === "in_progress" && (
+                            <span className="ml-1 text-muted-foreground">
+                              · ожидает приёма
                             </span>
                           )}
                         </span>
@@ -278,7 +285,7 @@ export default function PrnPrescriptionList({
                     {viewerRole === "nurse" &&
                       !isReadOnly &&
                       slot.status === "pending" &&
-                      p.status_code === "ready_for_execution" &&
+                      slot.dispense_status === "ready_for_execution" &&
                       (adminSlot?.slotId === slot.id ? (
                         <div className="flex items-center gap-1">
                           <Input
