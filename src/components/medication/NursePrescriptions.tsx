@@ -26,16 +26,14 @@ export default function NursePrescriptions({ hospitalizationId, hospitalId, isRe
           schedule_times, duration_days,
           food_rule, prescription_type,
           prn_condition, notes, status_code,
-          prescribed_at,
+          prescribed_at, is_drafted,
           is_patient_own_drug, custom_drug_name, custom_inn,
           drug_formulary!drug_formulary_id(trade_name, inn),
           profiles!prescribed_by(full_name)
         `)
         .eq("hospitalization_id", hospitalizationId)
-        .or(
-          "status_code.in.(in_progress,ready_for_execution)," +
-          "and(prescription_type.eq.prn,status_code.eq.preliminary)"
-        )
+        .eq("is_drafted", false)
+        .neq("status_code", "cancelled")
         .order("prescribed_at", { ascending: false });
       if (error) throw error;
       return data || [];
@@ -51,6 +49,7 @@ export default function NursePrescriptions({ hospitalizationId, hospitalId, isRe
           id, prescription_id, scheduled_at,
           administered_at, dose_given, override_dose,
           original_scheduled_at, status, notes,
+          dispense_status, dept_batch_id,
           profiles!administered_by(full_name)
         `)
         .eq("hospitalization_id", hospitalizationId)

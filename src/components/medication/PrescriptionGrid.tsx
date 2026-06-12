@@ -514,7 +514,7 @@ export default function PrescriptionGrid({
                                       : `${p.dose}${p.dose_unit ?? ""}`}
                                   </span>
                                 </div>
-                                {viewerRole === "nurse" && !isReadOnly && p.status_code === "ready_for_execution" && (
+                                {viewerRole === "nurse" && !isReadOnly && (slot as any).dispense_status === "ready_for_execution" && (
                                   <div className="flex gap-1 mt-0.5">
                                     <button
                                       className="text-primary underline text-xs"
@@ -536,6 +536,14 @@ export default function PrescriptionGrid({
                                     >
                                       Пропустить
                                     </button>
+                                  </div>
+                                )}
+                                {viewerRole === "nurse" && !isReadOnly &&
+                                  slot.status === "pending" &&
+                                  (slot as any).dispense_status !== "ready_for_execution" && (
+                                  <div className="text-[10px] text-muted-foreground italic">
+                                    {(slot as any).dispense_status === "preliminary" && "ожидает аптеку"}
+                                    {(slot as any).dispense_status === "in_progress" && "ожидает приёма"}
                                   </div>
                                 )}
                               </div>

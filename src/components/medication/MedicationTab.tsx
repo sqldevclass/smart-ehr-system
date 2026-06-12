@@ -174,6 +174,7 @@ export default function MedicationTab({
         .select(`
           id, prescription_id, scheduled_at, administered_at, administered_by,
           dose_given, override_dose, original_scheduled_at, status, notes,
+          dispense_status, dept_batch_id,
           profiles!administered_by(full_name)
         `)
         .eq("hospitalization_id", hospitalizationId)
@@ -384,6 +385,7 @@ export default function MedicationTab({
               patient_id: patientId,
               scheduled_at: d.toISOString(),
               status: "pending",
+              dispense_status: "ready_for_execution",
               override_dose: s.dose || null,
             });
           }
