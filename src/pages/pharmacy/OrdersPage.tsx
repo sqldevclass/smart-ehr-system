@@ -169,6 +169,18 @@ export default function OrdersPage() {
     );
   }, [slots]);
 
+  useEffect(() => {
+    if (!gridScrollRef.current) return;
+    if (isToday) {
+      const targetHour = Math.max(0, currentHour - 1);
+      gridScrollRef.current.scrollLeft = targetHour * 144;
+    } else {
+      gridScrollRef.current.scrollLeft = 0;
+    }
+  }, [isToday, currentHour, activeDeptId, dayStart, patientRows.length]);
+
+
+
   const handleSlotAction = async (slotId: string, newStatus: string) => {
     if (!user) return;
     setActingSlot(slotId);
