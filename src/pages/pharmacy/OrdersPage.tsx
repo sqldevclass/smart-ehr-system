@@ -50,6 +50,9 @@ export default function OrdersPage() {
   const [listModalPatient, setListModalPatient] = useState<{
     hospId: string; patientId: string; name: string;
   } | null>(null);
+  const [ixModalPatient, setIxModalPatient] = useState<{
+    hospId: string; name: string;
+  } | null>(null);
 
   const isToday = isSameDay(day, new Date());
   const currentHour = new Date().getHours();
