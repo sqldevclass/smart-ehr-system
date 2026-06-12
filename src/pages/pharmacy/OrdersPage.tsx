@@ -351,7 +351,7 @@ export default function OrdersPage() {
             Нет назначений на этот день
           </div>
         ) : (
-          <table className="text-xs border-collapse">
+          <table className="text-xs border-collapse" style={{ minWidth: "max-content" }}>
             <thead>
               <tr className="bg-muted/50">
                 <th className="border p-1.5 text-left sticky left-0 z-20 bg-white min-w-[180px]">
