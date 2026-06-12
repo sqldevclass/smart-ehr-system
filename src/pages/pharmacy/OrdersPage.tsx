@@ -408,8 +408,11 @@ export default function OrdersPage() {
                           Лист назначения
                         </button>
                         <button
-                          disabled
-                          className="text-[11px] text-muted-foreground border border-border rounded px-2 py-1 opacity-60 cursor-not-allowed"
+                          onClick={() => setIxModalPatient({
+                            hospId,
+                            name: `${patient.last_name} ${patient.first_name}`,
+                          })}
+                          className="text-[11px] text-amber-700 border border-amber-300 rounded px-2 py-1 hover:bg-amber-100 transition-colors"
                         >
                           Взаимодействия
                         </button>
