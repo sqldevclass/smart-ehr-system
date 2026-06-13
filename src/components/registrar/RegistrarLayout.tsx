@@ -4,6 +4,7 @@ import { NavLink } from "@/components/NavLink";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import RoleSwitcher from "@/components/shared/RoleSwitcher";
 import {
   Sidebar,
   SidebarContent,
@@ -22,13 +23,6 @@ const navItems = [
   { title: "Profile", url: "/registrar/profile", icon: UserCircle },
 ];
 
-const roleTitles: Record<string, string> = {
-  admin: "Administrator",
-  physician: "Physician",
-  registrar: "Registrar",
-  pharmacy_staff: "Pharmacy Staff",
-  warehouse_staff: "Warehouse Staff",
-};
 
 export default function RegistrarLayout() {
   const { user } = useAuth();
@@ -89,9 +83,7 @@ export default function RegistrarLayout() {
             {user && (
               <div className="flex items-center gap-3 text-sm text-muted-foreground">
                 <span>{user.fullName}</span>
-                <span className="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                  {user.roles.map((r) => roleTitles[r] || r).join(", ")}
-                </span>
+                <RoleSwitcher roles={user.roles} />
               </div>
             )}
           </header>

@@ -12,6 +12,7 @@ import { NavLink } from "@/components/NavLink";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import RoleSwitcher from "@/components/shared/RoleSwitcher";
 import {
   Sidebar,
   SidebarContent,
@@ -97,9 +98,7 @@ export default function PharmacistLayout() {
             {user && (
               <div className="flex items-center gap-3 text-sm text-muted-foreground">
                 <span>{user.fullName}</span>
-                <span className="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                  Pharmacist
-                </span>
+                <RoleSwitcher roles={user.roles} />
               </div>
             )}
           </header>
