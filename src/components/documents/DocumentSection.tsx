@@ -5,6 +5,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ICD10SearchField from "./ICD10SearchField";
 import { cn } from "@/lib/utils";
+import RichTextarea from "./RichTextarea";
+import MarkdownText from "./MarkdownText";
 
 
 interface FieldDef {
@@ -37,7 +39,13 @@ function renderField(
   const options: { value: string; label_ru: string }[] = Array.isArray(def.options) ? def.options : [];
   switch (def.field_type) {
     case "textarea":
-      return <Textarea rows={3} value={value} onChange={(e) => setVal(def.id, e.target.value)} />;
+      return (
+        <RichTextarea
+          rows={3}
+          value={value}
+          onChange={(val) => setVal(def.id, val)}
+        />
+      );
     case "number":
       return <Input type="number" value={value} onChange={(e) => setVal(def.id, e.target.value)} />;
     case "date":
@@ -129,8 +137,10 @@ export default function DocumentSection({ section, values, setVal, isReadOnly }:
                   isReadOnly={isReadOnly}
                 />
               ) : isReadOnly ? (
-                <div className="text-sm py-1.5 whitespace-pre-wrap">
-                  {values[field.def.id] || (
+                <div className="text-sm py-1.5">
+                  {values[field.def.id] ? (
+                    <MarkdownText value={values[field.def.id]} className="leading-relaxed" />
+                  ) : (
                     <span className="italic text-sm text-muted-foreground">Не заполнено</span>
                   )}
                 </div>
