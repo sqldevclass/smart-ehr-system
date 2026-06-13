@@ -41,7 +41,11 @@ export default function RichTextarea({
   const handleInput = () => {
     if (!ref.current) return;
     isInternalChange.current = true;
-    onChange(ref.current.innerHTML);
+    // Normalize: if text content is empty, emit ""
+    // so allMandatoryFilled correctly sees an empty field
+    const text = ref.current.innerText?.trim() ?? "";
+    const html = ref.current.innerHTML;
+    onChange(text === "" ? "" : html);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
