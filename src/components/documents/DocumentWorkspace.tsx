@@ -19,6 +19,7 @@ interface Props {
   documentTypeId: string;
   serviceStatusCode: string;
   onClose: () => void;
+  onComplete?: (documentId: string) => void;
   hospitalizationId?: string;
   existingDocumentId?: string;
   onDocumentCreated?: (documentId: string) => void;
