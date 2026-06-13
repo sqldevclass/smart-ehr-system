@@ -1,54 +1,63 @@
-import { useRef } from "react";
-import { Textarea } from "@/components/ui/textarea";
+import { useRef, useEffect } from "react";
 import { Bold, Italic, Underline } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
   value: string;
   onChange: (val: string) => void;
-  rows?: number;
   className?: string;
+  minRows?: number;
 }
 
-function wrapSelection(
-  textarea: HTMLTextAreaElement,
-  before: string,
-  after: string,
-  placeholder: string,
-  onChange: (val: string) => void,
-) {
-  const start = textarea.selectionStart;
-  const end = textarea.selectionEnd;
-  const text = textarea.value;
-  const selected = text.slice(start, end) || placeholder;
-  const newText =
-    text.slice(0, start) + before + selected + after + text.slice(end);
-  onChange(newText);
-  requestAnimationFrame(() => {
-    textarea.focus();
-    const newStart = start + before.length;
-    const newEnd = newStart + selected.length;
-    textarea.setSelectionRange(newStart, newEnd);
-  });
-}
+export default function RichTextarea({
+  value,
+  onChange,
+  className,
+  minRows = 3,
+}: Props) {
+  const ref = useRef<HTMLDivElement>(null);
+  const isInternalChange = useRef(false);
 
-export default function RichTextarea({ value, onChange, rows = 3, className }: Props) {
-  const ref = useRef<HTMLTextAreaElement>(null);
-
-  const format = (before: string, after: string, placeholder: string) => {
+  useEffect(() => {
     if (!ref.current) return;
-    wrapSelection(ref.current, before, after, placeholder, onChange);
+    if (isInternalChange.current) {
+      isInternalChange.current = false;
+      return;
+    }
+    if (ref.current.innerHTML !== value) {
+      ref.current.innerHTML = value || "";
+    }
+  }, [value]);
+
+  const execFormat = (command: string) => {
+    ref.current?.focus();
+    document.execCommand(command, false);
+    if (ref.current) {
+      isInternalChange.current = true;
+      onChange(ref.current.innerHTML);
+    }
+  };
+
+  const handleInput = () => {
+    if (!ref.current) return;
+    isInternalChange.current = true;
+    onChange(ref.current.innerHTML);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.ctrlKey || e.metaKey) {
+      if (e.key === "b") { e.preventDefault(); execFormat("bold"); }
+      if (e.key === "i") { e.preventDefault(); execFormat("italic"); }
+      if (e.key === "u") { e.preventDefault(); execFormat("underline"); }
+    }
   };
 
   return (
-    <div className="space-y-1">
-      <div className="flex items-center gap-1 border border-input rounded-t-md bg-muted/30 px-1 py-0.5">
+    <div className="space-y-0">
+      <div className="flex items-center gap-1 border border-input border-b-0 rounded-t-md bg-muted/30 px-1 py-0.5">
         <button
           type="button"
-          onMouseDown={(e) => {
-            e.preventDefault();
-            format("**", "**", "жирный текст");
-          }}
+          onMouseDown={(e) => { e.preventDefault(); execFormat("bold"); }}
           className="p-1 rounded hover:bg-muted transition-colors"
           title="Жирный (Ctrl+B)"
         >
@@ -56,10 +65,7 @@ export default function RichTextarea({ value, onChange, rows = 3, className }: P
         </button>
         <button
           type="button"
-          onMouseDown={(e) => {
-            e.preventDefault();
-            format("_", "_", "курсив");
-          }}
+          onMouseDown={(e) => { e.preventDefault(); execFormat("italic"); }}
           className="p-1 rounded hover:bg-muted transition-colors"
           title="Курсив (Ctrl+I)"
         >
@@ -67,29 +73,26 @@ export default function RichTextarea({ value, onChange, rows = 3, className }: P
         </button>
         <button
           type="button"
-          onMouseDown={(e) => {
-            e.preventDefault();
-            format("__", "__", "подчёркнутый текст");
-          }}
+          onMouseDown={(e) => { e.preventDefault(); execFormat("underline"); }}
           className="p-1 rounded hover:bg-muted transition-colors"
           title="Подчёркнутый (Ctrl+U)"
         >
           <Underline className="h-3.5 w-3.5" />
         </button>
       </div>
-      <Textarea
+      <div
         ref={ref}
-        rows={rows}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className={cn("font-mono text-sm rounded-t-none", className)}
-        onKeyDown={(e) => {
-          if (e.ctrlKey || e.metaKey) {
-            if (e.key === "b") { e.preventDefault(); format("**", "**", "жирный текст"); }
-            if (e.key === "i") { e.preventDefault(); format("_", "_", "курсив"); }
-            if (e.key === "u") { e.preventDefault(); format("__", "__", "подчёркнутый текст"); }
-          }
-        }}
+        contentEditable
+        suppressContentEditableWarning
+        onInput={handleInput}
+        onKeyDown={handleKeyDown}
+        className={cn(
+          "w-full rounded-b-md border border-input bg-background px-3 py-2 text-sm",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "whitespace-pre-wrap break-words",
+          className
+        )}
+        style={{ minHeight: `${minRows * 1.5}rem` }}
       />
     </div>
   );

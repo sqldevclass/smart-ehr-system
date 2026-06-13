@@ -41,7 +41,7 @@ function renderField(
     case "textarea":
       return (
         <RichTextarea
-          rows={3}
+          minRows={3}
           value={value}
           onChange={(val) => setVal(def.id, val)}
         />
