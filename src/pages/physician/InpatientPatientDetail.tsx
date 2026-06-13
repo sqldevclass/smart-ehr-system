@@ -20,6 +20,8 @@ import InpatientDocumentWorkspace from "@/components/documents/InpatientDocument
 import DischargeDialog from "@/components/inpatient/DischargeDialog";
 import EWSSection from "@/components/ews/EWSSection";
 import MedicationTab from "@/components/medication/MedicationTab";
+import InteractionWarnings, { useInteractionCount } from "@/components/medication/InteractionWarnings";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { usePhysicianLayoutContext } from "@/components/physician/PhysicianLayout";
 import PatientCardModal from "@/components/patient/PatientCardModal";
 
@@ -55,6 +57,51 @@ export default function InpatientPatientDetail() {
   const [activeView, setActiveView] = useState<ActiveView>(null);
   const [dischargeOpen, setDischargeOpen] = useState(false);
   const [showMedicationModal, setShowMedicationModal] = useState(false);
+  const [showIxModal, setShowIxModal] = useState(false);
+  const [ixAutoDismissed, setIxAutoDismissed] = useState(false);
+
+  const { data: interactions = [] } = useInteractionCount(
+    showMedicationModal ? hospitalizationId : "",
+    user?.hospitalId ?? ""
+  );
+
+  useEffect(() => {
+    if (!showMedicationModal) return;
+    if (ixAutoDismissed) return;
+    const key = `ix-dismissed-${hospitalizationId}`;
+    if (sessionStorage.getItem(key)) {
+      setIxAutoDismissed(true);
+      return;
+    }
+    if (interactions.length > 0) {
+      setShowIxModal(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showMedicationModal, interactions.length]);
+
+  const handleDismissIx = () => {
+    sessionStorage.setItem(`ix-dismissed-${hospitalizationId}`, "1");
+    setIxAutoDismissed(true);
+    setShowIxModal(false);
+  };
+
+  const ixSeverityClass = () => {
+    const order: Record<string, number> = {
+      contraindicated: 0, major: 1, moderate: 2, minor: 3,
+    };
+    const worst = (interactions as any[]).reduce(
+      (acc: string, ix: any) =>
+        (order[ix.severity] ?? 9) < (order[acc] ?? 9) ? ix.severity : acc,
+      "none"
+    );
+    if (worst === "contraindicated" || worst === "major")
+      return "text-red-600 border-red-300 hover:bg-red-50";
+    if (worst === "moderate")
+      return "text-amber-600 border-amber-300 hover:bg-amber-50";
+    if (worst === "minor")
+      return "text-blue-600 border-blue-200 hover:bg-blue-50";
+    return "";
+  };
 
   const { data: ewsScheduleStatus } = useQuery({
     queryKey: ["ews-schedule-status", hospitalizationId],
@@ -540,6 +587,24 @@ export default function InpatientPatientDetail() {
                   </div>
                 )}
               </div>
+              {interactions.length > 0 ? (
+                <button
+                  onClick={() => setShowIxModal(true)}
+                  className={cn(
+                    "text-xs border rounded px-2.5 py-1 shrink-0 transition-colors",
+                    ixSeverityClass()
+                  )}
+                >
+                  ⚠ Взаимодействия ({interactions.length})
+                </button>
+              ) : (
+                <button
+                  disabled
+                  className="text-xs border rounded px-2.5 py-1 shrink-0 text-muted-foreground border-muted opacity-50 cursor-not-allowed"
+                >
+                  Взаимодействия
+                </button>
+              )}
               <button
                 onClick={() => setShowMedicationModal(false)}
                 className="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground shrink-0"
@@ -560,6 +625,25 @@ export default function InpatientPatientDetail() {
           </div>
         </div>
       )}
+
+      <Dialog open={showIxModal} onOpenChange={(o) => !o && handleDismissIx()}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Лекарственные взаимодействия</DialogTitle>
+          </DialogHeader>
+          <InteractionWarnings
+            hospitalizationId={hospitalizationId}
+            hospitalId={user!.hospitalId}
+            variant="list"
+          />
+          <div className="flex justify-end pt-2">
+            <Button variant="outline" onClick={handleDismissIx}>
+              Закрыть и не показывать снова
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
 
       <DischargeDialog
         open={dischargeOpen}

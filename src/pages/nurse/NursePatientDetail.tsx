@@ -13,6 +13,8 @@ import PatientDocumentSidebar from "@/components/documents/PatientDocumentSideba
 import FallingPersonIcon from "@/components/assessments/FallingPersonIcon";
 import { cn } from "@/lib/utils";
 import PatientCardModal from "@/components/patient/PatientCardModal";
+import InteractionWarnings, { useInteractionCount } from "@/components/medication/InteractionWarnings";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 
 export default function NursePatientDetail() {
@@ -25,6 +27,51 @@ export default function NursePatientDetail() {
   const [showPatientCard, setShowPatientCard] = useState(false);
   
   const [selectedDoc, setSelectedDoc] = useState<{ id: string; typeId: string } | null>(null);
+  const [showIxModal, setShowIxModal] = useState(false);
+  const [ixAutoDismissed, setIxAutoDismissed] = useState(false);
+
+  const { data: interactions = [] } = useInteractionCount(
+    showPrescriptions ? (hospId ?? "") : "",
+    user?.hospitalId ?? ""
+  );
+
+  useEffect(() => {
+    if (!showPrescriptions) return;
+    if (ixAutoDismissed) return;
+    const key = `ix-dismissed-${hospId}`;
+    if (sessionStorage.getItem(key)) {
+      setIxAutoDismissed(true);
+      return;
+    }
+    if (interactions.length > 0) {
+      setShowIxModal(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showPrescriptions, interactions.length]);
+
+  const handleDismissIx = () => {
+    sessionStorage.setItem(`ix-dismissed-${hospId}`, "1");
+    setIxAutoDismissed(true);
+    setShowIxModal(false);
+  };
+
+  const ixSeverityClass = () => {
+    const order: Record<string, number> = {
+      contraindicated: 0, major: 1, moderate: 2, minor: 3,
+    };
+    const worst = (interactions as any[]).reduce(
+      (acc: string, ix: any) =>
+        (order[ix.severity] ?? 9) < (order[acc] ?? 9) ? ix.severity : acc,
+      "none"
+    );
+    if (worst === "contraindicated" || worst === "major")
+      return "text-red-600 border-red-300 hover:bg-red-50";
+    if (worst === "moderate")
+      return "text-amber-600 border-amber-300 hover:bg-amber-50";
+    if (worst === "minor")
+      return "text-blue-600 border-blue-200 hover:bg-blue-50";
+    return "";
+  };
 
   const { data: hosp, isLoading } = useQuery({
     queryKey: ["nurse-hosp", hospId],
@@ -271,6 +318,24 @@ export default function NursePatientDetail() {
                   )}
                 </div>
               </div>
+              {interactions.length > 0 ? (
+                <button
+                  onClick={() => setShowIxModal(true)}
+                  className={cn(
+                    "text-xs border rounded px-2.5 py-1 shrink-0 transition-colors",
+                    ixSeverityClass()
+                  )}
+                >
+                  ⚠ Взаимодействия ({interactions.length})
+                </button>
+              ) : (
+                <button
+                  disabled
+                  className="text-xs border rounded px-2.5 py-1 shrink-0 text-muted-foreground border-muted opacity-50 cursor-not-allowed"
+                >
+                  Взаимодействия
+                </button>
+              )}
               <button
                 onClick={() => setShowPrescriptions(false)}
                 className="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground shrink-0"
@@ -337,10 +402,23 @@ export default function NursePatientDetail() {
         />
       )}
 
-
-
-
-
+      <Dialog open={showIxModal} onOpenChange={(o) => !o && handleDismissIx()}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Лекарственные взаимодействия</DialogTitle>
+          </DialogHeader>
+          <InteractionWarnings
+            hospitalizationId={hospId ?? ""}
+            hospitalId={user!.hospitalId}
+            variant="list"
+          />
+          <div className="flex justify-end pt-2">
+            <Button variant="outline" onClick={handleDismissIx}>
+              Закрыть и не показывать снова
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
