@@ -2,84 +2,101 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
 @layer base {
   :root {
-    --background: 210 20% 98%;
-    --foreground: 215 25% 15%;
+    --background: 216 17% 94%;
+    --foreground: 214 18% 16%;
 
     --card: 0 0% 100%;
-    --card-foreground: 215 25% 15%;
+    --card-foreground: 214 18% 16%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 215 25% 15%;
+    --popover-foreground: 214 18% 16%;
 
-    --primary: 210 90% 42%;
-    --primary-foreground: 0 0% 100%;
+    /* graphite ink — buttons, sidebar-active, role badges */
+    --primary: 218 17% 18%;
+    --primary-foreground: 220 33% 98%;
 
-    --secondary: 210 30% 94%;
-    --secondary-foreground: 215 25% 25%;
+    --secondary: 214 16% 91%;
+    --secondary-foreground: 217 11% 24%;
 
-    --muted: 210 20% 96%;
-    --muted-foreground: 215 15% 50%;
+    --muted: 216 14% 93%;
+    --muted-foreground: 218 5% 42%;
 
-    --accent: 165 60% 40%;
-    --accent-foreground: 0 0% 100%;
+    /* restrained clinical teal — links / subtle highlights */
+    --accent: 189 41% 41%;
+    --accent-foreground: 210 67% 99%;
 
-    --destructive: 0 72% 55%;
-    --destructive-foreground: 0 0% 100%;
+    /* clinical rose — destructive / out-of-range */
+    --destructive: 355 68% 53%;
+    --destructive-foreground: 210 67% 99%;
 
-    --border: 214 20% 90%;
-    --input: 214 20% 88%;
-    --ring: 210 90% 42%;
+    --border: 216 8% 88%;
+    --input: 220 9% 87%;
+    --ring: 218 17% 18%;
 
     --radius: 0.625rem;
 
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 210 90% 42%;
+    --sidebar-background: 210 18% 96%;
+    --sidebar-foreground: 215 8% 29%;
+    --sidebar-primary: 218 17% 18%;
+    --sidebar-primary-foreground: 220 33% 98%;
+    --sidebar-accent: 220 12% 91%;
+    --sidebar-accent-foreground: 218 17% 18%;
+    --sidebar-border: 216 8% 87%;
 
-    --font-heading: 'Plus Jakarta Sans', system-ui, sans-serif;
-    --font-body: 'Plus Jakarta Sans', system-ui, sans-serif;
+    --shadow-card: 0 1px 2px 0 hsl(214 18% 16% / 0.04), 0 8px 24px -6px hsl(214 18% 16% / 0.06);
+    --shadow-elevated: 0 4px 12px -2px hsl(214 18% 16% / 0.10), 0 16px 40px -8px hsl(214 18% 16% / 0.14);
 
-    --shadow-card: 0 1px 3px 0 hsl(215 25% 15% / 0.04), 0 1px 2px -1px hsl(215 25% 15% / 0.04);
-    --shadow-elevated: 0 10px 30px -5px hsl(210 90% 42% / 0.08), 0 4px 6px -4px hsl(215 25% 15% / 0.05);
+    --font-heading: 'Golos Text', system-ui, sans-serif;
+    --font-body: 'Golos Text', system-ui, sans-serif;
   }
 
   .dark {
-    --background: 215 25% 8%;
-    --foreground: 210 20% 96%;
-    --card: 215 25% 11%;
-    --card-foreground: 210 20% 96%;
-    --popover: 215 25% 11%;
-    --popover-foreground: 210 20% 96%;
-    --primary: 210 90% 55%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 215 20% 18%;
-    --secondary-foreground: 210 20% 90%;
-    --muted: 215 20% 16%;
-    --muted-foreground: 215 15% 55%;
-    --accent: 165 60% 45%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 215 20% 20%;
-    --input: 215 20% 20%;
-    --ring: 210 90% 55%;
-    --sidebar-background: 215 25% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 210 90% 55%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 215 20% 15%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 215 20% 18%;
-    --sidebar-ring: 210 90% 55%;
+    --background: 220 18% 10%;
+    --foreground: 214 16% 91%;
+
+    --card: 216 15% 13%;
+    --card-foreground: 214 16% 91%;
+
+    --popover: 216 15% 13%;
+    --popover-foreground: 214 16% 91%;
+
+    /* in dark, ink flips to a light surface for buttons */
+    --primary: 213 14% 87%;
+    --primary-foreground: 220 18% 13%;
+
+    --secondary: 218 12% 19%;
+    --secondary-foreground: 214 11% 87%;
+
+    --muted: 220 10% 17%;
+    --muted-foreground: 222 5% 60%;
+
+    --accent: 186 45% 47%;
+    --accent-foreground: 223 24% 6%;
+
+    --destructive: 357 73% 58%;
+    --destructive-foreground: 210 67% 99%;
+
+    --border: 216 10% 20%;
+    --input: 216 9% 22%;
+    --ring: 214 11% 63%;
+
+    --sidebar-background: 216 17% 11%;
+    --sidebar-foreground: 213 7% 75%;
+    --sidebar-primary: 213 14% 87%;
+    --sidebar-primary-foreground: 220 18% 13%;
+    --sidebar-accent: 218 12% 19%;
+    --sidebar-accent-foreground: 214 16% 91%;
+    --sidebar-border: 216 10% 20%;
+
+    --shadow-card: 0 1px 3px 0 hsl(0 0% 0% / 0.4);
+    --shadow-elevated: 0 14px 36px -8px hsl(0 0% 0% / 0.6);
+
+    --font-heading: 'Golos Text', system-ui, sans-serif;
+    --font-body: 'Golos Text', system-ui, sans-serif;
   }
 }
 
