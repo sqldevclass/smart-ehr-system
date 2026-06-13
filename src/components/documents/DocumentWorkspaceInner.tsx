@@ -24,6 +24,7 @@ interface InnerProps {
   documentTypeId: string;
   serviceStatusCode: string;
   onClose: () => void;
+  onComplete?: (documentId: string) => void;
   sectionsData: any[];
   fieldsData: any[];
   patient: any;
