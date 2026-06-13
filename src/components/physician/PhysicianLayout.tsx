@@ -31,8 +31,6 @@ const navItems = [
 
 type Mode = "ambulatory" | "inpatient";
 
-type Mode = "ambulatory" | "inpatient";
-
 function ModeSwitcher({ mode, switchMode }: { mode: Mode; switchMode: (m: Mode) => void }) {
   const { open } = useSidebar();
   return (
