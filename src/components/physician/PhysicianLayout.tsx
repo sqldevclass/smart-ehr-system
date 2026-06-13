@@ -29,13 +29,7 @@ const navItems = [
   { title: "Profile", url: "/physician/profile", icon: UserCircle },
 ];
 
-const roleTitles: Record<string, string> = {
-  admin: "Administrator",
-  physician: "Physician",
-  registrar: "Registrar",
-  pharmacy_staff: "Pharmacy Staff",
-  warehouse_staff: "Warehouse Staff",
-};
+type Mode = "ambulatory" | "inpatient";
 
 type Mode = "ambulatory" | "inpatient";
 
