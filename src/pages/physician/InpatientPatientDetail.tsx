@@ -20,6 +20,8 @@ import InpatientDocumentWorkspace from "@/components/documents/InpatientDocument
 import DischargeDialog from "@/components/inpatient/DischargeDialog";
 import EWSSection from "@/components/ews/EWSSection";
 import MedicationTab from "@/components/medication/MedicationTab";
+import InteractionWarnings, { useInteractionCount } from "@/components/medication/InteractionWarnings";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { usePhysicianLayoutContext } from "@/components/physician/PhysicianLayout";
 import PatientCardModal from "@/components/patient/PatientCardModal";
 
