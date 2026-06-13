@@ -45,7 +45,7 @@ interface InnerProps {
 }
 
 export default function DocumentWorkspaceInner({
-  visitServiceId, patientId, visitId, hospitalId, documentTypeId, serviceStatusCode, onClose,
+  visitServiceId, patientId, visitId, hospitalId, documentTypeId, serviceStatusCode, onClose, onComplete,
   sectionsData, fieldsData, patient,
   documentType, mainServices, childServices, pendingOrders, physicianNameMap,
   visitDate, hospitalName, physicianId,
