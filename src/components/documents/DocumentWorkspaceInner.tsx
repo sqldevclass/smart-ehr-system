@@ -287,7 +287,10 @@ export default function DocumentWorkspaceInner({
       let docId = documentIdRef.current;
       if (!docId) {
         docId = await ensureDocument();
-        if (!docId) return;
+        if (!docId) {
+          toast.error("Не удалось создать документ. Попробуйте ещё раз.");
+          return;
+        }
       }
       await persistValues(docId, valuesRef.current);
       setIsDirty(false);
