@@ -587,6 +587,24 @@ export default function InpatientPatientDetail() {
                   </div>
                 )}
               </div>
+              {interactions.length > 0 ? (
+                <button
+                  onClick={() => setShowIxModal(true)}
+                  className={cn(
+                    "text-xs border rounded px-2.5 py-1 shrink-0 transition-colors",
+                    ixSeverityClass()
+                  )}
+                >
+                  ⚠ Взаимодействия ({interactions.length})
+                </button>
+              ) : (
+                <button
+                  disabled
+                  className="text-xs border rounded px-2.5 py-1 shrink-0 text-muted-foreground border-muted opacity-50 cursor-not-allowed"
+                >
+                  Взаимодействия
+                </button>
+              )}
               <button
                 onClick={() => setShowMedicationModal(false)}
                 className="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground shrink-0"
