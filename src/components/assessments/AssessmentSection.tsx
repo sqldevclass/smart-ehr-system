@@ -143,6 +143,7 @@ export default function AssessmentSection({
   const [selections, setSelections] = useState<Record<string, Selection>>({});
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [showDetail, setShowDetail] = useState(false);
 
 
   const { data: scale } = useQuery({
@@ -335,8 +336,9 @@ export default function AssessmentSection({
       {/* Latest summary */}
       {latest && !showForm && (
         <div
+          onClick={() => setShowDetail((v) => !v)}
           className={cn(
-            "rounded border px-3 py-2 text-sm",
+            "rounded border px-3 py-2 text-sm cursor-pointer hover:shadow-sm transition-shadow",
             getRiskLevel(latest.total_score, scaleCode).color
           )}
         >
@@ -345,8 +347,11 @@ export default function AssessmentSection({
               Балл: {latest.total_score} —{" "}
               {getRiskLevel(latest.total_score, scaleCode).label}
             </span>
-            <span className="text-xs opacity-75">
+            <span className="text-xs opacity-75 flex items-center gap-1">
               {format(new Date(latest.assessed_at), "dd.MM.yyyy HH:mm")}
+              <span className="text-xs opacity-60 ml-1">
+                {showDetail ? "▲" : "▼"}
+              </span>
             </span>
           </div>
           {latest.next_assessment_at && (
@@ -356,6 +361,29 @@ export default function AssessmentSection({
                 new Date(latest.next_assessment_at),
                 "dd.MM.yyyy HH:mm"
               )}
+            </div>
+          )}
+          {showDetail && latest.patient_assessment_responses?.length > 0 && (
+            <div className="mt-2 space-y-1.5 border-t pt-2">
+              {(scale?.assessment_scale_items ?? [])
+                .filter((item: any) => !hiddenItemCodes?.includes(item.code))
+                .sort((a: any, b: any) => a.display_order - b.display_order)
+                .map((item: any) => {
+                  const response = latest.patient_assessment_responses
+                    .find((r: any) => r.item_id === item.id);
+                  if (!response) return null;
+                  const option = item.assessment_scale_item_options
+                    ?.find((o: any) => o.id === response.option_id);
+                  return (
+                    <div key={item.id} className="text-xs flex justify-between gap-2">
+                      <span className="opacity-75">{item.name_ru}</span>
+                      <span className="font-medium text-right">
+                        {option?.label_ru ?? "—"}
+                        <span className="opacity-75 ml-1">({response.score})</span>
+                      </span>
+                    </div>
+                  );
+                })}
             </div>
           )}
         </div>
