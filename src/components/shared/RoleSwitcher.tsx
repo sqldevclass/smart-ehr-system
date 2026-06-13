@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const ROLE_LABELS: Record<string, string> = {
   physician: "Врач",
@@ -35,6 +35,7 @@ interface Props {
 
 export default function RoleSwitcher({ roles }: Props) {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -51,41 +52,45 @@ export default function RoleSwitcher({ roles }: Props) {
 
   if (!roles || roles.length === 0) return null;
 
-  const first = roles[0];
-  const rest = roles.slice(1);
-  const firstLabel = ROLE_LABELS[first] ?? first;
-  const firstRoute = ROLE_ROUTES[first];
+  const activeRole = roles.find((role) => {
+    const route = ROLE_ROUTES[role];
+    return route && pathname.startsWith(route);
+  }) ?? roles[0];
+
+  const otherRoles = roles.filter((r) => r !== activeRole);
+  const activeLabel = ROLE_LABELS[activeRole] ?? activeRole;
+  const activeRoute = ROLE_ROUTES[activeRole];
 
   return (
-    <div ref={ref} className="relative flex items-center gap-1">
-      {firstRoute ? (
+    <div ref={ref} className="relative flex items-center gap-1.5">
+      {activeRoute ? (
         <button
           type="button"
-          onClick={() => navigate(firstRoute)}
+          onClick={() => navigate(activeRoute)}
           className="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
         >
-          {firstLabel}
+          {activeLabel}
         </button>
       ) : (
         <span className="rounded bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground opacity-60">
-          {firstLabel}
+          {activeLabel}
         </span>
       )}
 
-      {rest.length > 0 && (
+      {otherRoles.length > 0 && (
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="text-xs text-muted-foreground hover:text-foreground px-1"
+          className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
           aria-label="Other roles"
         >
-          »
+          +{otherRoles.length}
         </button>
       )}
 
-      {open && rest.length > 0 && (
+      {open && otherRoles.length > 0 && (
         <div className="absolute right-0 top-full mt-1 z-50 min-w-[160px] rounded-md border bg-popover shadow-md py-1">
-          {rest.map((role) => {
+          {otherRoles.map((role) => {
             const label = ROLE_LABELS[role] ?? role;
             const route = ROLE_ROUTES[role];
             return route ? (
@@ -98,7 +103,10 @@ export default function RoleSwitcher({ roles }: Props) {
                 {label}
               </button>
             ) : (
-              <span key={role} className="block px-3 py-1.5 text-xs text-muted-foreground opacity-60">
+              <span
+                key={role}
+                className="block px-3 py-1.5 text-xs text-muted-foreground opacity-60"
+              >
                 {label}
               </span>
             );
