@@ -27,6 +27,51 @@ export default function NursePatientDetail() {
   const [showPatientCard, setShowPatientCard] = useState(false);
   
   const [selectedDoc, setSelectedDoc] = useState<{ id: string; typeId: string } | null>(null);
+  const [showIxModal, setShowIxModal] = useState(false);
+  const [ixAutoDismissed, setIxAutoDismissed] = useState(false);
+
+  const { data: interactions = [] } = useInteractionCount(
+    showPrescriptions ? (hospId ?? "") : "",
+    user?.hospitalId ?? ""
+  );
+
+  useEffect(() => {
+    if (!showPrescriptions) return;
+    if (ixAutoDismissed) return;
+    const key = `ix-dismissed-${hospId}`;
+    if (sessionStorage.getItem(key)) {
+      setIxAutoDismissed(true);
+      return;
+    }
+    if (interactions.length > 0) {
+      setShowIxModal(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showPrescriptions, interactions.length]);
+
+  const handleDismissIx = () => {
+    sessionStorage.setItem(`ix-dismissed-${hospId}`, "1");
+    setIxAutoDismissed(true);
+    setShowIxModal(false);
+  };
+
+  const ixSeverityClass = () => {
+    const order: Record<string, number> = {
+      contraindicated: 0, major: 1, moderate: 2, minor: 3,
+    };
+    const worst = (interactions as any[]).reduce(
+      (acc: string, ix: any) =>
+        (order[ix.severity] ?? 9) < (order[acc] ?? 9) ? ix.severity : acc,
+      "none"
+    );
+    if (worst === "contraindicated" || worst === "major")
+      return "text-red-600 border-red-300 hover:bg-red-50";
+    if (worst === "moderate")
+      return "text-amber-600 border-amber-300 hover:bg-amber-50";
+    if (worst === "minor")
+      return "text-blue-600 border-blue-200 hover:bg-blue-50";
+    return "";
+  };
 
   const { data: hosp, isLoading } = useQuery({
     queryKey: ["nurse-hosp", hospId],
