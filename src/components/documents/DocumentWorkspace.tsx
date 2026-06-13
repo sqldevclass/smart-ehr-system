@@ -260,6 +260,7 @@ export default function DocumentWorkspace(props: Props) {
       documentTypeId={documentTypeId}
       serviceStatusCode={props.serviceStatusCode}
       onClose={props.onClose}
+      onComplete={props.onComplete}
       sectionsData={sectionsData}
       fieldsData={fieldsData}
       patient={patient}
