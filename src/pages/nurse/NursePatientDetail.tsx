@@ -13,6 +13,8 @@ import PatientDocumentSidebar from "@/components/documents/PatientDocumentSideba
 import FallingPersonIcon from "@/components/assessments/FallingPersonIcon";
 import { cn } from "@/lib/utils";
 import PatientCardModal from "@/components/patient/PatientCardModal";
+import InteractionWarnings, { useInteractionCount } from "@/components/medication/InteractionWarnings";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 
 export default function NursePatientDetail() {
