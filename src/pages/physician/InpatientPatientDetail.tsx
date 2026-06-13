@@ -520,9 +520,7 @@ export default function InpatientPatientDetail() {
                       ? { ...prev, documentId: newDocId }
                       : prev
                   );
-                  queryClient.invalidateQueries({
-                    queryKey: ["inpatient-docs", hospitalizationId],
-                  });
+                  refetchDocs();
                 }}
               />
             ) : activeView?.type === "tab" ? (
