@@ -330,7 +330,9 @@ export default function DocumentWorkspaceInner({
         setCompletedBy(profile?.full_name ?? null);
       }
       queryClient.invalidateQueries({ queryKey: ["physician-schedule"] });
-      onClose();
+      if (docId) onComplete?.(docId);
+      // Do NOT call onClose() — component stays mounted
+      // and re-renders with isReadOnly = true from docStatus
     } finally {
       setIsConfirming(false);
     }
