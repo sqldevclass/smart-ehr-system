@@ -309,6 +309,13 @@ export default function InpatientPatientDetail() {
     queryClient.invalidateQueries({ queryKey: ["inpatient-docs-all", patientId] });
   };
 
+  const handleDocumentComplete = () => {
+    refetchDocs();
+    queryClient.invalidateQueries({
+      queryKey: ["inpatient-docs-all", patientId],
+    });
+  };
+
   const selectTab = (tab: TabKey) => {
     setActiveView({ type: "tab", tab });
   };
