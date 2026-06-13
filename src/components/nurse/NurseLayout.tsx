@@ -5,6 +5,7 @@ import { NavLink } from "@/components/NavLink";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import RoleSwitcher from "@/components/shared/RoleSwitcher";
 import { NurseProvider } from "@/contexts/NurseContext";
 import InpatientToolbox from "@/components/inpatient/InpatientToolbox";
 import {
@@ -25,11 +26,6 @@ const navItems = [
   { title: "Профиль", url: "/nurse/profile", icon: UserCircle },
 ];
 
-const roleTitles: Record<string, string> = {
-  admin: "Administrator",
-  inpatient_nurse: "Медсестра",
-  head_nurse: "Старшая медсестра",
-};
 
 interface NurseOutletContext {
   setPatientContext: (node: React.ReactNode | null) => void;
@@ -120,9 +116,7 @@ export default function NurseLayout() {
               {user && (
                 <div className="flex items-center gap-3 text-sm text-muted-foreground ml-auto shrink-0">
                   <span>{user.fullName}</span>
-                  <span className="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                    {user.roles.map((r) => roleTitles[r] || r).join(", ")}
-                  </span>
+                  <RoleSwitcher roles={user.roles} />
                 </div>
               )}
             </header>
