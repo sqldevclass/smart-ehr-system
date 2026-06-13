@@ -336,7 +336,7 @@ export default function DocumentWorkspaceInner({
   };
 
   const canConfirm =
-    !isReadOnly && allMandatoryFilled && documentId !== null && !isConfirming;
+    !isReadOnly && allMandatoryFilled && !isConfirming;
 
   if (statusLoading) {
     return (
