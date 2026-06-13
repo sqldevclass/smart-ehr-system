@@ -19,6 +19,7 @@ interface Props {
   documentTypeId: string;
   serviceStatusCode: string;
   onClose: () => void;
+  onComplete?: (documentId: string) => void;
   hospitalizationId?: string;
   existingDocumentId?: string;
   onDocumentCreated?: (documentId: string) => void;
@@ -259,6 +260,7 @@ export default function DocumentWorkspace(props: Props) {
       documentTypeId={documentTypeId}
       serviceStatusCode={props.serviceStatusCode}
       onClose={props.onClose}
+      onComplete={props.onComplete}
       sectionsData={sectionsData}
       fieldsData={fieldsData}
       patient={patient}

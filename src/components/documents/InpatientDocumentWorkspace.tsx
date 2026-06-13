@@ -8,6 +8,7 @@ interface Props {
   hospitalId: string;
   forceReadOnly?: boolean;
   onClose: () => void;
+  onComplete?: (documentId: string) => void;
   onDocumentCreated?: (documentId: string) => void;
 }
 
@@ -22,6 +23,7 @@ export default function InpatientDocumentWorkspace(props: Props) {
     existingDocumentId: props.existingDocumentId,
     serviceStatusCode: props.forceReadOnly ? "completed" : "ready_for_execution",
     onClose: props.onClose,
+    onComplete: props.onComplete,
     onDocumentCreated: props.onDocumentCreated,
   };
   return <DocumentWorkspace {...extra} />;
