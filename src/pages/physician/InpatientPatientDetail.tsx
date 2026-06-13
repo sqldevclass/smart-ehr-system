@@ -626,6 +626,25 @@ export default function InpatientPatientDetail() {
         </div>
       )}
 
+      <Dialog open={showIxModal} onOpenChange={(o) => !o && handleDismissIx()}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Лекарственные взаимодействия</DialogTitle>
+          </DialogHeader>
+          <InteractionWarnings
+            hospitalizationId={hospitalizationId}
+            hospitalId={user!.hospitalId}
+            variant="list"
+          />
+          <div className="flex justify-end pt-2">
+            <Button variant="outline" onClick={handleDismissIx}>
+              Закрыть и не показывать снова
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+
       <DischargeDialog
         open={dischargeOpen}
         onOpenChange={setDischargeOpen}
