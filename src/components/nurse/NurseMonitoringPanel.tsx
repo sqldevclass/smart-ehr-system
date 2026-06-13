@@ -720,7 +720,11 @@ export default function NurseMonitoringPanel({
                       </div>
                       {r.pain_character?.length > 0 && (
                         <div className="text-xs text-muted-foreground mt-0.5">
-                          {r.pain_character.join(", ")}
+                          {r.pain_character
+                            .map((code: string) =>
+                              painCharacterOptions.find((o) => o.code === code)?.label ?? code
+                            )
+                            .join(", ")}
                         </div>
                       )}
                       {r.pain_location && (
