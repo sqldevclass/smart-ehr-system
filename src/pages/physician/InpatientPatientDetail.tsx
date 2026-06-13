@@ -57,6 +57,51 @@ export default function InpatientPatientDetail() {
   const [activeView, setActiveView] = useState<ActiveView>(null);
   const [dischargeOpen, setDischargeOpen] = useState(false);
   const [showMedicationModal, setShowMedicationModal] = useState(false);
+  const [showIxModal, setShowIxModal] = useState(false);
+  const [ixAutoDismissed, setIxAutoDismissed] = useState(false);
+
+  const { data: interactions = [] } = useInteractionCount(
+    showMedicationModal ? hospitalizationId : "",
+    user?.hospitalId ?? ""
+  );
+
+  useEffect(() => {
+    if (!showMedicationModal) return;
+    if (ixAutoDismissed) return;
+    const key = `ix-dismissed-${hospitalizationId}`;
+    if (sessionStorage.getItem(key)) {
+      setIxAutoDismissed(true);
+      return;
+    }
+    if (interactions.length > 0) {
+      setShowIxModal(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showMedicationModal, interactions.length]);
+
+  const handleDismissIx = () => {
+    sessionStorage.setItem(`ix-dismissed-${hospitalizationId}`, "1");
+    setIxAutoDismissed(true);
+    setShowIxModal(false);
+  };
+
+  const ixSeverityClass = () => {
+    const order: Record<string, number> = {
+      contraindicated: 0, major: 1, moderate: 2, minor: 3,
+    };
+    const worst = (interactions as any[]).reduce(
+      (acc: string, ix: any) =>
+        (order[ix.severity] ?? 9) < (order[acc] ?? 9) ? ix.severity : acc,
+      "none"
+    );
+    if (worst === "contraindicated" || worst === "major")
+      return "text-red-600 border-red-300 hover:bg-red-50";
+    if (worst === "moderate")
+      return "text-amber-600 border-amber-300 hover:bg-amber-50";
+    if (worst === "minor")
+      return "text-blue-600 border-blue-200 hover:bg-blue-50";
+    return "";
+  };
 
   const { data: ewsScheduleStatus } = useQuery({
     queryKey: ["ews-schedule-status", hospitalizationId],
