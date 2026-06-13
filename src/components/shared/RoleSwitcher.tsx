@@ -2,31 +2,37 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
 const ROLE_LABELS: Record<string, string> = {
-  physician: "Врач",
-  inpatient_nurse: "Медсестра",
-  head_nurse: "Старшая медсестра",
-  pharmacy_staff: "Фармацевт",
   admin: "Администратор",
   outpatient_registrar: "Регистратор",
+  call_center_registrar: "Регистратор КЦ",
   inpatient_registrar: "Регистратор (стац.)",
-  warehouse_staff: "Склад",
   cashier: "Кассир",
-  hr_staff: "HR",
-  lab_staff: "Лаборант",
+  physician: "Врач",
+  functional_diagnostics_physician: "Врач ФД",
+  lab_physician: "Врач лаборатории",
+  blood_draw_nurse: "Медсестра забора",
+  inpatient_nurse: "Медсестра",
+  head_nurse: "Старшая медсестра",
+  senior_manager: "Старший менеджер",
+  hr: "HR",
+  finance: "Финансист",
+  pharmacist: "Провизор",
+  warehouse_staff: "Склад",
+  inventory_manager: "Инвентаризатор",
+  radiology_technician: "Рентген-лаборант",
 };
 
 const ROLE_ROUTES: Record<string, string> = {
-  physician: "/physician",
-  inpatient_nurse: "/nurse",
-  head_nurse: "/nurse",
-  pharmacy_staff: "/pharmacy",
   admin: "/admin",
   outpatient_registrar: "/registrar",
   inpatient_registrar: "/inpatient",
-  warehouse_staff: "/warehouse",
   cashier: "/cashier",
-  hr_staff: "/hr",
-  lab_staff: "/lab",
+  physician: "/physician",
+  inpatient_nurse: "/nurse",
+  head_nurse: "/nurse",
+  hr: "/hr",
+  pharmacist: "/pharmacy",
+  warehouse_staff: "/warehouse",
 };
 
 interface Props {
