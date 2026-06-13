@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import PrescriptionGrid from "@/components/medication/PrescriptionGrid";
 import PrnPrescriptionList from "@/components/medication/PrnPrescriptionList";
-import InteractionWarnings from "@/components/medication/InteractionWarnings";
+
 import { useAuth } from "@/hooks/useAuth";
 
 const TIME_CHIPS = Array.from({ length: 48 }, (_, i) => {
