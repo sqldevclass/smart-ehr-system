@@ -103,6 +103,7 @@ export default function MedicationTab({
   const [pendingInteractions, setPendingInteractions] = useState<any[] | null>(null);
   const [pendingPayload, setPendingPayload] = useState<any | null>(null);
   const [ackReason, setAckReason] = useState("");
+  const [pendingCandidateName, setPendingCandidateName] = useState<string>("");
   const [checkingInteractions, setCheckingInteractions] = useState(false);
 
   const [startDay, setStartDay] = useState(new Date());
