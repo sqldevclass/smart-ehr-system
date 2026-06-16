@@ -769,8 +769,8 @@ export default function NurseInventoryModal({
                 </div>
               )}
             </TabsContent>
-          </Tabs>
-        </div>
+          </div>
+        </Tabs>
       </div>
     </div>
   );
