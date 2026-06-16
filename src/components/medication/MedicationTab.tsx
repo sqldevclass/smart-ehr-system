@@ -103,6 +103,7 @@ export default function MedicationTab({
   const [pendingInteractions, setPendingInteractions] = useState<any[] | null>(null);
   const [pendingPayload, setPendingPayload] = useState<any | null>(null);
   const [ackReason, setAckReason] = useState("");
+  const [pendingCandidateName, setPendingCandidateName] = useState<string>("");
   const [checkingInteractions, setCheckingInteractions] = useState(false);
 
   const [startDay, setStartDay] = useState(new Date());
@@ -382,6 +383,7 @@ export default function MedicationTab({
     setPendingInteractions(null);
     setPendingPayload(null);
     setAckReason("");
+    setPendingCandidateName("");
     invalidate();
   };
 
@@ -442,6 +444,7 @@ export default function MedicationTab({
       if (hits && hits.length > 0) {
         setPendingInteractions(hits);
         setPendingPayload(payload);
+        setPendingCandidateName(isOwnDrugMode ? ownDrugName : (formData.drug?.trade_name ?? ""));
         return;
       }
     }
@@ -465,6 +468,7 @@ export default function MedicationTab({
     setPendingInteractions(null);
     setPendingPayload(null);
     setAckReason("");
+    setPendingCandidateName("");
   };
 
   const handleRemoveDraft = async (id: string) => {
@@ -1039,7 +1043,7 @@ export default function MedicationTab({
             {(pendingInteractions ?? []).map((ix: any, i: number) => (
               <div key={i} className="border rounded-lg p-3 bg-red-50 border-red-200 space-y-1">
                 <p className="text-sm font-semibold text-red-900">
-                  {ix.existing_drug_name} — {ix.severity === "contraindicated" ? "Противопоказано" : "Серьёзное"}
+                  {pendingCandidateName} + {ix.existing_drug_name} — {ix.severity === "contraindicated" ? "Противопоказано" : "Серьёзное"}
                 </p>
                 <p className="text-sm">{ix.clinical_effect}</p>
                 {ix.clinical_significance && (
