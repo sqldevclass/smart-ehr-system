@@ -396,6 +396,35 @@ export default function DocumentWorkspaceInner({
           )}
         </div>
         <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 pr-2 mr-1 border-r print:hidden">
+            <button
+              type="button"
+              disabled={!activeEditable}
+              onMouseDown={(e) => { e.preventDefault(); execOnActive("bold"); }}
+              className="p-1.5 rounded hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+              title="Жирный (Ctrl+B)"
+            >
+              <Bold className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              disabled={!activeEditable}
+              onMouseDown={(e) => { e.preventDefault(); execOnActive("italic"); }}
+              className="p-1.5 rounded hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+              title="Курсив (Ctrl+I)"
+            >
+              <Italic className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              disabled={!activeEditable}
+              onMouseDown={(e) => { e.preventDefault(); execOnActive("underline"); }}
+              className="p-1.5 rounded hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+              title="Подчёркнутый (Ctrl+U)"
+            >
+              <Underline className="h-3.5 w-3.5" />
+            </button>
+          </div>
           {isDirty && !isReadOnly && (
             <span className="text-xs text-muted-foreground">
               Сохранение...
@@ -418,35 +447,6 @@ export default function DocumentWorkspaceInner({
         </div>
       </div>
 
-      <div className="flex items-center gap-1 border-b bg-muted/30 px-4 py-1 print:hidden">
-        <button
-          type="button"
-          disabled={!activeEditable}
-          onMouseDown={(e) => { e.preventDefault(); execOnActive("bold"); }}
-          className="p-1.5 rounded hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-          title="Жирный (Ctrl+B)"
-        >
-          <Bold className="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          disabled={!activeEditable}
-          onMouseDown={(e) => { e.preventDefault(); execOnActive("italic"); }}
-          className="p-1.5 rounded hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-          title="Курсив (Ctrl+I)"
-        >
-          <Italic className="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          disabled={!activeEditable}
-          onMouseDown={(e) => { e.preventDefault(); execOnActive("underline"); }}
-          className="p-1.5 rounded hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-          title="Подчёркнутый (Ctrl+U)"
-        >
-          <Underline className="h-3.5 w-3.5" />
-        </button>
-      </div>
 
       {/* Tabs */}
       <div className="document-tabs-bar border-b bg-card px-4 overflow-x-auto">
