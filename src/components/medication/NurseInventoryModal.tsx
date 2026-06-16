@@ -642,14 +642,21 @@ export default function NurseInventoryModal({
             </TabsContent>
 
             {/* TAB 3 */}
-            <TabsContent value="writeoff" className="flex-1 overflow-auto mt-4 space-y-6">
-              <FilterBar filters={filters} onChange={setFilter} fields={["drug"]} />
-
-              <div className="grid grid-cols-[1fr_120px_1fr_auto] gap-2 items-end">
+            <TabsContent value="writeoff" className="flex-1 overflow-auto mt-2 space-y-3">
+              <div className="grid grid-cols-[140px_1fr_90px_1fr_auto] gap-2 items-end">
+                <div>
+                  <Label className="text-xs">Поиск</Label>
+                  <Input
+                    placeholder="Препарат"
+                    value={filters.drug ?? ""}
+                    onChange={(e) => setFilter("drug", e.target.value)}
+                    className="h-8 text-sm"
+                  />
+                </div>
                 <div>
                   <Label className="text-xs">Препарат / Товар</Label>
                   <Select value={woBatchId} onValueChange={setWoBatchId}>
-                    <SelectTrigger><SelectValue placeholder="Выберите" /></SelectTrigger>
+                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Выберите" /></SelectTrigger>
                     <SelectContent>
                       {filteredStock.map((b: any) => (
                         <SelectItem key={b.id} value={b.id}>
@@ -660,13 +667,18 @@ export default function NurseInventoryModal({
                   </Select>
                 </div>
                 <div>
-                  <Label className="text-xs">Количество</Label>
-                  <Input type="number" value={woQty} onChange={(e) => setWoQty(e.target.value)} />
+                  <Label className="text-xs">Кол-во</Label>
+                  <Input
+                    type="number"
+                    value={woQty}
+                    onChange={(e) => setWoQty(e.target.value)}
+                    className="h-8 text-sm"
+                  />
                 </div>
                 <div>
                   <Label className="text-xs">Пациент (необязательно)</Label>
                   <Select value={woPatientHospId || "none"} onValueChange={(v) => setWoPatientHospId(v === "none" ? "" : v)}>
-                    <SelectTrigger><SelectValue placeholder="Без пациента" /></SelectTrigger>
+                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Без пациента" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Без пациента</SelectItem>
                       {(activeHosps as any[]).map((h) => (
@@ -677,7 +689,7 @@ export default function NurseInventoryModal({
                     </SelectContent>
                   </Select>
                 </div>
-                <Button onClick={writeOff} disabled={woSending || !woBatchId || !woQty}>
+                <Button size="sm" className="h-8" onClick={writeOff} disabled={woSending || !woBatchId || !woQty}>
                   {woSending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Списать"}
                 </Button>
               </div>
