@@ -48,7 +48,7 @@ export default function OrdersPage() {
   const [actingSlot, setActingSlot] = useState<string | null>(null);
   const gridScrollRef = useRef<HTMLDivElement | null>(null);
   const [listModalPatient, setListModalPatient] = useState<{
-    hospId: string; patientId: string; name: string;
+    hospId: string; patientId: string; patient: any;
   } | null>(null);
   const [ixModalPatient, setIxModalPatient] = useState<{
     hospId: string; name: string;
@@ -135,7 +135,8 @@ export default function OrdersPage() {
             id, department_id,
             patients!inner(
               id, first_name, last_name, patient_number,
-              date_of_birth, weight_kg, height_cm
+              date_of_birth, weight_kg, height_cm,
+              patient_allergies(allergy_type, severity)
             )
           )
         `)
@@ -401,7 +402,7 @@ export default function OrdersPage() {
                           onClick={() => setListModalPatient({
                             hospId,
                             patientId: patient.id,
-                            name: `${patient.last_name} ${patient.first_name}`,
+                            patient,
                           })}
                           className="text-[11px] text-primary border border-primary/40 rounded px-2 py-1 hover:bg-primary hover:text-white transition-colors"
                         >
@@ -443,7 +444,7 @@ export default function OrdersPage() {
         <PharmacistPrescriptionListModal
           hospitalizationId={listModalPatient.hospId}
           patientId={listModalPatient.patientId}
-          patientName={listModalPatient.name}
+          patient={listModalPatient.patient}
           hospitalId={user.hospitalId}
           onClose={() => setListModalPatient(null)}
         />
@@ -494,11 +495,11 @@ function EmptyInteractionsNote({
 }
 
 function PharmacistPrescriptionListModal({
-  hospitalizationId, patientId, patientName, hospitalId, onClose,
+  hospitalizationId, patientId, patient, hospitalId, onClose,
 }: {
   hospitalizationId: string;
   patientId: string;
-  patientName: string;
+  patient: any;
   hospitalId: string;
   onClose: () => void;
 }) {
@@ -546,7 +547,44 @@ function PharmacistPrescriptionListModal({
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-auto">
         <DialogHeader>
-          <DialogTitle>Лист назначения — {patientName}</DialogTitle>
+          <DialogTitle className="sr-only">Лист назначения</DialogTitle>
+          <div className="flex items-center gap-4 text-sm flex-wrap">
+            <h2 className="font-semibold text-base shrink-0">Лист назначения</h2>
+            <div className="shrink-0">
+              <div className="font-medium">
+                {patient?.last_name} {patient?.first_name}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {patient?.date_of_birth
+                  ? format(new Date(patient.date_of_birth), "dd.MM.yyyy")
+                  : "—"}
+                {" · "}
+                {patient?.date_of_birth
+                  ? differenceInYears(new Date(), new Date(patient.date_of_birth))
+                  : "—"}{" "}
+                лет
+              </div>
+            </div>
+            <div className="text-xs text-muted-foreground shrink-0">
+              {patient?.patient_number}
+            </div>
+            {patient?.weight_kg && (
+              <div className="text-xs text-muted-foreground shrink-0">
+                {patient.weight_kg} кг
+              </div>
+            )}
+            {patient?.height_cm && (
+              <div className="text-xs text-muted-foreground shrink-0">
+                {patient.height_cm} см
+              </div>
+            )}
+            {(patient?.patient_allergies?.length ?? 0) > 0 && (
+              <div className="text-xs font-semibold text-red-600 shrink-0">
+                ⚠ АЛЛЕРГИЯ:{" "}
+                {patient.patient_allergies.map((a: any) => a.allergy_type).join(", ")}
+              </div>
+            )}
+          </div>
         </DialogHeader>
         <PrescriptionGrid
           prescriptions={prescriptions}
