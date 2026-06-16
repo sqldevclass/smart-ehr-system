@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -24,9 +24,18 @@ export default function PatientCardModal({ hospitalizationId, open, onOpenChange
   const [saving, setSaving] = useState(false);
   const [editDeptId, setEditDeptId] = useState<string>("");
   const [editRoomBed, setEditRoomBed] = useState<RoomBedValue>({ roomId: "", bedNumber: null });
-  const [editWeight, setEditWeight] = useState<string>("");
-  const [editHeight, setEditHeight] = useState<string>("");
   const [editing, setEditing] = useState(false);
+
+  const [personalGender, setPersonalGender] = useState<string>("");
+  const [personalPhone, setPersonalPhone] = useState<string>("");
+  const [personalEmail, setPersonalEmail] = useState<string>("");
+  const [personalNationalId, setPersonalNationalId] = useState<string>("");
+  const [personalWeight, setPersonalWeight] = useState<string>("");
+  const [personalHeight, setPersonalHeight] = useState<string>("");
+  const [personalAddress, setPersonalAddress] = useState<string>("");
+  const [personalBaseline, setPersonalBaseline] = useState<string>("");
+  const [savingPersonal, setSavingPersonal] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   const { data: hosp, isLoading } = useQuery({
     queryKey: ["patient-card-hosp", hospitalizationId],
@@ -84,14 +93,65 @@ export default function PatientCardModal({ hospitalizationId, open, onOpenChange
   const patient = (hosp as any)?.patients;
   const currentRa = (hosp as any)?.room_assignments?.find((r: any) => !r.discharged_at);
 
+  useEffect(() => {
+    if (!patient) return;
+    const initial = {
+      gender: patient.gender ?? "",
+      phone: patient.phone ?? "",
+      email: patient.email ?? "",
+      nationalId: patient.national_id ?? "",
+      weight: patient.weight_kg != null ? String(patient.weight_kg) : "",
+      height: patient.height_cm != null ? String(patient.height_cm) : "",
+      address: patient.address ?? "",
+    };
+    setPersonalGender(initial.gender);
+    setPersonalPhone(initial.phone);
+    setPersonalEmail(initial.email);
+    setPersonalNationalId(initial.nationalId);
+    setPersonalWeight(initial.weight);
+    setPersonalHeight(initial.height);
+    setPersonalAddress(initial.address);
+    setPersonalBaseline(JSON.stringify(initial));
+  }, [patient?.id, patient?.gender, patient?.phone, patient?.email, patient?.national_id, patient?.weight_kg, patient?.height_cm, patient?.address]);
+
+  const isPersonalDirty = (() => {
+    if (!personalBaseline) return false;
+    const current = JSON.stringify({
+      gender: personalGender,
+      phone: personalPhone,
+      email: personalEmail,
+      nationalId: personalNationalId,
+      weight: personalWeight,
+      height: personalHeight,
+      address: personalAddress,
+    });
+    return current !== personalBaseline;
+  })();
+
+  const { data: vitalsHistory = [] } = useQuery({
+    queryKey: ["patient-vitals-history", patient?.id],
+    enabled: !!patient?.id && open && showHistory,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("patient_vitals_measurements" as any)
+        .select(`
+          id, weight_kg, height_cm, recorded_at,
+          profiles!recorded_by(full_name)
+        `)
+        .eq("patient_id", patient!.id)
+        .order("recorded_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   const startEditing = () => {
     setEditDeptId((hosp as any)?.department_id ?? "");
     setEditRoomBed({
       roomId: currentRa?.rooms?.id ?? "",
       bedNumber: currentRa?.bed_number != null ? Number(currentRa.bed_number) : null,
     });
-    setEditWeight(patient?.weight_kg != null ? String(patient.weight_kg) : "");
-    setEditHeight(patient?.height_cm != null ? String(patient.height_cm) : "");
     setEditing(true);
   };
 
@@ -130,17 +190,6 @@ export default function PatientCardModal({ hospitalizationId, open, onOpenChange
         if (error) throw error;
       }
 
-      if (patient?.id) {
-        const { error } = await supabase
-          .from("patients")
-          .update({
-            weight_kg: editWeight ? parseFloat(editWeight) : null,
-            height_cm: editHeight ? parseFloat(editHeight) : null,
-          })
-          .eq("id", patient.id);
-        if (error) throw error;
-      }
-
       toast.success("Сохранено");
       setEditing(false);
       qc.invalidateQueries({ queryKey: ["patient-card-hosp", hospitalizationId] });
@@ -155,6 +204,57 @@ export default function PatientCardModal({ hospitalizationId, open, onOpenChange
       setSaving(false);
     }
   };
+
+  const savePersonal = async () => {
+    if (!patient?.id) return;
+    setSavingPersonal(true);
+    try {
+      const { error: profileErr } = await supabase
+        .from("patients")
+        .update({
+          gender: personalGender || null,
+          phone: personalPhone || null,
+          email: personalEmail || null,
+          national_id: personalNationalId || null,
+          address: personalAddress || null,
+        })
+        .eq("id", patient.id);
+      if (profileErr) throw profileErr;
+
+      const weightNum = personalWeight ? parseFloat(personalWeight) : null;
+      const heightNum = personalHeight ? parseFloat(personalHeight) : null;
+      if (weightNum !== null || heightNum !== null) {
+        const { error: rpcErr } = await supabase.rpc("record_patient_measurement" as any, {
+          p_patient_id: patient.id,
+          p_weight_kg: weightNum,
+          p_height_cm: heightNum,
+        });
+        if (rpcErr) throw rpcErr;
+      }
+
+      toast.success("Сохранено");
+      setPersonalBaseline(JSON.stringify({
+        gender: personalGender,
+        phone: personalPhone,
+        email: personalEmail,
+        nationalId: personalNationalId,
+        weight: personalWeight,
+        height: personalHeight,
+        address: personalAddress,
+      }));
+      qc.invalidateQueries({ queryKey: ["patient-card-hosp", hospitalizationId] });
+      qc.invalidateQueries({ queryKey: ["patient-vitals-history", patient.id] });
+      qc.invalidateQueries({ queryKey: ["nurse-hosp", hospitalizationId] });
+      qc.invalidateQueries({ queryKey: ["nurse-hosps"] });
+      qc.invalidateQueries({ queryKey: ["inpatient-detail", hospitalizationId] });
+      qc.invalidateQueries({ queryKey: ["inpatient-hosps"] });
+    } catch (e: any) {
+      toast.error(e.message ?? "Ошибка сохранения");
+    } finally {
+      setSavingPersonal(false);
+    }
+  };
+
 
   const genderLabel = (g: string) =>
     g === "male" ? "Мужской" : g === "female" ? "Женский" : g ?? "—";
@@ -199,38 +299,117 @@ export default function PatientCardModal({ hospitalizationId, open, onOpenChange
               <p className="text-sm text-muted-foreground">П# {patient.patient_number}</p>
             </div>
 
-            {/* Personal details grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-              <p>
-                <span className="text-muted-foreground">Дата рождения:</span>{" "}
+            {/* Personal details — always editable */}
+            <div className="space-y-3">
+              <p className="text-sm font-semibold">Личные данные</p>
+              <p className="text-sm text-muted-foreground">
+                Дата рождения:{" "}
                 {patient.date_of_birth
                   ? `${format(new Date(patient.date_of_birth), "dd.MM.yyyy")} (${differenceInYears(new Date(), new Date(patient.date_of_birth))} лет)`
                   : "—"}
               </p>
-              <p>
-                <span className="text-muted-foreground">Пол:</span> {genderLabel(patient.gender)}
-              </p>
-              <p>
-                <span className="text-muted-foreground">Телефон:</span> {patient.phone || "—"}
-              </p>
-              <p>
-                <span className="text-muted-foreground">Email:</span> {patient.email || "—"}
-              </p>
-              <p>
-                <span className="text-muted-foreground">Паспорт/ИД:</span> {patient.national_id || "—"}
-              </p>
-              <p>
-                <span className="text-muted-foreground">Вес:</span>{" "}
-                {patient.weight_kg ? `${patient.weight_kg} кг` : "—"}
-              </p>
-              <p>
-                <span className="text-muted-foreground">Рост:</span>{" "}
-                {patient.height_cm ? `${patient.height_cm} см` : "—"}
-              </p>
-              <p className="sm:col-span-2">
-                <span className="text-muted-foreground">Адрес:</span> {patient.address || "—"}
-              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Пол</Label>
+                  <Select value={personalGender} onValueChange={setPersonalGender}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Не указан" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="male">Мужской</SelectItem>
+                      <SelectItem value="female">Женский</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Телефон</Label>
+                  <input
+                    type="text"
+                    value={personalPhone}
+                    onChange={(e) => setPersonalPhone(e.target.value)}
+                    className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Email</Label>
+                  <input
+                    type="email"
+                    value={personalEmail}
+                    onChange={(e) => setPersonalEmail(e.target.value)}
+                    className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Паспорт/ИД</Label>
+                  <input
+                    type="text"
+                    value={personalNationalId}
+                    onChange={(e) => setPersonalNationalId(e.target.value)}
+                    className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Вес (кг)</Label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={personalWeight}
+                    onChange={(e) => setPersonalWeight(e.target.value)}
+                    className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Рост (см)</Label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={personalHeight}
+                    onChange={(e) => setPersonalHeight(e.target.value)}
+                    className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Адрес</Label>
+                <input
+                  type="text"
+                  value={personalAddress}
+                  onChange={(e) => setPersonalAddress(e.target.value)}
+                  className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+                />
+              </div>
+              <div className="flex items-center justify-between pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowHistory((v) => !v)}
+                  className="text-xs text-muted-foreground hover:text-foreground underline"
+                >
+                  {showHistory ? "Скрыть историю" : "Показать историю"}
+                </button>
+                <Button size="sm" onClick={savePersonal} disabled={!isPersonalDirty || savingPersonal}>
+                  {savingPersonal ? "Сохранение..." : "Сохранить"}
+                </Button>
+              </div>
+              {showHistory && (
+                <div className="border rounded-md p-2 space-y-1.5 bg-muted/30">
+                  {vitalsHistory.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Нет записей</p>
+                  ) : (
+                    vitalsHistory.map((v: any) => (
+                      <div key={v.id} className="text-xs flex justify-between gap-2">
+                        <span>
+                          {v.weight_kg ? `${v.weight_kg} кг` : "—"} ·{" "}
+                          {v.height_cm ? `${v.height_cm} см` : "—"}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {v.profiles?.full_name ?? "—"} ·{" "}
+                          {format(new Date(v.recorded_at), "dd.MM.yyyy HH:mm")}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
+
 
             {/* Allergies */}
             {allergies.length > 0 && (
@@ -311,29 +490,8 @@ export default function PatientCardModal({ hospitalizationId, open, onOpenChange
                       />
                     </div>
                   )}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <Label>Вес (кг)</Label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        value={editWeight}
-                        onChange={(e) => setEditWeight(e.target.value)}
-                        className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label>Рост (см)</Label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        value={editHeight}
-                        onChange={(e) => setEditHeight(e.target.value)}
-                        className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
-                      />
-                    </div>
-                  </div>
                   <div className="flex justify-end gap-2">
+
                     <Button variant="outline" onClick={() => setEditing(false)} disabled={saving}>
                       Отмена
                     </Button>
