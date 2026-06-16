@@ -833,7 +833,7 @@ function FormularySection() {
               <Label htmlFor="drug-active" className="cursor-pointer">Активен</Label>
             </div>
 
-            {form.id && <InteractionsBlock drugId={form.id} />}
+            
           </div>
           <SheetFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
