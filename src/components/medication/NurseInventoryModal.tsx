@@ -464,7 +464,7 @@ export default function NurseInventoryModal({
             </TabsList>
 
             {/* TAB 1 */}
-            <TabsContent value="prescriptions" className="flex-1 overflow-auto mt-4">
+            <TabsContent value="prescriptions" className="flex-1 overflow-auto mt-2">
               <FilterBar
                 filters={filters}
                 onChange={setFilter}
