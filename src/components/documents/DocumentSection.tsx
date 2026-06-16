@@ -148,7 +148,7 @@ export default function DocumentSection({ section, values, setVal, isReadOnly, o
                   )}
                 </div>
               ) : (
-                renderField(field.def, values, setVal, onFocusEditable, onBlurEditable)
+                renderField(field.def, values, setVal, onFocusEditable)
               )}
             </div>
           );
