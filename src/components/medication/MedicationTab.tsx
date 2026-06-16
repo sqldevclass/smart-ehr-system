@@ -1023,6 +1023,53 @@ export default function MedicationTab({
           </>
         )}
       </div>
+
+      <Dialog
+        open={!!pendingInteractions}
+        onOpenChange={(o) => { if (!o) handleCancelInteractionDialog(); }}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="w-5 h-5" />
+              Обнаружено взаимодействие препаратов
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 max-h-[50vh] overflow-y-auto">
+            {(pendingInteractions ?? []).map((ix: any, i: number) => (
+              <div key={i} className="border rounded-lg p-3 bg-red-50 border-red-200 space-y-1">
+                <p className="text-sm font-semibold text-red-900">
+                  {ix.existing_drug_name} — {ix.severity === "contraindicated" ? "Противопоказано" : "Серьёзное"}
+                </p>
+                <p className="text-sm">{ix.clinical_effect}</p>
+                {ix.clinical_significance && (
+                  <p className="text-xs text-muted-foreground">{ix.clinical_significance}</p>
+                )}
+                {ix.actions_recommendations && (
+                  <p className="text-xs text-foreground"><strong>Рекомендации:</strong> {ix.actions_recommendations}</p>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Причина (необязательно)</Label>
+            <Textarea
+              value={ackReason}
+              onChange={(e) => setAckReason(e.target.value)}
+              placeholder="Обоснование назначения при наличии взаимодействия..."
+              className="text-sm"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCancelInteractionDialog}>
+              Отмена
+            </Button>
+            <Button onClick={handleAcknowledgeInteraction} variant="destructive">
+              Подтвердить и назначить
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
