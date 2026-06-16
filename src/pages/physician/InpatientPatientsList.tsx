@@ -350,6 +350,7 @@ export default function InpatientPatientsList() {
                       <EWSStatusDot
                         status={getStatus(h.id)}
                         score={scheduleMap[h.id]?.last_score}
+                        pulse={false}
                       />
                     </TableCell>
                     <TableCell>
