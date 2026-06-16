@@ -495,11 +495,11 @@ function EmptyInteractionsNote({
 }
 
 function PharmacistPrescriptionListModal({
-  hospitalizationId, patientId, patientName, hospitalId, onClose,
+  hospitalizationId, patientId, patient, hospitalId, onClose,
 }: {
   hospitalizationId: string;
   patientId: string;
-  patientName: string;
+  patient: any;
   hospitalId: string;
   onClose: () => void;
 }) {
@@ -547,7 +547,44 @@ function PharmacistPrescriptionListModal({
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-auto">
         <DialogHeader>
-          <DialogTitle>Лист назначения — {patientName}</DialogTitle>
+          <DialogTitle className="sr-only">Лист назначения</DialogTitle>
+          <div className="flex items-center gap-4 text-sm flex-wrap">
+            <h2 className="font-semibold text-base shrink-0">Лист назначения</h2>
+            <div className="shrink-0">
+              <div className="font-medium">
+                {patient?.last_name} {patient?.first_name}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {patient?.date_of_birth
+                  ? format(new Date(patient.date_of_birth), "dd.MM.yyyy")
+                  : "—"}
+                {" · "}
+                {patient?.date_of_birth
+                  ? differenceInYears(new Date(), new Date(patient.date_of_birth))
+                  : "—"}{" "}
+                лет
+              </div>
+            </div>
+            <div className="text-xs text-muted-foreground shrink-0">
+              {patient?.patient_number}
+            </div>
+            {patient?.weight_kg && (
+              <div className="text-xs text-muted-foreground shrink-0">
+                {patient.weight_kg} кг
+              </div>
+            )}
+            {patient?.height_cm && (
+              <div className="text-xs text-muted-foreground shrink-0">
+                {patient.height_cm} см
+              </div>
+            )}
+            {(patient?.patient_allergies?.length ?? 0) > 0 && (
+              <div className="text-xs font-semibold text-red-600 shrink-0">
+                ⚠ АЛЛЕРГИЯ:{" "}
+                {patient.patient_allergies.map((a: any) => a.allergy_type).join(", ")}
+              </div>
+            )}
+          </div>
         </DialogHeader>
         <PrescriptionGrid
           prescriptions={prescriptions}
