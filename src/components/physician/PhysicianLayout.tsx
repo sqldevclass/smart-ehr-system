@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
 import RoleSwitcher from "@/components/shared/RoleSwitcher";
 import { InpatientProvider } from "@/contexts/InpatientContext";
 import InpatientToolbox from "@/components/inpatient/InpatientToolbox";
@@ -34,11 +35,12 @@ type Mode = "ambulatory" | "inpatient";
 function ModeSwitcher({ mode, switchMode }: { mode: Mode; switchMode: (m: Mode) => void }) {
   const { open } = useSidebar();
   return (
-    <div className="flex flex-col gap-1.5 px-2 py-1">
+    <div className={cn("flex flex-col gap-1.5 py-1", open ? "px-2" : "px-0 items-center")}>
       <Button
         size="sm"
         variant={mode === "ambulatory" ? "default" : "outline"}
         onClick={() => switchMode("ambulatory")}
+        className={cn(!open && "w-9 h-9 p-0 rounded-full")}
       >
         {open ? "Outpatient" : "OP"}
       </Button>
@@ -46,6 +48,7 @@ function ModeSwitcher({ mode, switchMode }: { mode: Mode; switchMode: (m: Mode) 
         size="sm"
         variant={mode === "inpatient" ? "default" : "outline"}
         onClick={() => switchMode("inpatient")}
+        className={cn(!open && "w-9 h-9 p-0 rounded-full")}
       >
         {open ? "Inpatient" : "IP"}
       </Button>

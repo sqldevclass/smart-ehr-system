@@ -284,12 +284,10 @@ export default function NursePatientsList() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Пациенты</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex items-center justify-between gap-2">
-          <StatusToggle value={statusFilter} onChange={setStatusFilter} />
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <CardTitle>Пациенты</CardTitle>
           <div className="flex items-center gap-2">
+            <StatusToggle value={statusFilter} onChange={setStatusFilter} />
             <Button
               variant="outline"
               onClick={() => setShowInventory(true)}
@@ -307,6 +305,9 @@ export default function NursePatientsList() {
             </Label>
           </div>
         </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+
 
         {(() => {
           const filtered = hospitalizations.filter((h: any) => {

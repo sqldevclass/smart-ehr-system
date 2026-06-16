@@ -3,9 +3,10 @@ import { cn } from "@/lib/utils";
 interface Props {
   status: "overdue" | "due_soon" | "ok" | "none";
   score?: number;
+  pulse?: boolean;
 }
 
-export default function EWSStatusDot({ status, score }: Props) {
+export default function EWSStatusDot({ status, score, pulse = true }: Props) {
   if (status === "none") {
     return <span className="text-muted-foreground">—</span>;
   }
@@ -33,7 +34,7 @@ export default function EWSStatusDot({ status, score }: Props) {
   if (status === "overdue") {
     return (
       <div className="flex items-center gap-1.5 justify-center">
-        <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
+        <span className={cn("inline-block w-2.5 h-2.5 rounded-full bg-red-500", pulse && "animate-ping")} />
         {!!score && score > 0 && (
           <span className="text-xs font-bold text-red-700">{score}</span>
         )}
@@ -44,7 +45,7 @@ export default function EWSStatusDot({ status, score }: Props) {
   // due_soon
   return (
     <div className="flex items-center gap-1.5 justify-center">
-      <span className="inline-block w-2.5 h-2.5 rounded-full bg-yellow-400 animate-pulse" />
+      <span className={cn("inline-block w-2.5 h-2.5 rounded-full bg-yellow-400", pulse && "animate-pulse")} />
       {!!score && score > 0 && (
         <span className="text-xs font-bold text-yellow-700">{score}</span>
       )}
