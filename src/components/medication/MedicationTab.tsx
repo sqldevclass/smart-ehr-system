@@ -468,6 +468,7 @@ export default function MedicationTab({
     setPendingInteractions(null);
     setPendingPayload(null);
     setAckReason("");
+    setPendingCandidateName("");
   };
 
   const handleRemoveDraft = async (id: string) => {
