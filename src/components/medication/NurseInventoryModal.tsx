@@ -82,6 +82,7 @@ export default function NurseInventoryModal({
   const [busy, setBusy] = useState<Set<string>>(new Set());
   const [busyAll, setBusyAll] = useState(false);
   const [filters, setFilters] = useState<Filters>({});
+  const [activeTab, setActiveTab] = useState("prescriptions");
   const setFilter = (k: string, v: string) =>
     setFilters((prev) => ({ ...prev, [k]: v }));
 
@@ -440,19 +441,10 @@ export default function NurseInventoryModal({
         className="bg-white rounded-lg flex flex-col"
         style={{ width: "calc(100vw - 32px)", height: "calc(100vh - 32px)" }}
       >
-        <div className="flex items-center gap-4 px-4 py-2.5 border-b">
-          <div className="text-lg font-semibold flex-1">Приход / Списание</div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground"
-          >
-            ✕
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-hidden p-3">
-          <Tabs defaultValue="prescriptions" className="h-full flex flex-col">
-            <TabsList>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+          <div className="flex items-center gap-4 px-4 py-2.5 border-b">
+            <div className="text-lg font-semibold shrink-0">Приход / Списание</div>
+            <TabsList className="mx-auto">
               <TabsTrigger value="prescriptions" className="gap-2">
                 Назначения {filteredPres.length > 0 && badge(filteredPres.length)}
               </TabsTrigger>
@@ -462,6 +454,16 @@ export default function NurseInventoryModal({
               <TabsTrigger value="writeoff">Списание</TabsTrigger>
               <TabsTrigger value="stock">Склад отделения</TabsTrigger>
             </TabsList>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground shrink-0"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-hidden p-3">
+
 
             {/* TAB 1 */}
             <TabsContent value="prescriptions" className="flex-1 overflow-auto mt-2">
@@ -767,8 +769,8 @@ export default function NurseInventoryModal({
                 </div>
               )}
             </TabsContent>
-          </Tabs>
-        </div>
+          </div>
+        </Tabs>
       </div>
     </div>
   );
