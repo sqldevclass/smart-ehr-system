@@ -444,6 +444,7 @@ export default function MedicationTab({
       if (hits && hits.length > 0) {
         setPendingInteractions(hits);
         setPendingPayload(payload);
+        setPendingCandidateName(isOwnDrugMode ? ownDrugName : (formData.drug?.trade_name ?? ""));
         return;
       }
     }
