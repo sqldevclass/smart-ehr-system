@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Loader2, Printer } from "lucide-react";
+import { ArrowLeft, Loader2, Printer, Bold, Italic, Underline } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import DocumentPatientHeader from "./DocumentPatientHeader";
@@ -70,6 +70,30 @@ export default function DocumentWorkspaceInner({
   const [isDirty, setIsDirty] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [activeTab, setActiveTab] = useState("0");
+  const [activeEditable, setActiveEditable] = useState<{
+    el: HTMLDivElement;
+    onChange: (val: string) => void;
+  } | null>(null);
+
+  const handleFocusEditable = (
+    el: HTMLDivElement,
+    onChange: (val: string) => void
+  ) => {
+    setActiveEditable({ el, onChange });
+  };
+
+  const handleBlurEditable = () => {
+    setActiveEditable(null);
+  };
+
+  const execOnActive = (command: string) => {
+    if (!activeEditable) return;
+    activeEditable.el.focus();
+    document.execCommand(command, false);
+    const text = activeEditable.el.innerText?.trim() ?? "";
+    const html = activeEditable.el.innerHTML;
+    activeEditable.onChange(text === "" ? "" : html);
+  };
 
   // Refs always hold latest values for async callbacks
   const valuesRef = useRef(values);
@@ -397,6 +421,35 @@ export default function DocumentWorkspaceInner({
         </div>
       </div>
 
+      {activeEditable && (
+        <div className="flex items-center gap-1 border-b bg-muted/30 px-4 py-1 print:hidden">
+          <button
+            type="button"
+            onMouseDown={(e) => { e.preventDefault(); execOnActive("bold"); }}
+            className="p-1.5 rounded hover:bg-muted transition-colors"
+            title="Жирный (Ctrl+B)"
+          >
+            <Bold className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onMouseDown={(e) => { e.preventDefault(); execOnActive("italic"); }}
+            className="p-1.5 rounded hover:bg-muted transition-colors"
+            title="Курсив (Ctrl+I)"
+          >
+            <Italic className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onMouseDown={(e) => { e.preventDefault(); execOnActive("underline"); }}
+            className="p-1.5 rounded hover:bg-muted transition-colors"
+            title="Подчёркнутый (Ctrl+U)"
+          >
+            <Underline className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Tabs */}
       <div className="document-tabs-bar border-b bg-card px-4 overflow-x-auto">
         <div className="flex">
@@ -506,6 +559,8 @@ export default function DocumentWorkspaceInner({
                     values={values}
                     setVal={setVal}
                     isReadOnly={isReadOnly}
+                    onFocusEditable={handleFocusEditable}
+                    onBlurEditable={handleBlurEditable}
                   />
                 )}
                 {s.code === "treatment_plan" && (
