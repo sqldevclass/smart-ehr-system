@@ -85,6 +85,7 @@ export default function NursePatientDetail() {
           patients!inner(
             id, first_name, last_name, middle_name,
             patient_number, date_of_birth, gender,
+            weight_kg, height_cm,
             patient_allergies(allergy_type, severity)
           ),
           room_assignments(
@@ -310,6 +311,16 @@ export default function NursePatientDetail() {
                   <span className="text-muted-foreground">
                     П# {patient?.patient_number}
                   </span>
+                  {patient?.weight_kg && (
+                    <span className="text-muted-foreground">
+                      {patient.weight_kg} кг
+                    </span>
+                  )}
+                  {patient?.height_cm && (
+                    <span className="text-muted-foreground">
+                      {patient.height_cm} см
+                    </span>
+                  )}
                   {allergies.length > 0 && (
                     <span className="text-red-700 font-semibold text-xs">
                       ⚠ АЛЛЕРГИЯ:{" "}
