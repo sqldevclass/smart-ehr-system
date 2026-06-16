@@ -402,7 +402,7 @@ export default function OrdersPage() {
                           onClick={() => setListModalPatient({
                             hospId,
                             patientId: patient.id,
-                            name: `${patient.last_name} ${patient.first_name}`,
+                            patient,
                           })}
                           className="text-[11px] text-primary border border-primary/40 rounded px-2 py-1 hover:bg-primary hover:text-white transition-colors"
                         >
