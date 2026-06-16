@@ -28,12 +28,16 @@ interface Props {
   values: Record<string, string>;
   setVal: (id: string, val: string) => void;
   isReadOnly: boolean;
+  onFocusEditable?: (el: HTMLDivElement, onChange: (val: string) => void) => void;
+  onBlurEditable?: () => void;
 }
 
 function renderField(
   def: FieldDef,
   values: Record<string, string>,
   setVal: (id: string, v: string) => void,
+  onFocusEditable?: (el: HTMLDivElement, onChange: (val: string) => void) => void,
+  onBlurEditable?: () => void,
 ) {
   const value = values[def.id] ?? "";
   const options: { value: string; label_ru: string }[] = Array.isArray(def.options) ? def.options : [];
@@ -44,6 +48,8 @@ function renderField(
           minRows={3}
           value={value}
           onChange={(val) => setVal(def.id, val)}
+          onFocusEditable={onFocusEditable}
+          onBlurEditable={onBlurEditable}
         />
       );
     case "number":
