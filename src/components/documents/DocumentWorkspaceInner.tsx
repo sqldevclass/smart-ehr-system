@@ -421,6 +421,35 @@ export default function DocumentWorkspaceInner({
         </div>
       </div>
 
+      {activeEditable && (
+        <div className="flex items-center gap-1 border-b bg-muted/30 px-4 py-1 print:hidden">
+          <button
+            type="button"
+            onMouseDown={(e) => { e.preventDefault(); execOnActive("bold"); }}
+            className="p-1.5 rounded hover:bg-muted transition-colors"
+            title="Жирный (Ctrl+B)"
+          >
+            <Bold className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onMouseDown={(e) => { e.preventDefault(); execOnActive("italic"); }}
+            className="p-1.5 rounded hover:bg-muted transition-colors"
+            title="Курсив (Ctrl+I)"
+          >
+            <Italic className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onMouseDown={(e) => { e.preventDefault(); execOnActive("underline"); }}
+            className="p-1.5 rounded hover:bg-muted transition-colors"
+            title="Подчёркнутый (Ctrl+U)"
+          >
+            <Underline className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Tabs */}
       <div className="document-tabs-bar border-b bg-card px-4 overflow-x-auto">
         <div className="flex">
