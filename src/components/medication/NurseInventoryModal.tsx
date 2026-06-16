@@ -440,7 +440,7 @@ export default function NurseInventoryModal({
         className="bg-white rounded-lg flex flex-col"
         style={{ width: "calc(100vw - 32px)", height: "calc(100vh - 32px)" }}
       >
-        <div className="flex items-center gap-4 p-4 border-b">
+        <div className="flex items-center gap-4 px-4 py-2.5 border-b">
           <div className="text-lg font-semibold flex-1">Приход / Списание</div>
           <button
             onClick={onClose}
@@ -450,7 +450,7 @@ export default function NurseInventoryModal({
           </button>
         </div>
 
-        <div className="flex-1 overflow-hidden p-4">
+        <div className="flex-1 overflow-hidden p-3">
           <Tabs defaultValue="prescriptions" className="h-full flex flex-col">
             <TabsList>
               <TabsTrigger value="prescriptions" className="gap-2">
