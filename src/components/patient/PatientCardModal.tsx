@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -24,9 +24,18 @@ export default function PatientCardModal({ hospitalizationId, open, onOpenChange
   const [saving, setSaving] = useState(false);
   const [editDeptId, setEditDeptId] = useState<string>("");
   const [editRoomBed, setEditRoomBed] = useState<RoomBedValue>({ roomId: "", bedNumber: null });
-  const [editWeight, setEditWeight] = useState<string>("");
-  const [editHeight, setEditHeight] = useState<string>("");
   const [editing, setEditing] = useState(false);
+
+  const [personalGender, setPersonalGender] = useState<string>("");
+  const [personalPhone, setPersonalPhone] = useState<string>("");
+  const [personalEmail, setPersonalEmail] = useState<string>("");
+  const [personalNationalId, setPersonalNationalId] = useState<string>("");
+  const [personalWeight, setPersonalWeight] = useState<string>("");
+  const [personalHeight, setPersonalHeight] = useState<string>("");
+  const [personalAddress, setPersonalAddress] = useState<string>("");
+  const [personalBaseline, setPersonalBaseline] = useState<string>("");
+  const [savingPersonal, setSavingPersonal] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   const { data: hosp, isLoading } = useQuery({
     queryKey: ["patient-card-hosp", hospitalizationId],
