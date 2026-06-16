@@ -444,7 +444,7 @@ export default function OrdersPage() {
         <PharmacistPrescriptionListModal
           hospitalizationId={listModalPatient.hospId}
           patientId={listModalPatient.patientId}
-          patientName={listModalPatient.name}
+          patient={listModalPatient.patient}
           hospitalId={user.hospitalId}
           onClose={() => setListModalPatient(null)}
         />
