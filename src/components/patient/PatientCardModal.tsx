@@ -490,29 +490,8 @@ export default function PatientCardModal({ hospitalizationId, open, onOpenChange
                       />
                     </div>
                   )}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <Label>Вес (кг)</Label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        value={editWeight}
-                        onChange={(e) => setEditWeight(e.target.value)}
-                        className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label>Рост (см)</Label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        value={editHeight}
-                        onChange={(e) => setEditHeight(e.target.value)}
-                        className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
-                      />
-                    </div>
-                  </div>
                   <div className="flex justify-end gap-2">
+
                     <Button variant="outline" onClick={() => setEditing(false)} disabled={saving}>
                       Отмена
                     </Button>
