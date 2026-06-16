@@ -29,7 +29,6 @@ interface Props {
   setVal: (id: string, val: string) => void;
   isReadOnly: boolean;
   onFocusEditable?: (el: HTMLDivElement, onChange: (val: string) => void) => void;
-  onBlurEditable?: () => void;
 }
 
 function renderField(
@@ -37,7 +36,6 @@ function renderField(
   values: Record<string, string>,
   setVal: (id: string, v: string) => void,
   onFocusEditable?: (el: HTMLDivElement, onChange: (val: string) => void) => void,
-  onBlurEditable?: () => void,
 ) {
   const value = values[def.id] ?? "";
   const options: { value: string; label_ru: string }[] = Array.isArray(def.options) ? def.options : [];
@@ -49,7 +47,6 @@ function renderField(
           value={value}
           onChange={(val) => setVal(def.id, val)}
           onFocusEditable={onFocusEditable}
-          onBlurEditable={onBlurEditable}
         />
       );
     case "number":
@@ -105,7 +102,7 @@ function renderField(
   }
 }
 
-export default function DocumentSection({ section, values, setVal, isReadOnly, onFocusEditable, onBlurEditable }: Props) {
+export default function DocumentSection({ section, values, setVal, isReadOnly, onFocusEditable }: Props) {
   return (
     <div className="document-section-page space-y-4">
       <h2 className="font-heading text-lg font-semibold border-b pb-2">

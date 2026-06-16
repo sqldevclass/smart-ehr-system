@@ -7,7 +7,6 @@ interface Props {
   className?: string;
   minRows?: number;
   onFocusEditable?: (el: HTMLDivElement, onChange: (val: string) => void) => void;
-  onBlurEditable?: () => void;
 }
 
 export default function RichTextarea({
@@ -16,7 +15,6 @@ export default function RichTextarea({
   className,
   minRows = 3,
   onFocusEditable,
-  onBlurEditable,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const isInternalChange = useRef(false);
@@ -44,16 +42,6 @@ export default function RichTextarea({
     if (ref.current) onFocusEditable?.(ref.current, onChange);
   };
 
-  const handleBlur = () => {
-    // Delay so a toolbar button click (which steals focus
-    // momentarily) doesn't immediately clear the active editor
-    setTimeout(() => {
-      if (document.activeElement !== ref.current) {
-        onBlurEditable?.();
-      }
-    }, 0);
-  };
-
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.ctrlKey || e.metaKey) {
       if (e.key === "b" || e.key === "i" || e.key === "u") {
@@ -74,7 +62,6 @@ export default function RichTextarea({
       suppressContentEditableWarning
       onInput={handleInput}
       onFocus={handleFocus}
-      onBlur={handleBlur}
       onKeyDown={handleKeyDown}
       className={cn(
         "w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
