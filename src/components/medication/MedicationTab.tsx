@@ -383,6 +383,7 @@ export default function MedicationTab({
     setPendingInteractions(null);
     setPendingPayload(null);
     setAckReason("");
+    setPendingCandidateName("");
     invalidate();
   };
 
