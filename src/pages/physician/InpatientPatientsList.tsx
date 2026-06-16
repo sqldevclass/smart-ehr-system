@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useEWSSchedule } from "@/hooks/useEWSSchedule";
 import EWSStatusDot from "@/components/ews/EWSStatusDot";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { UserCheck } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { useInpatientContext } from "@/contexts/InpatientContext";
@@ -37,6 +39,7 @@ export default function InpatientPatientsList() {
   const [physicianSearch, setPhysicianSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"active" | "discharged">("active");
   const [showAllDischarged, setShowAllDischarged] = useState(false);
+  const [tabletMode, setTabletMode] = useState(false);
 
   const { data: hospitalizations = [], isLoading } = useQuery({
     queryKey: ["inpatient-list", user?.hospitalId, selectedDeptIds, statusFilter, showAllDischarged],
