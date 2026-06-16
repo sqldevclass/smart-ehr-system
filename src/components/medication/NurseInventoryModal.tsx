@@ -82,6 +82,7 @@ export default function NurseInventoryModal({
   const [busy, setBusy] = useState<Set<string>>(new Set());
   const [busyAll, setBusyAll] = useState(false);
   const [filters, setFilters] = useState<Filters>({});
+  const [activeTab, setActiveTab] = useState("prescriptions");
   const setFilter = (k: string, v: string) =>
     setFilters((prev) => ({ ...prev, [k]: v }));
 
