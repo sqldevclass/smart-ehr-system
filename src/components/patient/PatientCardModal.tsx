@@ -93,14 +93,65 @@ export default function PatientCardModal({ hospitalizationId, open, onOpenChange
   const patient = (hosp as any)?.patients;
   const currentRa = (hosp as any)?.room_assignments?.find((r: any) => !r.discharged_at);
 
+  useEffect(() => {
+    if (!patient) return;
+    const initial = {
+      gender: patient.gender ?? "",
+      phone: patient.phone ?? "",
+      email: patient.email ?? "",
+      nationalId: patient.national_id ?? "",
+      weight: patient.weight_kg != null ? String(patient.weight_kg) : "",
+      height: patient.height_cm != null ? String(patient.height_cm) : "",
+      address: patient.address ?? "",
+    };
+    setPersonalGender(initial.gender);
+    setPersonalPhone(initial.phone);
+    setPersonalEmail(initial.email);
+    setPersonalNationalId(initial.nationalId);
+    setPersonalWeight(initial.weight);
+    setPersonalHeight(initial.height);
+    setPersonalAddress(initial.address);
+    setPersonalBaseline(JSON.stringify(initial));
+  }, [patient?.id, patient?.gender, patient?.phone, patient?.email, patient?.national_id, patient?.weight_kg, patient?.height_cm, patient?.address]);
+
+  const isPersonalDirty = (() => {
+    if (!personalBaseline) return false;
+    const current = JSON.stringify({
+      gender: personalGender,
+      phone: personalPhone,
+      email: personalEmail,
+      nationalId: personalNationalId,
+      weight: personalWeight,
+      height: personalHeight,
+      address: personalAddress,
+    });
+    return current !== personalBaseline;
+  })();
+
+  const { data: vitalsHistory = [] } = useQuery({
+    queryKey: ["patient-vitals-history", patient?.id],
+    enabled: !!patient?.id && open && showHistory,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("patient_vitals_measurements" as any)
+        .select(`
+          id, weight_kg, height_cm, recorded_at,
+          profiles!recorded_by(full_name)
+        `)
+        .eq("patient_id", patient!.id)
+        .order("recorded_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   const startEditing = () => {
     setEditDeptId((hosp as any)?.department_id ?? "");
     setEditRoomBed({
       roomId: currentRa?.rooms?.id ?? "",
       bedNumber: currentRa?.bed_number != null ? Number(currentRa.bed_number) : null,
     });
-    setEditWeight(patient?.weight_kg != null ? String(patient.weight_kg) : "");
-    setEditHeight(patient?.height_cm != null ? String(patient.height_cm) : "");
     setEditing(true);
   };
 
@@ -139,17 +190,6 @@ export default function PatientCardModal({ hospitalizationId, open, onOpenChange
         if (error) throw error;
       }
 
-      if (patient?.id) {
-        const { error } = await supabase
-          .from("patients")
-          .update({
-            weight_kg: editWeight ? parseFloat(editWeight) : null,
-            height_cm: editHeight ? parseFloat(editHeight) : null,
-          })
-          .eq("id", patient.id);
-        if (error) throw error;
-      }
-
       toast.success("Сохранено");
       setEditing(false);
       qc.invalidateQueries({ queryKey: ["patient-card-hosp", hospitalizationId] });
@@ -164,6 +204,57 @@ export default function PatientCardModal({ hospitalizationId, open, onOpenChange
       setSaving(false);
     }
   };
+
+  const savePersonal = async () => {
+    if (!patient?.id) return;
+    setSavingPersonal(true);
+    try {
+      const { error: profileErr } = await supabase
+        .from("patients")
+        .update({
+          gender: personalGender || null,
+          phone: personalPhone || null,
+          email: personalEmail || null,
+          national_id: personalNationalId || null,
+          address: personalAddress || null,
+        })
+        .eq("id", patient.id);
+      if (profileErr) throw profileErr;
+
+      const weightNum = personalWeight ? parseFloat(personalWeight) : null;
+      const heightNum = personalHeight ? parseFloat(personalHeight) : null;
+      if (weightNum !== null || heightNum !== null) {
+        const { error: rpcErr } = await supabase.rpc("record_patient_measurement" as any, {
+          p_patient_id: patient.id,
+          p_weight_kg: weightNum,
+          p_height_cm: heightNum,
+        });
+        if (rpcErr) throw rpcErr;
+      }
+
+      toast.success("Сохранено");
+      setPersonalBaseline(JSON.stringify({
+        gender: personalGender,
+        phone: personalPhone,
+        email: personalEmail,
+        nationalId: personalNationalId,
+        weight: personalWeight,
+        height: personalHeight,
+        address: personalAddress,
+      }));
+      qc.invalidateQueries({ queryKey: ["patient-card-hosp", hospitalizationId] });
+      qc.invalidateQueries({ queryKey: ["patient-vitals-history", patient.id] });
+      qc.invalidateQueries({ queryKey: ["nurse-hosp", hospitalizationId] });
+      qc.invalidateQueries({ queryKey: ["nurse-hosps"] });
+      qc.invalidateQueries({ queryKey: ["inpatient-detail", hospitalizationId] });
+      qc.invalidateQueries({ queryKey: ["inpatient-hosps"] });
+    } catch (e: any) {
+      toast.error(e.message ?? "Ошибка сохранения");
+    } finally {
+      setSavingPersonal(false);
+    }
+  };
+
 
   const genderLabel = (g: string) =>
     g === "male" ? "Мужской" : g === "female" ? "Женский" : g ?? "—";
