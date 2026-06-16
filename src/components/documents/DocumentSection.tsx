@@ -105,7 +105,7 @@ function renderField(
   }
 }
 
-export default function DocumentSection({ section, values, setVal, isReadOnly }: Props) {
+export default function DocumentSection({ section, values, setVal, isReadOnly, onFocusEditable, onBlurEditable }: Props) {
   return (
     <div className="document-section-page space-y-4">
       <h2 className="font-heading text-lg font-semibold border-b pb-2">
@@ -151,7 +151,7 @@ export default function DocumentSection({ section, values, setVal, isReadOnly }:
                   )}
                 </div>
               ) : (
-                renderField(field.def, values, setVal)
+                renderField(field.def, values, setVal, onFocusEditable, onBlurEditable)
               )}
             </div>
           );
