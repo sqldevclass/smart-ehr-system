@@ -441,7 +441,6 @@ export default function NurseInventoryModal({
         className="bg-white rounded-lg flex flex-col"
         style={{ width: "calc(100vw - 32px)", height: "calc(100vh - 32px)" }}
       >
-        <div className="flex items-center gap-4 px-4 py-2.5 border-b">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
           <div className="flex items-center gap-4 px-4 py-2.5 border-b">
             <div className="text-lg font-semibold shrink-0">Приход / Списание</div>
