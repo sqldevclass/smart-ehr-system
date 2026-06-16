@@ -100,6 +100,10 @@ export default function MedicationTab({
   const [ownDrugName, setOwnDrugName] = useState("");
   const [ownDrugInn, setOwnDrugInn] = useState("");
   const [ownDrugUnitId, setOwnDrugUnitId] = useState("");
+  const [pendingInteractions, setPendingInteractions] = useState<any[] | null>(null);
+  const [pendingPayload, setPendingPayload] = useState<any | null>(null);
+  const [ackReason, setAckReason] = useState("");
+  const [checkingInteractions, setCheckingInteractions] = useState(false);
 
   const [startDay, setStartDay] = useState(new Date());
   const formatStartDay = (d: Date) => format(d, "dd.MM.yyyy");
