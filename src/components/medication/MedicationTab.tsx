@@ -1043,7 +1043,7 @@ export default function MedicationTab({
             {(pendingInteractions ?? []).map((ix: any, i: number) => (
               <div key={i} className="border rounded-lg p-3 bg-red-50 border-red-200 space-y-1">
                 <p className="text-sm font-semibold text-red-900">
-                  {ix.existing_drug_name} — {ix.severity === "contraindicated" ? "Противопоказано" : "Серьёзное"}
+                  {pendingCandidateName} + {ix.existing_drug_name} — {ix.severity === "contraindicated" ? "Противопоказано" : "Серьёзное"}
                 </p>
                 <p className="text-sm">{ix.clinical_effect}</p>
                 {ix.clinical_significance && (
