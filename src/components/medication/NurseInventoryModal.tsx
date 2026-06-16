@@ -726,7 +726,7 @@ export default function NurseInventoryModal({
             </TabsContent>
 
             {/* TAB 4 */}
-            <TabsContent value="stock" className="flex-1 overflow-auto mt-4">
+            <TabsContent value="stock" className="flex-1 overflow-auto mt-2 space-y-2">
               <FilterBar filters={filters} onChange={setFilter} fields={["drug"]} />
               {stockLoading ? (
                 <div className="flex items-center justify-center h-32">
