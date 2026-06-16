@@ -135,7 +135,8 @@ export default function OrdersPage() {
             id, department_id,
             patients!inner(
               id, first_name, last_name, patient_number,
-              date_of_birth, weight_kg, height_cm
+              date_of_birth, weight_kg, height_cm,
+              patient_allergies(allergy_type, severity)
             )
           )
         `)
