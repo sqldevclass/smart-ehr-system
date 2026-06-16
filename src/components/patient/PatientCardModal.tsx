@@ -299,38 +299,117 @@ export default function PatientCardModal({ hospitalizationId, open, onOpenChange
               <p className="text-sm text-muted-foreground">П# {patient.patient_number}</p>
             </div>
 
-            {/* Personal details grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-              <p>
-                <span className="text-muted-foreground">Дата рождения:</span>{" "}
+            {/* Personal details — always editable */}
+            <div className="space-y-3">
+              <p className="text-sm font-semibold">Личные данные</p>
+              <p className="text-sm text-muted-foreground">
+                Дата рождения:{" "}
                 {patient.date_of_birth
                   ? `${format(new Date(patient.date_of_birth), "dd.MM.yyyy")} (${differenceInYears(new Date(), new Date(patient.date_of_birth))} лет)`
                   : "—"}
               </p>
-              <p>
-                <span className="text-muted-foreground">Пол:</span> {genderLabel(patient.gender)}
-              </p>
-              <p>
-                <span className="text-muted-foreground">Телефон:</span> {patient.phone || "—"}
-              </p>
-              <p>
-                <span className="text-muted-foreground">Email:</span> {patient.email || "—"}
-              </p>
-              <p>
-                <span className="text-muted-foreground">Паспорт/ИД:</span> {patient.national_id || "—"}
-              </p>
-              <p>
-                <span className="text-muted-foreground">Вес:</span>{" "}
-                {patient.weight_kg ? `${patient.weight_kg} кг` : "—"}
-              </p>
-              <p>
-                <span className="text-muted-foreground">Рост:</span>{" "}
-                {patient.height_cm ? `${patient.height_cm} см` : "—"}
-              </p>
-              <p className="sm:col-span-2">
-                <span className="text-muted-foreground">Адрес:</span> {patient.address || "—"}
-              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Пол</Label>
+                  <Select value={personalGender} onValueChange={setPersonalGender}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Не указан" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="male">Мужской</SelectItem>
+                      <SelectItem value="female">Женский</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Телефон</Label>
+                  <input
+                    type="text"
+                    value={personalPhone}
+                    onChange={(e) => setPersonalPhone(e.target.value)}
+                    className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Email</Label>
+                  <input
+                    type="email"
+                    value={personalEmail}
+                    onChange={(e) => setPersonalEmail(e.target.value)}
+                    className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Паспорт/ИД</Label>
+                  <input
+                    type="text"
+                    value={personalNationalId}
+                    onChange={(e) => setPersonalNationalId(e.target.value)}
+                    className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Вес (кг)</Label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={personalWeight}
+                    onChange={(e) => setPersonalWeight(e.target.value)}
+                    className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Рост (см)</Label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={personalHeight}
+                    onChange={(e) => setPersonalHeight(e.target.value)}
+                    className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Адрес</Label>
+                <input
+                  type="text"
+                  value={personalAddress}
+                  onChange={(e) => setPersonalAddress(e.target.value)}
+                  className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+                />
+              </div>
+              <div className="flex items-center justify-between pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowHistory((v) => !v)}
+                  className="text-xs text-muted-foreground hover:text-foreground underline"
+                >
+                  {showHistory ? "Скрыть историю" : "Показать историю"}
+                </button>
+                <Button size="sm" onClick={savePersonal} disabled={!isPersonalDirty || savingPersonal}>
+                  {savingPersonal ? "Сохранение..." : "Сохранить"}
+                </Button>
+              </div>
+              {showHistory && (
+                <div className="border rounded-md p-2 space-y-1.5 bg-muted/30">
+                  {vitalsHistory.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Нет записей</p>
+                  ) : (
+                    vitalsHistory.map((v: any) => (
+                      <div key={v.id} className="text-xs flex justify-between gap-2">
+                        <span>
+                          {v.weight_kg ? `${v.weight_kg} кг` : "—"} ·{" "}
+                          {v.height_cm ? `${v.height_cm} см` : "—"}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {v.profiles?.full_name ?? "—"} ·{" "}
+                          {format(new Date(v.recorded_at), "dd.MM.yyyy HH:mm")}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
+
 
             {/* Allergies */}
             {allergies.length > 0 && (
