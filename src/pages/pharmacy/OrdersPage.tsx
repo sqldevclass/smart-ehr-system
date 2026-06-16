@@ -48,7 +48,7 @@ export default function OrdersPage() {
   const [actingSlot, setActingSlot] = useState<string | null>(null);
   const gridScrollRef = useRef<HTMLDivElement | null>(null);
   const [listModalPatient, setListModalPatient] = useState<{
-    hospId: string; patientId: string; name: string;
+    hospId: string; patientId: string; patient: any;
   } | null>(null);
   const [ixModalPatient, setIxModalPatient] = useState<{
     hospId: string; name: string;
