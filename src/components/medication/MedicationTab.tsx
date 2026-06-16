@@ -326,43 +326,7 @@ export default function MedicationTab({
     setShowForm(true);
   };
 
-  const handleSaveDraft = async () => {
-    if (!formData.drug || !formData.dose) return;
-    const payload = {
-      hospital_id: hospitalId,
-      hospitalization_id: hospitalizationId,
-      patient_id: patientId,
-      physician_id: user!.id,
-      drug_formulary_id: isOwnDrugMode ? null : formData.drug!.id,
-      is_patient_own_drug: isOwnDrugMode,
-      custom_drug_name: isOwnDrugMode ? ownDrugName : null,
-      custom_inn: isOwnDrugMode ? ownDrugInn : null,
-      custom_dose_unit_id: isOwnDrugMode ? ownDrugUnitId : null,
-      dose: formData.dose,
-      dose_unit: formData.doseUnit,
-      route: formData.route,
-      schedule_times: formData.scheduleTimes,
-      duration_days: parseInt(String(formData.durationDays)) || 0,
-      food_rule: formData.foodRule,
-      mix_with_drug_id: formData.mixWithDrug?.id ?? null,
-      mix_dose: formData.mixDose || null,
-      prescription_type: formData.prescriptionType,
-      prn_condition: formData.prnCondition || null,
-      notes:
-        [
-          formData.notes,
-          formData.maxDailyDose
-            ? `Макс. доза: ${formData.maxDailyDose}`
-            : null,
-        ]
-          .filter(Boolean)
-          .join(" | ") || null,
-      is_drafted: (isOwnDrugMode || formData.prescriptionType === "prn") ? false : true,
-      status_code: isOwnDrugMode ? "ready_for_execution" : "preliminary",
-      prescribed_by: user!.id,
-      prescribed_at: new Date().toISOString(),
-      start_date: format(startDay, "yyyy-MM-dd"),
-    };
+  const actuallyInsertPrescription = async (payload: any) => {
     const { error } = await supabase.from("drug_prescriptions").insert(payload);
     if (error) {
       toast.error(error.message);
@@ -415,7 +379,92 @@ export default function MedicationTab({
     setOwnDrugName("");
     setOwnDrugInn("");
     setOwnDrugUnitId("");
+    setPendingInteractions(null);
+    setPendingPayload(null);
+    setAckReason("");
     invalidate();
+  };
+
+  const handleSaveDraft = async () => {
+    if (!formData.drug || !formData.dose) return;
+    const payload = {
+      hospital_id: hospitalId,
+      hospitalization_id: hospitalizationId,
+      patient_id: patientId,
+      physician_id: user!.id,
+      drug_formulary_id: isOwnDrugMode ? null : formData.drug!.id,
+      is_patient_own_drug: isOwnDrugMode,
+      custom_drug_name: isOwnDrugMode ? ownDrugName : null,
+      custom_inn: isOwnDrugMode ? ownDrugInn : null,
+      custom_dose_unit_id: isOwnDrugMode ? ownDrugUnitId : null,
+      dose: formData.dose,
+      dose_unit: formData.doseUnit,
+      route: formData.route,
+      schedule_times: formData.scheduleTimes,
+      duration_days: parseInt(String(formData.durationDays)) || 0,
+      food_rule: formData.foodRule,
+      mix_with_drug_id: formData.mixWithDrug?.id ?? null,
+      mix_dose: formData.mixDose || null,
+      prescription_type: formData.prescriptionType,
+      prn_condition: formData.prnCondition || null,
+      notes:
+        [
+          formData.notes,
+          formData.maxDailyDose
+            ? `Макс. доза: ${formData.maxDailyDose}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" | ") || null,
+      is_drafted: (isOwnDrugMode || formData.prescriptionType === "prn") ? false : true,
+      status_code: isOwnDrugMode ? "ready_for_execution" : "preliminary",
+      prescribed_by: user!.id,
+      prescribed_at: new Date().toISOString(),
+      start_date: format(startDay, "yyyy-MM-dd"),
+    };
+
+    const candidateInn = isOwnDrugMode ? ownDrugInn : formData.drug?.inn;
+    if (candidateInn) {
+      setCheckingInteractions(true);
+      const { data: hits, error: checkError } = await supabase.rpc(
+        "check_new_drug_interactions",
+        {
+          p_hospitalization_id: hospitalizationId,
+          p_hospital_id: hospitalId,
+          p_candidate_inn: candidateInn,
+        }
+      );
+      setCheckingInteractions(false);
+      if (checkError) {
+        toast.error(checkError.message);
+        return;
+      }
+      if (hits && hits.length > 0) {
+        setPendingInteractions(hits);
+        setPendingPayload(payload);
+        return;
+      }
+    }
+
+    await actuallyInsertPrescription(payload);
+  };
+
+  const handleAcknowledgeInteraction = async () => {
+    if (!pendingPayload) return;
+    const finalPayload = {
+      ...pendingPayload,
+      interaction_acknowledged_at: new Date().toISOString(),
+      interaction_acknowledged_by: user!.id,
+      interaction_ack_reason: ackReason.trim() || null,
+    };
+    setPendingInteractions(null);
+    await actuallyInsertPrescription(finalPayload);
+  };
+
+  const handleCancelInteractionDialog = () => {
+    setPendingInteractions(null);
+    setPendingPayload(null);
+    setAckReason("");
   };
 
   const handleRemoveDraft = async (id: string) => {
