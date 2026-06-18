@@ -1,11 +1,17 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from "@/components/ui/select";
+import {
+  Dialog, DialogContent, DialogHeader,
+  DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -40,6 +46,7 @@ export default function DiagnosisTab({
   visitId,
   patientId,
   hospitalId,
+  documentId,
   isReadOnly,
   currentUserId,
 }: Props) {
@@ -55,6 +62,18 @@ export default function DiagnosisTab({
   } | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editingNoteText, setEditingNoteText] = useState("");
+
+  const qc = useQueryClient();
+
+  // Scales picker state
+  const [scalesForDiag, setScalesForDiag] = useState<any[]>([]);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [currentDiagCode, setCurrentDiagCode] = useState<string>("");
+  const [currentDocId, setCurrentDocId] = useState<string | null>(null);
+
+  // Scale form state
+  const [formScale, setFormScale] = useState<any>(null);
+  const [formResponses, setFormResponses] = useState<Record<string, string>>({});
 
   const scopeKey = hospitalizationId || visitId || "";
   const scopeColumn = hospitalizationId ? "hospitalization_id" : "visit_id";
@@ -93,14 +112,33 @@ export default function DiagnosisTab({
     },
   });
 
+  const { data: assessments = [], refetch: refetchAssessments } = useQuery({
+    queryKey: ["scale-assessments", scopeKey, documentId ?? ""],
+    enabled: !!scopeKey,
+    queryFn: async () => {
+      if (!documentId) return [];
+      const { data } = await supabase
+        .from("patient_scale_assessments")
+        .select(`
+          id, icd10_code, status, total_score,
+          interpretation, assessed_at,
+          clinical_scales!scale_id(name, input_mode, scoring)
+        `)
+        .eq("document_id", documentId)
+        .order("created_at");
+      return data || [];
+    },
+  });
+
   const handleAddDiagnosis = async () => {
     if (!addSelected) return;
+    const selectedCode = addSelected.code;
     await supabase.from("patient_diagnoses").insert({
       patient_id: patientId,
       hospital_id: hospitalId,
       hospitalization_id: hospitalizationId || null,
       visit_id: visitId || null,
-      icd10_code: addSelected.code,
+      icd10_code: selectedCode,
       diagnosis_type: addType,
       notes: addNote || null,
       recorded_by: currentUserId,
@@ -112,6 +150,18 @@ export default function DiagnosisTab({
     setAddNote("");
     setAddType("main");
     setPendingSelection(null);
+
+    // Check for scales linked to this diagnosis
+    const { data: scales } = await supabase.rpc(
+      "get_scales_for_diagnosis" as any,
+      { p_icd10_code: selectedCode }
+    );
+    if (scales && (scales as any[]).length > 0) {
+      setScalesForDiag(scales as any[]);
+      setCurrentDiagCode(selectedCode);
+      setCurrentDocId(documentId);
+      setPickerOpen(true);
+    }
   };
 
   const handleSaveNote = async (id: string, note: string) => {
@@ -123,6 +173,58 @@ export default function DiagnosisTab({
   const handleDelete = async (id: string) => {
     await supabase.from("patient_diagnoses").delete().eq("id", id);
     refetchDiagnoses();
+  };
+
+  const computeScore = (items: any[], responses: Record<string, string>) => {
+    return items.reduce((sum: number, item: any) => {
+      const val = responses[item.id];
+      if (!val) return sum;
+      if (item.type === "boolean") {
+        return sum + (val === "true" ? (item.score ?? 0) : 0);
+      }
+      if (item.type === "select") {
+        const opt = (item.options ?? []).find((o: any) => o.value === val);
+        return sum + (opt?.score ?? 0);
+      }
+      return sum;
+    }, 0);
+  };
+
+  const getInterpretation = (scoring: any, score: number): string => {
+    const ranges: any[] = scoring?.ranges ?? [];
+    const match = ranges.find(
+      (r: any) => score >= r.min && score <= r.max
+    );
+    return match?.label ?? "";
+  };
+
+  const saveAssessment = async (
+    scale: any,
+    responses: Record<string, string>,
+    status: "completed" | "pending"
+  ) => {
+    if (!currentDocId || !scale) return;
+    const totalScore = status === "completed"
+      ? computeScore(scale.items ?? [], responses)
+      : null;
+    const interpretation = status === "completed" && totalScore !== null
+      ? getInterpretation(scale.scoring, totalScore)
+      : null;
+    await supabase.from("patient_scale_assessments").insert({
+      hospitalization_id: hospitalizationId || null,
+      patient_id: patientId,
+      hospital_id: hospitalId,
+      scale_id: scale.scale_id,
+      icd10_code: currentDiagCode,
+      document_id: currentDocId,
+      responses: status === "completed" ? responses : {},
+      total_score: totalScore,
+      interpretation,
+      status,
+      assessed_by: currentUserId,
+      assessed_at: status === "completed" ? new Date().toISOString() : null,
+    } as any);
+    refetchAssessments();
   };
 
   return (
@@ -263,6 +365,9 @@ export default function DiagnosisTab({
             {group.map((d: any) => {
               const canEdit = !isReadOnly && d.recorded_by === currentUserId;
               const isEditing = editingNoteId === d.id;
+              const diagAssessments = assessments.filter(
+                (a: any) => a.icd10_code === d.icd10_code
+              );
               return (
                 <div
                   key={d.id}
@@ -318,12 +423,217 @@ export default function DiagnosisTab({
                       {d.notes || (canEdit ? "Добавить заметку..." : "")}
                     </div>
                   )}
+                  {diagAssessments.length > 0 && (
+                    <div className="mt-2 space-y-1 border-t pt-2">
+                      {diagAssessments.map((a: any) => (
+                        <div
+                          key={a.id}
+                          className="flex items-center justify-between text-xs"
+                        >
+                          <span className="font-medium text-muted-foreground">
+                            {a.clinical_scales?.name}
+                          </span>
+                          {a.status === "completed" ? (
+                            <span className="flex items-center gap-2">
+                              {a.total_score !== null && (
+                                <span className="font-semibold">{a.total_score}</span>
+                              )}
+                              {a.interpretation && (
+                                <span className="text-muted-foreground">
+                                  {a.interpretation}
+                                </span>
+                              )}
+                            </span>
+                          ) : (
+                            <span className="text-amber-600 font-medium">
+                              Не заполнено
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
         );
       })}
+
+      {/* Scales Picker Dialog */}
+      <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Шкалы оценки — {currentDiagCode}</DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Выберите шкалы для заполнения или пропустите их сейчас.
+            </p>
+          </DialogHeader>
+          <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+            {scalesForDiag.map((scale: any) => (
+              <div
+                key={scale.scale_id}
+                className="flex items-start justify-between gap-3 border rounded-md p-3"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium">{scale.scale_name}</div>
+                  {scale.purpose && (
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {scale.purpose}
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      await saveAssessment(scale, {}, "pending");
+                    }}
+                  >
+                    Пропустить
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setFormScale(scale);
+                      setFormResponses({});
+                    }}
+                  >
+                    Заполнить
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPickerOpen(false)}>
+              Закрыть
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Scale Form Dialog */}
+      <Dialog
+        open={!!formScale}
+        onOpenChange={(o) => {
+          if (!o) { setFormScale(null); setFormResponses({}); }
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{formScale?.scale_name}</DialogTitle>
+            {formScale?.purpose && (
+              <p className="text-sm text-muted-foreground">{formScale.purpose}</p>
+            )}
+          </DialogHeader>
+          <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+            {formScale?.input_mode === "freetext" ? (
+              <div className="space-y-2">
+                <Label className="text-sm">Значение / результат</Label>
+                <input
+                  value={formResponses.value ?? ""}
+                  onChange={(e) =>
+                    setFormResponses((r) => ({ ...r, value: e.target.value }))
+                  }
+                  className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+                  placeholder="Введите числовое значение..."
+                />
+                <Textarea
+                  value={formResponses.note ?? ""}
+                  onChange={(e) =>
+                    setFormResponses((r) => ({ ...r, note: e.target.value }))
+                  }
+                  placeholder="Примечание (необязательно)"
+                  className="text-sm resize-none"
+                  rows={2}
+                />
+              </div>
+            ) : (
+              (formScale?.items ?? []).map((item: any) => (
+                <div key={item.id} className="space-y-1">
+                  <Label className="text-sm">{item.label}</Label>
+                  {item.type === "boolean" && (
+                    <div className="flex gap-3">
+                      {[
+                        { label: "Да", value: "true" },
+                        { label: "Нет", value: "false" },
+                      ].map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() =>
+                            setFormResponses((r) => ({ ...r, [item.id]: opt.value }))
+                          }
+                          className={cn(
+                            "px-4 py-1.5 text-sm rounded-md border",
+                            formResponses[item.id] === opt.value
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "border-input hover:bg-muted"
+                          )}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {item.type === "select" && (
+                    <Select
+                      value={formResponses[item.id] ?? ""}
+                      onValueChange={(v) =>
+                        setFormResponses((r) => ({ ...r, [item.id]: v }))
+                      }
+                    >
+                      <SelectTrigger className="text-sm">
+                        <SelectValue placeholder="Выберите..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(item.options ?? []).map((opt: any) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+          {formScale?.input_mode === "scored" &&
+            formScale?.items?.length > 0 && (() => {
+              const score = computeScore(formScale.items, formResponses);
+              const interp = getInterpretation(formScale.scoring, score);
+              return (
+                <div className="border rounded-md p-2 bg-muted/30 text-sm flex items-center justify-between">
+                  <span className="font-medium">Счёт: {score}</span>
+                  {interp && (
+                    <span className="text-muted-foreground">{interp}</span>
+                  )}
+                </div>
+              );
+            })()
+          }
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => { setFormScale(null); setFormResponses({}); }}
+            >
+              Отмена
+            </Button>
+            <Button
+              onClick={async () => {
+                await saveAssessment(formScale, formResponses, "completed");
+                setFormScale(null);
+                setFormResponses({});
+              }}
+            >
+              Сохранить
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
