@@ -448,6 +448,7 @@ export default function EWSSection({
     queryClient.invalidateQueries({
       queryKey: ["sepsis-history", hospitalizationId],
     });
+    setSepsisDialogOpen(true);
   };
 
   useEffect(() => {
