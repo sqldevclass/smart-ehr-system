@@ -77,6 +77,7 @@ export default function EWSSection({
     Record<string, { min: string; max: string; reason: string }>
   >({});
   const [savingOverrides, setSavingOverrides] = useState(false);
+  const [sepsisDialogOpen, setSepsisDialogOpen] = useState(false);
 
 
 
