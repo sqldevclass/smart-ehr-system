@@ -356,10 +356,19 @@ export default function EWSSection({
 
   const detectSepsisAlert = async (readingId: string) => {
     if (!scale?.code.startsWith("pews")) return;
-    const latest = recentReadings[0];
-    if (!latest) return;
+    const { data: reading, error } = await supabase
+      .from("ews_readings")
+      .select(`
+        id,
+        ews_reading_values(
+          parameter_id, numeric_value, text_value, score
+        )
+      `)
+      .eq("id", readingId)
+      .single();
+    if (error || !reading) return;
+    const vals = reading.ews_reading_values || [];
     const signs: string[] = [];
-    const vals = latest.ews_reading_values || [];
 
     const tempParam = parameters.find((p: any) => p.code === "temperature");
     const tempVal = vals.find(
