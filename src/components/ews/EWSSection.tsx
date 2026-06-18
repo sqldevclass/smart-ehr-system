@@ -1091,23 +1091,11 @@ export default function EWSSection({
               ? !activeAlert.nurse_acknowledged_at
               : !activeAlert.physician_acknowledged_at) && (
               <DialogFooter>
-                <Button variant="outline" onClick={() => setSepsisDialogOpen(false)}>
-                  Закрыть
-                </Button>
                 <Button variant="destructive" onClick={() => {
                   handleAcknowledge();
                   setSepsisDialogOpen(false);
                 }}>
                   Подтвердить и принять к сведению
-                </Button>
-              </DialogFooter>
-            )}
-            {(viewerRole === "nurse"
-              ? !!activeAlert.nurse_acknowledged_at
-              : !!activeAlert.physician_acknowledged_at) && (
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setSepsisDialogOpen(false)}>
-                  Закрыть
                 </Button>
               </DialogFooter>
             )}
