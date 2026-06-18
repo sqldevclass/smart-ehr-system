@@ -496,6 +496,17 @@ export default function EWSSection({
     return () => clearInterval(interval);
   }, [hospitalizationId, queryClient]);
 
+  useEffect(() => {
+    if (viewerRole !== "physician") return;
+    if (!activeAlert) return;
+    if (activeAlert.physician_acknowledged_at) return;
+    if (autoOpenedAlertRef.current === activeAlert.id) return;
+    autoOpenedAlertRef.current = activeAlert.id;
+    setSepsisDialogOpen(true);
+  }, [activeAlert, viewerRole]);
+
+
+
 
   const handleSubmitEWS = async () => {
     if (!scale) return;
