@@ -1070,12 +1070,12 @@ export default function EWSSection({
 
 
       {activeAlert && (
-        <Dialog open={sepsisDialogOpen} onOpenChange={setSepsisDialogOpen}>
+        <Dialog open={sepsisDialogOpen} onOpenChange={() => {}}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-red-700">
                 <span>🔴</span>
-                ПЕДИАТРИЧЕСКИЙ СЕПСИС 6
+                ПЕДИАТРИЧЕСКИЙ СЕПСИС
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
@@ -1090,7 +1090,7 @@ export default function EWSSection({
               <hr className="border-red-200" />
               <div>
                 <p className="text-sm font-semibold text-red-800 mb-2">
-                  Ответить по протоколу Сепсис 6 в течение 1 часа:
+                  Ответить по протоколу Сепсис в течение 1 часа:
                 </p>
                 <ul className="space-y-1 text-sm text-red-700">
                   {[
