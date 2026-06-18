@@ -78,6 +78,7 @@ export default function EWSSection({
   >({});
   const [savingOverrides, setSavingOverrides] = useState(false);
   const [sepsisDialogOpen, setSepsisDialogOpen] = useState(false);
+  const [sepsisHistoryOpen, setSepsisHistoryOpen] = useState(false);
 
 
 
@@ -184,6 +185,27 @@ export default function EWSSection({
         .eq("is_active", true)
         .maybeSingle();
       return data;
+    },
+  });
+
+  const { data: alertHistory = [] } = useQuery({
+    queryKey: ["sepsis-history", hospitalizationId],
+    staleTime: 0,
+    enabled: sepsisHistoryOpen,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("clinical_alerts")
+        .select(`
+          id, alert_type, triggered_at,
+          trigger_signs, is_active,
+          nurse_acknowledged_at,
+          physician_acknowledged_at
+        `)
+        .eq("hospitalization_id", hospitalizationId)
+        .eq("alert_type", "paediatric_sepsis_6")
+        .order("triggered_at", { ascending: false })
+        .limit(20);
+      return data || [];
     },
   });
 
@@ -1012,10 +1034,10 @@ export default function EWSSection({
             <div className="flex items-center gap-2">
               {externalAlertActive && (
                 <button
-                  onClick={() => setSepsisDialogOpen(true)}
+                  onClick={() => setSepsisHistoryOpen(true)}
                   className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 cursor-pointer"
                 >
-                  🔴 Сепсис 6
+                  🔴 Сепсис
                 </button>
               )}
               {!isReadOnly && (isDue || isDueSoon) && (
@@ -1048,12 +1070,12 @@ export default function EWSSection({
 
 
       {activeAlert && (
-        <Dialog open={sepsisDialogOpen} onOpenChange={setSepsisDialogOpen}>
+        <Dialog open={sepsisDialogOpen} onOpenChange={() => {}}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-red-700">
                 <span>🔴</span>
-                ПЕДИАТРИЧЕСКИЙ СЕПСИС 6
+                ПЕДИАТРИЧЕСКИЙ СЕПСИС
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
@@ -1068,7 +1090,7 @@ export default function EWSSection({
               <hr className="border-red-200" />
               <div>
                 <p className="text-sm font-semibold text-red-800 mb-2">
-                  Ответить по протоколу Сепсис 6 в течение 1 часа:
+                  Ответить по протоколу Сепсис в течение 1 часа:
                 </p>
                 <ul className="space-y-1 text-sm text-red-700">
                   {[
@@ -1102,6 +1124,60 @@ export default function EWSSection({
           </DialogContent>
         </Dialog>
       )}
+
+      <Dialog open={sepsisHistoryOpen} onOpenChange={setSepsisHistoryOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-700">
+              <span>🔴</span>
+              История — Педиатрический Сепсис
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+            {alertHistory.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Нет записей</p>
+            ) : (
+              alertHistory.map((alert: any) => (
+                <div key={alert.id} className="border rounded-md p-3 space-y-1">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>
+                      {alert.triggered_at
+                        ? format(new Date(alert.triggered_at), "dd.MM.yyyy HH:mm")
+                        : "—"}
+                    </span>
+                    <span className={alert.is_active
+                      ? "text-red-600 font-semibold"
+                      : "text-green-600"}>
+                      {alert.is_active ? "Активен" : "Закрыт"}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {(alert.trigger_signs as string[]).map((sign: string) => (
+                      <span key={sign} className="text-xs bg-red-50 text-red-700 border border-red-200 rounded px-1.5 py-0.5">
+                        {SEPSIS_SIGN_LABELS[sign] ?? sign}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="text-xs text-muted-foreground flex gap-3">
+                    {alert.nurse_acknowledged_at && (
+                      <span>М/с: {format(new Date(alert.nurse_acknowledged_at), "dd.MM.yyyy HH:mm")}</span>
+                    )}
+                    {alert.physician_acknowledged_at && (
+                      <span>Врач: {format(new Date(alert.physician_acknowledged_at), "dd.MM.yyyy HH:mm")}</span>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSepsisHistoryOpen(false)}>
+              Закрыть
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
     </div>
   );
