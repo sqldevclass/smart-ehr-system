@@ -1011,9 +1011,12 @@ export default function EWSSection({
           alertSlot={
             <div className="flex items-center gap-2">
               {externalAlertActive && (
-                <div className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-700 border border-red-300">
+                <button
+                  onClick={() => setSepsisDialogOpen(true)}
+                  className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 cursor-pointer"
+                >
                   🔴 Сепсис 6
-                </div>
+                </button>
               )}
               {!isReadOnly && (isDue || isDueSoon) && (
                 <div className={cn(
