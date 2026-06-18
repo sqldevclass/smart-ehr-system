@@ -1082,7 +1082,7 @@ export default function EWSSection({
 
 
 
-      {activeAlert && (
+      {(pendingSepsisAlert || activeAlert) && (
         <Dialog open={sepsisDialogOpen} onOpenChange={() => {}}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
@@ -1093,12 +1093,15 @@ export default function EWSSection({
             </DialogHeader>
             <div className="space-y-3">
               <div className="space-y-1">
-                {(activeAlert.trigger_signs as string[]).map((sign: string) => (
-                  <div key={sign} className="flex items-center gap-2 text-sm text-red-800">
-                    <span>✓</span>
-                    <span>{SEPSIS_SIGN_LABELS[sign] ?? sign}</span>
-                  </div>
-                ))}
+                {((pendingSepsisAlert?.trigger_signs
+                  ?? activeAlert?.trigger_signs ?? []) as string[]).map(
+                  (sign: string) => (
+                    <div key={sign} className="flex items-center gap-2 text-sm text-red-800">
+                      <span>✓</span>
+                      <span>{SEPSIS_SIGN_LABELS[sign] ?? sign}</span>
+                    </div>
+                  )
+                )}
               </div>
               <hr className="border-red-200" />
               <div>
@@ -1122,12 +1125,11 @@ export default function EWSSection({
                 </ul>
               </div>
             </div>
-            {!isReadOnly && (viewerRole === "nurse"
-              ? !activeAlert.nurse_acknowledged_at
-              : !activeAlert.physician_acknowledged_at) && (
+            {!isReadOnly && (
               <DialogFooter>
                 <Button variant="destructive" onClick={() => {
                   handleAcknowledge();
+                  setPendingSepsisAlert(null);
                   setSepsisDialogOpen(false);
                 }}>
                   Подтвердить и принять к сведению
