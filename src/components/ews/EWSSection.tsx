@@ -462,13 +462,6 @@ export default function EWSSection({
     });
   };
 
-  useEffect(() => {
-    if (!activeAlert) return;
-    if (viewerRole !== "physician") return;
-    if (!activeAlert.physician_acknowledged_at) {
-      setSepsisDialogOpen(true);
-    }
-  }, [activeAlert?.id, activeAlert?.physician_acknowledged_at]);
 
   const handleAcknowledge = async () => {
     const alertId = pendingSepsisAlert?.id ?? activeAlert?.id;
