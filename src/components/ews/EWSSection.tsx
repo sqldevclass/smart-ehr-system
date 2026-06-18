@@ -5,6 +5,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { differenceInMonths, format } from "date-fns";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -74,6 +77,7 @@ export default function EWSSection({
     Record<string, { min: string; max: string; reason: string }>
   >({});
   const [savingOverrides, setSavingOverrides] = useState(false);
+  const [sepsisDialogOpen, setSepsisDialogOpen] = useState(false);
 
 
 
@@ -423,6 +427,14 @@ export default function EWSSection({
       queryKey: ["sepsis-history", hospitalizationId],
     });
   };
+
+  useEffect(() => {
+    if (!activeAlert) return;
+    const unacknowledged = viewerRole === "nurse"
+      ? !activeAlert.nurse_acknowledged_at
+      : !activeAlert.physician_acknowledged_at;
+    if (unacknowledged) setSepsisDialogOpen(true);
+  }, [activeAlert?.id]);
 
   const handleAcknowledge = async () => {
     if (!activeAlert) return;
@@ -999,9 +1011,12 @@ export default function EWSSection({
           alertSlot={
             <div className="flex items-center gap-2">
               {externalAlertActive && (
-                <div className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-700 border border-red-300">
+                <button
+                  onClick={() => setSepsisDialogOpen(true)}
+                  className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 cursor-pointer"
+                >
                   🔴 Сепсис 6
-                </div>
+                </button>
               )}
               {!isReadOnly && (isDue || isDueSoon) && (
                 <div className={cn(
@@ -1032,55 +1047,72 @@ export default function EWSSection({
 
 
 
-      {activeAlert && (viewerRole === "nurse"
-        ? !activeAlert.nurse_acknowledged_at
-        : !activeAlert.physician_acknowledged_at) && (
-        <div className="border-2 border-red-500 rounded-lg overflow-hidden mt-4">
-          <div className="bg-red-500 text-white px-4 py-2 flex items-center gap-2">
-            <span className="font-bold text-sm">🔴 ПЕДИАТРИЧЕСКИЙ СЕПСИС 6</span>
-            <span className="text-xs opacity-90">
-              {(activeAlert.trigger_signs as string[]).length} признака
-            </span>
-          </div>
-          <div className="p-4 bg-red-50 space-y-3">
-            <div className="space-y-1">
-              {(activeAlert.trigger_signs as string[]).map((sign: string) => (
-                <div key={sign} className="flex items-center gap-2 text-sm text-red-800">
-                  <span>✓</span>
-                  <span>{SEPSIS_SIGN_LABELS[sign] ?? sign}</span>
-                </div>
-              ))}
-            </div>
-            <hr className="border-red-200" />
-            <div>
-              <p className="text-sm font-semibold text-red-800 mb-2">
-                Ответить по протоколу Сепсис 6 в течение 1 часа:
-              </p>
-              <ul className="space-y-1 text-sm text-red-700">
-                {[
-                  "Высокопоточный кислород",
-                  "В/в или в/к доступ, посев крови, глюкоза, лактат",
-                  "В/в или в/к антибиотики",
-                  "Рассмотреть инфузионную терапию",
-                  "Рассмотреть инотропную поддержку",
-                  "Привлечь старших специалистов НЕМЕДЛЕННО",
-                ].map((item, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <span className="shrink-0">•</span>
-                    <span>{item}</span>
-                  </li>
+      {activeAlert && (
+        <Dialog open={sepsisDialogOpen} onOpenChange={setSepsisDialogOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-red-700">
+                <span>🔴</span>
+                ПЕДИАТРИЧЕСКИЙ СЕПСИС 6
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                {(activeAlert.trigger_signs as string[]).map((sign: string) => (
+                  <div key={sign} className="flex items-center gap-2 text-sm text-red-800">
+                    <span>✓</span>
+                    <span>{SEPSIS_SIGN_LABELS[sign] ?? sign}</span>
+                  </div>
                 ))}
-              </ul>
+              </div>
+              <hr className="border-red-200" />
+              <div>
+                <p className="text-sm font-semibold text-red-800 mb-2">
+                  Ответить по протоколу Сепсис 6 в течение 1 часа:
+                </p>
+                <ul className="space-y-1 text-sm text-red-700">
+                  {[
+                    "Высокопоточный кислород",
+                    "В/в или в/к доступ, посев крови, глюкоза, лактат",
+                    "В/в или в/к антибиотики",
+                    "Рассмотреть инфузионную терапию",
+                    "Рассмотреть инотропную поддержку",
+                    "Привлечь старших специалистов НЕМЕДЛЕННО",
+                  ].map((item, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="shrink-0">•</span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
-            {!isReadOnly && (
-              <div className="flex justify-end pt-1">
-                <Button size="sm" variant="destructive" onClick={handleAcknowledge}>
+            {!isReadOnly && (viewerRole === "nurse"
+              ? !activeAlert.nurse_acknowledged_at
+              : !activeAlert.physician_acknowledged_at) && (
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setSepsisDialogOpen(false)}>
+                  Закрыть
+                </Button>
+                <Button variant="destructive" onClick={() => {
+                  handleAcknowledge();
+                  setSepsisDialogOpen(false);
+                }}>
                   Подтвердить и принять к сведению
                 </Button>
-              </div>
+              </DialogFooter>
             )}
-          </div>
-        </div>
+            {(viewerRole === "nurse"
+              ? !!activeAlert.nurse_acknowledged_at
+              : !!activeAlert.physician_acknowledged_at) && (
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setSepsisDialogOpen(false)}>
+                  Закрыть
+                </Button>
+              </DialogFooter>
+            )}
+          </DialogContent>
+        </Dialog>
       )}
 
     </div>
