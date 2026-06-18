@@ -1125,6 +1125,60 @@ export default function EWSSection({
         </Dialog>
       )}
 
+      <Dialog open={sepsisHistoryOpen} onOpenChange={setSepsisHistoryOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-700">
+              <span>🔴</span>
+              История — Педиатрический Сепсис
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+            {alertHistory.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Нет записей</p>
+            ) : (
+              alertHistory.map((alert: any) => (
+                <div key={alert.id} className="border rounded-md p-3 space-y-1">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>
+                      {alert.triggered_at
+                        ? format(new Date(alert.triggered_at), "dd.MM.yyyy HH:mm")
+                        : "—"}
+                    </span>
+                    <span className={alert.is_active
+                      ? "text-red-600 font-semibold"
+                      : "text-green-600"}>
+                      {alert.is_active ? "Активен" : "Закрыт"}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {(alert.trigger_signs as string[]).map((sign: string) => (
+                      <span key={sign} className="text-xs bg-red-50 text-red-700 border border-red-200 rounded px-1.5 py-0.5">
+                        {SEPSIS_SIGN_LABELS[sign] ?? sign}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="text-xs text-muted-foreground flex gap-3">
+                    {alert.nurse_acknowledged_at && (
+                      <span>М/с: {format(new Date(alert.nurse_acknowledged_at), "dd.MM.yyyy HH:mm")}</span>
+                    )}
+                    {alert.physician_acknowledged_at && (
+                      <span>Врач: {format(new Date(alert.physician_acknowledged_at), "dd.MM.yyyy HH:mm")}</span>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSepsisHistoryOpen(false)}>
+              Закрыть
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
     </div>
   );
 }
