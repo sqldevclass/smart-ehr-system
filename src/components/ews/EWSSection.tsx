@@ -1076,7 +1076,15 @@ export default function EWSSection({
 
 
       {(pendingSepsisAlert || activeAlert) && (
-        <Dialog open={sepsisDialogOpen} onOpenChange={() => {}}>
+        <Dialog
+          open={
+            !!pendingSepsisAlert ||
+            (viewerRole === "physician"
+              ? !!activeAlert && !activeAlert.physician_acknowledged_at
+              : sepsisDialogOpen)
+          }
+          onOpenChange={() => {}}
+        >
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-red-700">
