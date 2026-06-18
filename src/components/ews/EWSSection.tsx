@@ -471,9 +471,10 @@ export default function EWSSection({
   }, [activeAlert?.id]);
 
   const handleAcknowledge = async () => {
-    if (!activeAlert) return;
+    const alertId = pendingSepsisAlert?.id ?? activeAlert?.id;
+    if (!alertId) return;
     const { error } = await supabase.rpc("acknowledge_clinical_alert", {
-      p_alert_id: activeAlert.id,
+      p_alert_id: alertId,
       p_role: viewerRole,
     });
     if (error) {
