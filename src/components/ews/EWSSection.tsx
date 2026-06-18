@@ -438,21 +438,28 @@ export default function EWSSection({
       .maybeSingle();
     if (existing) return;
 
-    await supabase.from("clinical_alerts").insert({
-      hospital_id: hospitalId,
-      hospitalization_id: hospitalizationId,
-      patient_id: patientId,
-      alert_type: "paediatric_sepsis_6",
-      triggered_by_reading_id: readingId,
-      trigger_signs: signs,
-    });
+    const { data: inserted } = await supabase
+      .from("clinical_alerts")
+      .insert({
+        hospital_id: hospitalId,
+        hospitalization_id: hospitalizationId,
+        patient_id: patientId,
+        alert_type: "paediatric_sepsis_6",
+        triggered_by_reading_id: readingId,
+        trigger_signs: signs,
+      })
+      .select("id, trigger_signs")
+      .single();
+    if (inserted) {
+      setPendingSepsisAlert({ id: inserted.id, trigger_signs: signs });
+      setSepsisDialogOpen(true);
+    }
     queryClient.invalidateQueries({
       queryKey: ["sepsis-alert", hospitalizationId],
     });
     queryClient.invalidateQueries({
       queryKey: ["sepsis-history", hospitalizationId],
     });
-    setSepsisDialogOpen(true);
   };
 
   useEffect(() => {
