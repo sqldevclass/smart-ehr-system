@@ -428,6 +428,14 @@ export default function EWSSection({
     });
   };
 
+  useEffect(() => {
+    if (!activeAlert) return;
+    const unacknowledged = viewerRole === "nurse"
+      ? !activeAlert.nurse_acknowledged_at
+      : !activeAlert.physician_acknowledged_at;
+    if (unacknowledged) setSepsisDialogOpen(true);
+  }, [activeAlert?.id]);
+
   const handleAcknowledge = async () => {
     if (!activeAlert) return;
     const { error } = await supabase.rpc("acknowledge_clinical_alert", {
