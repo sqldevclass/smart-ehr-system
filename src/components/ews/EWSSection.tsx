@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -78,6 +78,7 @@ export default function EWSSection({
   >({});
   const [savingOverrides, setSavingOverrides] = useState(false);
   const [sepsisDialogOpen, setSepsisDialogOpen] = useState(false);
+  const autoOpenedAlertRef = useRef<string | null>(null);
   const [sepsisHistoryOpen, setSepsisHistoryOpen] = useState(false);
   const [pendingSepsisAlert, setPendingSepsisAlert] = useState<{
     id: string;
@@ -494,6 +495,17 @@ export default function EWSSection({
     }, 60000);
     return () => clearInterval(interval);
   }, [hospitalizationId, queryClient]);
+
+  useEffect(() => {
+    if (viewerRole !== "physician") return;
+    if (!activeAlert) return;
+    if (activeAlert.physician_acknowledged_at) return;
+    if (autoOpenedAlertRef.current === activeAlert.id) return;
+    autoOpenedAlertRef.current = activeAlert.id;
+    setSepsisDialogOpen(true);
+  }, [activeAlert, viewerRole]);
+
+
 
 
   const handleSubmitEWS = async () => {
@@ -1076,15 +1088,8 @@ export default function EWSSection({
 
 
       {(pendingSepsisAlert || activeAlert) && (
-        <Dialog
-          open={
-            !!pendingSepsisAlert ||
-            (viewerRole === "physician"
-              ? !!activeAlert && !activeAlert.physician_acknowledged_at
-              : sepsisDialogOpen)
-          }
-          onOpenChange={() => {}}
-        >
+        <Dialog open={sepsisDialogOpen} onOpenChange={() => {}}>
+
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-red-700">
