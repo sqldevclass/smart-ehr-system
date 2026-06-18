@@ -78,6 +78,7 @@ export default function EWSSection({
   >({});
   const [savingOverrides, setSavingOverrides] = useState(false);
   const [sepsisDialogOpen, setSepsisDialogOpen] = useState(false);
+  const autoOpenedAlertRef = useRef<string | null>(null);
   const [sepsisHistoryOpen, setSepsisHistoryOpen] = useState(false);
   const [pendingSepsisAlert, setPendingSepsisAlert] = useState<{
     id: string;
