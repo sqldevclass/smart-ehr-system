@@ -188,6 +188,8 @@ export default function EWSSection({
         .eq("hospitalization_id", hospitalizationId)
         .eq("alert_type", "paediatric_sepsis_6")
         .eq("is_active", true)
+        .order("triggered_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
       return data;
     },
