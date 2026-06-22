@@ -871,6 +871,7 @@ function FormularySection() {
       toast.success("Saved");
       setOpen(false);
       setForm(emptyDrug);
+      setFormGroupId("");
       qc.invalidateQueries({ queryKey: ["drug_formulary", user?.hospitalId] });
     },
     onError: (e: Error) => toast.error(e.message),
