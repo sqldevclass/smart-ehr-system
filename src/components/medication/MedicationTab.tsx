@@ -103,6 +103,11 @@ export default function MedicationTab({
   const [ownDrugInn, setOwnDrugInn] = useState("");
   const [ownDrugUnitId, setOwnDrugUnitId] = useState("");
   const [pendingInteractions, setPendingInteractions] = useState<any[] | null>(null);
+  const [stockWarning, setStockWarning] = useState<{
+    needed: number;
+    available: number;
+    unit: string;
+  } | null>(null);
   const [pendingPayload, setPendingPayload] = useState<any | null>(null);
   const [ackReason, setAckReason] = useState("");
   const [pendingCandidateName, setPendingCandidateName] = useState<string>("");
