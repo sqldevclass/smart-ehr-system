@@ -1073,24 +1073,72 @@ export default function MedicationTab({
                 className="h-8 text-sm"
               />
               {searching && <p className="text-xs text-muted-foreground">Поиск...</p>}
-              {searchResults.map((drug) => (
-                <button
-                  key={drug.id}
-                  onClick={() => handleAddDrug(drug)}
-                  className="w-full text-left p-2 rounded border hover:bg-muted/50 space-y-0.5"
-                >
-                  <p className="text-sm font-medium">{drug.trade_name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {drug.inn} · {drug.dose}
-                    {(drug as any).units_of_measurement?.abbreviation
-                      ? ` ${(drug as any).units_of_measurement.abbreviation}`
-                      : ""}
-                    {(drug as any).release_forms?.name_ru
-                      ? ` · ${(drug as any).release_forms.name_ru}`
-                      : ""}
-                  </p>
-                </button>
-              ))}
+              {searchResults.map((drug: any) => {
+                const units = stockMap[drug.id];
+                const isOutOfStock = units === undefined || units <= 0;
+                const alts = alternativesMap[drug.id] || [];
+                const altType = alts[0]?._altType;
+
+                return (
+                  <div key={drug.id} className="space-y-1">
+                    <button
+                      onClick={() => !isOutOfStock && handleAddDrug(drug)}
+                      disabled={isOutOfStock}
+                      className={`w-full text-left p-2 rounded border space-y-0.5 ${
+                        isOutOfStock
+                          ? "opacity-50 cursor-not-allowed bg-muted/30 border-muted"
+                          : "hover:bg-muted/50"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-medium">{drug.trade_name}</p>
+                        {isOutOfStock && (
+                          <span className="text-xs text-destructive font-medium shrink-0">
+                            Нет в наличии
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {drug.inn} · {drug.dose}
+                        {drug.units_of_measurement?.abbreviation
+                          ? ` ${drug.units_of_measurement.abbreviation}`
+                          : ""}
+                        {drug.release_forms?.name_ru
+                          ? ` · ${drug.release_forms.name_ru}`
+                          : ""}
+                      </p>
+                    </button>
+
+                    {isOutOfStock && alts.length > 0 && (
+                      <div className="ml-3 space-y-1">
+                        <p className="text-xs text-muted-foreground font-medium">
+                          {altType === "inn"
+                            ? "Альтернативы (тот же МНН):"
+                            : "Та же подгруппа:"}
+                        </p>
+                        {alts.map((alt: any) => (
+                          <button
+                            key={alt.id}
+                            onClick={() => handleAddDrug(alt)}
+                            className="w-full text-left p-2 rounded border hover:bg-muted/50 space-y-0.5 border-dashed"
+                          >
+                            <p className="text-sm font-medium">{alt.trade_name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {alt.inn} · {alt.dose}
+                              {alt.units_of_measurement?.abbreviation
+                                ? ` ${alt.units_of_measurement.abbreviation}`
+                                : ""}
+                              {alt.release_forms?.name_ru
+                                ? ` · ${alt.release_forms.name_ru}`
+                                : ""}
+                            </p>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             {!searchQuery && (
