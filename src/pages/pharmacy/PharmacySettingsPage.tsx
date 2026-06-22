@@ -67,6 +67,7 @@ export default function PharmacySettingsPage() {
         <TabsContent value="product_types">
           <LookupSection table="product_types" label="Вид товара" hasHospitalId />
         </TabsContent>
+        <TabsContent value="drug_groups"><DrugGroupsSection /></TabsContent>
         
         <TabsContent value="formulary"><FormularySection /></TabsContent>
       </Tabs>
