@@ -201,18 +201,131 @@ export default function MedicationTab({
   useEffect(() => {
     if (searchQuery.length < 2) {
       setSearchResults([]);
+      setStockMap({});
+      setAlternativesMap({});
       return;
     }
     setSearching(true);
     const t = setTimeout(async () => {
-      const { data } = await supabase
+      const { data: drugs } = await supabase
         .from("drug_formulary")
-        .select("id, trade_name, inn, dose, unit_id, release_form_id, units_of_measurement!unit_id(abbreviation), release_forms!release_form_id(name_ru)")
+        .select(`
+          id, trade_name, inn, dose, unit_id,
+          release_form_id, subgroup_id,
+          units_of_measurement!unit_id(abbreviation),
+          release_forms!release_form_id(name_ru)
+        `)
         .eq("hospital_id", hospitalId)
         .eq("is_active", true)
         .or(`trade_name.ilike.%${searchQuery}%,inn.ilike.%${searchQuery}%`)
         .limit(10);
-      setSearchResults(data || []);
+
+      if (!drugs || drugs.length === 0) {
+        setSearchResults([]);
+        setStockMap({});
+        setAlternativesMap({});
+        setSearching(false);
+        return;
+      }
+
+      const drugIds = drugs.map((d: any) => d.id);
+      const { data: stockRows } = await supabase
+        .from("general_clinic_stock")
+        .select("drug_formulary_id, total_units")
+        .eq("hospital_id", hospitalId)
+        .in("drug_formulary_id", drugIds);
+
+      const newStockMap: Record<string, number> = {};
+      (stockRows || []).forEach((row: any) => {
+        newStockMap[row.drug_formulary_id] = Number(row.total_units);
+      });
+
+      const outOfStockDrugs = drugs.filter(
+        (d: any) => !newStockMap[d.id] || newStockMap[d.id] <= 0
+      );
+
+      const newAlternativesMap: Record<string, any[]> = {};
+
+      await Promise.all(
+        outOfStockDrugs.map(async (drug: any) => {
+          if (drug.inn) {
+            const { data: innAlts } = await supabase
+              .from("drug_formulary")
+              .select(`
+                id, trade_name, inn, dose, unit_id,
+                units_of_measurement!unit_id(abbreviation),
+                release_forms!release_form_id(name_ru)
+              `)
+              .eq("hospital_id", hospitalId)
+              .eq("is_active", true)
+              .ilike("inn", drug.inn.trim())
+              .neq("id", drug.id)
+              .limit(5);
+
+            if (innAlts && innAlts.length > 0) {
+              const altIds = innAlts.map((a: any) => a.id);
+              const { data: altStock } = await supabase
+                .from("general_clinic_stock")
+                .select("drug_formulary_id, total_units")
+                .eq("hospital_id", hospitalId)
+                .in("drug_formulary_id", altIds);
+
+              const altStockSet = new Set(
+                (altStock || [])
+                  .filter((s: any) => Number(s.total_units) > 0)
+                  .map((s: any) => s.drug_formulary_id)
+              );
+
+              const inStockAlts = innAlts.filter((a: any) => altStockSet.has(a.id));
+
+              if (inStockAlts.length > 0) {
+                newAlternativesMap[drug.id] = inStockAlts.map((a: any) => ({ ...a, _altType: "inn" }));
+                return;
+              }
+            }
+
+            if (drug.subgroup_id) {
+              const { data: subgroupDrugs } = await supabase
+                .from("drug_formulary")
+                .select(`
+                  id, trade_name, inn, dose, unit_id,
+                  units_of_measurement!unit_id(abbreviation),
+                  release_forms!release_form_id(name_ru)
+                `)
+                .eq("hospital_id", hospitalId)
+                .eq("is_active", true)
+                .eq("subgroup_id", drug.subgroup_id)
+                .neq("id", drug.id)
+                .limit(5);
+
+              if (subgroupDrugs && subgroupDrugs.length > 0) {
+                const sgIds = subgroupDrugs.map((s: any) => s.id);
+                const { data: sgStock } = await supabase
+                  .from("general_clinic_stock")
+                  .select("drug_formulary_id, total_units")
+                  .eq("hospital_id", hospitalId)
+                  .in("drug_formulary_id", sgIds);
+
+                const sgStockSet = new Set(
+                  (sgStock || [])
+                    .filter((s: any) => Number(s.total_units) > 0)
+                    .map((s: any) => s.drug_formulary_id)
+                );
+
+                const inStockSg = subgroupDrugs.filter((s: any) => sgStockSet.has(s.id));
+
+                if (inStockSg.length > 0) {
+                  newAlternativesMap[drug.id] = inStockSg.map((s: any) => ({ ...s, _altType: "subgroup" }));
+                }
+              }
+            }
+          }
+        })
+      );
+
+      setSearchResults(drugs);
+      setStockMap(newStockMap);
+      setAlternativesMap(newAlternativesMap);
       setSearching(false);
     }, 300);
     return () => clearTimeout(t);
