@@ -95,6 +95,8 @@ export default function MedicationTab({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
+  const [stockMap, setStockMap] = useState<Record<string, number>>({});
+  const [alternativesMap, setAlternativesMap] = useState<Record<string, any[]>>({});
   const [mixMode, setMixMode] = useState(false);
   const [isOwnDrugMode, setIsOwnDrugMode] = useState(false);
   const [ownDrugName, setOwnDrugName] = useState("");
