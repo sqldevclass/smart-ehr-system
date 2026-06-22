@@ -711,6 +711,7 @@ interface DrugForm {
   expiry_notify_days: string;
   notify_below_min_qty: string;
   is_active: boolean;
+  subgroup_id: string | null;
 }
 
 const emptyDrug: DrugForm = {
@@ -727,6 +728,7 @@ const emptyDrug: DrugForm = {
   expiry_notify_days: "30",
   notify_below_min_qty: "",
   is_active: true,
+  subgroup_id: null,
 };
 
 function FormularySection() {
@@ -734,6 +736,9 @@ function FormularySection() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<DrugForm>(emptyDrug);
+  const [formGroupId, setFormGroupId] = useState<string>("");
+  const [filterGroupId, setFilterGroupId] = useState<string>("all");
+  const [filterSubgroupId, setFilterSubgroupId] = useState<string>("all");
 
   const { data: drugs = [] } = useQuery({
     queryKey: ["drug_formulary", user?.hospitalId],
@@ -742,11 +747,39 @@ function FormularySection() {
       const { data } = await supabase
         .from("drug_formulary")
         .select(
-          "id, trade_name, inn, dose, unit_id, is_active, packaging_id, release_form_id, manufacturer_id, min_write_off_qty, min_quantity, shelf_life_days, expiry_notify_days, notify_below_min_qty, release_forms(name_ru), manufacturers(name), units_of_measurement(id, name_ru)"
+          "id, trade_name, inn, dose, unit_id, is_active, packaging_id, release_form_id, manufacturer_id, min_write_off_qty, min_quantity, shelf_life_days, expiry_notify_days, notify_below_min_qty, subgroup_id, release_forms(name_ru), manufacturers(name), units_of_measurement(id, name_ru), drug_subgroups!subgroup_id(id, name_ru, group_id, drug_groups!group_id(id, name_ru))"
         )
         .eq("hospital_id", user!.hospitalId)
         .order("trade_name");
       return data || [];
+    },
+  });
+
+  const { data: drugGroups = [] } = useQuery({
+    queryKey: ["drug_groups", user?.hospitalId],
+    enabled: !!user?.hospitalId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("drug_groups" as any)
+        .select("id, name_ru")
+        .or(`hospital_id.is.null,hospital_id.eq.${user!.hospitalId}`)
+        .order("sort_order")
+        .order("name_ru");
+      return (data as any[]) || [];
+    },
+  });
+
+  const { data: drugSubgroups = [] } = useQuery({
+    queryKey: ["drug_subgroups", user?.hospitalId],
+    enabled: !!user?.hospitalId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("drug_subgroups" as any)
+        .select("id, group_id, name_ru")
+        .or(`hospital_id.is.null,hospital_id.eq.${user!.hospitalId}`)
+        .order("sort_order")
+        .order("name_ru");
+      return (data as any[]) || [];
     },
   });
 
@@ -822,6 +855,7 @@ function FormularySection() {
         expiry_notify_days: intOrNull(form.expiry_notify_days) ?? 30,
         notify_below_min_qty: numOrNull(form.notify_below_min_qty),
         is_active: form.is_active,
+        subgroup_id: form.subgroup_id || null,
       };
       if (form.id) {
         const { error } = await supabase.from("drug_formulary").update(payload).eq("id", form.id);
@@ -837,6 +871,7 @@ function FormularySection() {
       toast.success("Saved");
       setOpen(false);
       setForm(emptyDrug);
+      setFormGroupId("");
       qc.invalidateQueries({ queryKey: ["drug_formulary", user?.hospitalId] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -858,29 +893,79 @@ function FormularySection() {
       expiry_notify_days: d.expiry_notify_days?.toString() ?? "30",
       notify_below_min_qty: d.notify_below_min_qty?.toString() ?? "",
       is_active: d.is_active,
+      subgroup_id: d.subgroup_id ?? null,
     });
+    setFormGroupId(d.drug_subgroups?.group_id ?? "");
     setOpen(true);
   };
+
+  const filteredDrugs = drugs.filter((d: any) => {
+    if (filterSubgroupId !== "all") {
+      return d.subgroup_id === filterSubgroupId;
+    }
+    if (filterGroupId !== "all") {
+      return d.drug_subgroups?.group_id === filterGroupId;
+    }
+    return true;
+  });
 
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Button onClick={() => { setForm(emptyDrug); setOpen(true); }}>Add Drug</Button>
+        <Button onClick={() => { setForm(emptyDrug); setFormGroupId(""); setOpen(true); }}>Add Drug</Button>
+      </div>
+      <div className="flex gap-3 flex-wrap">
+        <Select
+          value={filterGroupId}
+          onValueChange={(v) => {
+            setFilterGroupId(v);
+            setFilterSubgroupId("all");
+          }}
+        >
+          <SelectTrigger className="w-64">
+            <SelectValue placeholder="Все группы" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Все группы</SelectItem>
+            {drugGroups.map((g: any) => (
+              <SelectItem key={g.id} value={g.id}>{g.name_ru}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={filterSubgroupId}
+          onValueChange={setFilterSubgroupId}
+          disabled={filterGroupId === "all"}
+        >
+          <SelectTrigger className="w-64">
+            <SelectValue placeholder="Все подгруппы" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Все подгруппы</SelectItem>
+            {drugSubgroups
+              .filter((s: any) => s.group_id === filterGroupId)
+              .map((s: any) => (
+                <SelectItem key={s.id} value={s.id}>{s.name_ru}</SelectItem>
+              ))}
+          </SelectContent>
+        </Select>
       </div>
       <div className="rounded-lg border bg-card overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
             <tr className="text-left">
               <th className="p-3">Торговое название</th><th className="p-3">МНН</th>
+              <th className="p-3">Подгруппа</th>
               <th className="p-3">Форма выпуска</th><th className="p-3">Производитель</th>
               <th className="p-3">Доза</th><th className="p-3">Активен</th><th className="p-3 w-12"></th>
             </tr>
           </thead>
           <tbody>
-            {drugs.map((d: any) => (
+            {filteredDrugs.map((d: any) => (
               <tr key={d.id} className="border-t">
                 <td className="p-3">{d.trade_name}</td>
                 <td className="p-3">{d.inn}</td>
+                <td className="p-3">{d.drug_subgroups?.name_ru ?? "—"}</td>
                 <td className="p-3">{d.release_forms?.name_ru || "—"}</td>
                 <td className="p-3">{d.manufacturers?.name || "—"}</td>
                 <td className="p-3">{d.dose || "—"}</td>
@@ -896,8 +981,8 @@ function FormularySection() {
                 </td>
               </tr>
             ))}
-            {drugs.length === 0 && (
-              <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">No drugs.</td></tr>
+            {filteredDrugs.length === 0 && (
+              <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">No drugs.</td></tr>
             )}
           </tbody>
         </table>
@@ -981,6 +1066,40 @@ function FormularySection() {
                     {units.map((u: any) => (
                       <SelectItem key={u.id} value={u.id}>{u.name_ru}</SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Группа (необязательно)</Label>
+                <Select
+                  value={formGroupId}
+                  onValueChange={(v) => {
+                    setFormGroupId(v);
+                    setForm((f) => ({ ...f, subgroup_id: null }));
+                  }}
+                >
+                  <SelectTrigger><SelectValue placeholder="Выберите группу..." /></SelectTrigger>
+                  <SelectContent>
+                    {drugGroups.map((g: any) => (
+                      <SelectItem key={g.id} value={g.id}>{g.name_ru}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Подгруппа (необязательно)</Label>
+                <Select
+                  value={form.subgroup_id ?? ""}
+                  onValueChange={(v) => setForm((f) => ({ ...f, subgroup_id: v || null }))}
+                  disabled={!formGroupId}
+                >
+                  <SelectTrigger><SelectValue placeholder="Выберите подгруппу..." /></SelectTrigger>
+                  <SelectContent>
+                    {drugSubgroups
+                      .filter((s: any) => s.group_id === formGroupId)
+                      .map((s: any) => (
+                        <SelectItem key={s.id} value={s.id}>{s.name_ru}</SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
