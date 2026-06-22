@@ -982,7 +982,7 @@ function FormularySection() {
               </tr>
             ))}
             {filteredDrugs.length === 0 && (
-              <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">No drugs.</td></tr>
+              <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">No drugs.</td></tr>
             )}
           </tbody>
         </table>
