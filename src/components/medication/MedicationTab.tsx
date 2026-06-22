@@ -517,12 +517,21 @@ export default function MedicationTab({
         (sum, s) => sum + (parseFloat(s.dose) || 0), 0
       );
       const formularyDose = parseFloat(formData.drug.dose) || 0;
-      const stockUnits = stockMap[formData.drug.id] ?? 0;
-      if (
-        durationDays > 0 &&
-        sumSlotDoses > 0 &&
-        formularyDose > 0
-      ) {
+      if (durationDays > 0 && sumSlotDoses > 0 && formularyDose > 0) {
+        // Resolve stock — use cached value from search if available,
+        // otherwise fetch live (drug selected from Избранные, not search)
+        let stockUnits: number;
+        if (stockMap[formData.drug.id] !== undefined) {
+          stockUnits = stockMap[formData.drug.id];
+        } else {
+          const { data: stockRow } = await supabase
+            .from("general_clinic_stock")
+            .select("total_units")
+            .eq("hospital_id", hospitalId)
+            .eq("drug_formulary_id", formData.drug.id)
+            .maybeSingle();
+          stockUnits = stockRow ? Number(stockRow.total_units) : 0;
+        }
         const amountNeeded = durationDays * sumSlotDoses;
         const stockAvailable = stockUnits * formularyDose;
         if (amountNeeded > stockAvailable) {
