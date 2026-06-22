@@ -855,6 +855,7 @@ function FormularySection() {
         expiry_notify_days: intOrNull(form.expiry_notify_days) ?? 30,
         notify_below_min_qty: numOrNull(form.notify_below_min_qty),
         is_active: form.is_active,
+        subgroup_id: form.subgroup_id || null,
       };
       if (form.id) {
         const { error } = await supabase.from("drug_formulary").update(payload).eq("id", form.id);
