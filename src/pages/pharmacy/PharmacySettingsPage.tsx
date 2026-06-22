@@ -736,6 +736,9 @@ function FormularySection() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<DrugForm>(emptyDrug);
+  const [formGroupId, setFormGroupId] = useState<string>("");
+  const [filterGroupId, setFilterGroupId] = useState<string>("all");
+  const [filterSubgroupId, setFilterSubgroupId] = useState<string>("all");
 
   const { data: drugs = [] } = useQuery({
     queryKey: ["drug_formulary", user?.hospitalId],
