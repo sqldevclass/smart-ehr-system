@@ -45,7 +45,7 @@ export default function PharmacySettingsPage() {
           <TabsTrigger value="release_forms">Форма выпуска</TabsTrigger>
           <TabsTrigger value="packaging">Упаковка</TabsTrigger>
           <TabsTrigger value="product_types">Вид товара</TabsTrigger>
-          
+          <TabsTrigger value="drug_groups">Группы препаратов</TabsTrigger>
           <TabsTrigger value="formulary">Лекарственный формуляр</TabsTrigger>
         </TabsList>
         <TabsContent value="suppliers"><SuppliersSection /></TabsContent>
