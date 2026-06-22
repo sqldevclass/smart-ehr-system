@@ -103,6 +103,11 @@ export default function MedicationTab({
   const [ownDrugInn, setOwnDrugInn] = useState("");
   const [ownDrugUnitId, setOwnDrugUnitId] = useState("");
   const [pendingInteractions, setPendingInteractions] = useState<any[] | null>(null);
+  const [stockWarning, setStockWarning] = useState<{
+    needed: number;
+    available: number;
+    unit: string;
+  } | null>(null);
   const [pendingPayload, setPendingPayload] = useState<any | null>(null);
   const [ackReason, setAckReason] = useState("");
   const [pendingCandidateName, setPendingCandidateName] = useState<string>("");
@@ -504,6 +509,37 @@ export default function MedicationTab({
 
   const handleSaveDraft = async () => {
     if (!formData.drug || !formData.dose) return;
+
+    // ── Stock sufficiency check ──────────────────────────
+    if (!isOwnDrugMode && formData.drug) {
+      const durationDays = parseInt(String(formData.durationDays)) || 0;
+      const sumSlotDoses = formData.scheduleTimes.reduce(
+        (sum, s) => sum + (parseFloat(s.dose) || 0), 0
+      );
+      const formularyDose = parseFloat(formData.drug.dose) || 0;
+      const stockUnits = stockMap[formData.drug.id] ?? 0;
+      if (
+        durationDays > 0 &&
+        sumSlotDoses > 0 &&
+        formularyDose > 0
+      ) {
+        const amountNeeded = durationDays * sumSlotDoses;
+        const stockAvailable = stockUnits * formularyDose;
+        if (amountNeeded > stockAvailable) {
+          const unit =
+            (formData.drug as any).units_of_measurement
+              ?.abbreviation ?? "";
+          setStockWarning({
+            needed: amountNeeded,
+            available: stockAvailable,
+            unit,
+          });
+          return;
+        }
+      }
+    }
+    // ────────────────────────────────────────────────────
+
     const payload = {
       hospital_id: hospitalId,
       hospitalization_id: hospitalizationId,
@@ -1233,6 +1269,49 @@ export default function MedicationTab({
             </Button>
             <Button onClick={handleAcknowledgeInteraction} variant="destructive">
               Подтвердить и назначить
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!stockWarning}
+        onOpenChange={(o) => { if (!o) setStockWarning(null); }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="w-5 h-5" />
+              Недостаточно препарата на складе
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-muted-foreground">
+              Количества препарата на складе недостаточно для
+              назначения на указанный срок.
+            </p>
+            <div className="rounded-md border p-3 space-y-1.5 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Требуется:</span>
+                <span className="font-semibold text-destructive">
+                  {stockWarning?.needed} {stockWarning?.unit}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">На складе:</span>
+                <span className="font-semibold">
+                  {stockWarning?.available} {stockWarning?.unit}
+                </span>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Скорректируйте дозу, частоту приёма или количество дней,
+              либо обратитесь в аптеку.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setStockWarning(null)}>
+              Понятно
             </Button>
           </DialogFooter>
         </DialogContent>
