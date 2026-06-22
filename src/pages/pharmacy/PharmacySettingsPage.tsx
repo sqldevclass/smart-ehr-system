@@ -711,6 +711,7 @@ interface DrugForm {
   expiry_notify_days: string;
   notify_below_min_qty: string;
   is_active: boolean;
+  subgroup_id: string | null;
 }
 
 const emptyDrug: DrugForm = {
@@ -727,6 +728,7 @@ const emptyDrug: DrugForm = {
   expiry_notify_days: "30",
   notify_below_min_qty: "",
   is_active: true,
+  subgroup_id: null,
 };
 
 function FormularySection() {
