@@ -747,11 +747,39 @@ function FormularySection() {
       const { data } = await supabase
         .from("drug_formulary")
         .select(
-          "id, trade_name, inn, dose, unit_id, is_active, packaging_id, release_form_id, manufacturer_id, min_write_off_qty, min_quantity, shelf_life_days, expiry_notify_days, notify_below_min_qty, release_forms(name_ru), manufacturers(name), units_of_measurement(id, name_ru)"
+          "id, trade_name, inn, dose, unit_id, is_active, packaging_id, release_form_id, manufacturer_id, min_write_off_qty, min_quantity, shelf_life_days, expiry_notify_days, notify_below_min_qty, subgroup_id, release_forms(name_ru), manufacturers(name), units_of_measurement(id, name_ru), drug_subgroups!subgroup_id(id, name_ru, group_id, drug_groups!group_id(id, name_ru))"
         )
         .eq("hospital_id", user!.hospitalId)
         .order("trade_name");
       return data || [];
+    },
+  });
+
+  const { data: drugGroups = [] } = useQuery({
+    queryKey: ["drug_groups", user?.hospitalId],
+    enabled: !!user?.hospitalId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("drug_groups" as any)
+        .select("id, name_ru")
+        .or(`hospital_id.is.null,hospital_id.eq.${user!.hospitalId}`)
+        .order("sort_order")
+        .order("name_ru");
+      return (data as any[]) || [];
+    },
+  });
+
+  const { data: drugSubgroups = [] } = useQuery({
+    queryKey: ["drug_subgroups", user?.hospitalId],
+    enabled: !!user?.hospitalId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("drug_subgroups" as any)
+        .select("id, group_id, name_ru")
+        .or(`hospital_id.is.null,hospital_id.eq.${user!.hospitalId}`)
+        .order("sort_order")
+        .order("name_ru");
+      return (data as any[]) || [];
     },
   });
 
