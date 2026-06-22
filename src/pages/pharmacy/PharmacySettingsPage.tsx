@@ -45,7 +45,7 @@ export default function PharmacySettingsPage() {
           <TabsTrigger value="release_forms">Форма выпуска</TabsTrigger>
           <TabsTrigger value="packaging">Упаковка</TabsTrigger>
           <TabsTrigger value="product_types">Вид товара</TabsTrigger>
-          
+          <TabsTrigger value="drug_groups">Группы препаратов</TabsTrigger>
           <TabsTrigger value="formulary">Лекарственный формуляр</TabsTrigger>
         </TabsList>
         <TabsContent value="suppliers"><SuppliersSection /></TabsContent>
@@ -67,6 +67,7 @@ export default function PharmacySettingsPage() {
         <TabsContent value="product_types">
           <LookupSection table="product_types" label="Вид товара" hasHospitalId />
         </TabsContent>
+        <TabsContent value="drug_groups"><DrugGroupsSection /></TabsContent>
         
         <TabsContent value="formulary"><FormularySection /></TabsContent>
       </Tabs>
@@ -484,9 +485,217 @@ function LookupSection({
   );
 }
 
+/* ───────────────────── Drug Groups & Subgroups ───────────────────── */
+function DrugGroupsSection() {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+
+  const { data: groups = [] } = useQuery({
+    queryKey: ["drug_groups", user?.hospitalId],
+    enabled: !!user?.hospitalId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("drug_groups" as any)
+        .select("id, name_ru, sort_order, hospital_id")
+        .or(`hospital_id.is.null,hospital_id.eq.${user!.hospitalId}`)
+        .order("sort_order")
+        .order("name_ru");
+      return (data as any[]) || [];
+    },
+  });
+
+  const { data: subgroups = [] } = useQuery({
+    queryKey: ["drug_subgroups", user?.hospitalId],
+    enabled: !!user?.hospitalId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("drug_subgroups" as any)
+        .select("id, group_id, name_ru, sort_order, hospital_id")
+        .or(`hospital_id.is.null,hospital_id.eq.${user!.hospitalId}`)
+        .order("sort_order")
+        .order("name_ru");
+      return (data as any[]) || [];
+    },
+  });
+
+  type DialogState =
+    | null
+    | { mode: "add_group" }
+    | { mode: "add_subgroup"; groupId: string }
+    | { mode: "edit_group"; id: string; name_ru: string }
+    | { mode: "edit_subgroup"; id: string; groupId: string; name_ru: string };
+
+  const [dialog, setDialog] = useState<DialogState>(null);
+  const [nameValue, setNameValue] = useState("");
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["drug_groups", user?.hospitalId] });
+    qc.invalidateQueries({ queryKey: ["drug_subgroups", user?.hospitalId] });
+  };
+
+  const handleSave = async () => {
+    if (!nameValue.trim() || !user || !dialog) return;
+    if (dialog.mode === "add_group") {
+      await supabase.from("drug_groups" as any).insert({
+        name_ru: nameValue.trim(),
+        hospital_id: user.hospitalId,
+      });
+    } else if (dialog.mode === "add_subgroup") {
+      await supabase.from("drug_subgroups" as any).insert({
+        group_id: dialog.groupId,
+        name_ru: nameValue.trim(),
+        hospital_id: user.hospitalId,
+      });
+    } else if (dialog.mode === "edit_group") {
+      await supabase.from("drug_groups" as any)
+        .update({ name_ru: nameValue.trim() })
+        .eq("id", dialog.id);
+    } else if (dialog.mode === "edit_subgroup") {
+      await supabase.from("drug_subgroups" as any)
+        .update({ name_ru: nameValue.trim() })
+        .eq("id", dialog.id);
+    }
+    invalidate();
+    setDialog(null);
+    setNameValue("");
+  };
+
+  const handleDelete = async (table: string, id: string) => {
+    if (!confirm("Удалить?")) return;
+    await supabase.from(table as any).delete().eq("id", id);
+    invalidate();
+  };
+
+  const openDialog = (d: DialogState) => {
+    setDialog(d);
+    setNameValue(
+      d?.mode === "edit_group" ? d.name_ru :
+      d?.mode === "edit_subgroup" ? d.name_ru : ""
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button onClick={() => openDialog({ mode: "add_group" })}>
+          + Добавить группу
+        </Button>
+      </div>
+      <div className="rounded-lg border bg-card divide-y">
+        {groups.map((g: any) => {
+          const isGlobalGroup = g.hospital_id == null;
+          const groupSubs = subgroups.filter((s: any) => s.group_id === g.id);
+          return (
+            <div key={g.id} className="p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-sm">{g.name_ru}</span>
+                  {isGlobalGroup
+                    ? <Badge variant="secondary">Platform</Badge>
+                    : <Badge>Hospital</Badge>}
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => openDialog({ mode: "add_subgroup", groupId: g.id })}
+                  >
+                    + Подгруппа
+                  </Button>
+                  {!isGlobalGroup && (
+                    <>
+                      <Button size="icon" variant="ghost"
+                        onClick={() => openDialog({ mode: "edit_group", id: g.id, name_ru: g.name_ru })}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button size="icon" variant="ghost"
+                        onClick={() => handleDelete("drug_groups", g.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+              {groupSubs.length > 0 && (
+                <div className="ml-4 space-y-1">
+                  {groupSubs.map((s: any) => {
+                    const isGlobalSub = s.hospital_id == null;
+                    return (
+                      <div key={s.id}
+                        className="flex items-center justify-between text-sm py-1 px-2 rounded hover:bg-muted/50">
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground">—</span>
+                          <span>{s.name_ru}</span>
+                          {isGlobalSub
+                            ? <Badge variant="secondary" className="text-xs">Platform</Badge>
+                            : <Badge className="text-xs">Hospital</Badge>}
+                        </div>
+                        {!isGlobalSub && (
+                          <div className="flex gap-1">
+                            <Button size="icon" variant="ghost"
+                              onClick={() => openDialog({
+                                mode: "edit_subgroup",
+                                id: s.id,
+                                groupId: s.group_id,
+                                name_ru: s.name_ru,
+                              })}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button size="icon" variant="ghost"
+                              onClick={() => handleDelete("drug_subgroups", s.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {groups.length === 0 && (
+          <div className="p-6 text-center text-muted-foreground text-sm">
+            Нет групп.
+          </div>
+        )}
+      </div>
+
+      <Dialog open={!!dialog} onOpenChange={(o) => { if (!o) { setDialog(null); setNameValue(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {dialog?.mode === "add_group" && "Добавить группу"}
+              {dialog?.mode === "add_subgroup" && "Добавить подгруппу"}
+              {dialog?.mode === "edit_group" && "Редактировать группу"}
+              {dialog?.mode === "edit_subgroup" && "Редактировать подгруппу"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Название</Label>
+            <Input
+              value={nameValue}
+              onChange={(e) => setNameValue(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDialog(null); setNameValue(""); }}>
+              Отмена
+            </Button>
+            <Button onClick={handleSave} disabled={!nameValue.trim()}>
+              Сохранить
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
 
 
-/* ───────────────────── Drug Formulary ───────────────────── */
 interface DrugForm {
   id?: string;
   trade_name: string;
