@@ -11,7 +11,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -992,16 +992,29 @@ export default function MedicationTab({
               </Button>
             </div>
             {draftPrescriptions.map((p: any) => (
-              <div key={p.id} className="flex items-center justify-between text-sm">
-                <span>
-                  {p.drug_formulary?.trade_name} {p.dose}
-                  {p.dose_unit} {p.schedule_times?.map((s: any) => s.time).join(", ")}
-                </span>
+              <div
+                key={p.id}
+                className="flex items-center justify-between gap-2 rounded-md bg-yellow-100/60 px-3 py-2 text-sm"
+              >
+                <div className="flex-1 min-w-0">
+                  <span className="font-medium text-yellow-900">
+                    {p.drug_formulary?.trade_name ?? p.custom_drug_name}
+                  </span>
+                  <span className="text-yellow-700">
+                    {" "}{p.dose}{p.dose_unit ? ` ${p.dose_unit}` : ""}
+                  </span>
+                  {p.schedule_times?.length > 0 && (
+                    <span className="text-yellow-600 text-xs ml-1">
+                      {p.schedule_times.map((s: any) => s.time).join(", ")}
+                    </span>
+                  )}
+                </div>
                 <button
-                  className="text-xs text-red-600"
                   onClick={() => handleRemoveDraft(p.id)}
+                  title="Удалить из черновика"
+                  className="shrink-0 rounded p-1 text-yellow-700 hover:bg-yellow-200 hover:text-red-600 transition-colors"
                 >
-                  ✕
+                  <X className="h-4 w-4" />
                 </button>
               </div>
             ))}
