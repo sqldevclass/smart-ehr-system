@@ -509,6 +509,37 @@ export default function MedicationTab({
 
   const handleSaveDraft = async () => {
     if (!formData.drug || !formData.dose) return;
+
+    // ── Stock sufficiency check ──────────────────────────
+    if (!isOwnDrugMode && formData.drug) {
+      const durationDays = parseInt(String(formData.durationDays)) || 0;
+      const sumSlotDoses = formData.scheduleTimes.reduce(
+        (sum, s) => sum + (parseFloat(s.dose) || 0), 0
+      );
+      const formularyDose = parseFloat(formData.drug.dose) || 0;
+      const stockUnits = stockMap[formData.drug.id] ?? 0;
+      if (
+        durationDays > 0 &&
+        sumSlotDoses > 0 &&
+        formularyDose > 0
+      ) {
+        const amountNeeded = durationDays * sumSlotDoses;
+        const stockAvailable = stockUnits * formularyDose;
+        if (amountNeeded > stockAvailable) {
+          const unit =
+            (formData.drug as any).units_of_measurement
+              ?.abbreviation ?? "";
+          setStockWarning({
+            needed: amountNeeded,
+            available: stockAvailable,
+            unit,
+          });
+          return;
+        }
+      }
+    }
+    // ────────────────────────────────────────────────────
+
     const payload = {
       hospital_id: hospitalId,
       hospitalization_id: hospitalizationId,
