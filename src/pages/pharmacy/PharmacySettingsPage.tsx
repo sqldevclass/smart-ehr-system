@@ -912,22 +912,60 @@ function FormularySection() {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Button onClick={() => { setForm(emptyDrug); setOpen(true); }}>Add Drug</Button>
+        <Button onClick={() => { setForm(emptyDrug); setFormGroupId(""); setOpen(true); }}>Add Drug</Button>
+      </div>
+      <div className="flex gap-3 flex-wrap">
+        <Select
+          value={filterGroupId}
+          onValueChange={(v) => {
+            setFilterGroupId(v);
+            setFilterSubgroupId("all");
+          }}
+        >
+          <SelectTrigger className="w-64">
+            <SelectValue placeholder="Все группы" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Все группы</SelectItem>
+            {drugGroups.map((g: any) => (
+              <SelectItem key={g.id} value={g.id}>{g.name_ru}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={filterSubgroupId}
+          onValueChange={setFilterSubgroupId}
+          disabled={filterGroupId === "all"}
+        >
+          <SelectTrigger className="w-64">
+            <SelectValue placeholder="Все подгруппы" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Все подгруппы</SelectItem>
+            {drugSubgroups
+              .filter((s: any) => s.group_id === filterGroupId)
+              .map((s: any) => (
+                <SelectItem key={s.id} value={s.id}>{s.name_ru}</SelectItem>
+              ))}
+          </SelectContent>
+        </Select>
       </div>
       <div className="rounded-lg border bg-card overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
             <tr className="text-left">
               <th className="p-3">Торговое название</th><th className="p-3">МНН</th>
+              <th className="p-3">Подгруппа</th>
               <th className="p-3">Форма выпуска</th><th className="p-3">Производитель</th>
               <th className="p-3">Доза</th><th className="p-3">Активен</th><th className="p-3 w-12"></th>
             </tr>
           </thead>
           <tbody>
-            {drugs.map((d: any) => (
+            {filteredDrugs.map((d: any) => (
               <tr key={d.id} className="border-t">
                 <td className="p-3">{d.trade_name}</td>
                 <td className="p-3">{d.inn}</td>
+                <td className="p-3">{d.drug_subgroups?.name_ru ?? "—"}</td>
                 <td className="p-3">{d.release_forms?.name_ru || "—"}</td>
                 <td className="p-3">{d.manufacturers?.name || "—"}</td>
                 <td className="p-3">{d.dose || "—"}</td>
@@ -943,7 +981,7 @@ function FormularySection() {
                 </td>
               </tr>
             ))}
-            {drugs.length === 0 && (
+            {filteredDrugs.length === 0 && (
               <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">No drugs.</td></tr>
             )}
           </tbody>
