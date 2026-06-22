@@ -1070,6 +1070,40 @@ function FormularySection() {
                 </Select>
               </div>
               <div className="space-y-1.5">
+                <Label>Группа (необязательно)</Label>
+                <Select
+                  value={formGroupId}
+                  onValueChange={(v) => {
+                    setFormGroupId(v);
+                    setForm((f) => ({ ...f, subgroup_id: null }));
+                  }}
+                >
+                  <SelectTrigger><SelectValue placeholder="Выберите группу..." /></SelectTrigger>
+                  <SelectContent>
+                    {drugGroups.map((g: any) => (
+                      <SelectItem key={g.id} value={g.id}>{g.name_ru}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Подгруппа (необязательно)</Label>
+                <Select
+                  value={form.subgroup_id ?? ""}
+                  onValueChange={(v) => setForm((f) => ({ ...f, subgroup_id: v || null }))}
+                  disabled={!formGroupId}
+                >
+                  <SelectTrigger><SelectValue placeholder="Выберите подгруппу..." /></SelectTrigger>
+                  <SelectContent>
+                    {drugSubgroups
+                      .filter((s: any) => s.group_id === formGroupId)
+                      .map((s: any) => (
+                        <SelectItem key={s.id} value={s.id}>{s.name_ru}</SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
                 <Label>Минимальное списание</Label>
                 <div className="flex items-center gap-2">
                   <Input
