@@ -892,9 +892,21 @@ function FormularySection() {
       expiry_notify_days: d.expiry_notify_days?.toString() ?? "30",
       notify_below_min_qty: d.notify_below_min_qty?.toString() ?? "",
       is_active: d.is_active,
+      subgroup_id: d.subgroup_id ?? null,
     });
+    setFormGroupId(d.drug_subgroups?.group_id ?? "");
     setOpen(true);
   };
+
+  const filteredDrugs = drugs.filter((d: any) => {
+    if (filterSubgroupId !== "all") {
+      return d.subgroup_id === filterSubgroupId;
+    }
+    if (filterGroupId !== "all") {
+      return d.drug_subgroups?.group_id === filterGroupId;
+    }
+    return true;
+  });
 
   return (
     <div className="space-y-4">
