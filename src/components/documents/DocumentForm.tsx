@@ -250,6 +250,7 @@ function DocumentFormInner({
     });
     return loaded;
   });
+  const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
 
@@ -290,6 +291,7 @@ function DocumentFormInner({
 
   const setVal = (id: string, v: string) => {
     dirtyRef.current = true;
+    setIsDirty(true);
     setValues((p) => ({ ...p, [id]: v }));
   };
 
@@ -357,7 +359,7 @@ function DocumentFormInner({
     }
   };
 
-  const canConfirm = !isReadOnly && allMandatoryFilled && documentId !== null && !isSaving && !isConfirming;
+  const canConfirm = isDirty && !isReadOnly && allMandatoryFilled && !isSaving && !isConfirming;
 
   return (
     <>
