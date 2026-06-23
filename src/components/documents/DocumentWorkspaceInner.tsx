@@ -68,6 +68,7 @@ export default function DocumentWorkspaceInner({
   const [docStatus, setDocStatus] = useState<string | null>(null);
   const [completedAt, setCompletedAt] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
+  const hasEditedRef = useRef(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [activeTab, setActiveTab] = useState("0");
   const [hasDiagnosis, setHasDiagnosis] = useState(false);
