@@ -525,13 +525,15 @@ export default function MedicationTab({
         if (stockMap[formData.drug.id] !== undefined) {
           stockUnits = stockMap[formData.drug.id];
         } else {
-          const { data: stockRow } = await supabase
+          const { data: stockRows } = await supabase
             .from("general_clinic_stock")
             .select("total_units")
             .eq("hospital_id", hospitalId)
-            .eq("drug_formulary_id", formData.drug.id)
-            .maybeSingle();
-          stockUnits = stockRow ? Number(stockRow.total_units) : 0;
+            .eq("warehouse_type", "central_pharmacy")
+            .eq("drug_formulary_id", formData.drug.id);
+          stockUnits = (stockRows ?? []).reduce(
+            (sum: number, r: any) => sum + Number(r.total_units), 0
+          );
         }
         const amountNeeded = durationDays * sumSlotDoses;
         const stockAvailable = stockUnits * formularyDose;
