@@ -692,6 +692,7 @@ export default function DocumentWorkspaceInner({
                 onApply={(templateValues) => {
                   setValues((prev) => ({ ...prev, ...templateValues }));
                   setIsDirty(true);
+                  hasEditedRef.current = true;
                 }}
                 isReadOnly={isReadOnly}
               />
