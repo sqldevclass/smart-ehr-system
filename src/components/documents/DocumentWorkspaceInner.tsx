@@ -68,6 +68,7 @@ export default function DocumentWorkspaceInner({
   const [docStatus, setDocStatus] = useState<string | null>(null);
   const [completedAt, setCompletedAt] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
+  const hasEditedRef = useRef(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [activeTab, setActiveTab] = useState("0");
   const [hasDiagnosis, setHasDiagnosis] = useState(false);
@@ -247,6 +248,7 @@ export default function DocumentWorkspaceInner({
   const setVal = (id: string, val: string) => {
     setValues((p) => ({ ...p, [id]: val }));
     setIsDirty(true);
+    hasEditedRef.current = true;
   };
 
   // Save field values to DB
@@ -335,6 +337,7 @@ export default function DocumentWorkspaceInner({
       }
       await persistValues(docId, valuesRef.current);
       setIsDirty(false);
+      hasEditedRef.current = false;
       const { error } = await supabase.rpc("complete_document", { p_document_id: docId });
       if (error) {
         const raw = error.message || "";
@@ -379,7 +382,7 @@ export default function DocumentWorkspaceInner({
   };
 
   const canConfirm =
-    isDirty && !isReadOnly && allMandatoryFilled && !isConfirming;
+    hasEditedRef.current && !isReadOnly && allMandatoryFilled && !isConfirming;
 
 
 
@@ -689,6 +692,7 @@ export default function DocumentWorkspaceInner({
                 onApply={(templateValues) => {
                   setValues((prev) => ({ ...prev, ...templateValues }));
                   setIsDirty(true);
+                  hasEditedRef.current = true;
                 }}
                 isReadOnly={isReadOnly}
               />
