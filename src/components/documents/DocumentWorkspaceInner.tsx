@@ -382,7 +382,7 @@ export default function DocumentWorkspaceInner({
   };
 
   const canConfirm =
-    isDirty && !isReadOnly && allMandatoryFilled && !isConfirming;
+    hasEditedRef.current && !isReadOnly && allMandatoryFilled && !isConfirming;
 
 
 
