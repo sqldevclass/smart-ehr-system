@@ -70,6 +70,7 @@ export default function DocumentWorkspaceInner({
   const [isDirty, setIsDirty] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [activeTab, setActiveTab] = useState("0");
+  const [hasDiagnosis, setHasDiagnosis] = useState(false);
   const [activeEditable, setActiveEditable] = useState<{
     el: HTMLDivElement;
     onChange: (val: string) => void;
@@ -179,6 +180,19 @@ export default function DocumentWorkspaceInner({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (!hospitalizationId && !visitId) return;
+    const column = hospitalizationId ? "hospitalization_id" : "visit_id";
+    const value = hospitalizationId || visitId;
+    supabase
+      .from("patient_diagnoses")
+      .select("id", { count: "exact", head: true })
+      .eq(column, value)
+      .then(({ count }) => {
+        setHasDiagnosis((count ?? 0) > 0);
+      });
+  }, [hospitalizationId, visitId, documentId]);
+
   const isReadOnly = (() => {
     if (docStatus === "completed") return true;
     if (docStatus === "preliminary" && docCreatedBy !== user?.id) return true;
@@ -216,14 +230,19 @@ export default function DocumentWorkspaceInner({
   const allMandatoryFilled = useMemo(() => {
     for (const s of sections) {
       for (const f of s.fields) {
-        if (f.is_mandatory) {
+        if (!f.is_mandatory) continue;
+        if (s.code === "diagnosis") {
+          // Diagnosis section is managed by DiagnosisTab,
+          // not via setVal/values. Check separately via hasDiagnosis.
+          if (!hasDiagnosis) return false;
+        } else {
           const v = values[f.def.id];
           if (v === undefined || v === null || String(v).trim() === "") return false;
         }
       }
     }
     return true;
-  }, [sections, values]);
+  }, [sections, values, hasDiagnosis]);
 
   const setVal = (id: string, val: string) => {
     setValues((p) => ({ ...p, [id]: val }));
@@ -362,27 +381,7 @@ export default function DocumentWorkspaceInner({
   const canConfirm =
     isDirty && !isReadOnly && allMandatoryFilled && !isConfirming;
 
-  // TEMP DEBUG
-  console.log("canConfirm debug:", {
-    isDirty,
-    isReadOnly,
-    allMandatoryFilled,
-    isConfirming,
-    docStatus,
-    docCreatedBy,
-    userId: user?.id,
-    sameUser: docCreatedBy === user?.id,
-    hospitalizationId,
-    serviceStatusCode,
-    mandatoryFields: sections.flatMap(s =>
-      s.fields.filter((f: any) => f.is_mandatory).map((f: any) => ({
-        id: f.def?.id,
-        label: f.def?.label_ru,
-        value: values[f.def?.id],
-        filled: !!(values[f.def?.id]?.trim())
-      }))
-    )
-  });
+
 
   if (statusLoading) {
     return (
