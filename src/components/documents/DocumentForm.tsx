@@ -291,6 +291,7 @@ function DocumentFormInner({
 
   const setVal = (id: string, v: string) => {
     dirtyRef.current = true;
+    setIsDirty(true);
     setValues((p) => ({ ...p, [id]: v }));
   };
 
