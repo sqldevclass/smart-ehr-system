@@ -176,6 +176,7 @@ export default function DiagnosisTab({
   const handleDelete = async (id: string) => {
     await supabase.from("patient_diagnoses").delete().eq("id", id);
     refetchDiagnoses();
+    onDiagnosisChange?.();
   };
 
   const computeScore = (items: any[], responses: Record<string, string>) => {
