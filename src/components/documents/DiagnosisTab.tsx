@@ -23,6 +23,7 @@ interface Props {
   documentTypeId: string;
   isReadOnly: boolean;
   currentUserId: string;
+  onDiagnosisChange?: () => void;
 }
 
 const diagTypes = [
@@ -49,6 +50,7 @@ export default function DiagnosisTab({
   documentId,
   isReadOnly,
   currentUserId,
+  onDiagnosisChange,
 }: Props) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [addSearch, setAddSearch] = useState("");
@@ -144,6 +146,7 @@ export default function DiagnosisTab({
       recorded_by: currentUserId,
     });
     refetchDiagnoses();
+    onDiagnosisChange?.();
     setShowAddForm(false);
     setAddSearch("");
     setAddSelected(null);
@@ -173,6 +176,7 @@ export default function DiagnosisTab({
   const handleDelete = async (id: string) => {
     await supabase.from("patient_diagnoses").delete().eq("id", id);
     refetchDiagnoses();
+    onDiagnosisChange?.();
   };
 
   const computeScore = (items: any[], responses: Record<string, string>) => {
