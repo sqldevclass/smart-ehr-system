@@ -23,6 +23,7 @@ interface Props {
   documentTypeId: string;
   isReadOnly: boolean;
   currentUserId: string;
+  onDiagnosisChange?: () => void;
 }
 
 const diagTypes = [
