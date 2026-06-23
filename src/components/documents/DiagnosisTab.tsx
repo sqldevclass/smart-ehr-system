@@ -50,6 +50,7 @@ export default function DiagnosisTab({
   documentId,
   isReadOnly,
   currentUserId,
+  onDiagnosisChange,
 }: Props) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [addSearch, setAddSearch] = useState("");
