@@ -359,7 +359,7 @@ function DocumentFormInner({
     }
   };
 
-  const canConfirm = !isReadOnly && allMandatoryFilled && documentId !== null && !isSaving && !isConfirming;
+  const canConfirm = isDirty && !isReadOnly && allMandatoryFilled && !isSaving && !isConfirming;
 
   return (
     <>
