@@ -362,6 +362,28 @@ export default function DocumentWorkspaceInner({
   const canConfirm =
     isDirty && !isReadOnly && allMandatoryFilled && !isConfirming;
 
+  // TEMP DEBUG
+  console.log("canConfirm debug:", {
+    isDirty,
+    isReadOnly,
+    allMandatoryFilled,
+    isConfirming,
+    docStatus,
+    docCreatedBy,
+    userId: user?.id,
+    sameUser: docCreatedBy === user?.id,
+    hospitalizationId,
+    serviceStatusCode,
+    mandatoryFields: sections.flatMap(s =>
+      s.fields.filter((f: any) => f.is_mandatory).map((f: any) => ({
+        id: f.def?.id,
+        label: f.def?.label_ru,
+        value: values[f.def?.id],
+        filled: !!(values[f.def?.id]?.trim())
+      }))
+    )
+  });
+
   if (statusLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
