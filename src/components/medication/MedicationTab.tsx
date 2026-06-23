@@ -238,6 +238,7 @@ export default function MedicationTab({
         .from("general_clinic_stock")
         .select("drug_formulary_id, total_units")
         .eq("hospital_id", hospitalId)
+        .eq("warehouse_type", "central_pharmacy")
         .in("drug_formulary_id", drugIds);
 
       const newStockMap: Record<string, number> = {};
