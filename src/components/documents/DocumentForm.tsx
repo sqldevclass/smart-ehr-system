@@ -250,6 +250,7 @@ function DocumentFormInner({
     });
     return loaded;
   });
+  const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
 
