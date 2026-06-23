@@ -576,6 +576,7 @@ export default function DocumentWorkspaceInner({
                     documentTypeId={documentTypeId}
                     isReadOnly={isReadOnly}
                     currentUserId={user!.id}
+                    onDiagnosisChange={recheckDiagnosis}
                   />
                 ) : (
                   <DocumentSection
