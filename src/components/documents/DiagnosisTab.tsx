@@ -146,6 +146,7 @@ export default function DiagnosisTab({
       recorded_by: currentUserId,
     });
     refetchDiagnoses();
+    onDiagnosisChange?.();
     setShowAddForm(false);
     setAddSearch("");
     setAddSelected(null);
