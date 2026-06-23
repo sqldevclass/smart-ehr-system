@@ -248,6 +248,7 @@ export default function DocumentWorkspaceInner({
   const setVal = (id: string, val: string) => {
     setValues((p) => ({ ...p, [id]: val }));
     setIsDirty(true);
+    hasEditedRef.current = true;
   };
 
   // Save field values to DB
