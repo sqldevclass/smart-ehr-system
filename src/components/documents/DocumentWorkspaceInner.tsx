@@ -230,14 +230,19 @@ export default function DocumentWorkspaceInner({
   const allMandatoryFilled = useMemo(() => {
     for (const s of sections) {
       for (const f of s.fields) {
-        if (f.is_mandatory) {
+        if (!f.is_mandatory) continue;
+        if (s.code === "diagnosis") {
+          // Diagnosis section is managed by DiagnosisTab,
+          // not via setVal/values. Check separately via hasDiagnosis.
+          if (!hasDiagnosis) return false;
+        } else {
           const v = values[f.def.id];
           if (v === undefined || v === null || String(v).trim() === "") return false;
         }
       }
     }
     return true;
-  }, [sections, values]);
+  }, [sections, values, hasDiagnosis]);
 
   const setVal = (id: string, val: string) => {
     setValues((p) => ({ ...p, [id]: val }));
