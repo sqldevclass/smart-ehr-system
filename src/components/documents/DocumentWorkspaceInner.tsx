@@ -70,6 +70,7 @@ export default function DocumentWorkspaceInner({
   const [isDirty, setIsDirty] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [activeTab, setActiveTab] = useState("0");
+  const [hasDiagnosis, setHasDiagnosis] = useState(false);
   const [activeEditable, setActiveEditable] = useState<{
     el: HTMLDivElement;
     onChange: (val: string) => void;
