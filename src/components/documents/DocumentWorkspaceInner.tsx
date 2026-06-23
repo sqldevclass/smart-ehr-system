@@ -337,6 +337,7 @@ export default function DocumentWorkspaceInner({
       }
       await persistValues(docId, valuesRef.current);
       setIsDirty(false);
+      hasEditedRef.current = false;
       const { error } = await supabase.rpc("complete_document", { p_document_id: docId });
       if (error) {
         const raw = error.message || "";
