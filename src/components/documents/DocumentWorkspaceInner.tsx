@@ -180,6 +180,19 @@ export default function DocumentWorkspaceInner({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (!hospitalizationId && !visitId) return;
+    const column = hospitalizationId ? "hospitalization_id" : "visit_id";
+    const value = hospitalizationId || visitId;
+    supabase
+      .from("patient_diagnoses")
+      .select("id", { count: "exact", head: true })
+      .eq(column, value)
+      .then(({ count }) => {
+        setHasDiagnosis((count ?? 0) > 0);
+      });
+  }, [hospitalizationId, visitId, documentId]);
+
   const isReadOnly = (() => {
     if (docStatus === "completed") return true;
     if (docStatus === "preliminary" && docCreatedBy !== user?.id) return true;
