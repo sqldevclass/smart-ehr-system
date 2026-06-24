@@ -683,7 +683,7 @@ export default function DocumentWorkspaceInner({
                   });
                 }}
               />
-            ) : (
+            ) : !isReadOnly ? (
               <TemplatePanel
                 documentTypeId={documentTypeId}
                 hospitalId={hospitalId}
@@ -699,7 +699,7 @@ export default function DocumentWorkspaceInner({
                 }}
                 isReadOnly={isReadOnly}
               />
-            )}
+            ) : null}
           </div>
         )}
         </div>
