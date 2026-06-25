@@ -11,7 +11,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertTriangle, X } from "lucide-react";
+import { AlertTriangle, X, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -33,6 +33,7 @@ interface Props {
   physicianId: string;
   isReadOnly: boolean;
   patientAllergies: any[];
+  patientDateOfBirth?: string;
 }
 
 const ROUTES = [
@@ -87,6 +88,7 @@ export default function MedicationTab({
   hospitalId,
   physicianId,
   isReadOnly,
+  patientDateOfBirth,
 }: Props) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -112,6 +114,15 @@ export default function MedicationTab({
   const [ackReason, setAckReason] = useState("");
   const [pendingCandidateName, setPendingCandidateName] = useState<string>("");
   const [checkingInteractions, setCheckingInteractions] = useState(false);
+  const [dosingInfo, setDosingInfo] = useState<any | null>(null);
+
+  const patientAgeYears = patientDateOfBirth
+    ? Math.floor(
+        (Date.now() - new Date(patientDateOfBirth).getTime()) /
+        (1000 * 60 * 60 * 24 * 365.25)
+      )
+    : null;
+  const isAdult = patientAgeYears === null || patientAgeYears >= 18;
 
   const [startDay, setStartDay] = useState(new Date());
   const formatStartDay = (d: Date) => format(d, "dd.MM.yyyy");
@@ -446,6 +457,19 @@ export default function MedicationTab({
       ...prefill,
     });
     setShowForm(true);
+
+    // Fetch dosing info for selected drug
+    setDosingInfo(null);
+    if (drug.inn) {
+      supabase
+        .from("daily_drug_dosage")
+        .select("adult_dose, max_daily_dose, kids_dose, notes")
+        .ilike("inn", drug.inn.trim())
+        .maybeSingle()
+        .then(({ data }) => {
+          setDosingInfo(data ?? null);
+        });
+    }
   };
 
   const actuallyInsertPrescription = async (payload: any) => {
@@ -495,6 +519,7 @@ export default function MedicationTab({
     }
 
     setShowForm(false);
+    setDosingInfo(null);
     setFormData(initialFormData);
     setMixMode(false);
     setIsOwnDrugMode(false);
@@ -746,7 +771,7 @@ export default function MedicationTab({
                   Mix with
                 </button>
               </div>
-              <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setShowForm(false)}>
+              <Button size="sm" variant="ghost" className="ml-auto" onClick={() => { setShowForm(false); setDosingInfo(null); }}>
                 ✕
               </Button>
             </div>
@@ -781,6 +806,48 @@ export default function MedicationTab({
                 >
                   ✕
                 </button>
+              </div>
+            )}
+
+            {dosingInfo && (
+              <div className="rounded-md border border-blue-200 bg-blue-50 p-3 space-y-1.5 text-sm">
+                <p className="font-medium text-blue-800 flex items-center gap-1.5">
+                  <Info className="h-4 w-4 shrink-0" />
+                  {isAdult ? "Дозирование (взрослые)" : "Дозирование (дети)"}
+                </p>
+                {isAdult ? (
+                  <>
+                    <div className="space-y-0.5">
+                      <span className="text-xs text-blue-600 font-medium">
+                        Доза:
+                      </span>
+                      <p className="text-blue-900">{dosingInfo.adult_dose}</p>
+                    </div>
+                    {dosingInfo.max_daily_dose && (
+                      <div className="space-y-0.5">
+                        <span className="text-xs text-blue-600 font-medium">
+                          Макс. суточная доза:
+                        </span>
+                        <p className="text-blue-900">{dosingInfo.max_daily_dose}</p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="space-y-0.5">
+                    <span className="text-xs text-blue-600 font-medium">
+                      Доза детям:
+                    </span>
+                    <p className="text-blue-900">{dosingInfo.kids_dose}</p>
+                  </div>
+                )}
+                {dosingInfo.notes && (
+                  <div className="space-y-0.5 border-t border-blue-200 pt-1.5">
+                    <span className="text-xs text-blue-600 font-medium">
+                      Примечание:
+                    </span>
+                    <p className="text-blue-700 text-xs">{dosingInfo.notes}</p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1084,6 +1151,7 @@ export default function MedicationTab({
                   setOwnDrugInn("");
                   setOwnDrugUnitId("");
                   setShowForm(false);
+                  setDosingInfo(null);
                   setFormData(initialFormData);
                 }}
               >
