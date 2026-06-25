@@ -627,6 +627,7 @@ export default function InpatientPatientDetail() {
                 physicianId={user!.id}
                 isReadOnly={isHospDischarged}
                 patientAllergies={allergies}
+                patientDateOfBirth={patient?.date_of_birth}
               />
             </div>
           </div>
