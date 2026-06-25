@@ -810,6 +810,47 @@ export default function MedicationTab({
             )}
 
 
+            {dosingInfo && (
+              <div className="rounded-md border border-blue-200 bg-blue-50 p-3 space-y-1.5 text-sm">
+                <p className="font-medium text-blue-800 flex items-center gap-1.5">
+                  <Info className="h-4 w-4 shrink-0" />
+                  {isAdult ? "Дозирование (взрослые)" : "Дозирование (дети)"}
+                </p>
+                {isAdult ? (
+                  <>
+                    <div className="space-y-0.5">
+                      <span className="text-xs text-blue-600 font-medium">
+                        Доза:
+                      </span>
+                      <p className="text-blue-900">{dosingInfo.adult_dose}</p>
+                    </div>
+                    {dosingInfo.max_daily_dose && (
+                      <div className="space-y-0.5">
+                        <span className="text-xs text-blue-600 font-medium">
+                          Макс. суточная доза:
+                        </span>
+                        <p className="text-blue-900">{dosingInfo.max_daily_dose}</p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="space-y-0.5">
+                    <span className="text-xs text-blue-600 font-medium">
+                      Доза детям:
+                    </span>
+                    <p className="text-blue-900">{dosingInfo.kids_dose}</p>
+                  </div>
+                )}
+                {dosingInfo.notes && (
+                  <div className="space-y-0.5 border-t border-blue-200 pt-1.5">
+                    <span className="text-xs text-blue-600 font-medium">
+                      Примечание:
+                    </span>
+                    <p className="text-blue-700 text-xs">{dosingInfo.notes}</p>
+                  </div>
+                )}
+              </div>
+            )}
             <div className="flex items-center gap-2 flex-wrap">
               <Select
                 value={formData.route}
@@ -1092,47 +1133,6 @@ export default function MedicationTab({
 
       {/* Right sidebar */}
       <div className="w-72 shrink-0 border-l overflow-y-auto p-4 space-y-4">
-        {dosingInfo && (
-          <div className="rounded-md border border-blue-200 bg-blue-50 p-3 space-y-1.5 text-sm">
-            <p className="font-medium text-blue-800 flex items-center gap-1.5">
-              <Info className="h-4 w-4 shrink-0" />
-              {isAdult ? "Дозирование (взрослые)" : "Дозирование (дети)"}
-            </p>
-            {isAdult ? (
-              <>
-                <div className="space-y-0.5">
-                  <span className="text-xs text-blue-600 font-medium">
-                    Доза:
-                  </span>
-                  <p className="text-blue-900">{dosingInfo.adult_dose}</p>
-                </div>
-                {dosingInfo.max_daily_dose && (
-                  <div className="space-y-0.5">
-                    <span className="text-xs text-blue-600 font-medium">
-                      Макс. суточная доза:
-                    </span>
-                    <p className="text-blue-900">{dosingInfo.max_daily_dose}</p>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="space-y-0.5">
-                <span className="text-xs text-blue-600 font-medium">
-                  Доза детям:
-                </span>
-                <p className="text-blue-900">{dosingInfo.kids_dose}</p>
-              </div>
-            )}
-            {dosingInfo.notes && (
-              <div className="space-y-0.5 border-t border-blue-200 pt-1.5">
-                <span className="text-xs text-blue-600 font-medium">
-                  Примечание:
-                </span>
-                <p className="text-blue-700 text-xs">{dosingInfo.notes}</p>
-              </div>
-            )}
-          </div>
-        )}
         {mixMode && (
           <div className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded px-2 py-1.5">
             Выберите препарат для смешивания
