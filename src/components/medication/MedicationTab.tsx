@@ -1017,7 +1017,55 @@ export default function MedicationTab({
                 ? "Заказать"
                 : "Добавить в список"}
             </Button>
+              {/* end of left column */}
+              </div>
+              {/* Right: dosing info */}
+              {dosingInfo && (
+                <div className="w-52 shrink-0">
+                  <div className="rounded-md border border-blue-200 bg-blue-50 p-3 space-y-1.5 text-sm">
+                    <p className="font-medium text-blue-800 flex items-center gap-1.5">
+                      <Info className="h-4 w-4 shrink-0" />
+                      {isAdult ? "Дозирование (взрослые)" : "Дозирование (дети)"}
+                    </p>
+                    {isAdult ? (
+                      <>
+                        <div className="space-y-0.5">
+                          <span className="text-xs text-blue-600 font-medium">
+                            Доза:
+                          </span>
+                          <p className="text-blue-900">{dosingInfo.adult_dose}</p>
+                        </div>
+                        {dosingInfo.max_daily_dose && (
+                          <div className="space-y-0.5">
+                            <span className="text-xs text-blue-600 font-medium">
+                              Макс. суточная доза:
+                            </span>
+                            <p className="text-blue-900">{dosingInfo.max_daily_dose}</p>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="space-y-0.5">
+                        <span className="text-xs text-blue-600 font-medium">
+                          Доза детям:
+                        </span>
+                        <p className="text-blue-900">{dosingInfo.kids_dose}</p>
+                      </div>
+                    )}
+                    {dosingInfo.notes && (
+                      <div className="space-y-0.5 border-t border-blue-200 pt-1.5">
+                        <span className="text-xs text-blue-600 font-medium">
+                          Примечание:
+                        </span>
+                        <p className="text-blue-700 text-xs">{dosingInfo.notes}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>{/* end flex gap-4 */}
           </div>
+
         )}
 
 
