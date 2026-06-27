@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { ChevronDown, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import InpatientDocumentWorkspace from "@/components/documents/InpatientDocumentWorkspace";
+import DocumentHistory from "@/components/documents/DocumentHistory";
 
 interface Props {
   hospitalizationId: string;
