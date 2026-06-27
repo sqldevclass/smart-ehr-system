@@ -330,7 +330,7 @@ export default function PatientDocumentSidebar({
             documentTypeId={activeDoc.documentTypeId}
             patientId={patientId}
             hospitalId={hospitalId}
-            forceReadOnly={isReadOnly}
+            forceReadOnly={isReadOnly || !!activeDoc?.forceReadOnly}
             onClose={() => {
               setActiveDoc(null);
               refetchDocs();
