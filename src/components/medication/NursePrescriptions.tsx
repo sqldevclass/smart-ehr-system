@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import PrescriptionGrid from "@/components/medication/PrescriptionGrid";
 import PrnPrescriptionList from "@/components/medication/PrnPrescriptionList";
+import HospitalizationHistory from "@/components/medication/HospitalizationHistory";
 
 
 interface Props {
