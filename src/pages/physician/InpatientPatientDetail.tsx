@@ -17,6 +17,7 @@ import { format, differenceInYears } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import InpatientDocumentWorkspace from "@/components/documents/InpatientDocumentWorkspace";
+import DocumentHistory from "@/components/documents/DocumentHistory";
 import DischargeDialog from "@/components/inpatient/DischargeDialog";
 import EWSSection from "@/components/ews/EWSSection";
 import MedicationTab from "@/components/medication/MedicationTab";
