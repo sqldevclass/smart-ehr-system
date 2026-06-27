@@ -115,6 +115,11 @@ export default function MedicationTab({
   const [pendingCandidateName, setPendingCandidateName] = useState<string>("");
   const [checkingInteractions, setCheckingInteractions] = useState(false);
   const [dosingInfo, setDosingInfo] = useState<any | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
+  const [historicHospitalizations, setHistoricHospitalizations] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [expandedHospitalization, setExpandedHospitalization] = useState<string | null>(null);
+  const [historicPrescriptions, setHistoricPrescriptions] = useState<Record<string, any[]>>({});
 
   const patientAgeYears = patientDateOfBirth
     ? Math.floor(
