@@ -226,22 +226,8 @@ export default function InpatientPatientDetail() {
     enabled: !!hospitalizationId && !!user?.hospitalId,
   });
 
-  const { data: allDocs = [] } = useQuery({
-    queryKey: ["inpatient-docs-all", patientId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("patient_documents")
-        .select(`
-          id, status, created_at, completed_at, created_by, hospitalization_id,
-          document_types!inner(id, name_ru, color)
-        `)
-        .eq("patient_id", patientId)
-        .eq("hospital_id", user!.hospitalId)
-        .order("created_at", { ascending: false });
-      return data || [];
-    },
-    enabled: showAll && !!patientId && !!user?.hospitalId,
-  });
+
+
 
   const { data: documentTypes = [] } = useQuery({
     queryKey: ["doc-types-active"],
