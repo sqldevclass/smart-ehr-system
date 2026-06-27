@@ -98,6 +98,45 @@ export default function PatientDocumentSidebar({
     allowedDocTypeIds.has(dt.id)
   );
 
+  const handleShowHistory = async () => {
+    if (showHistory) {
+      setShowHistory(false);
+      return;
+    }
+    setShowHistory(true);
+    if (historicHospitalizations.length > 0) return;
+    setHistoryLoading(true);
+    const { data } = await supabase
+      .from("hospitalizations")
+      .select("id, admitted_at, discharged_at")
+      .eq("patient_id", patientId)
+      .eq("hospital_id", hospitalId)
+      .neq("id", hospitalizationId)
+      .order("admitted_at", { ascending: false });
+    setHistoricHospitalizations(data || []);
+    setHistoryLoading(false);
+  };
+
+  const handleExpandHospitalization = async (hospId: string) => {
+    if (expandedHospitalization === hospId) {
+      setExpandedHospitalization(null);
+      return;
+    }
+    setExpandedHospitalization(hospId);
+    if (historicDocs[hospId]) return;
+    const { data } = await supabase
+      .from("patient_documents")
+      .select(`
+        id, status, created_at,
+        document_types!inner(id, name_ru, color)
+      `)
+      .eq("hospitalization_id", hospId)
+      .eq("hospital_id", hospitalId)
+      .eq("status", "completed")
+      .order("created_at", { ascending: false });
+    setHistoricDocs((prev) => ({ ...prev, [hospId]: data || [] }));
+  };
+
   return (
     <div className="flex h-full w-full">
       {/* Left sidebar */}
