@@ -17,6 +17,7 @@ import { format, differenceInYears } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import InpatientDocumentWorkspace from "@/components/documents/InpatientDocumentWorkspace";
+import DocumentHistory from "@/components/documents/DocumentHistory";
 import DischargeDialog from "@/components/inpatient/DischargeDialog";
 import EWSSection from "@/components/ews/EWSSection";
 import MedicationTab from "@/components/medication/MedicationTab";
@@ -53,7 +54,6 @@ export default function InpatientPatientDetail() {
 
   const [showPatientCard, setShowPatientCard] = useState(false);
 
-  const [showAll, setShowAll] = useState(false);
   const [activeView, setActiveView] = useState<ActiveView>(null);
   const [dischargeOpen, setDischargeOpen] = useState(false);
   const [showMedicationModal, setShowMedicationModal] = useState(false);
@@ -226,22 +226,8 @@ export default function InpatientPatientDetail() {
     enabled: !!hospitalizationId && !!user?.hospitalId,
   });
 
-  const { data: allDocs = [] } = useQuery({
-    queryKey: ["inpatient-docs-all", patientId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("patient_documents")
-        .select(`
-          id, status, created_at, completed_at, created_by, hospitalization_id,
-          document_types!inner(id, name_ru, color)
-        `)
-        .eq("patient_id", patientId)
-        .eq("hospital_id", user!.hospitalId)
-        .order("created_at", { ascending: false });
-      return data || [];
-    },
-    enabled: showAll && !!patientId && !!user?.hospitalId,
-  });
+
+
 
   const { data: documentTypes = [] } = useQuery({
     queryKey: ["doc-types-active"],
@@ -302,7 +288,7 @@ export default function InpatientPatientDetail() {
 
   const patient = (hosp as any).patients;
   const allergies = patient?.patient_allergies || [];
-  const docsToShow = showAll ? allDocs : thisDocs;
+  
 
   const closeView = () => {
     setActiveView(null);
@@ -403,19 +389,10 @@ export default function InpatientPatientDetail() {
                 Выписать
               </Button>
             )}
-            <button
-              onClick={() => setShowAll(!showAll)}
-              className="text-xs text-primary underline ml-auto"
-            >
-              {showAll ? "Этот визит" : "Показать всё"}
-            </button>
           </div>
 
           <div className="p-3 flex-1 overflow-y-auto">
-
-
-            {docsToShow.map((doc: any) => {
-              const isOther = showAll && doc.hospitalization_id !== hospitalizationId;
+            {thisDocs.map((doc: any) => {
               const isCompleted = doc.status === "completed";
               const isOwn = doc.created_by === user?.id;
               const clickable = isCompleted || isOwn;
@@ -439,7 +416,6 @@ export default function InpatientPatientDetail() {
                     clickable
                       ? "cursor-pointer hover:bg-muted"
                       : "cursor-default opacity-50",
-                    isOther && "ml-3",
                     isActive && "bg-muted"
                   )}
                 >
@@ -464,6 +440,25 @@ export default function InpatientPatientDetail() {
                 </div>
               );
             })}
+
+            <DocumentHistory
+              hospitalizationId={hospitalizationId}
+              patientId={patientId}
+              hospitalId={user!.hospitalId}
+              activeDocumentId={
+                activeView?.type === "document"
+                  ? activeView.documentId
+                  : null
+              }
+              onSelectDocument={(docId, docTypeId) =>
+                setActiveView({
+                  type: "document",
+                  documentId: docId,
+                  documentTypeId: docTypeId,
+                  forceReadOnly: true,
+                } as any)
+              }
+            />
           </div>
         </div>
 
@@ -512,7 +507,7 @@ export default function InpatientPatientDetail() {
                 documentTypeId={activeView.documentTypeId}
                 patientId={patientId}
                 hospitalId={user!.hospitalId}
-                forceReadOnly={isHospDischarged}
+                forceReadOnly={isHospDischarged || !!(activeView as any)?.forceReadOnly}
                 onClose={closeView}
                 onComplete={handleDocumentComplete}
                 onDocumentCreated={(newDocId) => {
