@@ -25,7 +25,13 @@ export default function PatientDocumentSidebar({
   const [activeDoc, setActiveDoc] = useState<{
     documentId: string | null;
     documentTypeId: string;
+    forceReadOnly?: boolean;
   } | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
+  const [historicHospitalizations, setHistoricHospitalizations] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [expandedHospitalization, setExpandedHospitalization] = useState<string | null>(null);
+  const [historicDocs, setHistoricDocs] = useState<Record<string, any[]>>({});
   const [showCreatePicker, setShowCreatePicker] = useState(false);
 
   const { data: thisDocs = [], refetch: refetchDocs } = useQuery({
