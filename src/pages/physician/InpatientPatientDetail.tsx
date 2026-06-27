@@ -54,7 +54,6 @@ export default function InpatientPatientDetail() {
 
   const [showPatientCard, setShowPatientCard] = useState(false);
 
-  const [showAll, setShowAll] = useState(false);
   const [activeView, setActiveView] = useState<ActiveView>(null);
   const [dischargeOpen, setDischargeOpen] = useState(false);
   const [showMedicationModal, setShowMedicationModal] = useState(false);
