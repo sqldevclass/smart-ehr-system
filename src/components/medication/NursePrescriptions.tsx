@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import PrescriptionGrid from "@/components/medication/PrescriptionGrid";
 import PrnPrescriptionList from "@/components/medication/PrnPrescriptionList";
+import HospitalizationHistory from "@/components/medication/HospitalizationHistory";
 
 
 interface Props {
@@ -13,7 +14,7 @@ interface Props {
   isReadOnly?: boolean;
 }
 
-export default function NursePrescriptions({ hospitalizationId, hospitalId, isReadOnly = false }: Props) {
+export default function NursePrescriptions({ hospitalizationId, patientId, hospitalId, isReadOnly = false }: Props) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -127,6 +128,11 @@ export default function NursePrescriptions({ hospitalizationId, hospitalId, isRe
         hospitalizationId={hospitalizationId}
         onAdministerSlot={handleAdministerSlot}
         onSkipSlot={handleSkipSlot}
+      />
+      <HospitalizationHistory
+        hospitalizationId={hospitalizationId}
+        patientId={patientId}
+        hospitalId={hospitalId}
       />
     </div>
   );
