@@ -389,19 +389,10 @@ export default function InpatientPatientDetail() {
                 Выписать
               </Button>
             )}
-            <button
-              onClick={() => setShowAll(!showAll)}
-              className="text-xs text-primary underline ml-auto"
-            >
-              {showAll ? "Этот визит" : "Показать всё"}
-            </button>
           </div>
 
           <div className="p-3 flex-1 overflow-y-auto">
-
-
-            {docsToShow.map((doc: any) => {
-              const isOther = showAll && doc.hospitalization_id !== hospitalizationId;
+            {thisDocs.map((doc: any) => {
               const isCompleted = doc.status === "completed";
               const isOwn = doc.created_by === user?.id;
               const clickable = isCompleted || isOwn;
@@ -425,7 +416,6 @@ export default function InpatientPatientDetail() {
                     clickable
                       ? "cursor-pointer hover:bg-muted"
                       : "cursor-default opacity-50",
-                    isOther && "ml-3",
                     isActive && "bg-muted"
                   )}
                 >
@@ -450,6 +440,25 @@ export default function InpatientPatientDetail() {
                 </div>
               );
             })}
+
+            <DocumentHistory
+              hospitalizationId={hospitalizationId}
+              patientId={patientId}
+              hospitalId={user!.hospitalId}
+              activeDocumentId={
+                activeView?.type === "document"
+                  ? activeView.documentId
+                  : null
+              }
+              onSelectDocument={(docId, docTypeId) =>
+                setActiveView({
+                  type: "document",
+                  documentId: docId,
+                  documentTypeId: docTypeId,
+                  forceReadOnly: true,
+                } as any)
+              }
+            />
           </div>
         </div>
 
