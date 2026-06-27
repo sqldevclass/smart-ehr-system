@@ -288,7 +288,7 @@ export default function InpatientPatientDetail() {
 
   const patient = (hosp as any).patients;
   const allergies = patient?.patient_allergies || [];
-  const docsToShow = showAll ? allDocs : thisDocs;
+  
 
   const closeView = () => {
     setActiveView(null);
