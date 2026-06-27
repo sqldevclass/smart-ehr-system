@@ -507,7 +507,7 @@ export default function InpatientPatientDetail() {
                 documentTypeId={activeView.documentTypeId}
                 patientId={patientId}
                 hospitalId={user!.hospitalId}
-                forceReadOnly={isHospDischarged}
+                forceReadOnly={isHospDischarged || !!(activeView as any)?.forceReadOnly}
                 onClose={closeView}
                 onComplete={handleDocumentComplete}
                 onDocumentCreated={(newDocId) => {
