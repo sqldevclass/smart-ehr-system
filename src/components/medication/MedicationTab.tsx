@@ -699,47 +699,6 @@ export default function MedicationTab({
     invalidate();
   };
 
-  const handleShowHistory = async () => {
-    if (showHistory) {
-      setShowHistory(false);
-      return;
-    }
-    setShowHistory(true);
-    if (historicHospitalizations.length > 0) return;
-    setHistoryLoading(true);
-    const { data } = await supabase
-      .from("hospitalizations")
-      .select("id, admitted_at, discharged_at")
-      .eq("patient_id", patientId)
-      .eq("hospital_id", hospitalId)
-      .neq("id", hospitalizationId)
-      .order("admitted_at", { ascending: false });
-    setHistoricHospitalizations(data || []);
-    setHistoryLoading(false);
-  };
-
-  const handleExpandHospitalization = async (hospId: string) => {
-    if (expandedHospitalization === hospId) {
-      setExpandedHospitalization(null);
-      return;
-    }
-    setExpandedHospitalization(hospId);
-    if (historicPrescriptions[hospId]) return;
-    const { data } = await supabase
-      .from("drug_prescriptions")
-      .select(`
-        id, dose, dose_unit, route, duration_days, schedule_times,
-        drug_formulary!drug_formulary_id(trade_name, inn)
-      `)
-      .eq("hospitalization_id", hospId)
-      .eq("is_drafted", false)
-      .neq("status_code", "cancelled")
-      .order("created_at", { ascending: true });
-    setHistoricPrescriptions((prev) => ({
-      ...prev,
-      [hospId]: data || [],
-    }));
-  };
 
   return (
     <div className="flex h-full overflow-hidden">
