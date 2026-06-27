@@ -14,7 +14,7 @@ interface Props {
   isReadOnly?: boolean;
 }
 
-export default function NursePrescriptions({ hospitalizationId, hospitalId, isReadOnly = false }: Props) {
+export default function NursePrescriptions({ hospitalizationId, patientId, hospitalId, isReadOnly = false }: Props) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
