@@ -129,6 +129,11 @@ export default function NursePrescriptions({ hospitalizationId, patientId, hospi
         onAdministerSlot={handleAdministerSlot}
         onSkipSlot={handleSkipSlot}
       />
+      <HospitalizationHistory
+        hospitalizationId={hospitalizationId}
+        patientId={patientId}
+        hospitalId={hospitalId}
+      />
     </div>
   );
 }
