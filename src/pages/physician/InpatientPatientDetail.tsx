@@ -25,6 +25,8 @@ import InteractionWarnings, { useInteractionCount } from "@/components/medicatio
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { usePhysicianLayoutContext } from "@/components/physician/PhysicianLayout";
 import PatientCardModal from "@/components/patient/PatientCardModal";
+import ServiceTab from "@/components/inpatient/ServiceTab";
+import CareTab from "@/components/inpatient/CareTab";
 
 type TabKey = "medication" | "imaging" | "lab" | "consultation" | "care" | "diagnosis" | "ews";
 
