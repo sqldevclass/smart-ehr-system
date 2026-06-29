@@ -15,6 +15,9 @@ import { cn } from "@/lib/utils";
 import PatientCardModal from "@/components/patient/PatientCardModal";
 import InteractionWarnings, { useInteractionCount } from "@/components/medication/InteractionWarnings";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import ServiceTab from "@/components/inpatient/ServiceTab";
+import CareTab from "@/components/inpatient/CareTab";
+import DiagnosisTab from "@/components/documents/DiagnosisTab";
 
 
 export default function NursePatientDetail() {
@@ -29,6 +32,9 @@ export default function NursePatientDetail() {
   const [selectedDoc, setSelectedDoc] = useState<{ id: string; typeId: string } | null>(null);
   const [showIxModal, setShowIxModal] = useState(false);
   const [ixAutoDismissed, setIxAutoDismissed] = useState(false);
+  const [activeTab, setActiveTab] = useState<
+    "imaging" | "lab" | "consultation" | "care" | "diagnosis" | null
+  >(null);
 
   const { data: interactions = [] } = useInteractionCount(
     showPrescriptions ? (hospId ?? "") : "",
@@ -242,6 +248,11 @@ export default function NursePatientDetail() {
         >
           Мед. документы
         </Button>
+        <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setActiveTab("imaging")}>Инструментальные</Button>
+        <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setActiveTab("lab")}>Лаборатория</Button>
+        <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setActiveTab("consultation")}>Консультация</Button>
+        <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setActiveTab("care")}>Уход</Button>
+        <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setActiveTab("diagnosis")}>Диагнозы</Button>
         {allergies.length > 0 && (
           <div className="flex items-center gap-1 text-xs text-red-700 font-semibold">
             <span>⚠</span>
@@ -404,6 +415,88 @@ export default function NursePatientDetail() {
           </div>
         </div>
       )}
+
+      {activeTab && patient && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div
+            className="bg-white rounded-lg flex flex-col"
+            style={{ width: "calc(100vw - 32px)", height: "calc(100vh - 32px)" }}
+          >
+            <div className="flex items-center gap-4 p-4 border-b">
+              <div className="flex-1">
+                <div className="text-lg font-semibold">
+                  {{
+                    imaging: "Инструментальные",
+                    lab: "Лаборатория",
+                    consultation: "Консультация",
+                    care: "Уход",
+                    diagnosis: "Диагнозы",
+                  }[activeTab]}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {patient.last_name} {patient.first_name}
+                </div>
+              </div>
+              <button
+                onClick={() => setActiveTab(null)}
+                className="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto">
+              {activeTab === "imaging" && (
+                <div className="p-10 text-center text-muted-foreground text-sm">
+                  Инструментальные — в разработке
+                </div>
+              )}
+              {activeTab === "lab" && (
+                <ServiceTab
+                  hospitalizationId={hospId!}
+                  patientId={patient.id}
+                  hospitalId={user!.hospitalId}
+                  userId={user!.id}
+                  typeCode="laboratory"
+                  title="Лаборатория"
+                  readOnly
+                />
+              )}
+              {activeTab === "consultation" && (
+                <ServiceTab
+                  hospitalizationId={hospId!}
+                  patientId={patient.id}
+                  hospitalId={user!.hospitalId}
+                  userId={user!.id}
+                  typeCode="consultation"
+                  title="Консультация"
+                  readOnly
+                />
+              )}
+              {activeTab === "care" && (
+                <CareTab
+                  hospitalizationId={hospId!}
+                  patientId={patient.id}
+                  hospitalId={user!.hospitalId}
+                  userId={user!.id}
+                  readOnly
+                />
+              )}
+              {activeTab === "diagnosis" && (
+                <DiagnosisTab
+                  hospitalizationId={hospId!}
+                  patientId={patient.id}
+                  hospitalId={user!.hospitalId}
+                  documentId={null}
+                  documentTypeId=""
+                  isReadOnly
+                  currentUserId={user!.id}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
 
       {showPatientCard && hospId && (
         <PatientCardModal
