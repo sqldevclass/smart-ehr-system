@@ -62,7 +62,7 @@ export default function EWSChart({
   overrideMap,
   alertSlot,
 }: Props) {
-  const [timeWindow, setTimeWindow] = useState<"1d" | "3d" | "5d" | "7d" | "all">("5d");
+  const [timeWindow, setTimeWindow] = useState<"1d" | "3d" | "5d" | "7d" | "all">("all");
   const [tooltip, setTooltip] = useState<{
     x: number;
     y: number;
