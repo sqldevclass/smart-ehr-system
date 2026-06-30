@@ -598,15 +598,8 @@ export default function MedicationTab({
       mix_dose: formData.mixDose || null,
       prescription_type: formData.prescriptionType,
       prn_condition: formData.prnCondition || null,
-      notes:
-        [
-          formData.notes,
-          formData.maxDailyDose
-            ? `Макс. доза: ${formData.maxDailyDose}`
-            : null,
-        ]
-          .filter(Boolean)
-          .join(" | ") || null,
+      prn_max_daily_dose: formData.maxDailyDose || null,
+      notes: formData.notes || null,
       is_drafted: (isOwnDrugMode || formData.prescriptionType === "prn") ? false : true,
       status_code: isOwnDrugMode ? "ready_for_execution" : "preliminary",
       prescribed_by: user!.id,
