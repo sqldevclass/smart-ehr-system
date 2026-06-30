@@ -357,6 +357,7 @@ export default function NursePatientsList() {
                       <th className="px-3 py-2 font-medium text-xs text-center">Баланс</th>
                       <th className="px-3 py-2 font-medium text-xs text-center">Дней</th>
                       <th className="px-3 py-2 font-medium text-xs text-center">ШРПУ</th>
+                      <th className="px-3 py-2 font-medium text-xs text-center">Вчера</th>
                     </tr>
                   </thead>
                   <tbody>
