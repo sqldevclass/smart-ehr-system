@@ -45,6 +45,8 @@ export default function NursePatientsList() {
   const [submitting, setSubmitting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<"active" | "discharged">("active");
   const [showInventory, setShowInventory] = useState(false);
+  const [focusedRowIndex, setFocusedRowIndex] = useState(0);
+  const rowRefs = useRef<(HTMLTableRowElement | null)[]>([]);
 
   const { data: nurseDept } = useQuery({
     queryKey: ["nurse-own-dept", user?.id, user?.hospitalId],
