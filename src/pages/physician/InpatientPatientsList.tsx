@@ -230,8 +230,9 @@ export default function InpatientPatientsList() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((h: any) => {
+                {filtered.map((h: any, idx: number) => {
                   const v = latestVitals[h.id];
+                  const prevV = previousDayVitals[h.id];
                   const ra = h.room_assignments?.[0];
                   const days = differenceInDays(new Date(), new Date(h.admitted_at));
                   const balance = v ? (v.fluid_intake_ml ?? 0) - (v.fluid_output_ml ?? 0) : null;
@@ -239,11 +240,28 @@ export default function InpatientPatientsList() {
                   return (
                     <tr
                       key={h.id}
+                      ref={(el) => (rowRefs.current[idx] = el)}
+                      tabIndex={0}
                       className={cn(
-                        "border-b",
+                        "border-b outline-none focus:bg-blue-50",
                         hasPhysician ? "cursor-pointer hover:bg-muted/50" : "cursor-default opacity-75"
                       )}
                       onClick={() => hasPhysician && navigate(`/physician/inpatient/${h.id}`)}
+                      onKeyDown={(e) => {
+                        if (e.key === "ArrowDown") {
+                          e.preventDefault();
+                          const next = Math.min(idx + 1, filtered.length - 1);
+                          setFocusedRowIndex(next);
+                          rowRefs.current[next]?.focus();
+                        } else if (e.key === "ArrowUp") {
+                          e.preventDefault();
+                          const prev = Math.max(idx - 1, 0);
+                          setFocusedRowIndex(prev);
+                          rowRefs.current[prev]?.focus();
+                        } else if (e.key === "Enter" && hasPhysician) {
+                          navigate(`/physician/inpatient/${h.id}`);
+                        }
+                      }}
                     >
                       <td className="px-3 py-2">
                         <div className="font-medium">{h.patients?.last_name} {h.patients?.first_name}</div>
@@ -263,6 +281,21 @@ export default function InpatientPatientsList() {
                           score={scheduleMap[h.id]?.last_score}
                           pulse={false}
                         />
+                      </td>
+                      <td className="px-3 py-2 text-center text-xs text-muted-foreground">
+                        {prevV ? (
+                          <>
+                            {prevV.bp_systolic && prevV.bp_diastolic
+                              ? `${prevV.bp_systolic}/${prevV.bp_diastolic}`
+                              : "—"}
+                            {" · "}
+                            {prevV.pulse ?? "—"}
+                            {" · "}
+                            {prevV.temperature ?? "—"}
+                          </>
+                        ) : (
+                          "—"
+                        )}
                       </td>
                     </tr>
                   );
