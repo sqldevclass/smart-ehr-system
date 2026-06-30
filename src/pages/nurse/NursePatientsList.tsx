@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,6 +45,8 @@ export default function NursePatientsList() {
   const [submitting, setSubmitting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<"active" | "discharged">("active");
   const [showInventory, setShowInventory] = useState(false);
+  const [focusedRowIndex, setFocusedRowIndex] = useState(0);
+  const rowRefs = useRef<(HTMLTableRowElement | null)[]>([]);
 
   const { data: nurseDept } = useQuery({
     queryKey: ["nurse-own-dept", user?.id, user?.hospitalId],
@@ -146,6 +148,20 @@ export default function NursePatientsList() {
     }
     return map;
   }, [allVitals]);
+
+  const previousDayVitals = useMemo(() => {
+    const map: Record<string, any> = {};
+    for (const v of allVitals) {
+      const latest = latestVitals[v.hospitalization_id];
+      if (!latest) continue;
+      const latestDate = new Date(latest.recorded_at).toDateString();
+      const thisDate = new Date(v.recorded_at).toDateString();
+      if (thisDate !== latestDate && !map[v.hospitalization_id]) {
+        map[v.hospitalization_id] = v;
+      }
+    }
+    return map;
+  }, [allVitals, latestVitals]);
 
   const { data: latestAssessments = [] } = useQuery({
     queryKey: ["nurse-assessments-latest", user?.hospitalId],
@@ -341,24 +357,44 @@ export default function NursePatientsList() {
                       <th className="px-3 py-2 font-medium text-xs text-center">Баланс</th>
                       <th className="px-3 py-2 font-medium text-xs text-center">Дней</th>
                       <th className="px-3 py-2 font-medium text-xs text-center">ШРПУ</th>
+                      <th className="px-3 py-2 font-medium text-xs text-center">Вчера</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.map((h: any) => {
+                    {filtered.map((h: any, idx: number) => {
                       const v = latestVitals[h.id];
+                      const prevV = previousDayVitals[h.id];
                       const ra = h.room_assignments?.[0];
                       const days = differenceInDays(new Date(), new Date(h.admitted_at));
                       const balance = v ? (v.fluid_intake_ml ?? 0) - (v.fluid_output_ml ?? 0) : null;
+                      const rowAction = () => {
+                        const ra2 = h.room_assignments?.[0];
+                        if (!ra2) {
+                          openAssignDialog(h);
+                        } else {
+                          navigate(`/nurse/${h.id}`);
+                        }
+                      };
                       return (
                         <tr
                           key={h.id}
-                          className="border-b hover:bg-muted/50 cursor-pointer"
-                          onClick={() => {
-                            const ra = h.room_assignments?.[0];
-                            if (!ra) {
-                              openAssignDialog(h);
-                            } else {
-                              navigate(`/nurse/${h.id}`);
+                          ref={(el) => (rowRefs.current[idx] = el)}
+                          tabIndex={0}
+                          className="border-b outline-none focus:bg-blue-50 hover:bg-muted/50 cursor-pointer"
+                          onClick={rowAction}
+                          onKeyDown={(e) => {
+                            if (e.key === "ArrowDown") {
+                              e.preventDefault();
+                              const next = Math.min(idx + 1, filtered.length - 1);
+                              setFocusedRowIndex(next);
+                              rowRefs.current[next]?.focus();
+                            } else if (e.key === "ArrowUp") {
+                              e.preventDefault();
+                              const prev = Math.max(idx - 1, 0);
+                              setFocusedRowIndex(prev);
+                              rowRefs.current[prev]?.focus();
+                            } else if (e.key === "Enter") {
+                              rowAction();
                             }
                           }}
                         >
@@ -437,6 +473,21 @@ export default function NursePatientsList() {
                               status={getStatus(h.id)}
                               score={scheduleMap[h.id]?.last_score}
                             />
+                          </td>
+                          <td className="px-3 py-2 text-center text-xs text-muted-foreground">
+                            {prevV ? (
+                              <>
+                                {prevV.bp_systolic && prevV.bp_diastolic
+                                  ? `${prevV.bp_systolic}/${prevV.bp_diastolic}`
+                                  : "—"}
+                                {" · "}
+                                {prevV.pulse ?? "—"}
+                                {" · "}
+                                {prevV.temperature ?? "—"}
+                              </>
+                            ) : (
+                              "—"
+                            )}
                           </td>
                         </tr>
                       );
