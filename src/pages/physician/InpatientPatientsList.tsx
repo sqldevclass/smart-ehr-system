@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useEWSSchedule } from "@/hooks/useEWSSchedule";
 import EWSStatusDot from "@/components/ews/EWSStatusDot";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
