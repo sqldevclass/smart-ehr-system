@@ -445,6 +445,7 @@ export default function MedicationTab({
           prescriptionType: lastPres.prescription_type ?? initialFormData.prescriptionType,
           foodRule: lastPres.food_rule ?? initialFormData.foodRule,
           prnCondition: lastPres.prn_condition ?? initialFormData.prnCondition,
+          maxDailyDose: lastPres.prn_max_daily_dose ?? initialFormData.maxDailyDose,
           notes: lastPres.notes ?? initialFormData.notes,
         };
       }
