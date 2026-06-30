@@ -40,6 +40,8 @@ export default function InpatientPatientsList() {
   const [statusFilter, setStatusFilter] = useState<"active" | "discharged">("active");
   const [showAllDischarged, setShowAllDischarged] = useState(false);
   const [tabletMode, setTabletMode] = useState(false);
+  const [focusedRowIndex, setFocusedRowIndex] = useState(0);
+  const rowRefs = useRef<(HTMLTableRowElement | null)[]>([]);
 
   const { data: hospitalizations = [], isLoading } = useQuery({
     queryKey: ["inpatient-list", user?.hospitalId, selectedDeptIds, statusFilter, showAllDischarged],
