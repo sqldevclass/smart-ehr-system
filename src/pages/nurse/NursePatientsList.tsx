@@ -149,6 +149,20 @@ export default function NursePatientsList() {
     return map;
   }, [allVitals]);
 
+  const previousDayVitals = useMemo(() => {
+    const map: Record<string, any> = {};
+    for (const v of allVitals) {
+      const latest = latestVitals[v.hospitalization_id];
+      if (!latest) continue;
+      const latestDate = new Date(latest.recorded_at).toDateString();
+      const thisDate = new Date(v.recorded_at).toDateString();
+      if (thisDate !== latestDate && !map[v.hospitalization_id]) {
+        map[v.hospitalization_id] = v;
+      }
+    }
+    return map;
+  }, [allVitals, latestVitals]);
+
   const { data: latestAssessments = [] } = useQuery({
     queryKey: ["nurse-assessments-latest", user?.hospitalId],
     staleTime: 0,
