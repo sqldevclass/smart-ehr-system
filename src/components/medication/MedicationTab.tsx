@@ -429,7 +429,7 @@ export default function MedicationTab({
     if (drug.id && physicianId) {
       const { data: lastPres } = await supabase
         .from("drug_prescriptions")
-        .select("route, schedule_times, duration_days, prescription_type, food_rule, prn_condition, notes")
+        .select("route, schedule_times, duration_days, prescription_type, food_rule, prn_condition, prn_max_daily_dose, notes")
         .eq("drug_formulary_id", drug.id)
         .eq("physician_id", physicianId)
         .eq("is_patient_own_drug", false)
