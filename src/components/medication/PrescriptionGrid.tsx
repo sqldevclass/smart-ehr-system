@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { format } from "date-fns";
 import { Pencil, X } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -111,7 +111,30 @@ export default function PrescriptionGrid({
     notes: string;
   } | null>(null);
 
+  const { data: reminderMinutes = 10 } = useQuery({
+    queryKey: ["medication-reminder-minutes", hospitalId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("hospital_settings")
+        .select("medication_reminder_minutes")
+        .eq("hospital_id", hospitalId)
+        .maybeSingle();
+      return data?.medication_reminder_minutes ?? 10;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
 
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const interval = setInterval(() => setNowTick(Date.now()), 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const isSlotDueOrOverdue = (scheduledAt: string) => {
+    const due = new Date(scheduledAt).getTime();
+    const minutesUntilDue = (due - nowTick) / 60000;
+    return minutesUntilDue <= reminderMinutes;
+  };
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -503,7 +526,12 @@ export default function PrescriptionGrid({
                               </div>
                             ) : (
                               <div>
-                                <div className="text-orange-600 font-medium text-xs">
+                                <div className={cn(
+                                  "text-orange-600 font-medium text-xs",
+                                  (slot as any).dispense_status === "ready_for_execution" &&
+                                    isSlotDueOrOverdue(slot.scheduled_at) &&
+                                    "animate-pulse text-red-600 font-bold"
+                                )}>
                                   {format(
                                     new Date(slot.scheduled_at),
                                     "HH:mm",
