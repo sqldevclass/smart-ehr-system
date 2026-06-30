@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
         address: hospital_address,
         phone: hospital_phone,
         email: hospital_email,
-        status: "trial",
+        is_active: true,
       })
       .select("id")
       .single();
@@ -190,7 +190,7 @@ Deno.serve(async (req) => {
     // Step 4: Verify profile was created by trigger
     const { data: profile, error: profileError } = await supabaseAdmin
       .from("profiles")
-      .select("id, role, hospital_id")
+      .select("id, hospital_id")
       .eq("id", authData.user.id)
       .single();
 
@@ -202,6 +202,49 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "Profile creation failed. Please try again." }),
         { status: 500, headers: { ...corsHeaders, 
+          "Content-Type": "application/json" } }
+      );
+    }
+
+    // Step 4.5: Assign admin role via user_roles
+    // profiles has no role column — roles are assigned through the
+    // user_roles junction table. Without this, the new admin would
+    // have zero permissions (has_permission() checks user_roles).
+    const { data: adminRole, error: adminRoleError } = await supabaseAdmin
+      .from("roles")
+      .select("id")
+      .eq("code", "admin")
+      .single();
+
+    if (adminRoleError || !adminRole) {
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      await supabaseAdmin.from("hospitals").delete().eq("id", hospital.id);
+
+      return new Response(
+        JSON.stringify({ error: "Admin role lookup failed. Please try again." }),
+        { status: 500, headers: { ...corsHeaders,
+          "Content-Type": "application/json" } }
+      );
+    }
+
+    const { error: userRoleError } = await supabaseAdmin
+      .from("user_roles")
+      .insert({
+        user_id: authData.user.id,
+        role_id: adminRole.id,
+        hospital_id: hospital.id,
+      });
+
+    if (userRoleError) {
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      await supabaseAdmin.from("hospitals").delete().eq("id", hospital.id);
+
+      return new Response(
+        JSON.stringify({
+          error: "Admin role assignment failed. Please try again.",
+          details: userRoleError.message,
+        }),
+        { status: 500, headers: { ...corsHeaders,
           "Content-Type": "application/json" } }
       );
     }
