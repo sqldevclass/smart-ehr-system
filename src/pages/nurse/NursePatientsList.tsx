@@ -361,21 +361,40 @@ export default function NursePatientsList() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.map((h: any) => {
+                    {filtered.map((h: any, idx: number) => {
                       const v = latestVitals[h.id];
+                      const prevV = previousDayVitals[h.id];
                       const ra = h.room_assignments?.[0];
                       const days = differenceInDays(new Date(), new Date(h.admitted_at));
                       const balance = v ? (v.fluid_intake_ml ?? 0) - (v.fluid_output_ml ?? 0) : null;
+                      const rowAction = () => {
+                        const ra2 = h.room_assignments?.[0];
+                        if (!ra2) {
+                          openAssignDialog(h);
+                        } else {
+                          navigate(`/nurse/${h.id}`);
+                        }
+                      };
                       return (
                         <tr
                           key={h.id}
-                          className="border-b hover:bg-muted/50 cursor-pointer"
-                          onClick={() => {
-                            const ra = h.room_assignments?.[0];
-                            if (!ra) {
-                              openAssignDialog(h);
-                            } else {
-                              navigate(`/nurse/${h.id}`);
+                          ref={(el) => (rowRefs.current[idx] = el)}
+                          tabIndex={0}
+                          className="border-b outline-none focus:bg-blue-50 hover:bg-muted/50 cursor-pointer"
+                          onClick={rowAction}
+                          onKeyDown={(e) => {
+                            if (e.key === "ArrowDown") {
+                              e.preventDefault();
+                              const next = Math.min(idx + 1, filtered.length - 1);
+                              setFocusedRowIndex(next);
+                              rowRefs.current[next]?.focus();
+                            } else if (e.key === "ArrowUp") {
+                              e.preventDefault();
+                              const prev = Math.max(idx - 1, 0);
+                              setFocusedRowIndex(prev);
+                              rowRefs.current[prev]?.focus();
+                            } else if (e.key === "Enter") {
+                              rowAction();
                             }
                           }}
                         >
