@@ -423,13 +423,14 @@ export default function MedicationTab({
       prescriptionType: initialFormData.prescriptionType,
       foodRule: initialFormData.foodRule,
       prnCondition: initialFormData.prnCondition,
+      maxDailyDose: initialFormData.maxDailyDose,
       notes: initialFormData.notes,
     };
 
     if (drug.id && physicianId) {
       const { data: lastPres } = await supabase
         .from("drug_prescriptions")
-        .select("route, schedule_times, duration_days, prescription_type, food_rule, prn_condition, notes")
+        .select("route, schedule_times, duration_days, prescription_type, food_rule, prn_condition, prn_max_daily_dose, notes")
         .eq("drug_formulary_id", drug.id)
         .eq("physician_id", physicianId)
         .eq("is_patient_own_drug", false)
@@ -445,6 +446,7 @@ export default function MedicationTab({
           prescriptionType: lastPres.prescription_type ?? initialFormData.prescriptionType,
           foodRule: lastPres.food_rule ?? initialFormData.foodRule,
           prnCondition: lastPres.prn_condition ?? initialFormData.prnCondition,
+          maxDailyDose: lastPres.prn_max_daily_dose ?? initialFormData.maxDailyDose,
           notes: lastPres.notes ?? initialFormData.notes,
         };
       }
@@ -598,15 +600,8 @@ export default function MedicationTab({
       mix_dose: formData.mixDose || null,
       prescription_type: formData.prescriptionType,
       prn_condition: formData.prnCondition || null,
-      notes:
-        [
-          formData.notes,
-          formData.maxDailyDose
-            ? `Макс. доза: ${formData.maxDailyDose}`
-            : null,
-        ]
-          .filter(Boolean)
-          .join(" | ") || null,
+      prn_max_daily_dose: formData.maxDailyDose || null,
+      notes: formData.notes || null,
       is_drafted: (isOwnDrugMode || formData.prescriptionType === "prn") ? false : true,
       status_code: isOwnDrugMode ? "ready_for_execution" : "preliminary",
       prescribed_by: user!.id,
