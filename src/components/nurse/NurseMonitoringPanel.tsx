@@ -1097,6 +1097,199 @@ export default function NurseMonitoringPanel({
         </div>
       )}
 
+      {/* Wound monitoring */}
+      {activeFormCodes.has("wound_monitoring") && (
+        <div className="border-2 border-gray-200 rounded-lg p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-semibold">Мониторинг ран</h4>
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs"
+              onClick={() => setShowWoundForm(!showWoundForm)}
+              disabled={isReadOnly}
+            >
+              {showWoundForm ? "Отмена" : "+ Запись"}
+            </Button>
+          </div>
+          {woundLocations.length > 1 && (
+            <div className="flex gap-1 flex-wrap">
+              <button
+                onClick={() => setWoundFilterLocation(null)}
+                className={cn(
+                  "text-xs px-2 py-1 rounded border",
+                  !woundFilterLocation ? "bg-muted font-medium" : "",
+                )}
+              >
+                Все
+              </button>
+              {woundLocations.map((loc) => (
+                <button
+                  key={loc}
+                  onClick={() => setWoundFilterLocation(loc)}
+                  className={cn(
+                    "text-xs px-2 py-1 rounded border",
+                    woundFilterLocation === loc ? "bg-muted font-medium" : "",
+                  )}
+                >
+                  {loc}
+                </button>
+              ))}
+            </div>
+          )}
+          {showWoundForm && (
+            <div className="space-y-2 bg-muted/20 p-3 rounded-md">
+              <Input
+                placeholder="Локализация (например: послеоп. шов, правый бок)"
+                value={woundLocation}
+                onChange={(e) => setWoundLocation(e.target.value)}
+                className="h-8 text-sm"
+              />
+              <Select value={woundCondition} onValueChange={(v: any) => setWoundCondition(v)}>
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue placeholder="Состояние" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="healing">Заживает</SelectItem>
+                  <SelectItem value="unchanged">Без изменений</SelectItem>
+                  <SelectItem value="deteriorating">Ухудшение</SelectItem>
+                  <SelectItem value="infected">Инфицирована</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input
+                type="number"
+                placeholder="Размер (см)"
+                value={woundSizeCm}
+                onChange={(e) => setWoundSizeCm(e.target.value)}
+                className="h-8 text-sm"
+              />
+              <Input
+                placeholder="Описание отделяемого"
+                value={woundDrainage}
+                onChange={(e) => setWoundDrainage(e.target.value)}
+                className="h-8 text-sm"
+              />
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={woundDressingChanged}
+                  onChange={(e) => setWoundDressingChanged(e.target.checked)}
+                />
+                Повязка сменена
+              </label>
+              {woundDressingChanged && (
+                <Input
+                  placeholder="Тип повязки"
+                  value={woundDressingType}
+                  onChange={(e) => setWoundDressingType(e.target.value)}
+                  className="h-8 text-sm"
+                />
+              )}
+              <Textarea
+                placeholder="Примечания"
+                value={woundNotes}
+                onChange={(e) => setWoundNotes(e.target.value)}
+                className="text-sm"
+              />
+              <Button
+                size="sm"
+                onClick={handleAddWoundRecord}
+                disabled={!woundLocation || !woundCondition}
+              >
+                Сохранить
+              </Button>
+            </div>
+          )}
+          <div className="space-y-2">
+            {filteredWoundRecords.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Нет записей</p>
+            ) : (
+              (filteredWoundRecords as any[]).map((r) => (
+                <div key={r.id} className="text-xs border-l-2 border-gray-300 pl-2 space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{r.wound_location}</span>
+                    <span
+                      className={cn(
+                        "px-1.5 py-0.5 rounded text-xs",
+                        r.condition === "healing" && "bg-green-100 text-green-700",
+                        r.condition === "unchanged" && "bg-gray-100 text-gray-700",
+                        r.condition === "deteriorating" && "bg-orange-100 text-orange-700",
+                        r.condition === "infected" && "bg-red-100 text-red-700",
+                      )}
+                    >
+                      {r.condition === "healing" && "Заживает"}
+                      {r.condition === "unchanged" && "Без изменений"}
+                      {r.condition === "deteriorating" && "Ухудшение"}
+                      {r.condition === "infected" && "Инфицирована"}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {new Date(r.recorded_at).toLocaleString("ru-RU")}
+                    </span>
+                  </div>
+                  {r.size_cm && <div>Размер: {r.size_cm} см</div>}
+                  {r.drainage_description && <div>Отделяемое: {r.drainage_description}</div>}
+                  {r.dressing_changed && (
+                    <div>Повязка сменена{r.dressing_type ? `: ${r.dressing_type}` : ""}</div>
+                  )}
+                  {r.notes && <div className="text-muted-foreground">{r.notes}</div>}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Nursing daily notes */}
+      {activeFormCodes.has("daily_notes") && (
+        <div className="border-2 border-gray-200 rounded-lg p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-semibold">Дневниковые записи</h4>
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs"
+              onClick={() => setShowDailyNoteForm(!showDailyNoteForm)}
+              disabled={isReadOnly}
+            >
+              {showDailyNoteForm ? "Отмена" : "+ Запись"}
+            </Button>
+          </div>
+          {showDailyNoteForm && (
+            <div className="space-y-2 bg-muted/20 p-3 rounded-md">
+              <Textarea
+                placeholder="Текст записи"
+                value={dailyNoteText}
+                onChange={(e) => setDailyNoteText(e.target.value)}
+                className="text-sm"
+                rows={3}
+              />
+              <Button
+                size="sm"
+                onClick={handleAddDailyNote}
+                disabled={!dailyNoteText.trim()}
+              >
+                Сохранить
+              </Button>
+            </div>
+          )}
+          <div className="space-y-2">
+            {dailyNotes.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Нет записей</p>
+            ) : (
+              (dailyNotes as any[]).map((n) => (
+                <div key={n.id} className="text-xs border-l-2 border-gray-300 pl-2 space-y-0.5">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <span>{new Date(n.recorded_at).toLocaleString("ru-RU")}</span>
+                    {n.profiles?.full_name && <span>· {n.profiles.full_name}</span>}
+                  </div>
+                  <div>{n.note_text}</div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Sepsis history */}
       {alertHistory.length > 0 && (
         <div className="space-y-2">
