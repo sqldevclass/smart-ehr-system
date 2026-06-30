@@ -474,6 +474,21 @@ export default function NursePatientsList() {
                               score={scheduleMap[h.id]?.last_score}
                             />
                           </td>
+                          <td className="px-3 py-2 text-center text-xs text-muted-foreground">
+                            {prevV ? (
+                              <>
+                                {prevV.bp_systolic && prevV.bp_diastolic
+                                  ? `${prevV.bp_systolic}/${prevV.bp_diastolic}`
+                                  : "—"}
+                                {" · "}
+                                {prevV.pulse ?? "—"}
+                                {" · "}
+                                {prevV.temperature ?? "—"}
+                              </>
+                            ) : (
+                              "—"
+                            )}
+                          </td>
                         </tr>
                       );
                     })}
