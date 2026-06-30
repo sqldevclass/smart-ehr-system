@@ -85,6 +85,80 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Step 2.5: Bootstrap hospital — settings, sequences, default warehouses
+    // Without this, the hospital cannot register a single patient
+    // (sequence generator raises an exception with no matching row)
+    // and pharmacy/inventory has nowhere to receive stock.
+    const { error: settingsError } = await supabaseAdmin
+      .from("hospital_settings")
+      .insert({ hospital_id: hospital.id });
+
+    const { error: sequencesError } = await supabaseAdmin
+      .from("hospital_sequences")
+      .insert([
+        { hospital_id: hospital.id, sequence_type: "patient", prefix: "P" },
+        { hospital_id: hospital.id, sequence_type: "hospitalization", prefix: "H" },
+        { hospital_id: hospital.id, sequence_type: "invoice", prefix: "INV" },
+        { hospital_id: hospital.id, sequence_type: "receipt", prefix: "RCP" },
+      ]);
+
+    const { data: warehouseTypes, error: warehouseTypesError } =
+      await supabaseAdmin
+        .from("warehouse_types")
+        .select("id, code")
+        .in("code", ["central_pharmacy", "general"]);
+
+    let warehousesError: { message: string } | null = null;
+    if (!warehouseTypesError && warehouseTypes) {
+      const centralPharmacy = warehouseTypes.find(
+        (w) => w.code === "central_pharmacy"
+      );
+      const general = warehouseTypes.find((w) => w.code === "general");
+
+      const warehouseRows = [];
+      if (centralPharmacy) {
+        warehouseRows.push({
+          hospital_id: hospital.id,
+          warehouse_type_id: centralPharmacy.id,
+          name: "Центральная аптека",
+        });
+      }
+      if (general) {
+        warehouseRows.push({
+          hospital_id: hospital.id,
+          warehouse_type_id: general.id,
+          name: "Общий склад",
+        });
+      }
+
+      if (warehouseRows.length > 0) {
+        const { error } = await supabaseAdmin
+          .from("warehouses")
+          .insert(warehouseRows);
+        warehousesError = error;
+      }
+    } else {
+      warehousesError = warehouseTypesError;
+    }
+
+    if (settingsError || sequencesError || warehousesError) {
+      // Roll back hospital creation — partial bootstrap is worse
+      // than no hospital at all
+      await supabaseAdmin.from("hospitals").delete().eq("id", hospital.id);
+
+      return new Response(
+        JSON.stringify({
+          error: "Failed to bootstrap hospital",
+          details:
+            settingsError?.message ||
+            sequencesError?.message ||
+            warehousesError?.message,
+        }),
+        { status: 500, headers: { ...corsHeaders,
+          "Content-Type": "application/json" } }
+      );
+    }
+
     // Step 3: Create admin auth user
     const { data: authData, error: authError } =
       await supabaseAdmin.auth.admin.createUser({
