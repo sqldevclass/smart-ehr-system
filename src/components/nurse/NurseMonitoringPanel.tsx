@@ -18,6 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import AssessmentSection from "@/components/assessments/AssessmentSection";
 import CpotSection from "@/components/assessments/CpotSection";
+import DeviceMonitoringSection from "@/components/nurse/DeviceMonitoringSection";
 
 interface Props {
   hospitalizationId: string;
@@ -189,6 +190,7 @@ export default function NurseMonitoringPanel({
       { code: "fluid_balance", name: "Баланс жидкости" },
       { code: "wound_monitoring", name: "Мониторинг ран" },
       { code: "daily_notes", name: "Дневниковые записи" },
+      { code: "device_monitoring", name: "Мониторинг устройств" },
     ],
     [optionalScales],
   );
@@ -1289,6 +1291,18 @@ export default function NurseMonitoringPanel({
           </div>
         </div>
       )}
+
+
+      {/* Device monitoring */}
+      {activeFormCodes.has("device_monitoring") && (
+        <DeviceMonitoringSection
+          hospitalizationId={hospitalizationId}
+          patientId={patientId}
+          hospitalId={hospitalId}
+          isReadOnly={isReadOnly}
+        />
+      )}
+
 
       {/* Sepsis history */}
       {alertHistory.length > 0 && (
