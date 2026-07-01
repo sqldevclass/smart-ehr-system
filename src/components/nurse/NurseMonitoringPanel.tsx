@@ -1287,7 +1287,11 @@ export default function NurseMonitoringPanel({
                   <div>{n.note_text}</div>
                 </div>
               ))
+            )}
+          </div>
+        </div>
       )}
+
 
       {/* Device monitoring */}
       {activeFormCodes.has("device_monitoring") && (
