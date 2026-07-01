@@ -1287,10 +1287,18 @@ export default function NurseMonitoringPanel({
                   <div>{n.note_text}</div>
                 </div>
               ))
-            )}
-          </div>
-        </div>
       )}
+
+      {/* Device monitoring */}
+      {activeFormCodes.has("device_monitoring") && (
+        <DeviceMonitoringSection
+          hospitalizationId={hospitalizationId}
+          patientId={patientId}
+          hospitalId={hospitalId}
+          isReadOnly={isReadOnly}
+        />
+      )}
+
 
       {/* Sepsis history */}
       {alertHistory.length > 0 && (
