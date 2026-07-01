@@ -18,6 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import AssessmentSection from "@/components/assessments/AssessmentSection";
 import CpotSection from "@/components/assessments/CpotSection";
+import DeviceMonitoringSection from "@/components/nurse/DeviceMonitoringSection";
 
 interface Props {
   hospitalizationId: string;
