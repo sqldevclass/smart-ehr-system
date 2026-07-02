@@ -422,7 +422,7 @@ export default function DeviceMonitoringSection({
         <div className="space-y-2 bg-muted/20 p-3 rounded-md">
           <div>
             <Label className="text-xs">Тип устройства</Label>
-            <Select value={newFormType} onValueChange={(v) => { setNewFormType(v); setNewSite(""); }}>
+            <Select value={newFormType} onValueChange={(v) => { setNewFormType(v); setNewSite(""); setNewAntibioticProphylaxis(null); }}>
               <SelectTrigger className="h-8 text-sm">
                 <SelectValue placeholder="Выберите тип" />
               </SelectTrigger>
