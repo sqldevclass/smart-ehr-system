@@ -353,7 +353,7 @@ export default function DeviceMonitoringSection({
       toast.error(error.message);
       return;
     }
-    toast.success("Устройство помечено как удалённое");
+    toast.success("Мониторинг завершён");
     setRemovingKey(null);
     setRemoveAt(todayIso());
     queryClient.invalidateQueries({ queryKey: ["nurse-device-monitoring", hospitalizationId] });
