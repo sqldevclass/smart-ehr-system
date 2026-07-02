@@ -97,7 +97,25 @@ const DEVICE_FORMS: Record<string, FormDef> = {
       { code: "uc_7", label: "Мочеприемник регулярно опорожняется" },
     ],
   },
+  postop_wound: {
+    label: "Мониторинг послеоперационной раны",
+    intervalDays: null,
+    hasSite: false,
+    hasAntibioticProphylaxis: true,
+    criteria: [
+      { code: "wound_1", label: "Лихорадка у пациента", critical: true, criticalMessage: "Сообщить в службу инфекционного контроля" },
+      { code: "wound_2", label: "Боль/болезненность разреза в области", critical: true, criticalMessage: "Сообщить в службу инфекционного контроля" },
+      { code: "wound_3", label: "Отечность краев раны", critical: true, criticalMessage: "Сообщить в службу инфекционного контроля" },
+      { code: "wound_4", label: "Гиперемия в области разреза", critical: true, criticalMessage: "Сообщить в службу инфекционного контроля" },
+      { code: "wound_5", label: "Экссудат (отделяемое) из раны", critical: true, criticalMessage: "Сообщить в службу инфекционного контроля" },
+      { code: "wound_6", label: "Гной из дренажа (если установлен дренаж)", critical: true, criticalMessage: "Сообщить в службу инфекционного контроля" },
+      { code: "wound_7", label: "Выраженный отек тканей в области разреза", critical: true, criticalMessage: "Сообщить в службу инфекционного контроля" },
+      { code: "wound_8", label: "Самопроизвольное расхождение швов", critical: true, criticalMessage: "Сообщить в службу инфекционного контроля" },
+      { code: "wound_culture", label: "Отделяемое из раны взято на бак посев (при наличии признаков воспаления)", hasNote: true, notePlaceholder: "Дата взятия" },
+    ],
+  },
 };
+
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
