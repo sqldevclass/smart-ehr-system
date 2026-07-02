@@ -274,63 +274,6 @@ export default function NurseMonitoringPanel({
     }
   };
 
-  // Wound monitoring
-  const { data: woundRecords = [] } = useQuery({
-    queryKey: ["wound-monitoring", hospitalizationId],
-    staleTime: 0,
-    enabled: activeFormCodes.has("wound_monitoring"),
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("wound_monitoring_records")
-        .select("id, wound_location, condition, size_cm, drainage_description, dressing_changed, dressing_type, notes, recorded_at")
-        .eq("hospitalization_id", hospitalizationId)
-        .order("recorded_at", { ascending: false });
-      return data || [];
-    },
-  });
-
-  const woundLocations = useMemo(
-    () => Array.from(new Set((woundRecords as any[]).map((r) => r.wound_location))),
-    [woundRecords],
-  );
-
-  const filteredWoundRecords = useMemo(
-    () =>
-      woundFilterLocation
-        ? (woundRecords as any[]).filter((r) => r.wound_location === woundFilterLocation)
-        : woundRecords,
-    [woundRecords, woundFilterLocation],
-  );
-
-  const handleAddWoundRecord = async () => {
-    if (!woundLocation || !woundCondition) return;
-    const { error } = await supabase.from("wound_monitoring_records").insert({
-      hospital_id: hospitalId,
-      hospitalization_id: hospitalizationId,
-      patient_id: patientId,
-      wound_location: woundLocation,
-      condition: woundCondition,
-      size_cm: woundSizeCm ? parseFloat(woundSizeCm) : null,
-      drainage_description: woundDrainage || null,
-      dressing_changed: woundDressingChanged,
-      dressing_type: woundDressingType || null,
-      notes: woundNotes || null,
-      recorded_by: (user as any)?.id,
-      recorded_at: new Date().toISOString(),
-    });
-    if (!error) {
-      setWoundCondition("");
-      setWoundSizeCm("");
-      setWoundDrainage("");
-      setWoundDressingChanged(false);
-      setWoundDressingType("");
-      setWoundNotes("");
-      setShowWoundForm(false);
-      queryClient.invalidateQueries({ queryKey: ["wound-monitoring", hospitalizationId] });
-    } else {
-      toast.error(error.message);
-    }
-  };
 
   // Daily notes
   const { data: dailyNotes = [] } = useQuery({
