@@ -150,6 +150,7 @@ export default function DeviceMonitoringSection({
   const [newFormType, setNewFormType] = useState<string>("");
   const [newInsertedAt, setNewInsertedAt] = useState(todayIso());
   const [newSite, setNewSite] = useState("");
+  const [newAntibioticProphylaxis, setNewAntibioticProphylaxis] = useState<boolean | null>(null);
   const [drafts, setDrafts] = useState<DraftDevice[]>([]);
 
   // Per-device UI state, keyed by device key
