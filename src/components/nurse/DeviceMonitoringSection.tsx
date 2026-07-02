@@ -461,6 +461,37 @@ export default function DeviceMonitoringSection({
               </Select>
             </div>
           )}
+          {newFormType && DEVICE_FORMS[newFormType]?.hasAntibioticProphylaxis && (
+            <div>
+              <Label className="text-xs">Антибиотикопрофилактика</Label>
+              <div className="flex gap-2 mt-1">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={newAntibioticProphylaxis === true ? "default" : "outline"}
+                  className={cn(
+                    "h-7 text-xs",
+                    newAntibioticProphylaxis === true && "bg-green-600 hover:bg-green-700",
+                  )}
+                  onClick={() => setNewAntibioticProphylaxis(true)}
+                >
+                  ДА
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={newAntibioticProphylaxis === false ? "default" : "outline"}
+                  className={cn(
+                    "h-7 text-xs",
+                    newAntibioticProphylaxis === false && "bg-red-600 hover:bg-red-700",
+                  )}
+                  onClick={() => setNewAntibioticProphylaxis(false)}
+                >
+                  НЕТ
+                </Button>
+              </div>
+            </div>
+          )}
           <Button size="sm" onClick={handleAddDevice} disabled={!newFormType}>
             Добавить
           </Button>
