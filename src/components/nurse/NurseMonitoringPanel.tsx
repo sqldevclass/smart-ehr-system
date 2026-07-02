@@ -124,18 +124,6 @@ export default function NurseMonitoringPanel({
   const [fluidCategory, setFluidCategory] = useState("");
   const [fluidVolume, setFluidVolume] = useState("");
 
-  // Wound monitoring
-  const [showWoundForm, setShowWoundForm] = useState(false);
-  const [woundLocation, setWoundLocation] = useState("");
-  const [woundCondition, setWoundCondition] = useState<
-    "healing" | "unchanged" | "deteriorating" | "infected" | ""
-  >("");
-  const [woundSizeCm, setWoundSizeCm] = useState("");
-  const [woundDrainage, setWoundDrainage] = useState("");
-  const [woundDressingChanged, setWoundDressingChanged] = useState(false);
-  const [woundDressingType, setWoundDressingType] = useState("");
-  const [woundNotes, setWoundNotes] = useState("");
-  const [woundFilterLocation, setWoundFilterLocation] = useState<string | null>(null);
 
   // Daily notes
   const [showDailyNoteForm, setShowDailyNoteForm] = useState(false);
