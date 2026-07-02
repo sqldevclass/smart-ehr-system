@@ -474,7 +474,7 @@ export default function DeviceMonitoringSection({
                           className="text-xs text-red-700 border-red-300"
                           onClick={() => setRemovingKey(card.key)}
                         >
-                          Отметить как удалено
+                          Завершить мониторинг
                         </Button>
                       )}
                       {card.isDraft && (
