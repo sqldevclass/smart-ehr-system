@@ -129,6 +129,7 @@ type DraftDevice = {
   form_type: string;
   device_label: string;
   inserted_at: string;
+  initialFacts?: Record<string, any>;
 };
 
 type DeviceKey = { form_type: string; device_label: string; inserted_at: string };
