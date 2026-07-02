@@ -309,6 +309,7 @@ export default function DeviceMonitoringSection({
       if (c.hasNote && notesMap[c.code]) {
         (responsesPayload as any)[`${c.code}_note`] = notesMap[c.code];
       }
+    }
     // On the first entry for a device (still a draft), merge in any
     // one-time header facts collected at "Начать мониторинг" time.
     if (card.isDraft) {
