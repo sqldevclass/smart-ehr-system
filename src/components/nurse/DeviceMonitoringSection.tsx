@@ -623,20 +623,88 @@ export default function DeviceMonitoringSection({
               {card.entries.length > 0 && (
                 <div className="pt-2 border-t space-y-1">
                   <div className="text-[11px] text-muted-foreground font-medium">История</div>
-                  {historyToShow.map((e: any) => (
-                    <div key={e.id} className="text-xs flex items-center gap-2">
-                      <span className="text-muted-foreground w-32">
-                        {new Date(e.recorded_at).toLocaleString("ru-RU")}
-                      </span>
-                      {e.criticality_flag && (
-                        <span className="text-red-700 font-medium">⚠ критично</span>
-                      )}
-                      {e.removed_at && (
-                        <span className="text-muted-foreground">удалено {e.removed_at}</span>
-                      )}
-                      {e.notes && <span className="text-muted-foreground truncate">· {e.notes}</span>}
-                    </div>
-                  ))}
+                  {historyToShow.map((e: any) => {
+                    const isExpanded = expandedEntryIds.has(e.id);
+                    const recorder = (profiles as any[]).find((p) => p.id === e.recorded_by);
+                    const verifier = (profiles as any[]).find((p) => p.id === e.verified_by);
+                    const entryResp = (e.responses || {}) as Record<string, any>;
+                    return (
+                      <div key={e.id} className="text-xs">
+                        <button
+                          type="button"
+                          className="w-full flex items-center gap-2 text-left hover:bg-muted/40 rounded px-1 py-0.5"
+                          onClick={() =>
+                            setExpandedEntryIds((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(e.id)) next.delete(e.id);
+                              else next.add(e.id);
+                              return next;
+                            })
+                          }
+                        >
+                          <span className="text-muted-foreground w-4">{isExpanded ? "−" : "+"}</span>
+                          <span className="text-muted-foreground w-32 shrink-0">
+                            {new Date(e.recorded_at).toLocaleString("ru-RU")}
+                          </span>
+                          {e.criticality_flag && (
+                            <span className="text-red-700 font-medium">⚠ критично</span>
+                          )}
+                          {e.removed_at && (
+                            <span className="text-muted-foreground">завершено {e.removed_at}</span>
+                          )}
+                          {e.notes && (
+                            <span className="text-muted-foreground truncate">· {e.notes}</span>
+                          )}
+                        </button>
+                        {isExpanded && (
+                          <div className="ml-6 mt-1 mb-2 space-y-1.5 border-l-2 border-muted pl-3 py-1">
+                            {def.criteria.map((c) => {
+                              const v = entryResp[c.code];
+                              const symbol = v === true ? "+" : v === false ? "−" : "—";
+                              const noteVal = c.hasNote ? entryResp[`${c.code}_note`] : null;
+                              return (
+                                <div key={c.code} className="flex gap-2">
+                                  <span
+                                    className={cn(
+                                      "w-4 font-bold shrink-0",
+                                      v === true && "text-green-700",
+                                      v === false && "text-red-700",
+                                      v !== true && v !== false && "text-muted-foreground",
+                                    )}
+                                  >
+                                    {symbol}
+                                  </span>
+                                  <span className="flex-1">
+                                    {c.label}
+                                    {noteVal && (
+                                      <span className="ml-2 text-muted-foreground italic">
+                                        — {noteVal}
+                                      </span>
+                                    )}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                            {e.notes && (
+                              <div className="pt-1 text-muted-foreground">
+                                <span className="font-medium">Комментарий:</span> {e.notes}
+                              </div>
+                            )}
+                            <div className="pt-1 text-[11px] text-muted-foreground">
+                              Записал: {recorder?.full_name || "—"}
+                            </div>
+                            {e.verified_by && (
+                              <div className="text-[11px] text-muted-foreground">
+                                Проверил: {verifier?.full_name || "—"}
+                                {e.verified_at &&
+                                  ` · ${new Date(e.verified_at).toLocaleString("ru-RU")}`}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                   {card.entries.length > 5 && (
                     <Button
                       size="sm"
