@@ -257,19 +257,34 @@ export default function DeviceMonitoringSection({
       toast.error("Укажите место установки");
       return;
     }
+    if (def.hasAntibioticProphylaxis && newAntibioticProphylaxis === null) {
+      toast.error("Укажите, проводилась ли антибиотикопрофилактика");
+      return;
+    }
     const label = def.hasSite ? newSite.trim() : "";
     const k = keyOf(newFormType, label);
     if (activeKeys.has(k) || drafts.some((d) => keyOf(d.form_type, d.device_label) === k)) {
       toast.error("Такое устройство уже добавлено");
       return;
     }
+    const initialFacts: Record<string, any> = {};
+    if (def.hasAntibioticProphylaxis) {
+      initialFacts.antibiotic_prophylaxis = newAntibioticProphylaxis;
+    }
     setDrafts((p) => [
       ...p,
-      { key: k, form_type: newFormType, device_label: label, inserted_at: newInsertedAt },
+      {
+        key: k,
+        form_type: newFormType,
+        device_label: label,
+        inserted_at: newInsertedAt,
+        initialFacts: Object.keys(initialFacts).length ? initialFacts : undefined,
+      },
     ]);
     setShowAdd(false);
     setNewFormType("");
     setNewSite("");
+    setNewAntibioticProphylaxis(null);
     setNewInsertedAt(todayIso());
     setOpenChecklistFor(k);
   };
