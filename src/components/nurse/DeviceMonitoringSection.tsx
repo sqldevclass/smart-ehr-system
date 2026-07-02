@@ -42,7 +42,7 @@ type FormDef = {
 
 const DEVICE_FORMS: Record<string, FormDef> = {
   cvc: {
-    label: "Мониторинг ЦВК",
+    label: "Мониторинг центрального венозного катетера",
     intervalDays: 3,
     hasSite: true,
     siteOptions: ["яремная вена", "подключичная вена", "бедренная вена"],
@@ -140,6 +140,7 @@ export default function DeviceMonitoringSection({
   const [verifierByKey, setVerifierByKey] = useState<Record<string, string>>({});
   const [alertByKey, setAlertByKey] = useState<Record<string, string>>({});
   const [showAllByKey, setShowAllByKey] = useState<Record<string, boolean>>({});
+  const [expandedEntryIds, setExpandedEntryIds] = useState<Set<string>>(new Set());
   const [removingKey, setRemovingKey] = useState<string | null>(null);
   const [removeAt, setRemoveAt] = useState(todayIso());
 
@@ -352,7 +353,7 @@ export default function DeviceMonitoringSection({
       toast.error(error.message);
       return;
     }
-    toast.success("Устройство помечено как удалённое");
+    toast.success("Мониторинг завершён");
     setRemovingKey(null);
     setRemoveAt(todayIso());
     queryClient.invalidateQueries({ queryKey: ["nurse-device-monitoring", hospitalizationId] });
@@ -361,7 +362,7 @@ export default function DeviceMonitoringSection({
   return (
     <div className="border-2 border-gray-200 rounded-lg p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-semibold">Мониторинг устройств</h4>
+        <h4 className="text-sm font-semibold">Инфекционный контроль</h4>
         <Button
           size="sm"
           variant="outline"
@@ -369,7 +370,7 @@ export default function DeviceMonitoringSection({
           onClick={() => setShowAdd(!showAdd)}
           disabled={isReadOnly}
         >
-          {showAdd ? "Отмена" : "+ Добавить устройство"}
+          {showAdd ? "Отмена" : "+ Начать мониторинг"}
         </Button>
       </div>
 
@@ -473,7 +474,7 @@ export default function DeviceMonitoringSection({
                           className="text-xs text-red-700 border-red-300"
                           onClick={() => setRemovingKey(card.key)}
                         >
-                          Отметить как удалено
+                          Завершить мониторинг
                         </Button>
                       )}
                       {card.isDraft && (
@@ -503,7 +504,7 @@ export default function DeviceMonitoringSection({
 
               {removingKey === card.key && (
                 <div className="bg-muted/20 p-2 rounded space-y-2">
-                  <Label className="text-xs">Дата удаления</Label>
+                  <Label className="text-xs">Дата завершения</Label>
                   <Input
                     type="date"
                     value={removeAt}
@@ -512,7 +513,7 @@ export default function DeviceMonitoringSection({
                   />
                   <div className="flex gap-2">
                     <Button size="sm" onClick={() => handleRemove(card)}>
-                      Подтвердить удаление
+                      Подтвердить завершение
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => setRemovingKey(null)}>
                       Отмена
@@ -622,20 +623,88 @@ export default function DeviceMonitoringSection({
               {card.entries.length > 0 && (
                 <div className="pt-2 border-t space-y-1">
                   <div className="text-[11px] text-muted-foreground font-medium">История</div>
-                  {historyToShow.map((e: any) => (
-                    <div key={e.id} className="text-xs flex items-center gap-2">
-                      <span className="text-muted-foreground w-32">
-                        {new Date(e.recorded_at).toLocaleString("ru-RU")}
-                      </span>
-                      {e.criticality_flag && (
-                        <span className="text-red-700 font-medium">⚠ критично</span>
-                      )}
-                      {e.removed_at && (
-                        <span className="text-muted-foreground">удалено {e.removed_at}</span>
-                      )}
-                      {e.notes && <span className="text-muted-foreground truncate">· {e.notes}</span>}
-                    </div>
-                  ))}
+                  {historyToShow.map((e: any) => {
+                    const isExpanded = expandedEntryIds.has(e.id);
+                    const recorder = (profiles as any[]).find((p) => p.id === e.recorded_by);
+                    const verifier = (profiles as any[]).find((p) => p.id === e.verified_by);
+                    const entryResp = (e.responses || {}) as Record<string, any>;
+                    return (
+                      <div key={e.id} className="text-xs">
+                        <button
+                          type="button"
+                          className="w-full flex items-center gap-2 text-left hover:bg-muted/40 rounded px-1 py-0.5"
+                          onClick={() =>
+                            setExpandedEntryIds((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(e.id)) next.delete(e.id);
+                              else next.add(e.id);
+                              return next;
+                            })
+                          }
+                        >
+                          <span className="text-muted-foreground w-4">{isExpanded ? "−" : "+"}</span>
+                          <span className="text-muted-foreground w-32 shrink-0">
+                            {new Date(e.recorded_at).toLocaleString("ru-RU")}
+                          </span>
+                          {e.criticality_flag && (
+                            <span className="text-red-700 font-medium">⚠ критично</span>
+                          )}
+                          {e.removed_at && (
+                            <span className="text-muted-foreground">завершено {e.removed_at}</span>
+                          )}
+                          {e.notes && (
+                            <span className="text-muted-foreground truncate">· {e.notes}</span>
+                          )}
+                        </button>
+                        {isExpanded && (
+                          <div className="ml-6 mt-1 mb-2 space-y-1.5 border-l-2 border-muted pl-3 py-1">
+                            {def.criteria.map((c) => {
+                              const v = entryResp[c.code];
+                              const symbol = v === true ? "+" : v === false ? "−" : "—";
+                              const noteVal = c.hasNote ? entryResp[`${c.code}_note`] : null;
+                              return (
+                                <div key={c.code} className="flex gap-2">
+                                  <span
+                                    className={cn(
+                                      "w-4 font-bold shrink-0",
+                                      v === true && "text-green-700",
+                                      v === false && "text-red-700",
+                                      v !== true && v !== false && "text-muted-foreground",
+                                    )}
+                                  >
+                                    {symbol}
+                                  </span>
+                                  <span className="flex-1">
+                                    {c.label}
+                                    {noteVal && (
+                                      <span className="ml-2 text-muted-foreground italic">
+                                        — {noteVal}
+                                      </span>
+                                    )}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                            {e.notes && (
+                              <div className="pt-1 text-muted-foreground">
+                                <span className="font-medium">Комментарий:</span> {e.notes}
+                              </div>
+                            )}
+                            <div className="pt-1 text-[11px] text-muted-foreground">
+                              Записал: {recorder?.full_name || "—"}
+                            </div>
+                            {e.verified_by && (
+                              <div className="text-[11px] text-muted-foreground">
+                                Проверил: {verifier?.full_name || "—"}
+                                {e.verified_at &&
+                                  ` · ${new Date(e.verified_at).toLocaleString("ru-RU")}`}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                   {card.entries.length > 5 && (
                     <Button
                       size="sm"
