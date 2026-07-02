@@ -176,7 +176,7 @@ export default function NurseMonitoringPanel({
     () => [
       ...(optionalScales as any[]).map((s) => ({ code: s.code, name: s.name_ru })),
       { code: "fluid_balance", name: "Баланс жидкости" },
-      { code: "wound_monitoring", name: "Мониторинг ран" },
+      
       { code: "daily_notes", name: "Дневниковые записи" },
       { code: "device_monitoring", name: "Инфекционный контроль" },
     ],
