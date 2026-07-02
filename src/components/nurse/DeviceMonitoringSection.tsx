@@ -362,7 +362,7 @@ export default function DeviceMonitoringSection({
   return (
     <div className="border-2 border-gray-200 rounded-lg p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-semibold">Мониторинг устройств</h4>
+        <h4 className="text-sm font-semibold">Инфекционный контроль</h4>
         <Button
           size="sm"
           variant="outline"
@@ -370,7 +370,7 @@ export default function DeviceMonitoringSection({
           onClick={() => setShowAdd(!showAdd)}
           disabled={isReadOnly}
         >
-          {showAdd ? "Отмена" : "+ Добавить устройство"}
+          {showAdd ? "Отмена" : "+ Начать мониторинг"}
         </Button>
       </div>
 
