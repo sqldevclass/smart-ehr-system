@@ -309,6 +309,13 @@ export default function DeviceMonitoringSection({
       if (c.hasNote && notesMap[c.code]) {
         (responsesPayload as any)[`${c.code}_note`] = notesMap[c.code];
       }
+    // On the first entry for a device (still a draft), merge in any
+    // one-time header facts collected at "Начать мониторинг" time.
+    if (card.isDraft) {
+      const draft = drafts.find((d) => keyOf(d.form_type, d.device_label) === card.key);
+      if (draft?.initialFacts) {
+        Object.assign(responsesPayload as any, draft.initialFacts);
+      }
     }
     let criticality = false;
     let criticalMsg = "";
