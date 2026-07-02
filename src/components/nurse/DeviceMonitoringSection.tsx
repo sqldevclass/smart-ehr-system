@@ -34,9 +34,10 @@ type Criterion = {
 
 type FormDef = {
   label: string;
-  intervalDays: number;
+  intervalDays: number | null;
   hasSite: boolean;
   siteOptions?: string[];
+  hasAntibioticProphylaxis?: boolean;
   criteria: Criterion[];
 };
 
