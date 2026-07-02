@@ -23,16 +23,98 @@ interface Props {
   isReadOnly?: boolean;
 }
 
-const daysBetween = (a: Date, b: Date) =>
-  Math.floor((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
-
-const nowIsoLocal = () => {
-  const d = new Date();
-  d.setSeconds(0, 0);
-  const off = d.getTimezoneOffset();
-  const local = new Date(d.getTime() - off * 60000);
-  return local.toISOString().slice(0, 16);
+type Criterion = {
+  code: string;
+  label: string;
+  critical?: boolean;
+  criticalMessage?: string;
+  hasNote?: boolean;
+  notePlaceholder?: string;
 };
+
+type FormDef = {
+  label: string;
+  intervalDays: number;
+  hasSite: boolean;
+  siteOptions?: string[];
+  criteria: Criterion[];
+};
+
+const DEVICE_FORMS: Record<string, FormDef> = {
+  cvc: {
+    label: "Мониторинг ЦВК",
+    intervalDays: 3,
+    hasSite: true,
+    siteOptions: ["яремная вена", "подключичная вена", "бедренная вена"],
+    criteria: [
+      { code: "cvc_1", label: "Необходимость ЦВК обоснована, есть необходимость в ЦВК. Отметка в дневнике врача" },
+      { code: "cvc_2", label: "Обработка рук антисептиком производится каждый раз (до и после) контакта с ЦВК (при использовании)" },
+      { code: "cvc_3", label: "Место пункции (кожа) и наружная часть катетера (хаб, порт) обрабатывается 70% спиртом (или 2% раствором хлоргексидина) при каждом доступе, при каждом использовании" },
+      { code: "cvc_4", label: "Повязка над ЦВК была заменена в последние 5 суток. Кожа вокруг ЦВК была обработана антисептиком (спирт или хлоргексидин) перед заменой повязки" },
+      { code: "cvc_5", label: "Имеются ли боль, покраснение, отечность кожи в области ЦВК?", critical: true, criticalMessage: "Сообщить в службу инфекционного контроля" },
+    ],
+  },
+  tracheostomy: {
+    label: "Мониторинг трахеостомы",
+    intervalDays: 3,
+    hasSite: false,
+    criteria: [
+      { code: "trach_1", label: "Проверка нужна ли трахеостома у данного пациента проведена врачом (обоснованность нахождения)" },
+      { code: "trach_2", label: "Трахеостома закреплена должным образом" },
+      { code: "trach_3", label: "Кожа вокруг трахеостомы чистая, края раны не отечны и не гиперемированы" },
+      { code: "trach_4", label: "Трахеостома регулярно промывается изотоническим раствором" },
+      { code: "trach_5", label: "Кожа вокруг трахеостомы обработана антисептиком (спирт или хлоргексидин)" },
+      { code: "trach_6", label: "Вокруг трахеостомы на кожу наложена асептическая повязка" },
+      { code: "trach_7", label: "В случае признаков воспаления вокруг трахеостомы, взят мазок на бакпосев", hasNote: true, notePlaceholder: "Отметить в какой день" },
+    ],
+  },
+  ventilator: {
+    label: "Мониторинг пациента на ИВЛ",
+    intervalDays: 1,
+    hasSite: false,
+    criteria: [
+      { code: "ivl_1", label: "Головной конец кровати поднят под углом 30-45 градусов (если нет противопоказаний)" },
+      { code: "ivl_2", label: "Ежедневно проводится временное отключение седативных препаратов" },
+      { code: "ivl_3", label: "Ежедневно проверяется готовность к экстубации" },
+      { code: "ivl_4", label: "Пациенту на ИВЛ проводится инфузия H2-гистаминоблокатора или ингибитора протонной помпы (если нет противопоказаний)" },
+      { code: "ivl_5", label: "Ежедневно ротовая полость обрабатывается раствором Хлоргексидина (0,05-0,12%)" },
+      { code: "ivl_6", label: "Выполняется профилактика пролежней (+ оценка по шкале Брадена)" },
+      { code: "ivl_7", label: "Профилактика тромбоза глубоких вен выполняется" },
+    ],
+  },
+  urinary_catheter: {
+    label: "Мониторинг мочевого катетера",
+    intervalDays: 1,
+    hasSite: false,
+    // NOTE: source form skips #6 — numbering below is intentional.
+    criteria: [
+      { code: "uc_1", label: "Мочевой катетер необходим для данного пациента?" },
+      { code: "uc_2", label: "Катетер закреплен должным образом к пациенту" },
+      { code: "uc_3", label: "Моча беспрепятственно вытекает из катетера в мешок?" },
+      { code: "uc_4", label: "Мешок для сбора ниже уровня мочевого пузыря?" },
+      { code: "uc_5", label: "Мешок и трубка на некотором удалении от пола (не касаются пола)?" },
+      { code: "uc_7", label: "Мочеприемник регулярно опорожняется" },
+    ],
+  },
+};
+
+const todayIso = () => new Date().toISOString().slice(0, 10);
+
+const daysBetween = (a: string, b: Date) => {
+  const d1 = new Date(a);
+  return Math.max(0, Math.floor((b.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24)));
+};
+
+type DraftDevice = {
+  key: string;
+  form_type: string;
+  device_label: string;
+  inserted_at: string;
+};
+
+type DeviceKey = { form_type: string; device_label: string; inserted_at: string };
+const keyOf = (form_type: string, device_label: string | null) =>
+  `${form_type}::${device_label ?? ""}`;
 
 export default function DeviceMonitoringSection({
   hospitalizationId,
@@ -43,110 +125,37 @@ export default function DeviceMonitoringSection({
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
+  // Add-device local state
   const [showAdd, setShowAdd] = useState(false);
-  const [newDeviceTypeId, setNewDeviceTypeId] = useState("");
-  const [newInsertedAt, setNewInsertedAt] = useState(nowIsoLocal());
+  const [newFormType, setNewFormType] = useState<string>("");
+  const [newInsertedAt, setNewInsertedAt] = useState(todayIso());
   const [newSite, setNewSite] = useState("");
+  const [drafts, setDrafts] = useState<DraftDevice[]>([]);
 
-  // Per-device local UI state
+  // Per-device UI state, keyed by device key
   const [openChecklistFor, setOpenChecklistFor] = useState<string | null>(null);
-  const [responses, setResponses] = useState<
-    Record<string, Record<string, { answer: boolean; note?: string }>>
-  >({});
-  const [verifierByMonitor, setVerifierByMonitor] = useState<Record<string, string>>({});
-  const [entryNotesByMonitor, setEntryNotesByMonitor] = useState<Record<string, string>>({});
-  const [alertsByMonitor, setAlertsByMonitor] = useState<Record<string, string>>({});
-  const [showAllHistoryFor, setShowAllHistoryFor] = useState<Record<string, boolean>>({});
-  const [removingMonitorId, setRemovingMonitorId] = useState<string | null>(null);
-  const [removeAt, setRemoveAt] = useState(nowIsoLocal());
+  const [responses, setResponses] = useState<Record<string, Record<string, boolean>>>({});
+  const [criterionNotes, setCriterionNotes] = useState<Record<string, Record<string, string>>>({});
+  const [entryNotes, setEntryNotes] = useState<Record<string, string>>({});
+  const [verifierByKey, setVerifierByKey] = useState<Record<string, string>>({});
+  const [alertByKey, setAlertByKey] = useState<Record<string, string>>({});
+  const [showAllByKey, setShowAllByKey] = useState<Record<string, boolean>>({});
+  const [removingKey, setRemovingKey] = useState<string | null>(null);
+  const [removeAt, setRemoveAt] = useState(todayIso());
 
-  const { data: deviceTypes = [] } = useQuery({
-    queryKey: ["device-monitoring-types"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("device_monitoring_types")
-        .select("id, code, name_ru, monitoring_interval_days, requires_site")
-        .order("name_ru");
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  const { data: devices = [] } = useQuery({
-    queryKey: ["patient-device-monitors", hospitalizationId],
+  const { data: records = [] } = useQuery({
+    queryKey: ["nurse-device-monitoring", hospitalizationId],
     staleTime: 0,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("patient_device_monitors")
-        .select(
-          `id, device_type_id, site, inserted_at, removed_at, next_due_at,
-           device_monitoring_types(id, code, name_ru, monitoring_interval_days, requires_site)`
-        )
+        .from("nurse_device_monitoring_records" as any)
+        .select("*")
         .eq("hospitalization_id", hospitalizationId)
-        .is("removed_at", null)
-        .order("inserted_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  const activeDeviceTypeIds = useMemo(
-    () => Array.from(new Set((devices as any[]).map((d) => d.device_type_id))),
-    [devices],
-  );
-
-  const { data: criteria = [] } = useQuery({
-    queryKey: ["device-monitoring-criteria", activeDeviceTypeIds],
-    enabled: activeDeviceTypeIds.length > 0,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("device_monitoring_criteria")
-        .select("id, device_type_id, code, name_ru, response_type, escalation_message, display_order")
-        .in("device_type_id", activeDeviceTypeIds)
-        .order("display_order");
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  const criteriaByType = useMemo(() => {
-    const m: Record<string, any[]> = {};
-    for (const c of criteria as any[]) {
-      (m[c.device_type_id] ||= []).push(c);
-    }
-    return m;
-  }, [criteria]);
-
-  const monitorIds = useMemo(() => (devices as any[]).map((d) => d.id), [devices]);
-
-  const { data: entries = [] } = useQuery({
-    queryKey: ["device-monitoring-entries", monitorIds],
-    enabled: monitorIds.length > 0,
-    staleTime: 0,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("device_monitoring_entries")
-        .select(
-          `id, monitor_id, recorded_at, notes,
-           verified_at,
-           recorder:profiles!recorded_by(full_name),
-           verifier:profiles!verified_by(full_name),
-           device_monitoring_entry_responses(criterion_id, answer, note)`
-        )
-        .in("monitor_id", monitorIds)
         .order("recorded_at", { ascending: false });
       if (error) throw error;
-      return data || [];
+      return (data || []) as any[];
     },
   });
-
-  const entriesByMonitor = useMemo(() => {
-    const m: Record<string, any[]> = {};
-    for (const e of entries as any[]) {
-      (m[e.monitor_id] ||= []).push(e);
-    }
-    return m;
-  }, [entries]);
 
   const { data: profiles = [] } = useQuery({
     queryKey: ["profiles-for-verifier", hospitalId],
@@ -161,95 +170,192 @@ export default function DeviceMonitoringSection({
     },
   });
 
-  const handleAddDevice = async () => {
-    const dt = (deviceTypes as any[]).find((t) => t.id === newDeviceTypeId);
-    if (!dt) return;
-    if (dt.requires_site && !newSite.trim()) {
+  // Group records by (form_type, device_label). A device is "removed" if
+  // its latest record has removed_at set.
+  const deviceGroups = useMemo(() => {
+    const map = new Map<
+      string,
+      { form_type: string; device_label: string | null; inserted_at: string; entries: any[] }
+    >();
+    for (const r of records as any[]) {
+      const k = keyOf(r.form_type, r.device_label);
+      const g = map.get(k);
+      if (!g) {
+        map.set(k, {
+          form_type: r.form_type,
+          device_label: r.device_label,
+          inserted_at: r.inserted_at,
+          entries: [r],
+        });
+      } else {
+        g.entries.push(r);
+        if (r.inserted_at && (!g.inserted_at || r.inserted_at < g.inserted_at)) {
+          g.inserted_at = r.inserted_at;
+        }
+      }
+    }
+    // Filter out removed devices (latest entry has removed_at)
+    return Array.from(map.entries())
+      .filter(([, g]) => !(g.entries[0]?.removed_at))
+      .map(([k, g]) => ({ key: k, ...g }));
+  }, [records]);
+
+  const activeKeys = useMemo(() => new Set(deviceGroups.map((g) => g.key)), [deviceGroups]);
+
+  // All cards = existing devices + drafts not yet persisted
+  const allCards = useMemo(() => {
+    const existing = deviceGroups.map((g) => ({
+      key: g.key,
+      form_type: g.form_type,
+      device_label: g.device_label ?? "",
+      inserted_at: g.inserted_at,
+      entries: g.entries,
+      isDraft: false,
+    }));
+    const draftCards = drafts
+      .filter((d) => !activeKeys.has(keyOf(d.form_type, d.device_label)))
+      .map((d) => ({
+        key: keyOf(d.form_type, d.device_label),
+        form_type: d.form_type,
+        device_label: d.device_label,
+        inserted_at: d.inserted_at,
+        entries: [] as any[],
+        isDraft: true,
+      }));
+    return [...draftCards, ...existing];
+  }, [deviceGroups, drafts, activeKeys]);
+
+  const handleAddDevice = () => {
+    if (!newFormType) {
+      toast.error("Выберите тип устройства");
+      return;
+    }
+    const def = DEVICE_FORMS[newFormType];
+    if (def.hasSite && !newSite.trim()) {
       toast.error("Укажите место установки");
       return;
     }
-    const insertedAtIso = new Date(newInsertedAt).toISOString();
-    const nextDue = new Date(
-      new Date(insertedAtIso).getTime() +
-        (dt.monitoring_interval_days ?? 1) * 24 * 60 * 60 * 1000
-    ).toISOString();
-    const { error } = await supabase.from("patient_device_monitors").insert({
+    const label = def.hasSite ? newSite.trim() : "";
+    const k = keyOf(newFormType, label);
+    if (activeKeys.has(k) || drafts.some((d) => keyOf(d.form_type, d.device_label) === k)) {
+      toast.error("Такое устройство уже добавлено");
+      return;
+    }
+    setDrafts((p) => [
+      ...p,
+      { key: k, form_type: newFormType, device_label: label, inserted_at: newInsertedAt },
+    ]);
+    setShowAdd(false);
+    setNewFormType("");
+    setNewSite("");
+    setNewInsertedAt(todayIso());
+    setOpenChecklistFor(k);
+  };
+
+  const handleSubmit = async (card: {
+    key: string;
+    form_type: string;
+    device_label: string;
+    inserted_at: string;
+    isDraft: boolean;
+  }) => {
+    const def = DEVICE_FORMS[card.form_type];
+    if (!def) return;
+    const resp = responses[card.key] || {};
+    const responsesPayload: Record<string, boolean> = {};
+    for (const c of def.criteria) {
+      responsesPayload[c.code] = !!resp[c.code];
+    }
+    // Attach note fields inside responses if any criterion hasNote
+    const notesMap = criterionNotes[card.key] || {};
+    for (const c of def.criteria) {
+      if (c.hasNote && notesMap[c.code]) {
+        (responsesPayload as any)[`${c.code}_note`] = notesMap[c.code];
+      }
+    }
+    let criticality = false;
+    let criticalMsg = "";
+    for (const c of def.criteria) {
+      if (c.critical && responsesPayload[c.code]) {
+        criticality = true;
+        criticalMsg = c.criticalMessage || "Требуется вмешательство";
+        break;
+      }
+    }
+    const verifier = verifierByKey[card.key] || null;
+    const { error } = await supabase.from("nurse_device_monitoring_records" as any).insert({
       hospital_id: hospitalId,
       hospitalization_id: hospitalizationId,
       patient_id: patientId,
-      device_type_id: newDeviceTypeId,
-      site: dt.requires_site ? newSite.trim() : null,
-      inserted_at: insertedAtIso,
-      next_due_at: nextDue,
-      created_by: user!.id,
+      form_type: card.form_type,
+      device_label: card.device_label || null,
+      inserted_at: card.inserted_at,
+      responses: responsesPayload,
+      criticality_flag: criticality,
+      notes: entryNotes[card.key] || null,
+      recorded_by: user?.id ?? null,
+      recorded_at: new Date().toISOString(),
+      verified_by: verifier,
+      verified_at: verifier ? new Date().toISOString() : null,
     } as any);
     if (error) {
       toast.error(error.message);
       return;
     }
-    toast.success("Устройство добавлено");
-    setShowAdd(false);
-    setNewDeviceTypeId("");
-    setNewSite("");
-    setNewInsertedAt(nowIsoLocal());
-    queryClient.invalidateQueries({ queryKey: ["patient-device-monitors", hospitalizationId] });
-  };
-
-  const handleSubmitEntry = async (monitor: any) => {
-    const items = criteriaByType[monitor.device_type_id] || [];
-    const respMap = responses[monitor.id] || {};
-    const payload = items.map((c: any) => ({
-      criterion_id: c.id,
-      answer: respMap[c.id]?.answer ?? false,
-      note: respMap[c.id]?.note ?? null,
-    }));
-    const verifier = verifierByMonitor[monitor.id] || null;
-    const { data, error } = await supabase.rpc("submit_device_monitoring_entry", {
-      p_monitor_id: monitor.id,
-      p_hospital_id: hospitalId,
-      p_responses: payload,
-      p_notes: entryNotesByMonitor[monitor.id] || null,
-      p_verified_by: verifier,
-    } as any);
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    const result: any = Array.isArray(data) ? data[0] : data;
-    if (result?.alert_id) {
-      const failing = items.find((c: any) => !(respMap[c.id]?.answer ?? false));
-      setAlertsByMonitor((p) => ({
-        ...p,
-        [monitor.id]: failing?.escalation_message || "Требуется вмешательство",
-      }));
+    toast.success("Запись сохранена");
+    setResponses((p) => ({ ...p, [card.key]: {} }));
+    setCriterionNotes((p) => ({ ...p, [card.key]: {} }));
+    setEntryNotes((p) => ({ ...p, [card.key]: "" }));
+    if (criticality) {
+      setAlertByKey((p) => ({ ...p, [card.key]: criticalMsg }));
     } else {
-      setAlertsByMonitor((p) => {
+      setAlertByKey((p) => {
         const n = { ...p };
-        delete n[monitor.id];
+        delete n[card.key];
         return n;
       });
     }
-    toast.success("Оценка сохранена");
-    setResponses((p) => ({ ...p, [monitor.id]: {} }));
-    setEntryNotesByMonitor((p) => ({ ...p, [monitor.id]: "" }));
     setOpenChecklistFor(null);
-    queryClient.invalidateQueries({ queryKey: ["patient-device-monitors", hospitalizationId] });
-    queryClient.invalidateQueries({ queryKey: ["device-monitoring-entries", monitorIds] });
+    if (card.isDraft) {
+      setDrafts((p) => p.filter((d) => keyOf(d.form_type, d.device_label) !== card.key));
+    }
+    queryClient.invalidateQueries({ queryKey: ["nurse-device-monitoring", hospitalizationId] });
   };
 
-  const handleRemoveDevice = async (monitorId: string) => {
-    const { error } = await supabase
-      .from("patient_device_monitors")
-      .update({ removed_at: new Date(removeAt).toISOString() })
-      .eq("id", monitorId);
+  const handleRemove = async (card: {
+    key: string;
+    form_type: string;
+    device_label: string;
+    inserted_at: string;
+    isDraft: boolean;
+  }) => {
+    if (card.isDraft) {
+      setDrafts((p) => p.filter((d) => keyOf(d.form_type, d.device_label) !== card.key));
+      setRemovingKey(null);
+      return;
+    }
+    const { error } = await supabase.from("nurse_device_monitoring_records" as any).insert({
+      hospital_id: hospitalId,
+      hospitalization_id: hospitalizationId,
+      patient_id: patientId,
+      form_type: card.form_type,
+      device_label: card.device_label || null,
+      inserted_at: card.inserted_at,
+      removed_at: removeAt,
+      responses: {},
+      criticality_flag: false,
+      notes: "Устройство удалено",
+      recorded_by: user?.id ?? null,
+      recorded_at: new Date().toISOString(),
+    } as any);
     if (error) {
       toast.error(error.message);
       return;
     }
     toast.success("Устройство помечено как удалённое");
-    setRemovingMonitorId(null);
-    setRemoveAt(nowIsoLocal());
-    queryClient.invalidateQueries({ queryKey: ["patient-device-monitors", hospitalizationId] });
+    setRemovingKey(null);
+    setRemoveAt(todayIso());
+    queryClient.invalidateQueries({ queryKey: ["nurse-device-monitoring", hospitalizationId] });
   };
 
   return (
@@ -271,79 +377,82 @@ export default function DeviceMonitoringSection({
         <div className="space-y-2 bg-muted/20 p-3 rounded-md">
           <div>
             <Label className="text-xs">Тип устройства</Label>
-            <Select value={newDeviceTypeId} onValueChange={setNewDeviceTypeId}>
+            <Select value={newFormType} onValueChange={(v) => { setNewFormType(v); setNewSite(""); }}>
               <SelectTrigger className="h-8 text-sm">
                 <SelectValue placeholder="Выберите тип" />
               </SelectTrigger>
               <SelectContent>
-                {(deviceTypes as any[]).map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.name_ru}
+                {Object.entries(DEVICE_FORMS).map(([code, def]) => (
+                  <SelectItem key={code} value={code}>
+                    {def.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div>
-            <Label className="text-xs">Дата и время установки</Label>
+            <Label className="text-xs">Дата установки</Label>
             <Input
-              type="datetime-local"
+              type="date"
               value={newInsertedAt}
               onChange={(e) => setNewInsertedAt(e.target.value)}
               className="h-8 text-sm"
             />
           </div>
-          {(() => {
-            const dt = (deviceTypes as any[]).find((t) => t.id === newDeviceTypeId);
-            if (!dt?.requires_site) return null;
-            return (
-              <div>
-                <Label className="text-xs">Место установки</Label>
-                <Input
-                  value={newSite}
-                  onChange={(e) => setNewSite(e.target.value)}
-                  placeholder="Напр., правая внутренняя яремная вена"
-                  className="h-8 text-sm"
-                />
-              </div>
-            );
-          })()}
-          <Button size="sm" onClick={handleAddDevice} disabled={!newDeviceTypeId}>
-            Сохранить
+          {newFormType && DEVICE_FORMS[newFormType]?.hasSite && (
+            <div>
+              <Label className="text-xs">Место установки</Label>
+              <Select value={newSite} onValueChange={setNewSite}>
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue placeholder="Выберите место" />
+                </SelectTrigger>
+                <SelectContent>
+                  {DEVICE_FORMS[newFormType].siteOptions!.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          <Button size="sm" onClick={handleAddDevice} disabled={!newFormType}>
+            Добавить
           </Button>
         </div>
       )}
 
-      {(devices as any[]).length === 0 ? (
+      {allCards.length === 0 ? (
         <p className="text-xs text-muted-foreground">Нет активных устройств</p>
       ) : (
-        (devices as any[]).map((d) => {
-          const dt = d.device_monitoring_types;
-          const daysSince = daysBetween(new Date(d.inserted_at), new Date());
-          const isOverdue = d.next_due_at && new Date(d.next_due_at) < new Date();
-          const items = criteriaByType[d.device_type_id] || [];
-          const monitorEntries = entriesByMonitor[d.id] || [];
-          const showAll = showAllHistoryFor[d.id];
-          const historyToShow = showAll ? monitorEntries : monitorEntries.slice(0, 5);
-          const alertMsg = alertsByMonitor[d.id];
-          const verifierId = verifierByMonitor[d.id] || "";
+        allCards.map((card) => {
+          const def = DEVICE_FORMS[card.form_type];
+          if (!def) return null;
+          const daysSince = daysBetween(card.inserted_at, new Date());
+          const showAll = showAllByKey[card.key];
+          const historyToShow = showAll ? card.entries : card.entries.slice(0, 5);
+          const alertMsg = alertByKey[card.key];
+          const verifierId = verifierByKey[card.key] || "";
           const verifierProfile = (profiles as any[]).find((p) => p.id === verifierId);
-          const verifierIsEpi = false; // no epi role yet
-          const isOpen = openChecklistFor === d.id;
+          const isOpen = openChecklistFor === card.key;
+          const resp = responses[card.key] || {};
+          const cNotes = criterionNotes[card.key] || {};
 
           return (
-            <div key={d.id} className="border rounded-md p-3 space-y-2 bg-white">
+            <div key={card.key} className="border rounded-md p-3 space-y-2 bg-white">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold">{dt?.name_ru}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {d.site && <span>Место: {d.site} · </span>}
-                    Установлено {daysSince} дн. назад
-                    {isOverdue && (
-                      <span className="ml-2 text-red-700 font-medium">
-                        · Проверка просрочена
+                  <div className="text-sm font-semibold">
+                    {def.label}
+                    {card.isDraft && (
+                      <span className="ml-2 text-[10px] uppercase text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">
+                        черновик
                       </span>
                     )}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {card.device_label && <span>Место: {card.device_label} · </span>}
+                    Установлено {daysSince} дн. назад · интервал {def.intervalDays} дн.
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -353,18 +462,34 @@ export default function DeviceMonitoringSection({
                         size="sm"
                         variant="outline"
                         className="text-xs"
-                        onClick={() => setOpenChecklistFor(isOpen ? null : d.id)}
+                        onClick={() => setOpenChecklistFor(isOpen ? null : card.key)}
                       >
                         {isOpen ? "Скрыть" : "+ Проверка"}
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-xs text-red-700 border-red-300"
-                        onClick={() => setRemovingMonitorId(d.id)}
-                      >
-                        Отметить как удалено
-                      </Button>
+                      {!card.isDraft && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs text-red-700 border-red-300"
+                          onClick={() => setRemovingKey(card.key)}
+                        >
+                          Отметить как удалено
+                        </Button>
+                      )}
+                      {card.isDraft && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-xs text-red-700"
+                          onClick={() =>
+                            setDrafts((p) =>
+                              p.filter((d) => keyOf(d.form_type, d.device_label) !== card.key),
+                            )
+                          }
+                        >
+                          Удалить черновик
+                        </Button>
+                      )}
                     </>
                   )}
                 </div>
@@ -372,97 +497,80 @@ export default function DeviceMonitoringSection({
 
               {alertMsg && (
                 <div className="rounded border border-red-300 bg-red-50 text-red-800 text-xs p-2">
-                  {alertMsg}
+                  ⚠ {alertMsg}
                 </div>
               )}
 
-              {removingMonitorId === d.id && (
+              {removingKey === card.key && (
                 <div className="bg-muted/20 p-2 rounded space-y-2">
-                  <Label className="text-xs">Дата и время удаления</Label>
+                  <Label className="text-xs">Дата удаления</Label>
                   <Input
-                    type="datetime-local"
+                    type="date"
                     value={removeAt}
                     onChange={(e) => setRemoveAt(e.target.value)}
                     className="h-8 text-sm"
                   />
                   <div className="flex gap-2">
-                    <Button size="sm" onClick={() => handleRemoveDevice(d.id)}>
+                    <Button size="sm" onClick={() => handleRemove(card)}>
                       Подтвердить удаление
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setRemovingMonitorId(null)}
-                    >
+                    <Button size="sm" variant="ghost" onClick={() => setRemovingKey(null)}>
                       Отмена
                     </Button>
                   </div>
                 </div>
               )}
 
-              {isOpen && (
+              {isOpen && !isReadOnly && (
                 <div className="space-y-2 bg-muted/20 p-3 rounded">
-                  {items.map((c: any) => {
-                    const r = responses[d.id]?.[c.id];
-                    const answer = r?.answer;
+                  {def.criteria.map((c) => {
+                    const answer = resp[c.code];
                     return (
-                      <div key={c.id} className="border rounded p-2 bg-white space-y-1.5">
-                        <div className="text-xs font-medium">{c.name_ru}</div>
+                      <div key={c.code} className="border rounded p-2 bg-white space-y-1.5">
+                        <div className="text-xs font-medium">{c.label}</div>
                         <div className="flex gap-2">
                           <Button
                             size="sm"
                             variant={answer === true ? "default" : "outline"}
                             className={cn(
                               "h-7 text-xs",
-                              answer === true && "bg-green-600 hover:bg-green-700"
+                              answer === true && "bg-green-600 hover:bg-green-700",
                             )}
                             onClick={() =>
                               setResponses((p) => ({
                                 ...p,
-                                [d.id]: {
-                                  ...(p[d.id] || {}),
-                                  [c.id]: { ...(p[d.id]?.[c.id] || {}), answer: true },
-                                },
+                                [card.key]: { ...(p[card.key] || {}), [c.code]: true },
                               }))
                             }
                           >
-                            + В норме
+                            + Да
                           </Button>
                           <Button
                             size="sm"
                             variant={answer === false ? "default" : "outline"}
                             className={cn(
                               "h-7 text-xs",
-                              answer === false && "bg-red-600 hover:bg-red-700"
+                              answer === false && "bg-red-600 hover:bg-red-700",
                             )}
                             onClick={() =>
                               setResponses((p) => ({
                                 ...p,
-                                [d.id]: {
-                                  ...(p[d.id] || {}),
-                                  [c.id]: { ...(p[d.id]?.[c.id] || {}), answer: false },
-                                },
+                                [card.key]: { ...(p[card.key] || {}), [c.code]: false },
                               }))
                             }
                           >
-                            − Проблема
+                            − Нет
                           </Button>
                         </div>
-                        {c.response_type === "boolean_with_note" && (
+                        {c.hasNote && (
                           <Input
-                            placeholder="Комментарий"
+                            placeholder={c.notePlaceholder || "Комментарий"}
                             className="h-7 text-xs"
-                            value={r?.note ?? ""}
+                            value={cNotes[c.code] || ""}
                             onChange={(e) =>
-                              setResponses((p) => ({
+                              setCriterionNotes((p) => ({
                                 ...p,
-                                [d.id]: {
-                                  ...(p[d.id] || {}),
-                                  [c.id]: {
-                                    ...(p[d.id]?.[c.id] || { answer: false }),
-                                    note: e.target.value,
-                                  },
-                                },
+                                [card.key]: { ...(p[card.key] || {}), [c.code]: e.target.value },
                               }))
                             }
                           />
@@ -470,17 +578,26 @@ export default function DeviceMonitoringSection({
                       </div>
                     );
                   })}
-
                   <div>
-                    <Label className="text-xs">Проверил (эпидемиолог)</Label>
+                    <Label className="text-xs">Комментарий</Label>
+                    <Textarea
+                      value={entryNotes[card.key] || ""}
+                      onChange={(e) =>
+                        setEntryNotes((p) => ({ ...p, [card.key]: e.target.value }))
+                      }
+                      className="text-sm min-h-[60px]"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Проверил</Label>
                     <Select
                       value={verifierId}
                       onValueChange={(v) =>
-                        setVerifierByMonitor((p) => ({ ...p, [d.id]: v }))
+                        setVerifierByKey((p) => ({ ...p, [card.key]: v }))
                       }
                     >
                       <SelectTrigger className="h-8 text-sm">
-                        <SelectValue placeholder="Выберите сотрудника" />
+                        <SelectValue placeholder="Не выбрано" />
                       </SelectTrigger>
                       <SelectContent>
                         {(profiles as any[]).map((p) => (
@@ -490,77 +607,46 @@ export default function DeviceMonitoringSection({
                         ))}
                       </SelectContent>
                     </Select>
-                    {verifierProfile && !verifierIsEpi && (
-                      <div className="text-[11px] text-yellow-700 mt-1">
-                        ⚠ Выбранный сотрудник не отмечен как эпидемиолог
+                    {verifierProfile && (
+                      <div className="text-[11px] text-amber-700 mt-1">
+                        ⚠ не отмечен как эпидемиолог
                       </div>
                     )}
                   </div>
-
-                  <Textarea
-                    placeholder="Примечания (необязательно)"
-                    rows={2}
-                    value={entryNotesByMonitor[d.id] || ""}
-                    onChange={(e) =>
-                      setEntryNotesByMonitor((p) => ({ ...p, [d.id]: e.target.value }))
-                    }
-                    className="text-sm"
-                  />
-
-                  <Button size="sm" onClick={() => handleSubmitEntry(d)}>
-                    Сохранить проверку
+                  <Button size="sm" onClick={() => handleSubmit(card)}>
+                    Сохранить оценку
                   </Button>
                 </div>
               )}
 
-              {monitorEntries.length > 0 && (
-                <div className="space-y-1.5">
-                  <p className="text-xs font-medium text-muted-foreground">История</p>
-                  {historyToShow.map((e: any) => {
-                    const failing = (e.device_monitoring_entry_responses || []).filter(
-                      (r: any) => r.answer === false
-                    );
-                    return (
-                      <div
-                        key={e.id}
-                        className={cn(
-                          "text-xs border rounded p-2",
-                          failing.length > 0
-                            ? "border-red-200 bg-red-50"
-                            : "border-green-200 bg-green-50"
-                        )}
-                      >
-                        <div className="flex justify-between">
-                          <span>
-                            {new Date(e.recorded_at).toLocaleString("ru-RU")}
-                            {e.recorder?.full_name && ` · ${e.recorder.full_name}`}
-                          </span>
-                          <span>
-                            {failing.length === 0
-                              ? "Всё в норме"
-                              : `Проблем: ${failing.length}`}
-                          </span>
-                        </div>
-                        {e.verifier?.full_name && (
-                          <div className="opacity-75">
-                            Проверил: {e.verifier.full_name}
-                          </div>
-                        )}
-                        {e.notes && <div className="mt-0.5">{e.notes}</div>}
-                      </div>
-                    );
-                  })}
-                  {monitorEntries.length > 5 && (
-                    <button
+              {card.entries.length > 0 && (
+                <div className="pt-2 border-t space-y-1">
+                  <div className="text-[11px] text-muted-foreground font-medium">История</div>
+                  {historyToShow.map((e: any) => (
+                    <div key={e.id} className="text-xs flex items-center gap-2">
+                      <span className="text-muted-foreground w-32">
+                        {new Date(e.recorded_at).toLocaleString("ru-RU")}
+                      </span>
+                      {e.criticality_flag && (
+                        <span className="text-red-700 font-medium">⚠ критично</span>
+                      )}
+                      {e.removed_at && (
+                        <span className="text-muted-foreground">удалено {e.removed_at}</span>
+                      )}
+                      {e.notes && <span className="text-muted-foreground truncate">· {e.notes}</span>}
+                    </div>
+                  ))}
+                  {card.entries.length > 5 && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-xs h-6 px-2"
                       onClick={() =>
-                        setShowAllHistoryFor((p) => ({ ...p, [d.id]: !showAll }))
+                        setShowAllByKey((p) => ({ ...p, [card.key]: !p[card.key] }))
                       }
-                      className="text-xs text-primary underline"
                     >
-                      {showAll
-                        ? "Скрыть"
-                        : `Показать ещё (${monitorEntries.length - 5})`}
-                    </button>
+                      {showAll ? "Скрыть" : `Показать все (${card.entries.length})`}
+                    </Button>
                   )}
                 </div>
               )}
