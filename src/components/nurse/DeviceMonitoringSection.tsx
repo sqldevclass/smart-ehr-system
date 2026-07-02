@@ -140,6 +140,7 @@ export default function DeviceMonitoringSection({
   const [verifierByKey, setVerifierByKey] = useState<Record<string, string>>({});
   const [alertByKey, setAlertByKey] = useState<Record<string, string>>({});
   const [showAllByKey, setShowAllByKey] = useState<Record<string, boolean>>({});
+  const [expandedEntryIds, setExpandedEntryIds] = useState<Set<string>>(new Set());
   const [removingKey, setRemovingKey] = useState<string | null>(null);
   const [removeAt, setRemoveAt] = useState(todayIso());
 
