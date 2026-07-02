@@ -504,7 +504,7 @@ export default function DeviceMonitoringSection({
 
               {removingKey === card.key && (
                 <div className="bg-muted/20 p-2 rounded space-y-2">
-                  <Label className="text-xs">Дата удаления</Label>
+                  <Label className="text-xs">Дата завершения</Label>
                   <Input
                     type="date"
                     value={removeAt}
@@ -513,7 +513,7 @@ export default function DeviceMonitoringSection({
                   />
                   <div className="flex gap-2">
                     <Button size="sm" onClick={() => handleRemove(card)}>
-                      Подтвердить удаление
+                      Подтвердить завершение
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => setRemovingKey(null)}>
                       Отмена
