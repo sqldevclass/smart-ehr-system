@@ -34,9 +34,10 @@ type Criterion = {
 
 type FormDef = {
   label: string;
-  intervalDays: number;
+  intervalDays: number | null;
   hasSite: boolean;
   siteOptions?: string[];
+  hasAntibioticProphylaxis?: boolean;
   criteria: Criterion[];
 };
 
@@ -96,7 +97,25 @@ const DEVICE_FORMS: Record<string, FormDef> = {
       { code: "uc_7", label: "Мочеприемник регулярно опорожняется" },
     ],
   },
+  postop_wound: {
+    label: "Мониторинг послеоперационной раны",
+    intervalDays: null,
+    hasSite: false,
+    hasAntibioticProphylaxis: true,
+    criteria: [
+      { code: "wound_1", label: "Лихорадка у пациента", critical: true, criticalMessage: "Сообщить в службу инфекционного контроля" },
+      { code: "wound_2", label: "Боль/болезненность разреза в области", critical: true, criticalMessage: "Сообщить в службу инфекционного контроля" },
+      { code: "wound_3", label: "Отечность краев раны", critical: true, criticalMessage: "Сообщить в службу инфекционного контроля" },
+      { code: "wound_4", label: "Гиперемия в области разреза", critical: true, criticalMessage: "Сообщить в службу инфекционного контроля" },
+      { code: "wound_5", label: "Экссудат (отделяемое) из раны", critical: true, criticalMessage: "Сообщить в службу инфекционного контроля" },
+      { code: "wound_6", label: "Гной из дренажа (если установлен дренаж)", critical: true, criticalMessage: "Сообщить в службу инфекционного контроля" },
+      { code: "wound_7", label: "Выраженный отек тканей в области разреза", critical: true, criticalMessage: "Сообщить в службу инфекционного контроля" },
+      { code: "wound_8", label: "Самопроизвольное расхождение швов", critical: true, criticalMessage: "Сообщить в службу инфекционного контроля" },
+      { code: "wound_culture", label: "Отделяемое из раны взято на бак посев (при наличии признаков воспаления)", hasNote: true, notePlaceholder: "Дата взятия" },
+    ],
+  },
 };
+
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
@@ -110,6 +129,7 @@ type DraftDevice = {
   form_type: string;
   device_label: string;
   inserted_at: string;
+  initialFacts?: Record<string, any>;
 };
 
 type DeviceKey = { form_type: string; device_label: string; inserted_at: string };
@@ -130,6 +150,7 @@ export default function DeviceMonitoringSection({
   const [newFormType, setNewFormType] = useState<string>("");
   const [newInsertedAt, setNewInsertedAt] = useState(todayIso());
   const [newSite, setNewSite] = useState("");
+  const [newAntibioticProphylaxis, setNewAntibioticProphylaxis] = useState<boolean | null>(null);
   const [drafts, setDrafts] = useState<DraftDevice[]>([]);
 
   // Per-device UI state, keyed by device key
@@ -236,19 +257,34 @@ export default function DeviceMonitoringSection({
       toast.error("Укажите место установки");
       return;
     }
+    if (def.hasAntibioticProphylaxis && newAntibioticProphylaxis === null) {
+      toast.error("Укажите, проводилась ли антибиотикопрофилактика");
+      return;
+    }
     const label = def.hasSite ? newSite.trim() : "";
     const k = keyOf(newFormType, label);
     if (activeKeys.has(k) || drafts.some((d) => keyOf(d.form_type, d.device_label) === k)) {
       toast.error("Такое устройство уже добавлено");
       return;
     }
+    const initialFacts: Record<string, any> = {};
+    if (def.hasAntibioticProphylaxis) {
+      initialFacts.antibiotic_prophylaxis = newAntibioticProphylaxis;
+    }
     setDrafts((p) => [
       ...p,
-      { key: k, form_type: newFormType, device_label: label, inserted_at: newInsertedAt },
+      {
+        key: k,
+        form_type: newFormType,
+        device_label: label,
+        inserted_at: newInsertedAt,
+        initialFacts: Object.keys(initialFacts).length ? initialFacts : undefined,
+      },
     ]);
     setShowAdd(false);
     setNewFormType("");
     setNewSite("");
+    setNewAntibioticProphylaxis(null);
     setNewInsertedAt(todayIso());
     setOpenChecklistFor(k);
   };
@@ -272,6 +308,14 @@ export default function DeviceMonitoringSection({
     for (const c of def.criteria) {
       if (c.hasNote && notesMap[c.code]) {
         (responsesPayload as any)[`${c.code}_note`] = notesMap[c.code];
+      }
+    }
+    // On the first entry for a device (still a draft), merge in any
+    // one-time header facts collected at "Начать мониторинг" time.
+    if (card.isDraft) {
+      const draft = drafts.find((d) => keyOf(d.form_type, d.device_label) === card.key);
+      if (draft?.initialFacts) {
+        Object.assign(responsesPayload as any, draft.initialFacts);
       }
     }
     let criticality = false;
@@ -378,7 +422,7 @@ export default function DeviceMonitoringSection({
         <div className="space-y-2 bg-muted/20 p-3 rounded-md">
           <div>
             <Label className="text-xs">Тип устройства</Label>
-            <Select value={newFormType} onValueChange={(v) => { setNewFormType(v); setNewSite(""); }}>
+            <Select value={newFormType} onValueChange={(v) => { setNewFormType(v); setNewSite(""); setNewAntibioticProphylaxis(null); }}>
               <SelectTrigger className="h-8 text-sm">
                 <SelectValue placeholder="Выберите тип" />
               </SelectTrigger>
@@ -417,6 +461,37 @@ export default function DeviceMonitoringSection({
               </Select>
             </div>
           )}
+          {newFormType && DEVICE_FORMS[newFormType]?.hasAntibioticProphylaxis && (
+            <div>
+              <Label className="text-xs">Антибиотикопрофилактика</Label>
+              <div className="flex gap-2 mt-1">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={newAntibioticProphylaxis === true ? "default" : "outline"}
+                  className={cn(
+                    "h-7 text-xs",
+                    newAntibioticProphylaxis === true && "bg-green-600 hover:bg-green-700",
+                  )}
+                  onClick={() => setNewAntibioticProphylaxis(true)}
+                >
+                  ДА
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={newAntibioticProphylaxis === false ? "default" : "outline"}
+                  className={cn(
+                    "h-7 text-xs",
+                    newAntibioticProphylaxis === false && "bg-red-600 hover:bg-red-700",
+                  )}
+                  onClick={() => setNewAntibioticProphylaxis(false)}
+                >
+                  НЕТ
+                </Button>
+              </div>
+            </div>
+          )}
           <Button size="sm" onClick={handleAddDevice} disabled={!newFormType}>
             Добавить
           </Button>
@@ -453,7 +528,7 @@ export default function DeviceMonitoringSection({
                   </div>
                   <div className="text-xs text-muted-foreground">
                     {card.device_label && <span>Место: {card.device_label} · </span>}
-                    Установлено {daysSince} дн. назад · интервал {def.intervalDays} дн.
+                    Установлено {daysSince} дн. назад · {def.intervalDays === null ? "при перевязке" : `интервал ${def.intervalDays} дн.`}
                   </div>
                 </div>
                 <div className="flex gap-2">

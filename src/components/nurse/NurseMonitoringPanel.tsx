@@ -124,18 +124,6 @@ export default function NurseMonitoringPanel({
   const [fluidCategory, setFluidCategory] = useState("");
   const [fluidVolume, setFluidVolume] = useState("");
 
-  // Wound monitoring
-  const [showWoundForm, setShowWoundForm] = useState(false);
-  const [woundLocation, setWoundLocation] = useState("");
-  const [woundCondition, setWoundCondition] = useState<
-    "healing" | "unchanged" | "deteriorating" | "infected" | ""
-  >("");
-  const [woundSizeCm, setWoundSizeCm] = useState("");
-  const [woundDrainage, setWoundDrainage] = useState("");
-  const [woundDressingChanged, setWoundDressingChanged] = useState(false);
-  const [woundDressingType, setWoundDressingType] = useState("");
-  const [woundNotes, setWoundNotes] = useState("");
-  const [woundFilterLocation, setWoundFilterLocation] = useState<string | null>(null);
 
   // Daily notes
   const [showDailyNoteForm, setShowDailyNoteForm] = useState(false);
@@ -188,7 +176,7 @@ export default function NurseMonitoringPanel({
     () => [
       ...(optionalScales as any[]).map((s) => ({ code: s.code, name: s.name_ru })),
       { code: "fluid_balance", name: "Баланс жидкости" },
-      { code: "wound_monitoring", name: "Мониторинг ран" },
+      
       { code: "daily_notes", name: "Дневниковые записи" },
       { code: "device_monitoring", name: "Инфекционный контроль" },
     ],
@@ -286,63 +274,6 @@ export default function NurseMonitoringPanel({
     }
   };
 
-  // Wound monitoring
-  const { data: woundRecords = [] } = useQuery({
-    queryKey: ["wound-monitoring", hospitalizationId],
-    staleTime: 0,
-    enabled: activeFormCodes.has("wound_monitoring"),
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("wound_monitoring_records")
-        .select("id, wound_location, condition, size_cm, drainage_description, dressing_changed, dressing_type, notes, recorded_at")
-        .eq("hospitalization_id", hospitalizationId)
-        .order("recorded_at", { ascending: false });
-      return data || [];
-    },
-  });
-
-  const woundLocations = useMemo(
-    () => Array.from(new Set((woundRecords as any[]).map((r) => r.wound_location))),
-    [woundRecords],
-  );
-
-  const filteredWoundRecords = useMemo(
-    () =>
-      woundFilterLocation
-        ? (woundRecords as any[]).filter((r) => r.wound_location === woundFilterLocation)
-        : woundRecords,
-    [woundRecords, woundFilterLocation],
-  );
-
-  const handleAddWoundRecord = async () => {
-    if (!woundLocation || !woundCondition) return;
-    const { error } = await supabase.from("wound_monitoring_records").insert({
-      hospital_id: hospitalId,
-      hospitalization_id: hospitalizationId,
-      patient_id: patientId,
-      wound_location: woundLocation,
-      condition: woundCondition,
-      size_cm: woundSizeCm ? parseFloat(woundSizeCm) : null,
-      drainage_description: woundDrainage || null,
-      dressing_changed: woundDressingChanged,
-      dressing_type: woundDressingType || null,
-      notes: woundNotes || null,
-      recorded_by: (user as any)?.id,
-      recorded_at: new Date().toISOString(),
-    });
-    if (!error) {
-      setWoundCondition("");
-      setWoundSizeCm("");
-      setWoundDrainage("");
-      setWoundDressingChanged(false);
-      setWoundDressingType("");
-      setWoundNotes("");
-      setShowWoundForm(false);
-      queryClient.invalidateQueries({ queryKey: ["wound-monitoring", hospitalizationId] });
-    } else {
-      toast.error(error.message);
-    }
-  };
 
   // Daily notes
   const { data: dailyNotes = [] } = useQuery({
@@ -1099,147 +1030,6 @@ export default function NurseMonitoringPanel({
         </div>
       )}
 
-      {/* Wound monitoring */}
-      {activeFormCodes.has("wound_monitoring") && (
-        <div className="border-2 border-gray-200 rounded-lg p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <h4 className="text-sm font-semibold">Мониторинг ран</h4>
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-xs"
-              onClick={() => setShowWoundForm(!showWoundForm)}
-              disabled={isReadOnly}
-            >
-              {showWoundForm ? "Отмена" : "+ Запись"}
-            </Button>
-          </div>
-          {woundLocations.length > 1 && (
-            <div className="flex gap-1 flex-wrap">
-              <button
-                onClick={() => setWoundFilterLocation(null)}
-                className={cn(
-                  "text-xs px-2 py-1 rounded border",
-                  !woundFilterLocation ? "bg-muted font-medium" : "",
-                )}
-              >
-                Все
-              </button>
-              {woundLocations.map((loc) => (
-                <button
-                  key={loc}
-                  onClick={() => setWoundFilterLocation(loc)}
-                  className={cn(
-                    "text-xs px-2 py-1 rounded border",
-                    woundFilterLocation === loc ? "bg-muted font-medium" : "",
-                  )}
-                >
-                  {loc}
-                </button>
-              ))}
-            </div>
-          )}
-          {showWoundForm && (
-            <div className="space-y-2 bg-muted/20 p-3 rounded-md">
-              <Input
-                placeholder="Локализация (например: послеоп. шов, правый бок)"
-                value={woundLocation}
-                onChange={(e) => setWoundLocation(e.target.value)}
-                className="h-8 text-sm"
-              />
-              <Select value={woundCondition} onValueChange={(v: any) => setWoundCondition(v)}>
-                <SelectTrigger className="h-8 text-sm">
-                  <SelectValue placeholder="Состояние" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="healing">Заживает</SelectItem>
-                  <SelectItem value="unchanged">Без изменений</SelectItem>
-                  <SelectItem value="deteriorating">Ухудшение</SelectItem>
-                  <SelectItem value="infected">Инфицирована</SelectItem>
-                </SelectContent>
-              </Select>
-              <Input
-                type="number"
-                placeholder="Размер (см)"
-                value={woundSizeCm}
-                onChange={(e) => setWoundSizeCm(e.target.value)}
-                className="h-8 text-sm"
-              />
-              <Input
-                placeholder="Описание отделяемого"
-                value={woundDrainage}
-                onChange={(e) => setWoundDrainage(e.target.value)}
-                className="h-8 text-sm"
-              />
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={woundDressingChanged}
-                  onChange={(e) => setWoundDressingChanged(e.target.checked)}
-                />
-                Повязка сменена
-              </label>
-              {woundDressingChanged && (
-                <Input
-                  placeholder="Тип повязки"
-                  value={woundDressingType}
-                  onChange={(e) => setWoundDressingType(e.target.value)}
-                  className="h-8 text-sm"
-                />
-              )}
-              <Textarea
-                placeholder="Примечания"
-                value={woundNotes}
-                onChange={(e) => setWoundNotes(e.target.value)}
-                className="text-sm"
-              />
-              <Button
-                size="sm"
-                onClick={handleAddWoundRecord}
-                disabled={!woundLocation || !woundCondition}
-              >
-                Сохранить
-              </Button>
-            </div>
-          )}
-          <div className="space-y-2">
-            {filteredWoundRecords.length === 0 ? (
-              <p className="text-xs text-muted-foreground">Нет записей</p>
-            ) : (
-              (filteredWoundRecords as any[]).map((r) => (
-                <div key={r.id} className="text-xs border-l-2 border-gray-300 pl-2 space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{r.wound_location}</span>
-                    <span
-                      className={cn(
-                        "px-1.5 py-0.5 rounded text-xs",
-                        r.condition === "healing" && "bg-green-100 text-green-700",
-                        r.condition === "unchanged" && "bg-gray-100 text-gray-700",
-                        r.condition === "deteriorating" && "bg-orange-100 text-orange-700",
-                        r.condition === "infected" && "bg-red-100 text-red-700",
-                      )}
-                    >
-                      {r.condition === "healing" && "Заживает"}
-                      {r.condition === "unchanged" && "Без изменений"}
-                      {r.condition === "deteriorating" && "Ухудшение"}
-                      {r.condition === "infected" && "Инфицирована"}
-                    </span>
-                    <span className="text-muted-foreground">
-                      {new Date(r.recorded_at).toLocaleString("ru-RU")}
-                    </span>
-                  </div>
-                  {r.size_cm && <div>Размер: {r.size_cm} см</div>}
-                  {r.drainage_description && <div>Отделяемое: {r.drainage_description}</div>}
-                  {r.dressing_changed && (
-                    <div>Повязка сменена{r.dressing_type ? `: ${r.dressing_type}` : ""}</div>
-                  )}
-                  {r.notes && <div className="text-muted-foreground">{r.notes}</div>}
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Nursing daily notes */}
       {activeFormCodes.has("daily_notes") && (
