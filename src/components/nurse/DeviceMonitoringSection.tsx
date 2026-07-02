@@ -528,7 +528,7 @@ export default function DeviceMonitoringSection({
                   </div>
                   <div className="text-xs text-muted-foreground">
                     {card.device_label && <span>Место: {card.device_label} · </span>}
-                    Установлено {daysSince} дн. назад · интервал {def.intervalDays} дн.
+                    Установлено {daysSince} дн. назад · {def.intervalDays === null ? "при перевязке" : `интервал ${def.intervalDays} дн.`}
                   </div>
                 </div>
                 <div className="flex gap-2">
