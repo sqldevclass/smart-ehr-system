@@ -190,7 +190,7 @@ export default function NurseMonitoringPanel({
       { code: "fluid_balance", name: "Баланс жидкости" },
       { code: "wound_monitoring", name: "Мониторинг ран" },
       { code: "daily_notes", name: "Дневниковые записи" },
-      { code: "device_monitoring", name: "Мониторинг устройств" },
+      { code: "device_monitoring", name: "Инфекционный контроль" },
     ],
     [optionalScales],
   );
