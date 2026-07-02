@@ -42,7 +42,7 @@ type FormDef = {
 
 const DEVICE_FORMS: Record<string, FormDef> = {
   cvc: {
-    label: "Мониторинг ЦВК",
+    label: "Мониторинг центрального венозного катетера",
     intervalDays: 3,
     hasSite: true,
     siteOptions: ["яремная вена", "подключичная вена", "бедренная вена"],
