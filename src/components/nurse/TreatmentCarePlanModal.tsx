@@ -1,8 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+
 
 const ORDER_TYPE_LABELS: Record<string, string> = {
   diet: "Диета",
