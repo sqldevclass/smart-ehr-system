@@ -418,82 +418,85 @@ export default function DeviceMonitoringSection({
 
       {showAdd && (
         <div className="space-y-2 bg-muted/20 p-3 rounded-md">
-          <div>
-            <Label className="text-xs">Тип устройства</Label>
-            <Select value={newFormType} onValueChange={(v) => { setNewFormType(v); setNewSite(""); setNewAntibioticProphylaxis(null); }}>
-              <SelectTrigger className="h-8 text-sm">
-                <SelectValue placeholder="Выберите тип" />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(DEVICE_FORMS).map(([code, def]) => (
-                  <SelectItem key={code} value={code}>
-                    {def.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs">Дата установки</Label>
-            <Input
-              type="date"
-              value={newInsertedAt}
-              onChange={(e) => setNewInsertedAt(e.target.value)}
-              className="h-8 text-sm"
-            />
-          </div>
-          {newFormType && DEVICE_FORMS[newFormType]?.hasSite && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             <div>
-              <Label className="text-xs">Место установки</Label>
-              <Select value={newSite} onValueChange={setNewSite}>
+              <Label className="text-xs">Тип устройства</Label>
+              <Select value={newFormType} onValueChange={(v) => { setNewFormType(v); setNewSite(""); setNewAntibioticProphylaxis(null); }}>
                 <SelectTrigger className="h-8 text-sm">
-                  <SelectValue placeholder="Выберите место" />
+                  <SelectValue placeholder="Выберите тип" />
                 </SelectTrigger>
                 <SelectContent>
-                  {DEVICE_FORMS[newFormType].siteOptions!.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s}
+                  {Object.entries(DEVICE_FORMS).map(([code, def]) => (
+                    <SelectItem key={code} value={code}>
+                      {def.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-          )}
-          {newFormType && DEVICE_FORMS[newFormType]?.hasAntibioticProphylaxis && (
             <div>
-              <Label className="text-xs">Антибиотикопрофилактика</Label>
-              <div className="flex gap-2 mt-1">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={newAntibioticProphylaxis === true ? "default" : "outline"}
-                  className={cn(
-                    "h-7 text-xs",
-                    newAntibioticProphylaxis === true && "bg-green-600 hover:bg-green-700",
-                  )}
-                  onClick={() => setNewAntibioticProphylaxis(true)}
-                >
-                  ДА
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={newAntibioticProphylaxis === false ? "default" : "outline"}
-                  className={cn(
-                    "h-7 text-xs",
-                    newAntibioticProphylaxis === false && "bg-red-600 hover:bg-red-700",
-                  )}
-                  onClick={() => setNewAntibioticProphylaxis(false)}
-                >
-                  НЕТ
-                </Button>
-              </div>
+              <Label className="text-xs">Дата установки</Label>
+              <Input
+                type="date"
+                value={newInsertedAt}
+                onChange={(e) => setNewInsertedAt(e.target.value)}
+                className="h-8 text-sm"
+              />
             </div>
-          )}
+            {newFormType && DEVICE_FORMS[newFormType]?.hasSite && (
+              <div>
+                <Label className="text-xs">Место установки</Label>
+                <Select value={newSite} onValueChange={setNewSite}>
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue placeholder="Выберите место" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DEVICE_FORMS[newFormType].siteOptions!.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {newFormType && DEVICE_FORMS[newFormType]?.hasAntibioticProphylaxis && (
+              <div>
+                <Label className="text-xs">Антибиотикопрофилактика</Label>
+                <div className="flex gap-2 mt-1">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={newAntibioticProphylaxis === true ? "default" : "outline"}
+                    className={cn(
+                      "h-7 text-xs",
+                      newAntibioticProphylaxis === true && "bg-green-600 hover:bg-green-700",
+                    )}
+                    onClick={() => setNewAntibioticProphylaxis(true)}
+                  >
+                    ДА
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={newAntibioticProphylaxis === false ? "default" : "outline"}
+                    className={cn(
+                      "h-7 text-xs",
+                      newAntibioticProphylaxis === false && "bg-red-600 hover:bg-red-700",
+                    )}
+                    onClick={() => setNewAntibioticProphylaxis(false)}
+                  >
+                    НЕТ
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
           <Button size="sm" onClick={handleAddDevice} disabled={!newFormType}>
             Добавить
           </Button>
         </div>
+
       )}
 
       {allCards.length === 0 ? (
