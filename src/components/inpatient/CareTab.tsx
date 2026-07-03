@@ -14,6 +14,12 @@ const ORDER_TYPE_LABELS: Record<string, string> = {
   care: "Уход",
 };
 
+const SURGICAL_CONTEXT_LABELS: Record<string, string> = {
+  none: "Без операции",
+  pre_op: "До операции",
+  post_op: "После операции",
+};
+
 interface Props {
   hospitalizationId: string;
   patientId: string;
@@ -28,6 +34,10 @@ export default function CareTab({
   const queryClient = useQueryClient();
   const [careType, setCareType] = useState<"diet" | "activity_mode" | "care">("care");
   const [careText, setCareText] = useState("");
+  const [surgicalContext, setSurgicalContext] =
+    useState<"none" | "pre_op" | "post_op" | null>(null);
+  const [scheduledTimes, setScheduledTimes] = useState<string[]>([]);
+  const [scheduleInput, setScheduleInput] = useState("");
 
   const { data: orders = [], refetch: refetchOrders } = useQuery({
     queryKey: ["care-orders", hospitalizationId],
@@ -35,7 +45,7 @@ export default function CareTab({
       const { data, error } = await supabase
         .from("hospitalization_orders")
         .select(`
-          id, order_type, order_value,
+          id, order_type, order_value, surgical_context,
           ordered_at, is_active,
           profiles!ordered_by(full_name)
         `)
@@ -49,8 +59,96 @@ export default function CareTab({
     enabled: !!hospitalizationId && !!hospitalId,
   });
 
+  const careOrderIds = (orders as any[])
+    .filter((o) => o.order_type === "care")
+    .map((o) => o.id);
+
+  const { data: occurrences = [], refetch: refetchOccurrences } = useQuery({
+    queryKey: ["care-order-occurrences", hospitalizationId, careOrderIds.join(",")],
+    queryFn: async () => {
+      if (careOrderIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("hospitalization_order_occurrences")
+        .select(`
+          id, order_id, scheduled_at, status, completed_at,
+          profiles!completed_by(full_name)
+        `)
+        .in("order_id", careOrderIds)
+        .order("scheduled_at", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: careOrderIds.length > 0,
+  });
+
+  const occurrencesByOrder: Record<string, any[]> = {};
+  for (const occ of occurrences as any[]) {
+    (occurrencesByOrder[occ.order_id] ||= []).push(occ);
+  }
+
+  const canSave =
+    careType === "care"
+      ? !!careText.trim() && surgicalContext !== null && scheduledTimes.length > 0
+      : !!careText.trim();
+
+  const handleAddScheduledTime = () => {
+    if (!scheduleInput) return;
+    setScheduledTimes((prev) => [...prev, scheduleInput]);
+    setScheduleInput("");
+  };
+
+  const handleRemoveScheduledTime = (idx: number) => {
+    setScheduledTimes((prev) => prev.filter((_, i) => i !== idx));
+  };
+
   const handleAddOrder = async () => {
     if (!careText.trim()) return;
+
+    if (careType === "care") {
+      if (surgicalContext === null || scheduledTimes.length === 0) return;
+
+      const { data: newOrder, error } = await supabase
+        .from("hospitalization_orders")
+        .insert({
+          hospitalization_id: hospitalizationId,
+          hospital_id: hospitalId,
+          order_type: careType,
+          order_value: careText.trim(),
+          ordered_by: userId,
+          surgical_context: surgicalContext,
+        })
+        .select()
+        .single();
+      if (error || !newOrder) {
+        toast.error(error?.message || "Не удалось создать назначение");
+        return;
+      }
+
+      const { error: occErr } = await supabase
+        .from("hospitalization_order_occurrences")
+        .insert(
+          scheduledTimes.map((t) => ({
+            hospital_id: hospitalId,
+            hospitalization_id: hospitalizationId,
+            order_id: newOrder.id,
+            scheduled_at: new Date(t).toISOString(),
+          }))
+        );
+      if (occErr) {
+        toast.error(occErr.message);
+        return;
+      }
+
+      setCareText("");
+      setSurgicalContext(null);
+      setScheduledTimes([]);
+      refetchOrders();
+      refetchOccurrences();
+      queryClient.invalidateQueries({ queryKey: ["care-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["care-order-occurrences"] });
+      return;
+    }
+
     const { error } = await supabase
       .from("hospitalization_orders")
       .insert({
@@ -109,8 +207,76 @@ export default function CareTab({
             className="w-full text-sm border rounded px-2 py-1 resize-none"
             rows={3}
           />
+
+          {careType === "care" && (
+            <>
+              <div className="space-y-1.5">
+                <div className="text-xs font-medium text-muted-foreground">
+                  Хирургический контекст
+                </div>
+                <div className="flex gap-1 flex-wrap">
+                  {(["none", "pre_op", "post_op"] as const).map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setSurgicalContext(v)}
+                      className={`text-xs px-2.5 py-1 rounded border ${
+                        surgicalContext === v
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background hover:bg-muted"
+                      }`}
+                    >
+                      {SURGICAL_CONTEXT_LABELS[v]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="text-xs font-medium text-muted-foreground">
+                  Расписание
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="datetime-local"
+                    value={scheduleInput}
+                    onChange={(e) => setScheduleInput(e.target.value)}
+                    className="text-sm border rounded px-2 py-1 flex-1"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!scheduleInput}
+                    onClick={handleAddScheduledTime}
+                  >
+                    Добавить
+                  </Button>
+                </div>
+                {scheduledTimes.length > 0 && (
+                  <div className="space-y-1">
+                    {scheduledTimes.map((t, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between text-xs border rounded px-2 py-1 bg-background"
+                      >
+                        <span>{format(new Date(t), "dd.MM.yyyy HH:mm")}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveScheduledTime(i)}
+                          className="text-muted-foreground hover:text-destructive"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
           <div className="flex gap-2">
-            <Button size="sm" disabled={!careText.trim()} onClick={handleAddOrder}>
+            <Button size="sm" disabled={!canSave} onClick={handleAddOrder}>
               Сохранить
             </Button>
           </div>
@@ -125,6 +291,11 @@ export default function CareTab({
             <div className="flex-1">
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 {ORDER_TYPE_LABELS[o.order_type as keyof typeof ORDER_TYPE_LABELS] ?? o.order_type}
+                {o.order_type === "care" && o.surgical_context && (
+                  <span className="ml-2 normal-case tracking-normal">
+                    · {SURGICAL_CONTEXT_LABELS[o.surgical_context] ?? o.surgical_context}
+                  </span>
+                )}
               </span>
               <p className="text-sm mt-0.5">{o.order_value}</p>
             </div>
@@ -138,6 +309,30 @@ export default function CareTab({
           <div className="text-xs text-muted-foreground">
             {o.profiles?.full_name} · {format(new Date(o.ordered_at), "dd.MM.yyyy HH:mm")}
           </div>
+
+          {o.order_type === "care" && (occurrencesByOrder[o.id]?.length ?? 0) > 0 && (
+            <div className="mt-2 pt-2 border-t space-y-1">
+              {occurrencesByOrder[o.id].map((occ) => (
+                <div
+                  key={occ.id}
+                  className="flex items-center justify-between text-xs"
+                >
+                  <span>
+                    {format(new Date(occ.scheduled_at), "dd.MM.yyyy HH:mm")}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {occ.status === "done"
+                      ? `выполнено${
+                          occ.completed_at
+                            ? " " + format(new Date(occ.completed_at), "dd.MM.yyyy HH:mm")
+                            : ""
+                        }${occ.profiles?.full_name ? " · " + occ.profiles.full_name : ""}`
+                      : "ожидает"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       ))}
     </div>
