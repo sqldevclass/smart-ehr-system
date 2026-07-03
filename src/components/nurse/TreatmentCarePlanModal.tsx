@@ -2,6 +2,7 @@ import { useState, useMemo, ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import PatientModalHeader from "@/components/nurse/PatientModalHeader";
 
 
 const ORDER_TYPE_LABELS: Record<string, string> = {
@@ -14,7 +15,8 @@ interface Props {
   hospitalizationId: string;
   patientId: string;
   hospitalId: string;
-  patientName: string;
+  patient: any;
+  room?: string;
   onClose: () => void;
 }
 
