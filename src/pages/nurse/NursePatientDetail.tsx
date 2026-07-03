@@ -425,10 +425,6 @@ export default function NursePatientDetail() {
               <div className="flex-1">
                 <div className="text-lg font-semibold">
                   {{
-                    imaging: "Инструментальные",
-                    lab: "Лаборатория",
-                    consultation: "Консультация",
-                    care: "Уход",
                     diagnosis: "Диагнозы",
                   }[activeTab]}
                 </div>
@@ -444,42 +440,6 @@ export default function NursePatientDetail() {
               </button>
             </div>
             <div className="flex-1 overflow-auto">
-              {activeTab === "imaging" && (
-                <div className="p-10 text-center text-muted-foreground text-sm">
-                  Инструментальные — в разработке
-                </div>
-              )}
-              {activeTab === "lab" && (
-                <ServiceTab
-                  hospitalizationId={hospId!}
-                  patientId={patient.id}
-                  hospitalId={user!.hospitalId}
-                  userId={user!.id}
-                  typeCode="laboratory"
-                  title="Лаборатория"
-                  readOnly
-                />
-              )}
-              {activeTab === "consultation" && (
-                <ServiceTab
-                  hospitalizationId={hospId!}
-                  patientId={patient.id}
-                  hospitalId={user!.hospitalId}
-                  userId={user!.id}
-                  typeCode="consultation"
-                  title="Консультация"
-                  readOnly
-                />
-              )}
-              {activeTab === "care" && (
-                <CareTab
-                  hospitalizationId={hospId!}
-                  patientId={patient.id}
-                  hospitalId={user!.hospitalId}
-                  userId={user!.id}
-                  readOnly
-                />
-              )}
               {activeTab === "diagnosis" && (
                 <DiagnosisTab
                   hospitalizationId={hospId!}
