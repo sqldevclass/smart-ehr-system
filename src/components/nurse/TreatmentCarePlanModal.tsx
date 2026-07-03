@@ -47,8 +47,6 @@ function ServiceColumn({
   patientId: string;
   hospitalId: string;
 }) {
-  const [mode, setMode] = useState<Mode>("current");
-
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["care-plan-services", typeCode, patientId, hospitalId],
     queryFn: async () => {
@@ -78,43 +76,48 @@ function ServiceColumn({
     return { current: cur, history: hist };
   }, [rows, hospitalizationId]);
 
-  const list = mode === "current" ? current : history;
+  const renderRow = (r: any, isHistory: boolean) => (
+    <div key={r.id} className="border rounded p-1.5 text-xs space-y-0.5">
+      <div className="font-medium leading-snug">{r.services?.name}</div>
+      <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-muted-foreground">
+        <span className="px-1.5 py-0.5 rounded bg-muted">
+          {r.service_statuses?.name_ru}
+        </span>
+        <span>
+          {r.created_at ? format(new Date(r.created_at), "dd.MM.yy HH:mm") : "—"}
+        </span>
+        {isHistory && r.hospitalization_id === null && (
+          <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
+            Амб.
+          </span>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div className="flex flex-col min-h-0">
-      <div className="flex items-center justify-between mb-2">
-        <div className="text-sm font-semibold">{title}</div>
-        <Toggle mode={mode} onChange={setMode} />
-      </div>
-      <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
-        {isLoading ? (
-          <div className="text-xs text-muted-foreground">Загрузка…</div>
-        ) : list.length === 0 ? (
-          <div className="text-xs text-muted-foreground">Нет записей</div>
-        ) : (
-          list.map((r: any) => (
-            <div key={r.id} className="border rounded p-1.5 text-xs space-y-0.5">
-              <div className="font-medium leading-snug">{r.services?.name}</div>
-              <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-muted-foreground">
-                <span className="px-1.5 py-0.5 rounded bg-muted">
-                  {r.service_statuses?.name_ru}
-                </span>
-                <span>
-                  {r.created_at ? format(new Date(r.created_at), "dd.MM.yy HH:mm") : "—"}
-                </span>
-                {mode === "history" && r.hospitalization_id === null && (
-                  <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
-                    Амб.
-                  </span>
-                )}
-              </div>
-            </div>
-          ))
+      <div className="text-sm font-semibold mb-2">{title}</div>
+      <div className="flex-1 overflow-y-auto pr-1">
+        <div className="space-y-1.5">
+          {isLoading ? (
+            <div className="text-xs text-muted-foreground">Загрузка…</div>
+          ) : current.length === 0 ? (
+            <div className="text-xs text-muted-foreground">Нет записей</div>
+          ) : (
+            current.map((r: any) => renderRow(r, false))
+          )}
+        </div>
+        {!isLoading && history.length > 0 && (
+          <HistorySection count={history.length}>
+            {history.map((r: any) => renderRow(r, true))}
+          </HistorySection>
         )}
       </div>
     </div>
   );
 }
+
 
 function CareColumn({
   hospitalizationId,
