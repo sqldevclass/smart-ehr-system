@@ -740,8 +740,8 @@ export default function DeviceMonitoringSection({
                                   <span
                                     className={cn(
                                       "w-4 font-bold shrink-0",
-                                      v === true && "text-green-700",
-                                      v === false && "text-red-700",
+                                      v === true && (c.critical ? "text-red-700" : "text-green-700"),
+                                      v === false && (c.critical ? "text-green-700" : "text-red-700"),
                                       v !== true && v !== false && "text-muted-foreground",
                                     )}
                                   >
