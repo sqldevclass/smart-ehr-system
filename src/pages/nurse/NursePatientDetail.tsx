@@ -352,23 +352,15 @@ export default function NursePatientDetail() {
               height: "calc(100vh - 32px)",
             }}
           >
-            <div className="flex items-center gap-4 p-4 border-b">
-              <div className="flex-1">
-                <div className="text-lg font-semibold">Мед. документы</div>
-                <div className="text-sm text-muted-foreground">
-                  {patient?.last_name} {patient?.first_name}
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  setShowMedDocs(false);
-                  setSelectedDoc(null);
-                }}
-                className="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground"
-              >
-                ✕
-              </button>
-            </div>
+            <PatientModalHeader
+              title="Мед. документы"
+              patient={patient}
+              room={ra ? `${ra.rooms?.name} / ${ra.bed_number}` : undefined}
+              onClose={() => {
+                setShowMedDocs(false);
+                setSelectedDoc(null);
+              }}
+            />
             <div className="flex-1 overflow-hidden">
               <PatientDocumentSidebar
                 hospitalizationId={hospId!}
