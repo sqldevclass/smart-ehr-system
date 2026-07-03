@@ -36,8 +36,9 @@ export default function CareTab({
   const [careText, setCareText] = useState("");
   const [surgicalContext, setSurgicalContext] =
     useState<"none" | "pre_op" | "post_op" | null>(null);
-  const [scheduledTimes, setScheduledTimes] = useState<string[]>([]);
-  const [scheduleInput, setScheduleInput] = useState("");
+  const [rangeStart, setRangeStart] = useState("");
+  const [rangeEnd, setRangeEnd] = useState("");
+  const [dailyTime, setDailyTime] = useState("");
 
   const { data: orders = [], refetch: refetchOrders } = useQuery({
     queryKey: ["care-orders", hospitalizationId],
