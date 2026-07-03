@@ -596,7 +596,7 @@ export default function DeviceMonitoringSection({
               )}
 
               {isOpen && !isReadOnly && (
-                <div className="space-y-2 bg-muted/20 p-3 rounded">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 bg-muted/20 p-3 rounded">
                   {def.criteria.map((c) => {
                     const answer = resp[c.code];
                     return (
@@ -608,7 +608,7 @@ export default function DeviceMonitoringSection({
                             variant={answer === true ? "default" : "outline"}
                             className={cn(
                               "h-7 text-xs",
-                              answer === true && "bg-green-600 hover:bg-green-700",
+                              answer === true && (c.critical ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"),
                             )}
                             onClick={() =>
                               setResponses((p) => ({
@@ -624,7 +624,7 @@ export default function DeviceMonitoringSection({
                             variant={answer === false ? "default" : "outline"}
                             className={cn(
                               "h-7 text-xs",
-                              answer === false && "bg-red-600 hover:bg-red-700",
+                              answer === false && (c.critical ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"),
                             )}
                             onClick={() =>
                               setResponses((p) => ({
