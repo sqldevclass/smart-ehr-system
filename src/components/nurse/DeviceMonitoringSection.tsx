@@ -216,9 +216,7 @@ export default function DeviceMonitoringSection({
         }
       }
     }
-    // Filter out removed devices (latest entry has removed_at)
     return Array.from(map.entries())
-      .filter(([, g]) => !(g.entries[0]?.removed_at))
       .map(([k, g]) => ({ key: k, ...g }));
   }, [records]);
 
