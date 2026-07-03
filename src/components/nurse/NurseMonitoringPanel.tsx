@@ -58,6 +58,7 @@ const outputCategories = [
   { code: "blood_out", label: "Кровь" },
   { code: "aspiration", label: "Аспирация" },
   { code: "nasogastric_out", label: "Зонд" },
+  { code: "drainage_out", label: "Дренаж" },
   { code: "other_out", label: "Прочие" },
 ];
 
