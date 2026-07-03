@@ -87,26 +87,35 @@ export default function CareTab({
     (occurrencesByOrder[occ.order_id] ||= []).push(occ);
   }
 
+  const rangeValid = !!rangeStart && !!rangeEnd && rangeEnd >= rangeStart;
+
   const canSave =
     careType === "care"
-      ? !!careText.trim() && surgicalContext !== null && scheduledTimes.length > 0
+      ? !!careText.trim() &&
+        surgicalContext !== null &&
+        rangeValid &&
+        !!dailyTime
       : !!careText.trim();
 
-  const handleAddScheduledTime = () => {
-    if (!scheduleInput) return;
-    setScheduledTimes((prev) => [...prev, scheduleInput]);
-    setScheduleInput("");
-  };
-
-  const handleRemoveScheduledTime = (idx: number) => {
-    setScheduledTimes((prev) => prev.filter((_, i) => i !== idx));
+  const buildOccurrences = (start: string, end: string, time: string) => {
+    const [hh, mm] = time.split(":").map(Number);
+    const dates: string[] = [];
+    const cursor = new Date(start);
+    const last = new Date(end);
+    while (cursor <= last) {
+      const d = new Date(cursor);
+      d.setHours(hh, mm, 0, 0);
+      dates.push(d.toISOString());
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return dates;
   };
 
   const handleAddOrder = async () => {
     if (!careText.trim()) return;
 
     if (careType === "care") {
-      if (surgicalContext === null || scheduledTimes.length === 0) return;
+      if (surgicalContext === null || !rangeValid || !dailyTime) return;
 
       const { data: newOrder, error } = await supabase
         .from("hospitalization_orders")
@@ -125,14 +134,15 @@ export default function CareTab({
         return;
       }
 
+      const occurrenceTimes = buildOccurrences(rangeStart, rangeEnd, dailyTime);
       const { error: occErr } = await supabase
         .from("hospitalization_order_occurrences")
         .insert(
-          scheduledTimes.map((t) => ({
+          occurrenceTimes.map((scheduled_at) => ({
             hospital_id: hospitalId,
             hospitalization_id: hospitalizationId,
             order_id: newOrder.id,
-            scheduled_at: new Date(t).toISOString(),
+            scheduled_at,
           }))
         );
       if (occErr) {
@@ -142,13 +152,16 @@ export default function CareTab({
 
       setCareText("");
       setSurgicalContext(null);
-      setScheduledTimes([]);
+      setRangeStart("");
+      setRangeEnd("");
+      setDailyTime("");
       refetchOrders();
       refetchOccurrences();
       queryClient.invalidateQueries({ queryKey: ["care-orders"] });
       queryClient.invalidateQueries({ queryKey: ["care-order-occurrences"] });
       return;
     }
+
 
     const { error } = await supabase
       .from("hospitalization_orders")
