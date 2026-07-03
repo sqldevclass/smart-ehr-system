@@ -543,7 +543,7 @@ export default function DeviceMonitoringSection({
                       >
                         {isOpen ? "Скрыть" : "+ Проверка"}
                       </Button>
-                      {!card.isDraft && (
+                      {!card.isDraft && !card.entries[0]?.removed_at && (
                         <Button
                           size="sm"
                           variant="outline"
