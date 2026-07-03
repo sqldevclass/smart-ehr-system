@@ -128,8 +128,6 @@ function CareColumn({
   patientId: string;
   hospitalId: string;
 }) {
-  const [mode, setMode] = useState<Mode>("current");
-
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["care-plan-orders", patientId, hospitalId],
     queryFn: async () => {
@@ -159,44 +157,49 @@ function CareColumn({
     return { current: cur, history: hist };
   }, [rows, hospitalizationId]);
 
-  const list = mode === "current" ? current : history;
+  const renderRow = (r: any) => (
+    <div key={r.id} className="border rounded p-1.5 text-xs space-y-0.5">
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <span className="px-1.5 py-0.5 rounded bg-muted text-[11px]">
+          {ORDER_TYPE_LABELS[r.order_type] || r.order_type}
+        </span>
+        {!r.is_active && (
+          <span className="px-1.5 py-0.5 rounded bg-muted text-[11px] text-muted-foreground">
+            Отменено
+          </span>
+        )}
+      </div>
+      <div className="leading-snug">{r.order_value}</div>
+      <div className="text-[11px] text-muted-foreground">
+        {r.ordered_at ? format(new Date(r.ordered_at), "dd.MM.yy HH:mm") : "—"}
+        {r.profiles?.full_name ? ` · ${r.profiles.full_name}` : ""}
+      </div>
+    </div>
+  );
 
   return (
     <div className="flex flex-col min-h-0">
-      <div className="flex items-center justify-between mb-2">
-        <div className="text-sm font-semibold">Уход</div>
-        <Toggle mode={mode} onChange={setMode} />
-      </div>
-      <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
-        {isLoading ? (
-          <div className="text-xs text-muted-foreground">Загрузка…</div>
-        ) : list.length === 0 ? (
-          <div className="text-xs text-muted-foreground">Нет записей</div>
-        ) : (
-          list.map((r: any) => (
-            <div key={r.id} className="border rounded p-1.5 text-xs space-y-0.5">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="px-1.5 py-0.5 rounded bg-muted text-[11px]">
-                  {ORDER_TYPE_LABELS[r.order_type] || r.order_type}
-                </span>
-                {!r.is_active && (
-                  <span className="px-1.5 py-0.5 rounded bg-muted text-[11px] text-muted-foreground">
-                    Отменено
-                  </span>
-                )}
-              </div>
-              <div className="leading-snug">{r.order_value}</div>
-              <div className="text-[11px] text-muted-foreground">
-                {r.ordered_at ? format(new Date(r.ordered_at), "dd.MM.yy HH:mm") : "—"}
-                {r.profiles?.full_name ? ` · ${r.profiles.full_name}` : ""}
-              </div>
-            </div>
-          ))
+      <div className="text-sm font-semibold mb-2">Уход</div>
+      <div className="flex-1 overflow-y-auto pr-1">
+        <div className="space-y-1.5">
+          {isLoading ? (
+            <div className="text-xs text-muted-foreground">Загрузка…</div>
+          ) : current.length === 0 ? (
+            <div className="text-xs text-muted-foreground">Нет записей</div>
+          ) : (
+            current.map(renderRow)
+          )}
+        </div>
+        {!isLoading && history.length > 0 && (
+          <HistorySection count={history.length}>
+            {history.map(renderRow)}
+          </HistorySection>
         )}
       </div>
     </div>
   );
 }
+
 
 export default function TreatmentCarePlanModal({
   hospitalizationId,
