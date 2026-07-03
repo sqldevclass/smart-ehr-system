@@ -33,8 +33,9 @@ export default function NursePatientDetail() {
   const [selectedDoc, setSelectedDoc] = useState<{ id: string; typeId: string } | null>(null);
   const [showIxModal, setShowIxModal] = useState(false);
   const [ixAutoDismissed, setIxAutoDismissed] = useState(false);
+  const [showCarePlanModal, setShowCarePlanModal] = useState(false);
   const [activeTab, setActiveTab] = useState<
-    "imaging" | "lab" | "consultation" | "care" | "diagnosis" | null
+    "diagnosis" | null
   >(null);
 
   const { data: interactions = [] } = useInteractionCount(
