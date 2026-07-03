@@ -1,8 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+
 
 const ORDER_TYPE_LABELS: Record<string, string> = {
   diet: "Диета",
@@ -18,26 +18,21 @@ interface Props {
   onClose: () => void;
 }
 
-type Mode = "current" | "history";
-
-function Toggle({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => void }) {
+function HistorySection({ count, children }: { count: number; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
   return (
-    <div className="inline-flex rounded border overflow-hidden text-xs">
-      {(["current", "history"] as Mode[]).map((m) => (
-        <button
-          key={m}
-          onClick={() => onChange(m)}
-          className={cn(
-            "px-2 py-0.5",
-            mode === m ? "bg-primary text-primary-foreground" : "bg-muted/40 hover:bg-muted"
-          )}
-        >
-          {m === "current" ? "Текущая" : "История"}
-        </button>
-      ))}
+    <div className="mt-2 pt-2 border-t">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="text-xs text-primary hover:underline"
+      >
+        {open ? "Скрыть историю" : `Показать историю${count ? ` (${count})` : ""}`}
+      </button>
+      {open && <div className="mt-2 space-y-1.5">{children}</div>}
     </div>
   );
 }
+
 
 function ServiceColumn({
   title,
@@ -52,8 +47,6 @@ function ServiceColumn({
   patientId: string;
   hospitalId: string;
 }) {
-  const [mode, setMode] = useState<Mode>("current");
-
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["care-plan-services", typeCode, patientId, hospitalId],
     queryFn: async () => {
@@ -83,43 +76,48 @@ function ServiceColumn({
     return { current: cur, history: hist };
   }, [rows, hospitalizationId]);
 
-  const list = mode === "current" ? current : history;
+  const renderRow = (r: any, isHistory: boolean) => (
+    <div key={r.id} className="border rounded p-1.5 text-xs space-y-0.5">
+      <div className="font-medium leading-snug">{r.services?.name}</div>
+      <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-muted-foreground">
+        <span className="px-1.5 py-0.5 rounded bg-muted">
+          {r.service_statuses?.name_ru}
+        </span>
+        <span>
+          {r.created_at ? format(new Date(r.created_at), "dd.MM.yy HH:mm") : "—"}
+        </span>
+        {isHistory && r.hospitalization_id === null && (
+          <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
+            Амб.
+          </span>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div className="flex flex-col min-h-0">
-      <div className="flex items-center justify-between mb-2">
-        <div className="text-sm font-semibold">{title}</div>
-        <Toggle mode={mode} onChange={setMode} />
-      </div>
-      <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
-        {isLoading ? (
-          <div className="text-xs text-muted-foreground">Загрузка…</div>
-        ) : list.length === 0 ? (
-          <div className="text-xs text-muted-foreground">Нет записей</div>
-        ) : (
-          list.map((r: any) => (
-            <div key={r.id} className="border rounded p-1.5 text-xs space-y-0.5">
-              <div className="font-medium leading-snug">{r.services?.name}</div>
-              <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-muted-foreground">
-                <span className="px-1.5 py-0.5 rounded bg-muted">
-                  {r.service_statuses?.name_ru}
-                </span>
-                <span>
-                  {r.created_at ? format(new Date(r.created_at), "dd.MM.yy HH:mm") : "—"}
-                </span>
-                {mode === "history" && r.hospitalization_id === null && (
-                  <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
-                    Амб.
-                  </span>
-                )}
-              </div>
-            </div>
-          ))
+      <div className="text-sm font-semibold mb-2">{title}</div>
+      <div className="flex-1 overflow-y-auto pr-1">
+        <div className="space-y-1.5">
+          {isLoading ? (
+            <div className="text-xs text-muted-foreground">Загрузка…</div>
+          ) : current.length === 0 ? (
+            <div className="text-xs text-muted-foreground">Нет записей</div>
+          ) : (
+            current.map((r: any) => renderRow(r, false))
+          )}
+        </div>
+        {!isLoading && history.length > 0 && (
+          <HistorySection count={history.length}>
+            {history.map((r: any) => renderRow(r, true))}
+          </HistorySection>
         )}
       </div>
     </div>
   );
 }
+
 
 function CareColumn({
   hospitalizationId,
@@ -130,8 +128,6 @@ function CareColumn({
   patientId: string;
   hospitalId: string;
 }) {
-  const [mode, setMode] = useState<Mode>("current");
-
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["care-plan-orders", patientId, hospitalId],
     queryFn: async () => {
@@ -161,44 +157,49 @@ function CareColumn({
     return { current: cur, history: hist };
   }, [rows, hospitalizationId]);
 
-  const list = mode === "current" ? current : history;
+  const renderRow = (r: any) => (
+    <div key={r.id} className="border rounded p-1.5 text-xs space-y-0.5">
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <span className="px-1.5 py-0.5 rounded bg-muted text-[11px]">
+          {ORDER_TYPE_LABELS[r.order_type] || r.order_type}
+        </span>
+        {!r.is_active && (
+          <span className="px-1.5 py-0.5 rounded bg-muted text-[11px] text-muted-foreground">
+            Отменено
+          </span>
+        )}
+      </div>
+      <div className="leading-snug">{r.order_value}</div>
+      <div className="text-[11px] text-muted-foreground">
+        {r.ordered_at ? format(new Date(r.ordered_at), "dd.MM.yy HH:mm") : "—"}
+        {r.profiles?.full_name ? ` · ${r.profiles.full_name}` : ""}
+      </div>
+    </div>
+  );
 
   return (
     <div className="flex flex-col min-h-0">
-      <div className="flex items-center justify-between mb-2">
-        <div className="text-sm font-semibold">Уход</div>
-        <Toggle mode={mode} onChange={setMode} />
-      </div>
-      <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
-        {isLoading ? (
-          <div className="text-xs text-muted-foreground">Загрузка…</div>
-        ) : list.length === 0 ? (
-          <div className="text-xs text-muted-foreground">Нет записей</div>
-        ) : (
-          list.map((r: any) => (
-            <div key={r.id} className="border rounded p-1.5 text-xs space-y-0.5">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="px-1.5 py-0.5 rounded bg-muted text-[11px]">
-                  {ORDER_TYPE_LABELS[r.order_type] || r.order_type}
-                </span>
-                {!r.is_active && (
-                  <span className="px-1.5 py-0.5 rounded bg-muted text-[11px] text-muted-foreground">
-                    Отменено
-                  </span>
-                )}
-              </div>
-              <div className="leading-snug">{r.order_value}</div>
-              <div className="text-[11px] text-muted-foreground">
-                {r.ordered_at ? format(new Date(r.ordered_at), "dd.MM.yy HH:mm") : "—"}
-                {r.profiles?.full_name ? ` · ${r.profiles.full_name}` : ""}
-              </div>
-            </div>
-          ))
+      <div className="text-sm font-semibold mb-2">Уход</div>
+      <div className="flex-1 overflow-y-auto pr-1">
+        <div className="space-y-1.5">
+          {isLoading ? (
+            <div className="text-xs text-muted-foreground">Загрузка…</div>
+          ) : current.length === 0 ? (
+            <div className="text-xs text-muted-foreground">Нет записей</div>
+          ) : (
+            current.map(renderRow)
+          )}
+        </div>
+        {!isLoading && history.length > 0 && (
+          <HistorySection count={history.length}>
+            {history.map(renderRow)}
+          </HistorySection>
         )}
       </div>
     </div>
   );
 }
+
 
 export default function TreatmentCarePlanModal({
   hospitalizationId,
