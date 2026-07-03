@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import ServiceTab from "@/components/inpatient/ServiceTab";
 import CareTab from "@/components/inpatient/CareTab";
 import DiagnosisTab from "@/components/documents/DiagnosisTab";
+import TreatmentCarePlanModal from "@/components/nurse/TreatmentCarePlanModal";
 
 
 export default function NursePatientDetail() {
