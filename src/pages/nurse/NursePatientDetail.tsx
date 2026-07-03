@@ -15,9 +15,8 @@ import { cn } from "@/lib/utils";
 import PatientCardModal from "@/components/patient/PatientCardModal";
 import InteractionWarnings, { useInteractionCount } from "@/components/medication/InteractionWarnings";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import ServiceTab from "@/components/inpatient/ServiceTab";
-import CareTab from "@/components/inpatient/CareTab";
 import DiagnosisTab from "@/components/documents/DiagnosisTab";
+import TreatmentCarePlanModal from "@/components/nurse/TreatmentCarePlanModal";
 
 
 export default function NursePatientDetail() {
@@ -32,8 +31,9 @@ export default function NursePatientDetail() {
   const [selectedDoc, setSelectedDoc] = useState<{ id: string; typeId: string } | null>(null);
   const [showIxModal, setShowIxModal] = useState(false);
   const [ixAutoDismissed, setIxAutoDismissed] = useState(false);
+  const [showCarePlanModal, setShowCarePlanModal] = useState(false);
   const [activeTab, setActiveTab] = useState<
-    "imaging" | "lab" | "consultation" | "care" | "diagnosis" | null
+    "diagnosis" | null
   >(null);
 
   const { data: interactions = [] } = useInteractionCount(
@@ -248,10 +248,7 @@ export default function NursePatientDetail() {
         >
           Мед. документы
         </Button>
-        <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setActiveTab("imaging")}>Инструментальные</Button>
-        <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setActiveTab("lab")}>Лаборатория</Button>
-        <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setActiveTab("consultation")}>Консультация</Button>
-        <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setActiveTab("care")}>Уход</Button>
+        <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setShowCarePlanModal(true)}>План лечения и ухода</Button>
         <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setActiveTab("diagnosis")}>Диагнозы</Button>
         {allergies.length > 0 && (
           <div className="flex items-center gap-1 text-xs text-red-700 font-semibold">
@@ -426,10 +423,6 @@ export default function NursePatientDetail() {
               <div className="flex-1">
                 <div className="text-lg font-semibold">
                   {{
-                    imaging: "Инструментальные",
-                    lab: "Лаборатория",
-                    consultation: "Консультация",
-                    care: "Уход",
                     diagnosis: "Диагнозы",
                   }[activeTab]}
                 </div>
@@ -445,42 +438,6 @@ export default function NursePatientDetail() {
               </button>
             </div>
             <div className="flex-1 overflow-auto">
-              {activeTab === "imaging" && (
-                <div className="p-10 text-center text-muted-foreground text-sm">
-                  Инструментальные — в разработке
-                </div>
-              )}
-              {activeTab === "lab" && (
-                <ServiceTab
-                  hospitalizationId={hospId!}
-                  patientId={patient.id}
-                  hospitalId={user!.hospitalId}
-                  userId={user!.id}
-                  typeCode="laboratory"
-                  title="Лаборатория"
-                  readOnly
-                />
-              )}
-              {activeTab === "consultation" && (
-                <ServiceTab
-                  hospitalizationId={hospId!}
-                  patientId={patient.id}
-                  hospitalId={user!.hospitalId}
-                  userId={user!.id}
-                  typeCode="consultation"
-                  title="Консультация"
-                  readOnly
-                />
-              )}
-              {activeTab === "care" && (
-                <CareTab
-                  hospitalizationId={hospId!}
-                  patientId={patient.id}
-                  hospitalId={user!.hospitalId}
-                  userId={user!.id}
-                  readOnly
-                />
-              )}
               {activeTab === "diagnosis" && (
                 <DiagnosisTab
                   hospitalizationId={hospId!}
@@ -497,6 +454,16 @@ export default function NursePatientDetail() {
         </div>
       )}
 
+
+      {showCarePlanModal && patient && (
+        <TreatmentCarePlanModal
+          hospitalizationId={hospId!}
+          patientId={patient.id}
+          hospitalId={user!.hospitalId}
+          patientName={`${patient.last_name} ${patient.first_name}`}
+          onClose={() => setShowCarePlanModal(false)}
+        />
+      )}
 
       {showPatientCard && hospId && (
         <PatientCardModal
