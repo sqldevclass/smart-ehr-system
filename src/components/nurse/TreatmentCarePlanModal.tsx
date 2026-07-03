@@ -2,6 +2,7 @@ import { useState, useMemo, ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import PatientModalHeader from "@/components/nurse/PatientModalHeader";
 
 
 const ORDER_TYPE_LABELS: Record<string, string> = {
@@ -14,7 +15,8 @@ interface Props {
   hospitalizationId: string;
   patientId: string;
   hospitalId: string;
-  patientName: string;
+  patient: any;
+  room?: string;
   onClose: () => void;
 }
 
@@ -205,7 +207,8 @@ export default function TreatmentCarePlanModal({
   hospitalizationId,
   patientId,
   hospitalId,
-  patientName,
+  patient,
+  room,
   onClose,
 }: Props) {
   return (
@@ -214,18 +217,12 @@ export default function TreatmentCarePlanModal({
         className="bg-white rounded-lg flex flex-col"
         style={{ width: "calc(100vw - 32px)", height: "calc(100vh - 32px)" }}
       >
-        <div className="flex items-center gap-4 p-4 border-b">
-          <div className="flex-1">
-            <div className="text-lg font-semibold">План лечения и ухода</div>
-            <div className="text-sm text-muted-foreground">{patientName}</div>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground"
-          >
-            ✕
-          </button>
-        </div>
+        <PatientModalHeader
+          title="План лечения и ухода"
+          patient={patient}
+          room={room}
+          onClose={onClose}
+        />
         <div className="flex-1 overflow-hidden p-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 h-full md:divide-x">
             <div className="md:pr-4 h-full min-h-0 flex flex-col">

@@ -103,8 +103,6 @@ export default function NursePrescriptions({ hospitalizationId, patientId, hospi
 
   return (
     <div className="space-y-3">
-      
-      <h3 className="font-semibold">Назначения</h3>
       <PrescriptionGrid
         prescriptions={prescriptions.filter(
           (p: any) => p.prescription_type !== "prn",
