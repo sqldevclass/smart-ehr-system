@@ -409,7 +409,8 @@ export default function NursePatientDetail() {
           hospitalizationId={hospId!}
           patientId={patient.id}
           hospitalId={user!.hospitalId}
-          patientName={`${patient.last_name} ${patient.first_name}`}
+          patient={patient}
+          room={ra ? `${ra.rooms?.name} / ${ra.bed_number}` : undefined}
           onClose={() => setShowCarePlanModal(false)}
         />
       )}
