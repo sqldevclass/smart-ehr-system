@@ -15,8 +15,6 @@ import { cn } from "@/lib/utils";
 import PatientCardModal from "@/components/patient/PatientCardModal";
 import InteractionWarnings, { useInteractionCount } from "@/components/medication/InteractionWarnings";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import ServiceTab from "@/components/inpatient/ServiceTab";
-import CareTab from "@/components/inpatient/CareTab";
 import DiagnosisTab from "@/components/documents/DiagnosisTab";
 import TreatmentCarePlanModal from "@/components/nurse/TreatmentCarePlanModal";
 
