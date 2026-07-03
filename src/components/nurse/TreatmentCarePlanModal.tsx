@@ -14,6 +14,12 @@ const ORDER_TYPE_LABELS: Record<string, string> = {
   care: "Уход",
 };
 
+const SURGICAL_CONTEXT_LABELS: Record<string, string> = {
+  none: "Без операции",
+  pre_op: "До операции",
+  post_op: "После операции",
+};
+
 interface Props {
   hospitalizationId: string;
   patientId: string;
@@ -140,7 +146,7 @@ function CareColumn({
         .from("hospitalization_orders")
         .select(`
           id, order_type, order_value, ordered_at, is_active,
-          hospitalization_id,
+          hospitalization_id, surgical_context,
           profiles!ordered_by(full_name),
           hospitalizations!inner(patient_id)
         `)
@@ -214,6 +220,11 @@ function CareColumn({
         <span className="px-1.5 py-0.5 rounded bg-muted text-[11px]">
           {ORDER_TYPE_LABELS[r.order_type] || r.order_type}
         </span>
+        {r.order_type === "care" && r.surgical_context && (
+          <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 text-[11px]">
+            {SURGICAL_CONTEXT_LABELS[r.surgical_context] || r.surgical_context}
+          </span>
+        )}
         {!r.is_active && (
           <span className="px-1.5 py-0.5 rounded bg-muted text-[11px] text-muted-foreground">
             Отменено
