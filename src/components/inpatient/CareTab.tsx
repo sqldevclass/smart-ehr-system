@@ -36,8 +36,9 @@ export default function CareTab({
   const [careText, setCareText] = useState("");
   const [surgicalContext, setSurgicalContext] =
     useState<"none" | "pre_op" | "post_op" | null>(null);
-  const [scheduledTimes, setScheduledTimes] = useState<string[]>([]);
-  const [scheduleInput, setScheduleInput] = useState("");
+  const [rangeStart, setRangeStart] = useState("");
+  const [rangeEnd, setRangeEnd] = useState("");
+  const [dailyTime, setDailyTime] = useState("");
 
   const { data: orders = [], refetch: refetchOrders } = useQuery({
     queryKey: ["care-orders", hospitalizationId],
@@ -86,26 +87,35 @@ export default function CareTab({
     (occurrencesByOrder[occ.order_id] ||= []).push(occ);
   }
 
+  const rangeValid = !!rangeStart && !!rangeEnd && rangeEnd >= rangeStart;
+
   const canSave =
     careType === "care"
-      ? !!careText.trim() && surgicalContext !== null && scheduledTimes.length > 0
+      ? !!careText.trim() &&
+        surgicalContext !== null &&
+        rangeValid &&
+        !!dailyTime
       : !!careText.trim();
 
-  const handleAddScheduledTime = () => {
-    if (!scheduleInput) return;
-    setScheduledTimes((prev) => [...prev, scheduleInput]);
-    setScheduleInput("");
-  };
-
-  const handleRemoveScheduledTime = (idx: number) => {
-    setScheduledTimes((prev) => prev.filter((_, i) => i !== idx));
+  const buildOccurrences = (start: string, end: string, time: string) => {
+    const [hh, mm] = time.split(":").map(Number);
+    const dates: string[] = [];
+    const cursor = new Date(start);
+    const last = new Date(end);
+    while (cursor <= last) {
+      const d = new Date(cursor);
+      d.setHours(hh, mm, 0, 0);
+      dates.push(d.toISOString());
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return dates;
   };
 
   const handleAddOrder = async () => {
     if (!careText.trim()) return;
 
     if (careType === "care") {
-      if (surgicalContext === null || scheduledTimes.length === 0) return;
+      if (surgicalContext === null || !rangeValid || !dailyTime) return;
 
       const { data: newOrder, error } = await supabase
         .from("hospitalization_orders")
@@ -124,14 +134,15 @@ export default function CareTab({
         return;
       }
 
+      const occurrenceTimes = buildOccurrences(rangeStart, rangeEnd, dailyTime);
       const { error: occErr } = await supabase
         .from("hospitalization_order_occurrences")
         .insert(
-          scheduledTimes.map((t) => ({
+          occurrenceTimes.map((scheduled_at) => ({
             hospital_id: hospitalId,
             hospitalization_id: hospitalizationId,
             order_id: newOrder.id,
-            scheduled_at: new Date(t).toISOString(),
+            scheduled_at,
           }))
         );
       if (occErr) {
@@ -141,13 +152,16 @@ export default function CareTab({
 
       setCareText("");
       setSurgicalContext(null);
-      setScheduledTimes([]);
+      setRangeStart("");
+      setRangeEnd("");
+      setDailyTime("");
       refetchOrders();
       refetchOccurrences();
       queryClient.invalidateQueries({ queryKey: ["care-orders"] });
       queryClient.invalidateQueries({ queryKey: ["care-order-occurrences"] });
       return;
     }
+
 
     const { error } = await supabase
       .from("hospitalization_orders")
@@ -236,44 +250,45 @@ export default function CareTab({
                 <div className="text-xs font-medium text-muted-foreground">
                   Расписание
                 </div>
-                <div className="flex gap-2">
-                  <input
-                    type="datetime-local"
-                    value={scheduleInput}
-                    onChange={(e) => setScheduleInput(e.target.value)}
-                    className="text-sm border rounded px-2 py-1 flex-1"
-                  />
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={!scheduleInput}
-                    onClick={handleAddScheduledTime}
-                  >
-                    Добавить
-                  </Button>
+                <div className="flex gap-2 items-end flex-wrap">
+                  <label className="flex flex-col text-xs gap-0.5">
+                    <span className="text-muted-foreground">С</span>
+                    <input
+                      type="date"
+                      value={rangeStart}
+                      onChange={(e) => setRangeStart(e.target.value)}
+                      className="text-sm border rounded px-2 py-1"
+                    />
+                  </label>
+                  <label className="flex flex-col text-xs gap-0.5">
+                    <span className="text-muted-foreground">По</span>
+                    <input
+                      type="date"
+                      value={rangeEnd}
+                      min={rangeStart || undefined}
+                      onChange={(e) => setRangeEnd(e.target.value)}
+                      className="text-sm border rounded px-2 py-1"
+                    />
+                  </label>
+                  <label className="flex flex-col text-xs gap-0.5">
+                    <span className="text-muted-foreground">Время</span>
+                    <input
+                      type="time"
+                      value={dailyTime}
+                      onChange={(e) => setDailyTime(e.target.value)}
+                      className="text-sm border rounded px-2 py-1"
+                    />
+                  </label>
                 </div>
-                {scheduledTimes.length > 0 && (
-                  <div className="space-y-1">
-                    {scheduledTimes.map((t, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center justify-between text-xs border rounded px-2 py-1 bg-background"
-                      >
-                        <span>{format(new Date(t), "dd.MM.yyyy HH:mm")}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveScheduledTime(i)}
-                          className="text-muted-foreground hover:text-destructive"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
+                {rangeStart && rangeEnd && rangeEnd < rangeStart && (
+                  <div className="text-xs text-destructive">
+                    Дата окончания должна быть не раньше начала
                   </div>
                 )}
               </div>
             </>
           )}
+
 
           <div className="flex gap-2">
             <Button size="sm" disabled={!canSave} onClick={handleAddOrder}>
