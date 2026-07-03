@@ -18,26 +18,21 @@ interface Props {
   onClose: () => void;
 }
 
-type Mode = "current" | "history";
-
-function Toggle({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => void }) {
+function HistorySection({ count, children }: { count: number; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
   return (
-    <div className="inline-flex rounded border overflow-hidden text-xs">
-      {(["current", "history"] as Mode[]).map((m) => (
-        <button
-          key={m}
-          onClick={() => onChange(m)}
-          className={cn(
-            "px-2 py-0.5",
-            mode === m ? "bg-primary text-primary-foreground" : "bg-muted/40 hover:bg-muted"
-          )}
-        >
-          {m === "current" ? "Текущая" : "История"}
-        </button>
-      ))}
+    <div className="mt-2 pt-2 border-t">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="text-xs text-primary hover:underline"
+      >
+        {open ? "Скрыть историю" : `Показать историю${count ? ` (${count})` : ""}`}
+      </button>
+      {open && <div className="mt-2 space-y-1.5">{children}</div>}
     </div>
   );
 }
+
 
 function ServiceColumn({
   title,
