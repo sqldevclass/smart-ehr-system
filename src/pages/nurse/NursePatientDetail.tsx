@@ -17,6 +17,7 @@ import InteractionWarnings, { useInteractionCount } from "@/components/medicatio
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import DiagnosisTab from "@/components/documents/DiagnosisTab";
 import TreatmentCarePlanModal from "@/components/nurse/TreatmentCarePlanModal";
+import PatientModalHeader from "@/components/nurse/PatientModalHeader";
 
 
 export default function NursePatientDetail() {
