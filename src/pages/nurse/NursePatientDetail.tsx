@@ -299,69 +299,37 @@ export default function NursePatientDetail() {
               height: "calc(100vh - 32px)",
             }}
           >
-            <div className="flex items-start gap-4 p-4 border-b">
-              <div className="flex-1">
-                <div className="text-lg font-semibold">Лист назначения</div>
-                <div className="mt-1 flex items-center gap-3 text-sm">
-                  <span className="font-medium">
-                    {patient?.last_name} {patient?.first_name}
-                  </span>
-                  <span className="text-muted-foreground">
-                    {patient?.date_of_birth
-                      ? format(new Date(patient.date_of_birth), "dd.MM.yyyy")
-                      : "—"}
-                    {" · "}
-                    {patient?.date_of_birth
-                      ? differenceInYears(new Date(), new Date(patient.date_of_birth))
-                      : "—"}{" "}
-                    лет
-                  </span>
-                  <span className="text-muted-foreground">
-                    П# {patient?.patient_number}
-                  </span>
-                  {patient?.weight_kg && (
-                    <span className="text-muted-foreground">
-                      {patient.weight_kg} кг
-                    </span>
-                  )}
-                  {patient?.height_cm && (
-                    <span className="text-muted-foreground">
-                      {patient.height_cm} см
-                    </span>
-                  )}
-                  {allergies.length > 0 && (
-                    <span className="text-red-700 font-semibold text-xs">
-                      ⚠ АЛЛЕРГИЯ:{" "}
-                      {allergies.map((a: any) => a.allergy_type).join(", ")}
-                    </span>
-                  )}
-                </div>
-              </div>
-              {interactions.length > 0 ? (
-                <button
-                  onClick={() => setShowIxModal(true)}
-                  className={cn(
-                    "text-xs border rounded px-2.5 py-1 shrink-0 transition-colors",
-                    ixSeverityClass()
-                  )}
-                >
-                  ⚠ Взаимодействия ({interactions.length})
-                </button>
-              ) : (
-                <button
-                  disabled
-                  className="text-xs border rounded px-2.5 py-1 shrink-0 text-muted-foreground border-muted opacity-50 cursor-not-allowed"
-                >
-                  Взаимодействия
-                </button>
-              )}
-              <button
-                onClick={() => setShowPrescriptions(false)}
-                className="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground shrink-0"
-              >
-                ✕
-              </button>
-            </div>
+            <PatientModalHeader
+              title="Лист назначения"
+              patient={patient}
+              room={ra ? `${ra.rooms?.name} / ${ra.bed_number}` : undefined}
+              allergies={
+                allergies.length > 0
+                  ? allergies.map((a: any) => a.allergy_type)
+                  : undefined
+              }
+              extra={
+                interactions.length > 0 ? (
+                  <button
+                    onClick={() => setShowIxModal(true)}
+                    className={cn(
+                      "text-xs border rounded px-2.5 py-1 shrink-0 transition-colors",
+                      ixSeverityClass()
+                    )}
+                  >
+                    ⚠ Взаимодействия ({interactions.length})
+                  </button>
+                ) : (
+                  <button
+                    disabled
+                    className="text-xs border rounded px-2.5 py-1 shrink-0 text-muted-foreground border-muted opacity-50 cursor-not-allowed"
+                  >
+                    Взаимодействия
+                  </button>
+                )
+              }
+              onClose={() => setShowPrescriptions(false)}
+            />
             <div className="flex-1 overflow-auto p-4">
               <NursePrescriptions
                 hospitalizationId={hospId!}
