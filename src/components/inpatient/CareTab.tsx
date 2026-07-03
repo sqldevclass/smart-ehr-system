@@ -250,44 +250,45 @@ export default function CareTab({
                 <div className="text-xs font-medium text-muted-foreground">
                   Расписание
                 </div>
-                <div className="flex gap-2">
-                  <input
-                    type="datetime-local"
-                    value={scheduleInput}
-                    onChange={(e) => setScheduleInput(e.target.value)}
-                    className="text-sm border rounded px-2 py-1 flex-1"
-                  />
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={!scheduleInput}
-                    onClick={handleAddScheduledTime}
-                  >
-                    Добавить
-                  </Button>
+                <div className="flex gap-2 items-end flex-wrap">
+                  <label className="flex flex-col text-xs gap-0.5">
+                    <span className="text-muted-foreground">С</span>
+                    <input
+                      type="date"
+                      value={rangeStart}
+                      onChange={(e) => setRangeStart(e.target.value)}
+                      className="text-sm border rounded px-2 py-1"
+                    />
+                  </label>
+                  <label className="flex flex-col text-xs gap-0.5">
+                    <span className="text-muted-foreground">По</span>
+                    <input
+                      type="date"
+                      value={rangeEnd}
+                      min={rangeStart || undefined}
+                      onChange={(e) => setRangeEnd(e.target.value)}
+                      className="text-sm border rounded px-2 py-1"
+                    />
+                  </label>
+                  <label className="flex flex-col text-xs gap-0.5">
+                    <span className="text-muted-foreground">Время</span>
+                    <input
+                      type="time"
+                      value={dailyTime}
+                      onChange={(e) => setDailyTime(e.target.value)}
+                      className="text-sm border rounded px-2 py-1"
+                    />
+                  </label>
                 </div>
-                {scheduledTimes.length > 0 && (
-                  <div className="space-y-1">
-                    {scheduledTimes.map((t, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center justify-between text-xs border rounded px-2 py-1 bg-background"
-                      >
-                        <span>{format(new Date(t), "dd.MM.yyyy HH:mm")}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveScheduledTime(i)}
-                          className="text-muted-foreground hover:text-destructive"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
+                {rangeStart && rangeEnd && rangeEnd < rangeStart && (
+                  <div className="text-xs text-destructive">
+                    Дата окончания должна быть не раньше начала
                   </div>
                 )}
               </div>
             </>
           )}
+
 
           <div className="flex gap-2">
             <Button size="sm" disabled={!canSave} onClick={handleAddOrder}>
