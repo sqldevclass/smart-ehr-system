@@ -457,6 +457,16 @@ export default function NursePatientDetail() {
       )}
 
 
+      {showCarePlanModal && patient && (
+        <TreatmentCarePlanModal
+          hospitalizationId={hospId!}
+          patientId={patient.id}
+          hospitalId={user!.hospitalId}
+          patientName={`${patient.last_name} ${patient.first_name}`}
+          onClose={() => setShowCarePlanModal(false)}
+        />
+      )}
+
       {showPatientCard && hospId && (
         <PatientCardModal
           hospitalizationId={hospId}
