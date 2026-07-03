@@ -1,8 +1,11 @@
 import { useState, useMemo, ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 import PatientModalHeader from "@/components/nurse/PatientModalHeader";
+
 
 
 const ORDER_TYPE_LABELS: Record<string, string> = {
@@ -149,6 +152,9 @@ function CareColumn({
     },
   });
 
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
   const { current, history } = useMemo(() => {
     const cur: any[] = [];
     const hist: any[] = [];
@@ -159,7 +165,50 @@ function CareColumn({
     return { current: cur, history: hist };
   }, [rows, hospitalizationId]);
 
-  const renderRow = (r: any) => (
+  const careOrderIds = useMemo(
+    () => (rows as any[]).filter((r) => r.order_type === "care").map((r) => r.id),
+    [rows],
+  );
+
+  const { data: occurrences = [] } = useQuery({
+    queryKey: ["care-plan-occurrences", careOrderIds],
+    enabled: careOrderIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hospitalization_order_occurrences")
+        .select("id, order_id, scheduled_at, status, completed_at, completed_by, profiles!completed_by(full_name)")
+        .in("order_id", careOrderIds)
+        .order("scheduled_at", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const occurrencesByOrder = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    for (const o of occurrences as any[]) {
+      (map[o.order_id] ||= []).push(o);
+    }
+    return map;
+  }, [occurrences]);
+
+  const handleComplete = async (occurrenceId: string) => {
+    const { error } = await supabase
+      .from("hospitalization_order_occurrences")
+      .update({
+        status: "done",
+        completed_at: new Date().toISOString(),
+        completed_by: user?.id,
+      })
+      .eq("id", occurrenceId);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: ["care-plan-occurrences"] });
+  };
+
+  const renderRow = (r: any, isHistory = false) => (
     <div key={r.id} className="border rounded p-1.5 text-xs space-y-0.5">
       <div className="flex items-center gap-1.5 flex-wrap">
         <span className="px-1.5 py-0.5 rounded bg-muted text-[11px]">
@@ -176,6 +225,36 @@ function CareColumn({
         {r.ordered_at ? format(new Date(r.ordered_at), "dd.MM.yy HH:mm") : "—"}
         {r.profiles?.full_name ? ` · ${r.profiles.full_name}` : ""}
       </div>
+      {r.order_type === "care" && occurrencesByOrder[r.id]?.length > 0 && (
+        <div className="mt-1 pt-1 border-t space-y-0.5">
+          {occurrencesByOrder[r.id].map((o: any) => (
+            <div
+              key={o.id}
+              className="flex items-center justify-between gap-2 text-[11px]"
+            >
+              <span>{format(new Date(o.scheduled_at), "dd.MM HH:mm")}</span>
+              {o.status === "done" ? (
+                <span className="text-muted-foreground truncate">
+                  выполнено{" "}
+                  {o.completed_at
+                    ? format(new Date(o.completed_at), "dd.MM HH:mm")
+                    : ""}
+                  {o.profiles?.full_name ? ` · ${o.profiles.full_name}` : ""}
+                </span>
+              ) : isHistory ? (
+                <span className="text-muted-foreground">ожидает</span>
+              ) : (
+                <button
+                  onClick={() => handleComplete(o.id)}
+                  className="text-blue-600 hover:underline shrink-0"
+                >
+                  Выполнить
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 
@@ -189,18 +268,19 @@ function CareColumn({
           ) : current.length === 0 ? (
             <div className="text-xs text-muted-foreground">Нет записей</div>
           ) : (
-            current.map(renderRow)
+            current.map((r) => renderRow(r, false))
           )}
         </div>
         {!isLoading && history.length > 0 && (
           <HistorySection count={history.length}>
-            {history.map(renderRow)}
+            {history.map((r) => renderRow(r, true))}
           </HistorySection>
         )}
       </div>
     </div>
   );
 }
+
 
 
 export default function TreatmentCarePlanModal({
