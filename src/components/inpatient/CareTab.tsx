@@ -72,6 +72,7 @@ export default function CareTab({
         .from("hospitalization_order_occurrences")
         .select(`
           id, order_id, scheduled_at, status, completed_at,
+          cancelled_at, cancelled_by,
           profiles!completed_by(full_name)
         `)
         .in("order_id", careOrderIds)
@@ -198,6 +199,23 @@ export default function CareTab({
     queryClient.invalidateQueries({ queryKey: ["care-orders"] });
   };
 
+  const handleCancelOccurrence = async (occurrenceId: string) => {
+    const { error } = await supabase
+      .from("hospitalization_order_occurrences")
+      .update({
+        status: "cancelled",
+        cancelled_at: new Date().toISOString(),
+        cancelled_by: userId,
+      })
+      .eq("id", occurrenceId);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    refetchOccurrences();
+    queryClient.invalidateQueries({ queryKey: ["care-order-occurrences"] });
+  };
+
   return (
     <div className="p-4 space-y-4">
       <h3 className="font-semibold">Назначения по уходу</h3>
@@ -314,12 +332,14 @@ export default function CareTab({
               </span>
               <p className="text-sm mt-0.5">{o.order_value}</p>
             </div>
-            <button
-              onClick={() => handleCancelOrder(o.id)}
-              className="text-muted-foreground hover:text-destructive text-xs opacity-0 group-hover:opacity-100 shrink-0 transition-opacity"
-            >
-              Отменить
-            </button>
+            {o.order_type !== "care" && (
+              <button
+                onClick={() => handleCancelOrder(o.id)}
+                className="text-muted-foreground hover:text-destructive text-xs opacity-0 group-hover:opacity-100 shrink-0 transition-opacity"
+              >
+                Отменить
+              </button>
+            )}
           </div>
           <div className="text-xs text-muted-foreground">
             {o.profiles?.full_name} · {format(new Date(o.ordered_at), "dd.MM.yyyy HH:mm")}
@@ -330,20 +350,31 @@ export default function CareTab({
               {occurrencesByOrder[o.id].map((occ) => (
                 <div
                   key={occ.id}
-                  className="flex items-center justify-between text-xs"
+                  className="flex items-center justify-between gap-2 text-xs"
                 >
                   <span>
                     {format(new Date(occ.scheduled_at), "dd.MM.yyyy HH:mm")}
                   </span>
-                  <span className="text-muted-foreground">
-                    {occ.status === "done"
-                      ? `выполнено${
-                          occ.completed_at
-                            ? " " + format(new Date(occ.completed_at), "dd.MM.yyyy HH:mm")
-                            : ""
-                        }${occ.profiles?.full_name ? " · " + occ.profiles.full_name : ""}`
-                      : "ожидает"}
-                  </span>
+                  {occ.status === "done" ? (
+                    <span className="text-green-700">
+                      выполнено{occ.completed_at ? " " + format(new Date(occ.completed_at), "dd.MM.yyyy HH:mm") : ""}
+                      {occ.profiles?.full_name ? " · " + occ.profiles.full_name : ""}
+                    </span>
+                  ) : occ.status === "cancelled" ? (
+                    <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                      Отменено{occ.cancelled_at ? " " + format(new Date(occ.cancelled_at), "dd.MM.yyyy HH:mm") : ""}
+                    </span>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground">ожидает</span>
+                      <button
+                        onClick={() => handleCancelOccurrence(occ.id)}
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        Отменить
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
