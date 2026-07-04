@@ -5,6 +5,7 @@ export interface AuthUser {
   id: string;
   fullName: string;
   roles: string[];
+  roleDetails: { code: string; name_ru: string; dashboard_route: string | null }[];
   hospitalId: string;
   hospitalName: string;
   timezone: string;
@@ -58,12 +59,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const { data: userRoles } = await supabase
         .from("user_roles")
-        .select("roles(code)")
+        .select("roles(code, name_ru, dashboard_route)")
         .eq("user_id", session.user.id);
 
       const roles = (userRoles ?? [])
         .map((ur: any) => ur.roles?.code)
         .filter(Boolean) as string[];
+
+      const roleDetails = (userRoles ?? [])
+        .map((ur: any) => ur.roles)
+        .filter(Boolean) as { code: string; name_ru: string; dashboard_route: string | null }[];
 
       const { data: hospital } = await supabase
         .from("hospitals")
@@ -81,6 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         id: session.user.id,
         fullName: profile.full_name || "Unknown",
         roles,
+        roleDetails,
         hospitalId: profile.hospital_id,
         hospitalName: hospital?.name || "Unknown Hospital",
         timezone: (settings as any)?.timezone || "Asia/Tashkent",

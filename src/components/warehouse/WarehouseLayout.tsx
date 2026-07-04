@@ -97,7 +97,7 @@ export default function WarehouseLayout() {
             {user && (
               <div className="flex items-center gap-3 text-sm text-muted-foreground">
                 <span>{user.fullName}</span>
-                <RoleSwitcher roles={user.roles} />
+                <RoleSwitcher roles={user.roleDetails} />
               </div>
             )}
           </header>
