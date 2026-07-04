@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import PatientModalHeader from "@/components/nurse/PatientModalHeader";
+import DrawSampleDialog from "@/components/shared/DrawSampleDialog";
 
 
 
