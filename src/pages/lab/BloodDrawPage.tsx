@@ -162,7 +162,18 @@ export default function BloodDrawPage() {
                     <TableCell>{vs.services?.name || "—"}</TableCell>
                     <TableCell>{vs.scheduled_at ? format(new Date(vs.scheduled_at), "MMM d HH:mm") : "—"}</TableCell>
                     <TableCell className="text-right">
-                      <Button size="sm" onClick={() => openDraw(vs)}>Draw Sample</Button>
+                      {sampleByVisitService[vs.id] ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={receiving === vs.id}
+                          onClick={() => handleReceive(vs, sampleByVisitService[vs.id])}
+                        >
+                          {receiving === vs.id ? "..." : `Receive (${sampleByVisitService[vs.id].barcode})`}
+                        </Button>
+                      ) : (
+                        <Button size="sm" onClick={() => openDraw(vs)}>Draw Sample</Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 );
