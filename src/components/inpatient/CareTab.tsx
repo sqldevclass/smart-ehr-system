@@ -72,6 +72,7 @@ export default function CareTab({
         .from("hospitalization_order_occurrences")
         .select(`
           id, order_id, scheduled_at, status, completed_at,
+          cancelled_at, cancelled_by,
           profiles!completed_by(full_name)
         `)
         .in("order_id", careOrderIds)
