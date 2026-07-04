@@ -59,12 +59,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const { data: userRoles } = await supabase
         .from("user_roles")
-        .select("roles(code)")
+        .select("roles(code, name_ru, dashboard_route)")
         .eq("user_id", session.user.id);
 
       const roles = (userRoles ?? [])
         .map((ur: any) => ur.roles?.code)
         .filter(Boolean) as string[];
+
+      const roleDetails = (userRoles ?? [])
+        .map((ur: any) => ur.roles)
+        .filter(Boolean) as { code: string; name_ru: string; dashboard_route: string | null }[];
 
       const { data: hospital } = await supabase
         .from("hospitals")
