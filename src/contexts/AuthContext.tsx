@@ -5,6 +5,7 @@ export interface AuthUser {
   id: string;
   fullName: string;
   roles: string[];
+  roleDetails: { code: string; name_ru: string; dashboard_route: string | null }[];
   hospitalId: string;
   hospitalName: string;
   timezone: string;
