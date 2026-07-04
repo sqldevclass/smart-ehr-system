@@ -182,7 +182,7 @@ function CareColumn({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("hospitalization_order_occurrences")
-        .select("id, order_id, scheduled_at, status, completed_at, completed_by, profiles!completed_by(full_name)")
+        .select("id, order_id, scheduled_at, status, completed_at, completed_by, cancelled_at, cancelled_by, profiles!completed_by(full_name)")
         .in("order_id", careOrderIds)
         .order("scheduled_at", { ascending: true });
       if (error) throw error;
@@ -251,6 +251,11 @@ function CareColumn({
                     ? format(new Date(o.completed_at), "dd.MM HH:mm")
                     : ""}
                   {o.profiles?.full_name ? ` · ${o.profiles.full_name}` : ""}
+                </span>
+              ) : o.status === "cancelled" ? (
+                <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground truncate">
+                  Отменено
+                  {o.cancelled_at ? " " + format(new Date(o.cancelled_at), "dd.MM HH:mm") : ""}
                 </span>
               ) : isHistory ? (
                 <span className="text-muted-foreground">ожидает</span>
