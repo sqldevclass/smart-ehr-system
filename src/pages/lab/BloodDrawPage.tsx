@@ -12,6 +12,8 @@ import DrawSampleDialog from "@/components/shared/DrawSampleDialog";
 
 export default function BloodDrawPage() {
   const { user } = useAuth();
+  const qc = useQueryClient();
+
 
   const { data: serviceTypes = [] } = useQuery({
     queryKey: ["service-types-lab", user?.hospitalId],
