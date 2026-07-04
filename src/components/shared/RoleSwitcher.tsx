@@ -33,6 +33,8 @@ const ROLE_ROUTES: Record<string, string> = {
   hr: "/hr",
   pharmacist: "/pharmacy",
   warehouse_staff: "/warehouse",
+  lab_physician: "/lab",
+  blood_draw_nurse: "/lab",
 };
 
 interface Props {
