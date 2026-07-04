@@ -1,44 +1,14 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
-const ROLE_LABELS: Record<string, string> = {
-  admin: "Администратор",
-  outpatient_registrar: "Регистратор",
-  call_center_registrar: "Регистратор КЦ",
-  inpatient_registrar: "Регистратор (стац.)",
-  cashier: "Кассир",
-  physician: "Врач",
-  functional_diagnostics_physician: "Врач ФД",
-  lab_physician: "Врач лаборатории",
-  blood_draw_nurse: "Медсестра забора",
-  inpatient_nurse: "Медсестра",
-  head_nurse: "Старшая медсестра",
-  senior_manager: "Старший менеджер",
-  hr: "HR",
-  finance: "Финансист",
-  pharmacist: "Провизор",
-  warehouse_staff: "Склад",
-  inventory_manager: "Инвентаризатор",
-  radiology_technician: "Рентген-лаборант",
-};
-
-const ROLE_ROUTES: Record<string, string> = {
-  admin: "/admin",
-  outpatient_registrar: "/registrar",
-  inpatient_registrar: "/inpatient",
-  cashier: "/cashier",
-  physician: "/physician",
-  inpatient_nurse: "/nurse",
-  head_nurse: "/nurse",
-  hr: "/hr",
-  pharmacist: "/pharmacy",
-  warehouse_staff: "/warehouse",
-  lab_physician: "/lab",
-  blood_draw_nurse: "/lab",
-};
+interface RoleDetail {
+  code: string;
+  name_ru: string;
+  dashboard_route: string | null;
+}
 
 interface Props {
-  roles: string[];
+  roles: RoleDetail[];
 }
 
 export default function RoleSwitcher({ roles }: Props) {
@@ -60,14 +30,14 @@ export default function RoleSwitcher({ roles }: Props) {
 
   if (!roles || roles.length === 0) return null;
 
-  const activeRole = roles.find((role) => {
-    const route = ROLE_ROUTES[role];
-    return route && pathname.startsWith(route);
-  }) ?? roles[0];
+  const activeRole =
+    roles.find(
+      (role) => role.dashboard_route && pathname.startsWith(role.dashboard_route),
+    ) ?? roles[0];
 
-  const otherRoles = roles.filter((r) => r !== activeRole);
-  const activeLabel = ROLE_LABELS[activeRole] ?? activeRole;
-  const activeRoute = ROLE_ROUTES[activeRole];
+  const otherRoles = roles.filter((r) => r.code !== activeRole.code);
+  const activeLabel = activeRole.name_ru ?? activeRole.code;
+  const activeRoute = activeRole.dashboard_route;
 
   return (
     <div ref={ref} className="relative flex items-center gap-1.5">
@@ -99,11 +69,11 @@ export default function RoleSwitcher({ roles }: Props) {
       {open && otherRoles.length > 0 && (
         <div className="absolute right-0 top-full mt-1 z-50 min-w-[160px] rounded-md border bg-popover shadow-md py-1">
           {otherRoles.map((role) => {
-            const label = ROLE_LABELS[role] ?? role;
-            const route = ROLE_ROUTES[role];
+            const label = role.name_ru ?? role.code;
+            const route = role.dashboard_route;
             return route ? (
               <button
-                key={role}
+                key={role.code}
                 type="button"
                 onClick={() => { navigate(route); setOpen(false); }}
                 className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted transition-colors"
@@ -112,7 +82,7 @@ export default function RoleSwitcher({ roles }: Props) {
               </button>
             ) : (
               <span
-                key={role}
+                key={role.code}
                 className="block px-3 py-1.5 text-xs text-muted-foreground opacity-60"
               >
                 {label}
