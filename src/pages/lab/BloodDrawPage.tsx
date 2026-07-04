@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,8 @@ import DrawSampleDialog from "@/components/shared/DrawSampleDialog";
 
 export default function BloodDrawPage() {
   const { user } = useAuth();
+  const qc = useQueryClient();
+
 
   const { data: serviceTypes = [] } = useQuery({
     queryKey: ["service-types-lab", user?.hospitalId],
@@ -61,13 +64,71 @@ export default function BloodDrawPage() {
     [rawServices, labTypeIds],
   );
 
+  const labServiceIds = useMemo(
+    () => labServices.map((vs: any) => vs.id),
+    [labServices],
+  );
+
+  const { data: existingSamples = [] } = useQuery({
+    queryKey: ["lab-samples-for-queue", labServiceIds],
+    enabled: labServiceIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("lab_samples")
+        .select("id, visit_service_id, status, barcode")
+        .in("visit_service_id", labServiceIds);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const sampleByVisitService = useMemo(() => {
+    const map: Record<string, any> = {};
+    for (const s of existingSamples as any[]) {
+      map[s.visit_service_id] = s;
+    }
+    return map;
+  }, [existingSamples]);
+
   const [drawOpen, setDrawOpen] = useState(false);
   const [selected, setSelected] = useState<any>(null);
+  const [receiving, setReceiving] = useState<string | null>(null);
 
   const openDraw = (vs: any) => {
     setSelected(vs);
     setDrawOpen(true);
   };
+
+  const handleReceive = async (vs: any, sample: any) => {
+    setReceiving(vs.id);
+    try {
+      const { data: inProgressStatus } = await supabase
+        .from("service_statuses")
+        .select("id")
+        .eq("code", "in_progress")
+        .single();
+      const { error: sampleErr } = await supabase
+        .from("lab_samples")
+        .update({ status: "in_progress" })
+        .eq("id", sample.id);
+      if (sampleErr) throw sampleErr;
+      if (inProgressStatus) {
+        const { error: vsErr } = await supabase
+          .from("visit_services")
+          .update({ status_id: inProgressStatus.id })
+          .eq("id", vs.id);
+        if (vsErr) throw vsErr;
+      }
+      toast.success(`Sample received: ${sample.barcode}`);
+      qc.invalidateQueries({ queryKey: ["lab-blood-draw"] });
+      qc.invalidateQueries({ queryKey: ["lab-samples-for-queue"] });
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setReceiving(null);
+    }
+  };
+
 
   return (
     <div className="space-y-4">
@@ -101,7 +162,18 @@ export default function BloodDrawPage() {
                     <TableCell>{vs.services?.name || "—"}</TableCell>
                     <TableCell>{vs.scheduled_at ? format(new Date(vs.scheduled_at), "MMM d HH:mm") : "—"}</TableCell>
                     <TableCell className="text-right">
-                      <Button size="sm" onClick={() => openDraw(vs)}>Draw Sample</Button>
+                      {sampleByVisitService[vs.id] ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={receiving === vs.id}
+                          onClick={() => handleReceive(vs, sampleByVisitService[vs.id])}
+                        >
+                          {receiving === vs.id ? "..." : `Receive (${sampleByVisitService[vs.id].barcode})`}
+                        </Button>
+                      ) : (
+                        <Button size="sm" onClick={() => openDraw(vs)}>Draw Sample</Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 );
