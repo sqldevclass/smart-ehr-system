@@ -199,6 +199,23 @@ export default function CareTab({
     queryClient.invalidateQueries({ queryKey: ["care-orders"] });
   };
 
+  const handleCancelOccurrence = async (occurrenceId: string) => {
+    const { error } = await supabase
+      .from("hospitalization_order_occurrences")
+      .update({
+        status: "cancelled",
+        cancelled_at: new Date().toISOString(),
+        cancelled_by: userId,
+      })
+      .eq("id", occurrenceId);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    refetchOccurrences();
+    queryClient.invalidateQueries({ queryKey: ["care-order-occurrences"] });
+  };
+
   return (
     <div className="p-4 space-y-4">
       <h3 className="font-semibold">Назначения по уходу</h3>
