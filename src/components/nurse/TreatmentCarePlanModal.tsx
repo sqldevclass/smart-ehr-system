@@ -59,13 +59,15 @@ function ServiceColumn({
   patientId: string;
   hospitalId: string;
 }) {
+  const queryClient = useQueryClient();
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["care-plan-services", typeCode, patientId, hospitalId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("visit_services")
         .select(`
-          id, created_at, hospitalization_id,
+          id, created_at, hospitalization_id, patient_id,
+          patients(first_name, last_name, patient_number),
           services!inner(name, service_type_id, service_types!inner(code)),
           service_statuses!inner(code, name_ru)
         `)
@@ -88,13 +90,24 @@ function ServiceColumn({
     return { current: cur, history: hist };
   }, [rows, hospitalizationId]);
 
+  const [drawTarget, setDrawTarget] = useState<any>(null);
+
   const renderRow = (r: any, isHistory: boolean) => (
     <div key={r.id} className="border rounded p-1.5 text-xs space-y-0.5">
       <div className="font-medium leading-snug">{r.services?.name}</div>
       <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-muted-foreground">
-        <span className="px-1.5 py-0.5 rounded bg-muted">
-          {r.service_statuses?.name_ru}
-        </span>
+        {typeCode === "laboratory" && r.service_statuses?.code === "preliminary" && !isHistory ? (
+          <button
+            onClick={() => setDrawTarget(r)}
+            className="px-1.5 py-0.5 rounded bg-muted hover:bg-muted/70 underline"
+          >
+            {r.service_statuses?.name_ru}
+          </button>
+        ) : (
+          <span className="px-1.5 py-0.5 rounded bg-muted">
+            {r.service_statuses?.name_ru}
+          </span>
+        )}
         <span>
           {r.created_at ? format(new Date(r.created_at), "dd.MM.yy HH:mm") : "—"}
         </span>
@@ -126,6 +139,27 @@ function ServiceColumn({
           </HistorySection>
         )}
       </div>
+      <DrawSampleDialog
+        open={!!drawTarget}
+        onOpenChange={(open) => !open && setDrawTarget(null)}
+        visitService={drawTarget}
+        barcodePrefix="WARD"
+        sampleStatus="drawn"
+        onDrawn={async (visitServiceId) => {
+          const { data: readyStatus } = await supabase
+            .from("service_statuses")
+            .select("id")
+            .eq("code", "ready_for_execution")
+            .single();
+          if (readyStatus) {
+            await supabase
+              .from("visit_services")
+              .update({ status_id: readyStatus.id })
+              .eq("id", visitServiceId);
+          }
+          queryClient.invalidateQueries({ queryKey: ["care-plan-services"] });
+        }}
+      />
     </div>
   );
 }
