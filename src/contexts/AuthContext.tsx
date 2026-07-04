@@ -86,6 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         id: session.user.id,
         fullName: profile.full_name || "Unknown",
         roles,
+        roleDetails,
         hospitalId: profile.hospital_id,
         hospitalName: hospital?.name || "Unknown Hospital",
         timezone: (settings as any)?.timezone || "Asia/Tashkent",
