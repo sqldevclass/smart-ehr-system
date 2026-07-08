@@ -197,6 +197,7 @@ function CareColumn({
 
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { getHospitalizationStatus, getOccurrenceStatus } = useCareOrderSchedule(hospitalId);
 
   const { current, history } = useMemo(() => {
     const cur: any[] = [];
