@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import PatientModalHeader from "@/components/nurse/PatientModalHeader";
 import DrawSampleDialog from "@/components/shared/DrawSampleDialog";
+import EWSStatusDot from "@/components/ews/EWSStatusDot";
+import { useCareOrderSchedule } from "@/hooks/useCareOrderSchedule";
 
 
 
@@ -195,6 +197,7 @@ function CareColumn({
 
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { getHospitalizationStatus, getOccurrenceStatus } = useCareOrderSchedule(hospitalId);
 
   const { current, history } = useMemo(() => {
     const cur: any[] = [];
@@ -295,12 +298,15 @@ function CareColumn({
               ) : isHistory ? (
                 <span className="text-muted-foreground">ожидает</span>
               ) : (
-                <button
-                  onClick={() => handleComplete(o.id)}
-                  className="text-blue-600 hover:underline shrink-0"
-                >
-                  Выполнить
-                </button>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <EWSStatusDot status={getOccurrenceStatus(o.id)} pulse />
+                  <button
+                    onClick={() => handleComplete(o.id)}
+                    className="text-blue-600 hover:underline"
+                  >
+                    Выполнить
+                  </button>
+                </div>
               )}
             </div>
           ))}
@@ -311,7 +317,10 @@ function CareColumn({
 
   return (
     <div className="flex flex-col min-h-0">
-      <div className="text-sm font-semibold mb-2">Уход</div>
+      <div className="text-sm font-semibold mb-2 flex items-center gap-1.5">
+        Уход
+        <EWSStatusDot status={getHospitalizationStatus(hospitalizationId)} pulse />
+      </div>
       <div className="flex-1 overflow-y-auto pr-1">
         <div className="space-y-1.5">
           {isLoading ? (
