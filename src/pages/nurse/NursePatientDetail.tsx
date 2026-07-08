@@ -18,6 +18,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import DiagnosisTab from "@/components/documents/DiagnosisTab";
 import TreatmentCarePlanModal from "@/components/nurse/TreatmentCarePlanModal";
 import PatientModalHeader from "@/components/nurse/PatientModalHeader";
+import EWSStatusDot from "@/components/ews/EWSStatusDot";
+import { useCareOrderSchedule } from "@/hooks/useCareOrderSchedule";
 
 
 export default function NursePatientDetail() {
