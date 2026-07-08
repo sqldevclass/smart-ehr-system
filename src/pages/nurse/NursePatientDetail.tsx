@@ -251,7 +251,10 @@ export default function NursePatientDetail() {
         >
           Мед. документы
         </Button>
-        <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setShowCarePlanModal(true)}>План лечения и ухода</Button>
+        <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1.5" onClick={() => setShowCarePlanModal(true)}>
+          План лечения и ухода
+          <EWSStatusDot status={getHospitalizationStatus(hospId!)} pulse />
+        </Button>
         <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setActiveTab("diagnosis")}>Диагнозы</Button>
         {allergies.length > 0 && (
           <div className="flex items-center gap-1 text-xs text-red-700 font-semibold">
