@@ -298,12 +298,15 @@ function CareColumn({
               ) : isHistory ? (
                 <span className="text-muted-foreground">ожидает</span>
               ) : (
-                <button
-                  onClick={() => handleComplete(o.id)}
-                  className="text-blue-600 hover:underline shrink-0"
-                >
-                  Выполнить
-                </button>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <EWSStatusDot status={getOccurrenceStatus(o.id)} pulse />
+                  <button
+                    onClick={() => handleComplete(o.id)}
+                    className="text-blue-600 hover:underline"
+                  >
+                    Выполнить
+                  </button>
+                </div>
               )}
             </div>
           ))}
