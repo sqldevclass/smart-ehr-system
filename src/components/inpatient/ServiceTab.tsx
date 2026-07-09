@@ -30,6 +30,7 @@ export default function ServiceTab({
   const [submitting, setSubmitting] = useState(false);
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const [searchText, setSearchText] = useState("");
+  const [showResults, setShowResults] = useState(false);
   const [draft, setDraft] = useState<{ id: string; name: string }[]>([]);
   const [orderErrors, setOrderErrors] = useState<{ name: string; message: string }[]>([]);
 
