@@ -198,14 +198,26 @@ export default function ServiceTab({
     <>
       {!readOnly && typeCode === "laboratory" && labGroups.length > 0 && (
         <div className="flex gap-1 border-b overflow-x-auto">
+          <button
+            type="button"
+            onClick={() => setShowResults(true)}
+            className={cn(
+              "px-3 py-1.5 text-sm rounded-t whitespace-nowrap",
+              showResults
+                ? "border-b-2 border-green-500 font-medium text-green-600"
+                : "text-green-600/70 hover:text-green-600",
+            )}
+          >
+            Результаты
+          </button>
           {labGroups.map((g) => (
             <button
               key={g.id}
               type="button"
-              onClick={() => { setActiveGroupId(g.id); setSearchText(""); }}
+              onClick={() => { setShowResults(false); setActiveGroupId(g.id); setSearchText(""); }}
               className={cn(
                 "px-3 py-1.5 text-sm rounded-t whitespace-nowrap",
-                activeGroupId === g.id && !searchText
+                !showResults && activeGroupId === g.id && !searchText
                   ? "border-b-2 border-primary font-medium text-primary"
                   : "text-muted-foreground hover:text-foreground",
               )}
@@ -215,6 +227,17 @@ export default function ServiceTab({
           ))}
         </div>
       )}
+
+      {typeCode === "laboratory" && showResults && (
+        <PhysicianResultsTab
+          hospitalizationId={hospitalizationId}
+          patientId={patientId}
+          hospitalId={hospitalId}
+        />
+      )}
+
+      {!(typeCode === "laboratory" && showResults) && <>
+
 
       {!readOnly && (
         <div className="border rounded p-3 space-y-3 bg-muted/30">
