@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import EWSSection from "@/components/ews/EWSSection";
 import NursePrescriptions from "@/components/medication/NursePrescriptions";
 import NurseMonitoringPanel from "@/components/nurse/NurseMonitoringPanel";
+import { getFallRiskScaleCode } from "@/lib/fallRiskScale";
 import PatientDocumentSidebar from "@/components/documents/PatientDocumentSidebar";
 import FallingPersonIcon from "@/components/assessments/FallingPersonIcon";
 import { cn } from "@/lib/utils";
@@ -109,12 +110,10 @@ export default function NursePatientDetail() {
     enabled: !!hospId,
   });
 
-  const fallRiskScaleCode = useMemo(() => {
-    const dob = (hosp as any)?.patients?.date_of_birth;
-    if (!dob) return undefined;
-    const ageYears = differenceInYears(new Date(), new Date(dob));
-    return ageYears < 18 ? "humpty_dumpty" : "morse";
-  }, [(hosp as any)?.patients?.date_of_birth]);
+  const fallRiskScaleCode = useMemo(
+    () => getFallRiskScaleCode((hosp as any)?.patients?.date_of_birth),
+    [(hosp as any)?.patients?.date_of_birth],
+  );
 
   const { data: fallRiskAssessments = [] } = useQuery({
     queryKey: ["fall-risk-assessments", hospId, fallRiskScaleCode],

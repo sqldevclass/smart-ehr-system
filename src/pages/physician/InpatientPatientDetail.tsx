@@ -27,8 +27,10 @@ import { usePhysicianLayoutContext } from "@/components/physician/PhysicianLayou
 import PatientCardModal from "@/components/patient/PatientCardModal";
 import ServiceTab from "@/components/inpatient/ServiceTab";
 import CareTab from "@/components/inpatient/CareTab";
+import NurseMonitoringPanel from "@/components/nurse/NurseMonitoringPanel";
+import { getFallRiskScaleCode } from "@/lib/fallRiskScale";
 
-type TabKey = "medication" | "imaging" | "lab" | "consultation" | "care" | "diagnosis" | "ews";
+type TabKey = "medication" | "imaging" | "lab" | "consultation" | "care" | "diagnosis" | "scales" | "ews";
 
 type ActiveView =
   | { type: "document"; documentId: string | null; documentTypeId: string }
@@ -42,6 +44,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "consultation", label: "Консультация" },
   { key: "care", label: "Уход" },
   { key: "diagnosis", label: "Диагнозы" },
+  { key: "scales", label: "Шкалы" },
   { key: "ews", label: "ШРПУ" },
 ];
 
@@ -703,6 +706,18 @@ function TabPanel(props: TabProps) {
       return <Placeholder text="Инструментальные — Фаза 8 — в разработке" />;
     case "care":
       return <CareTab {...props} />;
+    case "scales":
+      return (
+        <NurseMonitoringPanel
+          hospitalizationId={props.hospitalizationId}
+          patientId={props.patientId}
+          hospitalId={props.hospitalId}
+          patientDateOfBirth={props.patientDateOfBirth}
+          patientGender={props.patientGender}
+          fallRiskScaleCode={getFallRiskScaleCode(props.patientDateOfBirth)}
+          isReadOnly
+        />
+      );
     case "ews":
       return (
         <div className="p-4">
