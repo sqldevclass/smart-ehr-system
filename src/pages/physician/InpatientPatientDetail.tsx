@@ -45,8 +45,8 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "consultation", label: "Консультация" },
   { key: "care", label: "Уход" },
   { key: "diagnosis", label: "Диагнозы" },
-  { key: "scales", label: "Шкалы" },
   { key: "ews", label: "ШРПУ" },
+  { key: "scales", label: "Шкалы" },
 ];
 
 export default function InpatientPatientDetail() {
