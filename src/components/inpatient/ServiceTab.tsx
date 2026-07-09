@@ -191,11 +191,11 @@ export default function ServiceTab({
         </div>
       )}
 
-      {items.length === 0 ? (
+      {filteredItems.length === 0 ? (
         <p className="text-sm text-muted-foreground">Пока нет назначений.</p>
       ) : (
         <ul className="space-y-2">
-          {items.map((vs: any) => (
+          {filteredItems.map((vs: any) => (
             <li key={vs.id} className="flex items-center justify-between border rounded p-2 text-sm">
               <div>
                 <div className="font-medium">{vs.services?.name}</div>
@@ -215,7 +215,9 @@ export default function ServiceTab({
 
   return (
     <div className="p-4 space-y-4">
-      <h3 className="font-semibold">{title}</h3>
+      {typeCode !== "laboratory" && (
+        <h3 className="font-semibold">{title}</h3>
+      )}
 
       {typeCode === "laboratory" ? (
         <div className="grid grid-cols-1 md:grid-cols-[1fr_240px] gap-4">
