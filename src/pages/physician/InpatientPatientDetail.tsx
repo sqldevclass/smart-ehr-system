@@ -709,14 +709,10 @@ function TabPanel(props: TabProps) {
       return <CareTab {...props} />;
     case "scales":
       return (
-        <NurseMonitoringPanel
+        <PhysicianScalesTab
           hospitalizationId={props.hospitalizationId}
           patientId={props.patientId}
           hospitalId={props.hospitalId}
-          patientDateOfBirth={props.patientDateOfBirth}
-          patientGender={props.patientGender}
-          fallRiskScaleCode={getFallRiskScaleCode(props.patientDateOfBirth)}
-          isReadOnly
         />
       );
     case "ews":
