@@ -36,7 +36,7 @@ export default function ServiceTab({
         .from("visit_services")
         .select(`
           id, created_at, status_id,
-          services!inner(name, service_type_id, service_types!inner(code)),
+          services!inner(name, service_type_id, service_group_id, service_types!inner(code)),
           service_statuses!inner(code, name_ru)
         `)
         .eq("hospital_id", hospitalId)
@@ -92,6 +92,13 @@ export default function ServiceTab({
     }
     return catalog.filter((s: any) => s.service_group_id === activeGroupId);
   }, [typeCode, catalog, searchText, activeGroupId]);
+
+  const filteredItems = useMemo(() => {
+    if (typeCode !== "laboratory" || !activeGroupId) return items;
+    return items.filter(
+      (vs: any) => vs.services?.service_group_id === activeGroupId,
+    );
+  }, [typeCode, items, activeGroupId]);
 
   const { data: favorites = [] } = useQuery({
     queryKey: ["physician-service-favorites", userId, typeCode],
@@ -184,11 +191,11 @@ export default function ServiceTab({
         </div>
       )}
 
-      {items.length === 0 ? (
+      {filteredItems.length === 0 ? (
         <p className="text-sm text-muted-foreground">Пока нет назначений.</p>
       ) : (
         <ul className="space-y-2">
-          {items.map((vs: any) => (
+          {filteredItems.map((vs: any) => (
             <li key={vs.id} className="flex items-center justify-between border rounded p-2 text-sm">
               <div>
                 <div className="font-medium">{vs.services?.name}</div>
@@ -208,7 +215,9 @@ export default function ServiceTab({
 
   return (
     <div className="p-4 space-y-4">
-      <h3 className="font-semibold">{title}</h3>
+      {typeCode !== "laboratory" && (
+        <h3 className="font-semibold">{title}</h3>
+      )}
 
       {typeCode === "laboratory" ? (
         <div className="grid grid-cols-1 md:grid-cols-[1fr_240px] gap-4">
