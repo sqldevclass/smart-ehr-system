@@ -28,8 +28,9 @@ import PatientCardModal from "@/components/patient/PatientCardModal";
 import ServiceTab from "@/components/inpatient/ServiceTab";
 import CareTab from "@/components/inpatient/CareTab";
 import PhysicianScalesTab from "@/components/physician/PhysicianScalesTab";
+import PhysicianResultsTab from "@/components/physician/PhysicianResultsTab";
 
-type TabKey = "medication" | "imaging" | "lab" | "consultation" | "care" | "diagnosis" | "scales" | "ews";
+type TabKey = "results" | "medication" | "imaging" | "lab" | "consultation" | "care" | "diagnosis" | "scales" | "ews";
 
 type ActiveView =
   | { type: "document"; documentId: string | null; documentTypeId: string }
@@ -37,6 +38,7 @@ type ActiveView =
   | null;
 
 const TABS: { key: TabKey; label: string }[] = [
+  { key: "results", label: "Результаты" },
   { key: "medication", label: "Лист назначения" },
   { key: "imaging", label: "Инструментальные" },
   { key: "lab", label: "Лаборатория" },
