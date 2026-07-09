@@ -36,7 +36,7 @@ export default function ServiceTab({
         .from("visit_services")
         .select(`
           id, created_at, status_id,
-          services!inner(name, service_type_id, service_types!inner(code)),
+          services!inner(name, service_type_id, service_group_id, service_types!inner(code)),
           service_statuses!inner(code, name_ru)
         `)
         .eq("hospital_id", hospitalId)
