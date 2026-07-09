@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from "@/components/ui/select";
@@ -28,6 +29,16 @@ export default function ServiceTab({
   const [submitting, setSubmitting] = useState(false);
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const [searchText, setSearchText] = useState("");
+  const [draft, setDraft] = useState<{ id: string; name: string }[]>([]);
+  const [orderErrors, setOrderErrors] = useState<{ name: string; message: string }[]>([]);
+
+  const toggleDraft = (service: { id: string; name: string }) => {
+    setDraft((prev) =>
+      prev.some((d) => d.id === service.id)
+        ? prev.filter((d) => d.id !== service.id)
+        : [...prev, { id: service.id, name: service.name }],
+    );
+  };
 
   const { data: items = [] } = useQuery({
     queryKey: ["inpatient-services", typeCode, hospitalizationId, patientId],
@@ -59,7 +70,7 @@ export default function ServiceTab({
     queryFn: async () => {
       const { data } = await supabase
         .from("services")
-        .select("id, name, service_type_id, service_group_id, service_types!inner(code), service_groups!inner(name)")
+        .select("id, name, code, service_type_id, service_group_id, service_types!inner(code), service_groups!inner(name)")
         .eq("hospital_id", hospitalId)
         .eq("is_active", true)
         .order("name");
@@ -88,7 +99,11 @@ export default function ServiceTab({
     if (typeCode !== "laboratory") return catalog;
     if (searchText.trim()) {
       const q = searchText.toLowerCase();
-      return catalog.filter((s: any) => s.name.toLowerCase().includes(q));
+      return catalog.filter(
+        (s: any) =>
+          s.name.toLowerCase().includes(q) ||
+          (s.code && s.code.toLowerCase().includes(q)),
+      );
     }
     return catalog.filter((s: any) => s.service_group_id === activeGroupId);
   }, [typeCode, catalog, searchText, activeGroupId]);
@@ -141,6 +156,42 @@ export default function ServiceTab({
     }
   };
 
+  const handleOrderDraft = async () => {
+    if (draft.length === 0) return;
+    setSubmitting(true);
+    setOrderErrors([]);
+    const failures: { name: string; message: string }[] = [];
+    const succeededIds: string[] = [];
+
+    for (const item of draft) {
+      const { error } = await supabase.rpc("inpatient_order_service", {
+        p_hospitalization_id: hospitalizationId,
+        p_patient_id: patientId,
+        p_hospital_id: hospitalId,
+        p_service_id: item.id,
+        p_ordered_by: userId,
+      });
+      if (error) {
+        failures.push({ name: item.name, message: error.message });
+      } else {
+        succeededIds.push(item.id);
+      }
+    }
+
+    setDraft((prev) => prev.filter((d) => !succeededIds.includes(d.id)));
+    setOrderErrors(failures);
+
+    if (succeededIds.length > 0) {
+      toast.success(`Назначено: ${succeededIds.length}`);
+      queryClient.invalidateQueries({ queryKey: ["inpatient-services", typeCode] });
+      queryClient.invalidateQueries({ queryKey: ["physician-service-favorites", userId, typeCode] });
+    }
+    if (failures.length > 0) {
+      toast.error(`Не удалось назначить: ${failures.length}`);
+    }
+    setSubmitting(false);
+  };
+
   const orderingAndList = (
     <>
       {!readOnly && typeCode === "laboratory" && labGroups.length > 0 && (
@@ -173,21 +224,83 @@ export default function ServiceTab({
               className="h-8 text-sm"
             />
           )}
-          <Select value={selectedServiceId} onValueChange={setSelectedServiceId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Выберите услугу" />
-            </SelectTrigger>
-            <SelectContent>
-              {filteredCatalog.map((s: any) => (
-                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="flex gap-2">
-            <Button size="sm" onClick={handleOrder} disabled={!selectedServiceId || submitting}>
-              {submitting ? "..." : "Назначить"}
-            </Button>
+          {typeCode === "laboratory" ? (
+            <div className="max-h-72 overflow-y-auto border rounded bg-background divide-y">
+              {filteredCatalog.length === 0 ? (
+                <div className="p-3 text-sm text-muted-foreground">Ничего не найдено</div>
+              ) : (
+                filteredCatalog.map((s: any) => {
+                  const checked = draft.some((d) => d.id === s.id);
+                  return (
+                    <label
+                      key={s.id}
+                      className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-muted/50"
+                    >
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={() => toggleDraft({ id: s.id, name: s.name })}
+                      />
+                      <span className="flex-1">{s.name}</span>
+                      {s.code && (
+                        <span className="text-xs text-muted-foreground">{s.code}</span>
+                      )}
+                    </label>
+                  );
+                })
+              )}
+            </div>
+          ) : (
+            <>
+              <Select value={selectedServiceId} onValueChange={setSelectedServiceId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите услугу" />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredCatalog.map((s: any) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={handleOrder} disabled={!selectedServiceId || submitting}>
+                  {submitting ? "..." : "Назначить"}
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {!readOnly && typeCode === "laboratory" && draft.length > 0 && (
+        <div className="border rounded p-3 space-y-2 bg-primary/5">
+          <div className="text-xs uppercase text-muted-foreground">
+            К назначению ({draft.length})
           </div>
+          {draft.map((d) => (
+            <div key={d.id} className="flex items-center justify-between text-sm">
+              <span>{d.name}</span>
+              <button
+                type="button"
+                onClick={() => setDraft((prev) => prev.filter((x) => x.id !== d.id))}
+                className="text-muted-foreground hover:text-destructive text-xs"
+              >
+                Отменить
+              </button>
+            </div>
+          ))}
+          <Button size="sm" onClick={handleOrderDraft} disabled={submitting}>
+            {submitting ? "..." : `Назначить (${draft.length})`}
+          </Button>
+        </div>
+      )}
+
+      {!readOnly && typeCode === "laboratory" && orderErrors.length > 0 && (
+        <div className="border border-destructive/40 rounded p-3 space-y-1 bg-destructive/5">
+          {orderErrors.map((e, i) => (
+            <div key={i} className="text-xs text-destructive">
+              {e.name}: {e.message}
+            </div>
+          ))}
         </div>
       )}
 
@@ -233,10 +346,10 @@ export default function ServiceTab({
                 <button
                   key={f.service_id}
                   type="button"
-                  onClick={() => setSelectedServiceId(f.service_id)}
+                  onClick={() => toggleDraft({ id: f.service_id, name: f.services?.name })}
                   className={cn(
                     "w-full text-left text-sm px-2 py-1.5 rounded hover:bg-muted truncate",
-                    selectedServiceId === f.service_id && "bg-muted font-medium",
+                    draft.some((d) => d.id === f.service_id) && "bg-muted font-medium",
                   )}
                   title={f.services?.name}
                 >
