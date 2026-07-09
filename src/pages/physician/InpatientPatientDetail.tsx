@@ -696,14 +696,7 @@ interface TabProps {
 function TabPanel(props: TabProps) {
   const { tab } = props;
   switch (tab) {
-    case "results":
-      return (
-        <PhysicianResultsTab
-          hospitalizationId={props.hospitalizationId}
-          patientId={props.patientId}
-          hospitalId={props.hospitalId}
-        />
-      );
+
     case "lab":
       return <ServiceTab {...props} typeCode="laboratory" title="Лаборатория" />;
     case "consultation":
