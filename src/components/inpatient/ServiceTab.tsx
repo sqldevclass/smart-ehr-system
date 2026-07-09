@@ -93,6 +93,13 @@ export default function ServiceTab({
     return catalog.filter((s: any) => s.service_group_id === activeGroupId);
   }, [typeCode, catalog, searchText, activeGroupId]);
 
+  const filteredItems = useMemo(() => {
+    if (typeCode !== "laboratory" || !activeGroupId) return items;
+    return items.filter(
+      (vs: any) => vs.services?.service_group_id === activeGroupId,
+    );
+  }, [typeCode, items, activeGroupId]);
+
   const { data: favorites = [] } = useQuery({
     queryKey: ["physician-service-favorites", userId, typeCode],
     enabled: typeCode === "laboratory" && !readOnly,
