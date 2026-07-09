@@ -10,6 +10,7 @@ import {
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import PhysicianResultsTab from "@/components/physician/PhysicianResultsTab";
 
 interface Props {
   hospitalizationId: string;
