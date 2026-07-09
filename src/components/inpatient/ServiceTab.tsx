@@ -364,7 +364,7 @@ export default function ServiceTab({
           <div className="space-y-4 min-w-0">
             {orderingAndList}
           </div>
-          {!readOnly && favorites.length > 0 && (
+          {!readOnly && !showResults && favorites.length > 0 && (
             <div className="border rounded p-3 space-y-1 bg-muted/20 h-fit">
               <div className="text-xs uppercase text-muted-foreground mb-2">
                 Часто назначаемые
