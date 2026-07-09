@@ -28,9 +28,8 @@ import PatientCardModal from "@/components/patient/PatientCardModal";
 import ServiceTab from "@/components/inpatient/ServiceTab";
 import CareTab from "@/components/inpatient/CareTab";
 import PhysicianScalesTab from "@/components/physician/PhysicianScalesTab";
-import PhysicianResultsTab from "@/components/physician/PhysicianResultsTab";
 
-type TabKey = "results" | "medication" | "imaging" | "lab" | "consultation" | "care" | "diagnosis" | "scales" | "ews";
+type TabKey = "medication" | "imaging" | "lab" | "consultation" | "care" | "diagnosis" | "scales" | "ews";
 
 type ActiveView =
   | { type: "document"; documentId: string | null; documentTypeId: string }
@@ -38,7 +37,6 @@ type ActiveView =
   | null;
 
 const TABS: { key: TabKey; label: string }[] = [
-  { key: "results", label: "Результаты" },
   { key: "medication", label: "Лист назначения" },
   { key: "imaging", label: "Инструментальные" },
   { key: "lab", label: "Лаборатория" },
@@ -48,6 +46,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "ews", label: "ШРПУ" },
   { key: "scales", label: "Шкалы" },
 ];
+
 
 export default function InpatientPatientDetail() {
   const { hospId } = useParams<{ hospId: string }>();
@@ -697,14 +696,7 @@ interface TabProps {
 function TabPanel(props: TabProps) {
   const { tab } = props;
   switch (tab) {
-    case "results":
-      return (
-        <PhysicianResultsTab
-          hospitalizationId={props.hospitalizationId}
-          patientId={props.patientId}
-          hospitalId={props.hospitalId}
-        />
-      );
+
     case "lab":
       return <ServiceTab {...props} typeCode="laboratory" title="Лаборатория" />;
     case "consultation":
