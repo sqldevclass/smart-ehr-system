@@ -552,6 +552,41 @@ export default function ServicesPage() {
           <DialogHeader><DialogTitle>{editingGroup ? "Edit Group" : "Add Group"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5"><Label>Name *</Label><Input value={groupName} onChange={(e) => setGroupName(e.target.value)} /></div>
+            <div className="space-y-1.5">
+              <Label>Tube color</Label>
+              <div className="flex items-center gap-2 flex-wrap">
+                {GROUP_COLOR_PRESETS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setGroupColor(groupColor === c ? null : c)}
+                    className={cn(
+                      "w-7 h-7 rounded-full border-2 transition-transform",
+                      groupColor === c ? "border-foreground scale-110" : "border-transparent",
+                    )}
+                    style={{ backgroundColor: c }}
+                    title={c}
+                  />
+                ))}
+                {groupColor && !GROUP_COLOR_PRESETS.includes(groupColor) && (
+                  <button
+                    type="button"
+                    className="w-7 h-7 rounded-full border-2 border-foreground scale-110"
+                    style={{ backgroundColor: groupColor }}
+                    title={groupColor}
+                  />
+                )}
+                {groupColor && (
+                  <button
+                    type="button"
+                    onClick={() => setGroupColor(null)}
+                    className="text-xs text-muted-foreground hover:text-destructive ml-1"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
             {editingGroup && (
               <div className="flex items-center justify-between"><Label>Active</Label><Switch checked={groupActive} onCheckedChange={setGroupActive} /></div>
             )}
