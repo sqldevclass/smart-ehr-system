@@ -30,6 +30,7 @@ interface ServiceGroup {
   id: string;
   name: string;
   is_active: boolean;
+  color: string | null;
 }
 interface ServiceSubgroup {
   id: string;
