@@ -219,12 +219,13 @@ export default function ServicesPage() {
   const [editingGroup, setEditingGroup] = useState<ServiceGroup | null>(null);
   const [groupName, setGroupName] = useState("");
   const [groupActive, setGroupActive] = useState(true);
+  const [groupColor, setGroupColor] = useState<string | null>(null);
 
   const openCreateGroup = () => {
-    setEditingGroup(null); setGroupName(""); setGroupActive(true); setGroupDialog(true);
+    setEditingGroup(null); setGroupName(""); setGroupActive(true); setGroupColor(null); setGroupDialog(true);
   };
   const openEditGroup = (g: ServiceGroup) => {
-    setEditingGroup(g); setGroupName(g.name); setGroupActive(g.is_active); setGroupDialog(true);
+    setEditingGroup(g); setGroupName(g.name); setGroupActive(g.is_active); setGroupColor(g.color); setGroupDialog(true);
   };
   const saveGroup = async () => {
     if (!user || !selectedTypeId) return;
@@ -232,7 +233,7 @@ export default function ServicesPage() {
     try {
       if (editingGroup) {
         const { error } = await supabase.from("service_groups").update({
-          name: groupName.trim(), is_active: groupActive,
+          name: groupName.trim(), is_active: groupActive, color: groupColor,
         }).eq("id", editingGroup.id);
         if (error) throw error;
         toast.success("Group updated.");
@@ -241,6 +242,7 @@ export default function ServicesPage() {
           hospital_id: user.hospitalId,
           service_type_id: selectedTypeId,
           name: groupName.trim(),
+          color: groupColor,
         });
         if (error) throw error;
         toast.success("Group created.");
