@@ -418,6 +418,12 @@ export default function ServicesPage() {
                       onClick={() => setSelectedGroupId(g.id)}
                     >
                       <span className="truncate flex items-center gap-2">
+                        {g.color && (
+                          <span
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: g.color }}
+                          />
+                        )}
                         {g.name}
                         {!g.is_active && <span className="text-xs text-muted-foreground">(inactive)</span>}
                       </span>
