@@ -85,7 +85,7 @@ export default function ServicesPage() {
       if (!user || !selectedTypeId) return [];
       const { data, error } = await supabase
         .from("service_groups")
-        .select("id, name, is_active")
+        .select("id, name, is_active, color")
         .eq("hospital_id", user.hospitalId)
         .eq("service_type_id", selectedTypeId)
         .order("name");
