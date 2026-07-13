@@ -49,6 +49,17 @@ interface Service {
   linked_document_type_id: string | null;
 }
 
+const GROUP_COLOR_PRESETS = [
+  "#ef4444", // red
+  "#f97316", // orange
+  "#eab308", // yellow
+  "#22c55e", // green
+  "#3b82f6", // blue
+  "#a855f7", // purple
+  "#ec4899", // pink
+  "#6b7280", // gray
+];
+
 export default function ServicesPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
