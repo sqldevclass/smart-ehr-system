@@ -22,7 +22,8 @@ interface Props {
   } | null;
   barcodePrefix: string;
   sampleStatus: "in_progress" | "drawn";
-  onDrawn?: (visitServiceId: string) => void | Promise<void>;
+  hospitalId: string;
+  onDrawn?: (visitServiceIds: string[]) => void | Promise<void>;
 }
 
 export default function DrawSampleDialog({
@@ -31,6 +32,7 @@ export default function DrawSampleDialog({
   visitService,
   barcodePrefix,
   sampleStatus,
+  hospitalId,
   onDrawn,
 }: Props) {
   const { user } = useAuth();
@@ -38,36 +40,92 @@ export default function DrawSampleDialog({
   const [notes, setNotes] = useState("");
   const [savedBarcode, setSavedBarcode] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [groupedServices, setGroupedServices] = useState<any[]>([]);
 
   useEffect(() => {
-    if (open) {
-      setBarcode("");
-      setNotes("");
-      setSavedBarcode(null);
-      setSaving(false);
-    }
-  }, [open, visitService?.id]);
+    if (!open || !visitService) return;
+    setBarcode("");
+    setNotes("");
+    setSavedBarcode(null);
+    setSaving(false);
+    setGroupedServices([visitService]);
+
+    (async () => {
+      const { data: triggerRow } = await supabase
+        .from("visit_services")
+        .select("services!inner(service_group_id, service_groups!inner(color))")
+        .eq("id", visitService.id)
+        .maybeSingle();
+      const color = (triggerRow as any)?.services?.service_groups?.color;
+      if (!color) return;
+
+      const { data: preliminaryStatus } = await supabase
+        .from("service_statuses")
+        .select("id")
+        .eq("code", "preliminary")
+        .maybeSingle();
+      if (!preliminaryStatus) return;
+
+      const { data: siblings } = await supabase
+        .from("visit_services")
+        .select(`
+          id, patient_id,
+          patients(first_name, last_name, patient_number),
+          services!inner(name, service_group_id, service_groups!inner(color))
+        `)
+        .eq("hospital_id", hospitalId)
+        .eq("patient_id", visitService.patient_id)
+        .eq("status_id", preliminaryStatus.id)
+        .neq("id", visitService.id);
+
+      const matched = (siblings || []).filter(
+        (s: any) => s.services?.service_groups?.color === color,
+      );
+      if (matched.length > 0) {
+        setGroupedServices([visitService, ...matched]);
+      }
+    })();
+  }, [open, visitService?.id, hospitalId]);
 
   const saveDraw = async () => {
     if (!visitService || !user) return;
     setSaving(true);
     try {
       const finalBarcode = barcode.trim() || `${barcodePrefix}-${Date.now()}`;
-      const { error: insertErr } = await supabase.from("lab_samples").insert({
-        visit_service_id: visitService.id,
-        patient_id: visitService.patient_id,
-        hospital_id: user.hospitalId,
-        barcode: finalBarcode,
-        status: sampleStatus,
-        drawn_by: user.id,
-        drawn_at: new Date().toISOString(),
-        notes: notes.trim() || null,
-      });
+      const { data: inserted, error: insertErr } = await supabase
+        .from("lab_samples")
+        .insert({
+          visit_service_id: visitService.id,
+          patient_id: visitService.patient_id,
+          hospital_id: user.hospitalId,
+          barcode: finalBarcode,
+          status: sampleStatus,
+          drawn_by: user.id,
+          drawn_at: new Date().toISOString(),
+          notes: notes.trim() || null,
+        })
+        .select("id")
+        .single();
       if (insertErr) throw insertErr;
 
-      if (onDrawn) await onDrawn(visitService.id);
+      const { error: junctionErr } = await supabase
+        .from("lab_sample_services")
+        .insert(
+          groupedServices.map((s) => ({
+            hospital_id: user.hospitalId,
+            sample_id: inserted.id,
+            visit_service_id: s.id,
+          })),
+        );
+      if (junctionErr) throw junctionErr;
 
-      toast.success(`Sample drawn. Barcode: ${finalBarcode}`);
+      if (onDrawn) await onDrawn(groupedServices.map((s) => s.id));
+
+      toast.success(
+        groupedServices.length > 1
+          ? `Sample drawn for ${groupedServices.length} tests. Barcode: ${finalBarcode}`
+          : `Sample drawn. Barcode: ${finalBarcode}`,
+      );
       setSavedBarcode(finalBarcode);
     } catch (e: any) {
       toast.error(e.message);
@@ -82,13 +140,18 @@ export default function DrawSampleDialog({
     if (!w) return;
     const p = visitService.patients;
     const patientName = [p?.last_name, p?.first_name].filter(Boolean).join(" ");
+    const testList = groupedServices
+      .map((s) => s.services?.name || "")
+      .filter(Boolean)
+      .map((n) => `<div>${n}</div>`)
+      .join("");
     w.document.write(`
       <html><head><title>Label ${savedBarcode}</title>
-      <style>body{font-family:sans-serif;text-align:center;padding:20px}.bc{font-size:32px;font-weight:bold;letter-spacing:2px;margin:20px 0;border:2px solid #000;padding:10px;font-family:monospace}</style>
+      <style>body{font-family:sans-serif;text-align:center;padding:20px}.bc{font-size:32px;font-weight:bold;letter-spacing:2px;margin:20px 0;border:2px solid #000;padding:10px;font-family:monospace}.tests{font-size:12px;margin:8px 0}</style>
       </head><body>
       <h2>${patientName}</h2>
       <p>#${p?.patient_number || ""}</p>
-      <p>${visitService.services?.name || ""}</p>
+      <div class="tests">${testList}</div>
       <div class="bc">${savedBarcode}</div>
       <p>${format(new Date(), "MMM d, yyyy HH:mm")}</p>
       <script>window.print();setTimeout(()=>window.close(),500);</script>
@@ -104,7 +167,18 @@ export default function DrawSampleDialog({
           <div className="space-y-4">
             <div className="text-sm text-muted-foreground">
               <p>{[visitService.patients?.last_name, visitService.patients?.first_name].filter(Boolean).join(" ")}</p>
-              <p>{visitService.services?.name}</p>
+              {groupedServices.length > 1 ? (
+                <div className="mt-1">
+                  <p className="text-xs uppercase tracking-wide">Комбинированная пробирка ({groupedServices.length}):</p>
+                  <ul className="list-disc list-inside">
+                    {groupedServices.map((s) => (
+                      <li key={s.id}>{s.services?.name}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <p>{visitService.services?.name}</p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label>Barcode (auto if empty)</Label>
