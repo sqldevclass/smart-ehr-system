@@ -147,7 +147,8 @@ function ServiceColumn({
         visitService={drawTarget}
         barcodePrefix="WARD"
         sampleStatus="drawn"
-        onDrawn={async (visitServiceId) => {
+        hospitalId={hospitalId}
+        onDrawn={async (visitServiceIds: string[]) => {
           const { data: readyStatus } = await supabase
             .from("service_statuses")
             .select("id")
@@ -157,7 +158,7 @@ function ServiceColumn({
             await supabase
               .from("visit_services")
               .update({ status_id: readyStatus.id })
-              .eq("id", visitServiceId);
+              .in("id", visitServiceIds);
           }
           queryClient.invalidateQueries({ queryKey: ["care-plan-services"] });
         }}
