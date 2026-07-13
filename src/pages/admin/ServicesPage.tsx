@@ -30,6 +30,7 @@ interface ServiceGroup {
   id: string;
   name: string;
   is_active: boolean;
+  color: string | null;
 }
 interface ServiceSubgroup {
   id: string;
@@ -47,6 +48,17 @@ interface Service {
   service_subgroup_id: string | null;
   linked_document_type_id: string | null;
 }
+
+const GROUP_COLOR_PRESETS = [
+  "#ef4444", // red
+  "#f97316", // orange
+  "#eab308", // yellow
+  "#22c55e", // green
+  "#3b82f6", // blue
+  "#a855f7", // purple
+  "#ec4899", // pink
+  "#6b7280", // gray
+];
 
 export default function ServicesPage() {
   const { user } = useAuth();
@@ -84,7 +96,7 @@ export default function ServicesPage() {
       if (!user || !selectedTypeId) return [];
       const { data, error } = await supabase
         .from("service_groups")
-        .select("id, name, is_active")
+        .select("id, name, is_active, color")
         .eq("hospital_id", user.hospitalId)
         .eq("service_type_id", selectedTypeId)
         .order("name");
@@ -207,12 +219,13 @@ export default function ServicesPage() {
   const [editingGroup, setEditingGroup] = useState<ServiceGroup | null>(null);
   const [groupName, setGroupName] = useState("");
   const [groupActive, setGroupActive] = useState(true);
+  const [groupColor, setGroupColor] = useState<string | null>(null);
 
   const openCreateGroup = () => {
-    setEditingGroup(null); setGroupName(""); setGroupActive(true); setGroupDialog(true);
+    setEditingGroup(null); setGroupName(""); setGroupActive(true); setGroupColor(null); setGroupDialog(true);
   };
   const openEditGroup = (g: ServiceGroup) => {
-    setEditingGroup(g); setGroupName(g.name); setGroupActive(g.is_active); setGroupDialog(true);
+    setEditingGroup(g); setGroupName(g.name); setGroupActive(g.is_active); setGroupColor(g.color); setGroupDialog(true);
   };
   const saveGroup = async () => {
     if (!user || !selectedTypeId) return;
@@ -220,7 +233,7 @@ export default function ServicesPage() {
     try {
       if (editingGroup) {
         const { error } = await supabase.from("service_groups").update({
-          name: groupName.trim(), is_active: groupActive,
+          name: groupName.trim(), is_active: groupActive, color: groupColor,
         }).eq("id", editingGroup.id);
         if (error) throw error;
         toast.success("Group updated.");
@@ -229,6 +242,7 @@ export default function ServicesPage() {
           hospital_id: user.hospitalId,
           service_type_id: selectedTypeId,
           name: groupName.trim(),
+          color: groupColor,
         });
         if (error) throw error;
         toast.success("Group created.");
@@ -404,6 +418,12 @@ export default function ServicesPage() {
                       onClick={() => setSelectedGroupId(g.id)}
                     >
                       <span className="truncate flex items-center gap-2">
+                        {g.color && (
+                          <span
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: g.color }}
+                          />
+                        )}
                         {g.name}
                         {!g.is_active && <span className="text-xs text-muted-foreground">(inactive)</span>}
                       </span>
@@ -538,6 +558,41 @@ export default function ServicesPage() {
           <DialogHeader><DialogTitle>{editingGroup ? "Edit Group" : "Add Group"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5"><Label>Name *</Label><Input value={groupName} onChange={(e) => setGroupName(e.target.value)} /></div>
+            <div className="space-y-1.5">
+              <Label>Tube color</Label>
+              <div className="flex items-center gap-2 flex-wrap">
+                {GROUP_COLOR_PRESETS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setGroupColor(groupColor === c ? null : c)}
+                    className={cn(
+                      "w-7 h-7 rounded-full border-2 transition-transform",
+                      groupColor === c ? "border-foreground scale-110" : "border-transparent",
+                    )}
+                    style={{ backgroundColor: c }}
+                    title={c}
+                  />
+                ))}
+                {groupColor && !GROUP_COLOR_PRESETS.includes(groupColor) && (
+                  <button
+                    type="button"
+                    className="w-7 h-7 rounded-full border-2 border-foreground scale-110"
+                    style={{ backgroundColor: groupColor }}
+                    title={groupColor}
+                  />
+                )}
+                {groupColor && (
+                  <button
+                    type="button"
+                    onClick={() => setGroupColor(null)}
+                    className="text-xs text-muted-foreground hover:text-destructive ml-1"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
             {editingGroup && (
               <div className="flex items-center justify-between"><Label>Active</Label><Switch checked={groupActive} onCheckedChange={setGroupActive} /></div>
             )}
