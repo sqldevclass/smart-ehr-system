@@ -82,6 +82,29 @@ function ServiceColumn({
     },
   });
 
+  const visitServiceIds = useMemo(() => (rows as any[]).map((r) => r.id), [rows]);
+
+  const { data: sampleLinks = [] } = useQuery({
+    queryKey: ["service-column-sample-links", typeCode, visitServiceIds],
+    enabled: typeCode === "laboratory" && visitServiceIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("lab_sample_services")
+        .select("sample_id, visit_service_id")
+        .in("visit_service_id", visitServiceIds);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const sampleIdByVisitService = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const link of sampleLinks as any[]) {
+      map[link.visit_service_id] = link.sample_id;
+    }
+    return map;
+  }, [sampleLinks]);
+
   const { current, history } = useMemo(() => {
     const cur: any[] = [];
     const hist: any[] = [];
@@ -91,6 +114,17 @@ function ServiceColumn({
     }
     return { current: cur, history: hist };
   }, [rows, hospitalizationId]);
+
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  const toggleGroup = (sampleId: string) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(sampleId)) next.delete(sampleId);
+      else next.add(sampleId);
+      return next;
+    });
+  };
 
   const [drawTarget, setDrawTarget] = useState<any>(null);
 
