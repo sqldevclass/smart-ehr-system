@@ -70,7 +70,7 @@ function ServiceColumn({
         .select(`
           id, created_at, hospitalization_id, patient_id,
           patients(first_name, last_name, patient_number),
-          services!inner(name, service_type_id, service_types!inner(code)),
+          services!inner(name, service_type_id, service_group_id, service_types!inner(code), service_groups(color)),
           service_statuses!inner(code, name_ru)
         `)
         .eq("hospital_id", hospitalId)
@@ -129,7 +129,15 @@ function ServiceColumn({
   const [drawTarget, setDrawTarget] = useState<any>(null);
 
   const renderRow = (r: any, isHistory: boolean) => (
-    <div key={r.id} className="border rounded p-1.5 text-xs space-y-0.5">
+    <div
+      key={r.id}
+      className="border rounded p-1.5 text-xs space-y-0.5"
+      style={
+        typeCode === "laboratory" && r.services?.service_groups?.color
+          ? { borderLeftWidth: 4, borderLeftColor: r.services.service_groups.color }
+          : undefined
+      }
+    >
       <div className="font-medium leading-snug">{r.services?.name}</div>
       <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-muted-foreground">
         {typeCode === "laboratory" && r.service_statuses?.code === "preliminary" && !isHistory ? (
@@ -174,12 +182,17 @@ function ServiceColumn({
         <div key={sampleId}>
           <div className="relative">
             {renderRow(group[0], isHistory)}
-            <button
-              onClick={() => toggleGroup(sampleId!)}
-              className="absolute top-1.5 right-1.5 text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20"
-            >
-              {isOpen ? "▲" : `+${group.length - 1}`}
-            </button>
+            <div className="absolute top-1.5 right-1.5 flex items-center gap-1">
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
+                Комб.
+              </span>
+              <button
+                onClick={() => toggleGroup(sampleId!)}
+                className="text-[10px] px-1.5 py-0.5 rounded bg-muted hover:bg-muted/70 text-muted-foreground"
+              >
+                {isOpen ? "▲" : `+${group.length - 1}`}
+              </button>
+            </div>
           </div>
           {isOpen && (
             <div className="pl-2 mt-1 space-y-1.5 border-l-2 border-primary/20">
