@@ -82,6 +82,29 @@ function ServiceColumn({
     },
   });
 
+  const visitServiceIds = useMemo(() => (rows as any[]).map((r) => r.id), [rows]);
+
+  const { data: sampleLinks = [] } = useQuery({
+    queryKey: ["service-column-sample-links", typeCode, visitServiceIds],
+    enabled: typeCode === "laboratory" && visitServiceIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("lab_sample_services")
+        .select("sample_id, visit_service_id")
+        .in("visit_service_id", visitServiceIds);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const sampleIdByVisitService = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const link of sampleLinks as any[]) {
+      map[link.visit_service_id] = link.sample_id;
+    }
+    return map;
+  }, [sampleLinks]);
+
   const { current, history } = useMemo(() => {
     const cur: any[] = [];
     const hist: any[] = [];
@@ -91,6 +114,17 @@ function ServiceColumn({
     }
     return { current: cur, history: hist };
   }, [rows, hospitalizationId]);
+
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  const toggleGroup = (sampleId: string) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(sampleId)) next.delete(sampleId);
+      else next.add(sampleId);
+      return next;
+    });
+  };
 
   const [drawTarget, setDrawTarget] = useState<any>(null);
 
@@ -122,6 +156,41 @@ function ServiceColumn({
     </div>
   );
 
+  const renderGroupedList = (list: any[], isHistory: boolean) => {
+    const shown = new Set<string>();
+    return list.map((r: any) => {
+      if (shown.has(r.id)) return null;
+      const sampleId = typeCode === "laboratory" ? sampleIdByVisitService[r.id] : undefined;
+      const group = sampleId
+        ? list.filter((x: any) => sampleIdByVisitService[x.id] === sampleId)
+        : [r];
+      if (group.length <= 1) {
+        shown.add(r.id);
+        return renderRow(r, isHistory);
+      }
+      group.forEach((g: any) => shown.add(g.id));
+      const isOpen = expandedGroups.has(sampleId!);
+      return (
+        <div key={sampleId}>
+          <div className="relative">
+            {renderRow(group[0], isHistory)}
+            <button
+              onClick={() => toggleGroup(sampleId!)}
+              className="absolute top-1.5 right-1.5 text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20"
+            >
+              {isOpen ? "▲" : `+${group.length - 1}`}
+            </button>
+          </div>
+          {isOpen && (
+            <div className="pl-2 mt-1 space-y-1.5 border-l-2 border-primary/20">
+              {group.slice(1).map((g: any) => renderRow(g, isHistory))}
+            </div>
+          )}
+        </div>
+      );
+    });
+  };
+
   return (
     <div className="flex flex-col min-h-0">
       <div className="text-sm font-semibold mb-2">{title}</div>
@@ -132,12 +201,12 @@ function ServiceColumn({
           ) : current.length === 0 ? (
             <div className="text-xs text-muted-foreground">Нет записей</div>
           ) : (
-            current.map((r: any) => renderRow(r, false))
+            renderGroupedList(current, false)
           )}
         </div>
         {!isLoading && history.length > 0 && (
           <HistorySection count={history.length}>
-            {history.map((r: any) => renderRow(r, true))}
+            {renderGroupedList(history, true)}
           </HistorySection>
         )}
       </div>
