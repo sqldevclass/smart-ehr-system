@@ -21,6 +21,7 @@ import TreatmentCarePlanModal from "@/components/nurse/TreatmentCarePlanModal";
 import PatientModalHeader from "@/components/nurse/PatientModalHeader";
 import EWSStatusDot from "@/components/ews/EWSStatusDot";
 import { useCareOrderSchedule } from "@/hooks/useCareOrderSchedule";
+import { useLabOrderAlerts } from "@/hooks/useLabOrderAlerts";
 
 
 export default function NursePatientDetail() {
@@ -29,6 +30,7 @@ export default function NursePatientDetail() {
   const navigate = useNavigate();
   const { setPatientContext } = useNurseLayoutContext();
   const { getHospitalizationStatus } = useCareOrderSchedule(user?.hospitalId);
+  const { getHospitalizationStatus: getLabAlertStatus } = useLabOrderAlerts(user?.hospitalId);
   const [showPrescriptions, setShowPrescriptions] = useState(false);
   const [showMedDocs, setShowMedDocs] = useState(false);
   const [showPatientCard, setShowPatientCard] = useState(false);
@@ -253,7 +255,14 @@ export default function NursePatientDetail() {
         </Button>
         <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1.5" onClick={() => setShowCarePlanModal(true)}>
           План лечения и ухода
-          <EWSStatusDot status={getHospitalizationStatus(hospId!)} pulse />
+          <EWSStatusDot
+            status={
+              getHospitalizationStatus(hospId!) === "overdue" || getLabAlertStatus(hospId!) === "overdue"
+                ? "overdue"
+                : getHospitalizationStatus(hospId!)
+            }
+            pulse
+          />
         </Button>
         <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setActiveTab("diagnosis")}>Диагнозы</Button>
         {allergies.length > 0 && (
