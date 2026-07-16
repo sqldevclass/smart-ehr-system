@@ -30,6 +30,7 @@ export default function NursePatientDetail() {
   const navigate = useNavigate();
   const { setPatientContext } = useNurseLayoutContext();
   const { getHospitalizationStatus } = useCareOrderSchedule(user?.hospitalId);
+  const { getHospitalizationStatus: getLabAlertStatus } = useLabOrderAlerts(user?.hospitalId);
   const [showPrescriptions, setShowPrescriptions] = useState(false);
   const [showMedDocs, setShowMedDocs] = useState(false);
   const [showPatientCard, setShowPatientCard] = useState(false);
