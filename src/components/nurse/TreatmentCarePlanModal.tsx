@@ -215,7 +215,12 @@ function ServiceColumn({
 
   return (
     <div className="flex flex-col min-h-0">
-      <div className="text-sm font-semibold mb-2">{title}</div>
+      <div className="text-sm font-semibold mb-2 flex items-center gap-1.5">
+        {title}
+        {typeCode === "laboratory" && (
+          <EWSStatusDot status={getLabAlertStatus(hospitalizationId)} pulse />
+        )}
+      </div>
       <div className="flex-1 overflow-y-auto pr-1">
         <div className="space-y-1.5">
           {isLoading ? (
