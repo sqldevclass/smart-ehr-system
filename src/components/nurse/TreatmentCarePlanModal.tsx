@@ -64,6 +64,7 @@ function ServiceColumn({
   hospitalId: string;
 }) {
   const queryClient = useQueryClient();
+  const { getHospitalizationStatus: getLabAlertStatus } = useLabOrderAlerts(hospitalId);
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["care-plan-services", typeCode, patientId, hospitalId],
     queryFn: async () => {
