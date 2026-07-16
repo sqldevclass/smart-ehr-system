@@ -21,6 +21,7 @@ import TreatmentCarePlanModal from "@/components/nurse/TreatmentCarePlanModal";
 import PatientModalHeader from "@/components/nurse/PatientModalHeader";
 import EWSStatusDot from "@/components/ews/EWSStatusDot";
 import { useCareOrderSchedule } from "@/hooks/useCareOrderSchedule";
+import { useLabOrderAlerts } from "@/hooks/useLabOrderAlerts";
 
 
 export default function NursePatientDetail() {
