@@ -133,7 +133,10 @@ function ServiceColumn({
   const renderRow = (r: any, isHistory: boolean) => (
     <div
       key={r.id}
-      className="border rounded p-1.5 text-xs space-y-0.5"
+      className={cn(
+        "border rounded p-1.5 text-xs space-y-0.5",
+        typeCode === "laboratory" && r.service_statuses?.code === "completed" && "bg-green-50/60",
+      )}
       style={
         typeCode === "laboratory" && r.services?.service_groups?.color
           ? { borderLeftWidth: 4, borderLeftColor: r.services.service_groups.color }
@@ -153,6 +156,9 @@ function ServiceColumn({
           <span className="px-1.5 py-0.5 rounded bg-muted">
             {r.service_statuses?.name_ru}
           </span>
+        )}
+        {typeCode === "laboratory" && r.service_statuses?.code === "preliminary" && !isHistory && (
+          <EWSStatusDot status="overdue" pulse />
         )}
         <span>
           {r.created_at ? format(new Date(r.created_at), "dd.MM.yy HH:mm") : "—"}
