@@ -267,15 +267,40 @@ function ServiceColumn({
         <div className="space-y-1.5">
           {isLoading ? (
             <div className="text-xs text-muted-foreground">Загрузка…</div>
-          ) : current.length === 0 ? (
+          ) : current.length === 0 && currentSamples.length === 0 ? (
             <div className="text-xs text-muted-foreground">Нет записей</div>
           ) : (
-            renderGroupedList(current, false)
+            <>
+              {renderGroupedList(current, false)}
+              {typeCode === "laboratory" && currentSamples.length > 0 && (
+                <div className="divide-y border rounded">
+                  {currentSamples.map((s: any) => (
+                    <LabResultRow
+                      key={s.id}
+                      sample={s}
+                      onClick={() => setSelectedResultSample(s)}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
-        {!isLoading && history.length > 0 && (
-          <HistorySection count={history.length}>
+        {!isLoading && (history.length > 0 || historySamples.length > 0) && (
+          <HistorySection count={history.length + historySamples.length}>
             {renderGroupedList(history, true)}
+            {typeCode === "laboratory" && historySamples.length > 0 && (
+              <div className="divide-y border rounded">
+                {historySamples.map((s: any) => (
+                  <LabResultRow
+                    key={s.id}
+                    sample={s}
+                    isHistory
+                    onClick={() => setSelectedResultSample(s)}
+                  />
+                ))}
+              </div>
+            )}
           </HistorySection>
         )}
       </div>
@@ -300,6 +325,11 @@ function ServiceColumn({
           }
           queryClient.invalidateQueries({ queryKey: ["care-plan-services"] });
         }}
+      />
+      <LabResultDialog
+        sample={selectedResultSample}
+        open={!!selectedResultSample}
+        onOpenChange={(open) => !open && setSelectedResultSample(null)}
       />
     </div>
   );
