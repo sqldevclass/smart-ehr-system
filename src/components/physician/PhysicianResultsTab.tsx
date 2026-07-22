@@ -1,14 +1,10 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
-import { FlagBadge } from "@/pages/lab/LabResultsPage";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  LabResultRow,
+  LabResultDialog,
+} from "@/components/shared/LabResultRow";
 
 interface Props {
   hospitalizationId: string;
@@ -28,8 +24,11 @@ export default function PhysicianResultsTab({
         .from("lab_samples")
         .select(`
           id, completed_at,
-          visit_services!inner(id, hospitalization_id, services!inner(name)),
-          lab_results(id, parameter_name, value, unit, flag, ref_min, ref_max)
+          lab_sample_services(
+            visit_service_id,
+            visit_services!inner(id, hospitalization_id, services!inner(id, name))
+          ),
+          lab_results(id, parameter_name, value, unit, flag, parameter_template_id, lab_parameter_templates(service_id))
         `)
         .eq("hospital_id", hospitalId)
         .eq("patient_id", patientId)
@@ -41,11 +40,16 @@ export default function PhysicianResultsTab({
     enabled: !!patientId,
   });
 
-  const current = samples.filter(
-    (s: any) => s.visit_services?.hospitalization_id === hospitalizationId
+  const current = samples.filter((s: any) =>
+    (s.lab_sample_services || []).some(
+      (l: any) => l.visit_services?.hospitalization_id === hospitalizationId,
+    ),
   );
   const history = samples.filter(
-    (s: any) => s.visit_services?.hospitalization_id !== hospitalizationId
+    (s: any) =>
+      !(s.lab_sample_services || []).some(
+        (l: any) => l.visit_services?.hospitalization_id === hospitalizationId,
+      ),
   );
 
   const [showHistory, setShowHistory] = useState(false);
@@ -59,7 +63,7 @@ export default function PhysicianResultsTab({
         <>
           <div className="divide-y border rounded">
             {current.map((s: any) => (
-              <ResultRow
+              <LabResultRow
                 key={s.id}
                 sample={s}
                 onClick={() => setSelectedSample(s)}
@@ -79,7 +83,7 @@ export default function PhysicianResultsTab({
               {showHistory && (
                 <div className="mt-2 divide-y border rounded">
                   {history.map((s: any) => (
-                    <ResultRow
+                    <LabResultRow
                       key={s.id}
                       sample={s}
                       isHistory
@@ -93,84 +97,11 @@ export default function PhysicianResultsTab({
         </>
       )}
 
-      <Dialog
+      <LabResultDialog
+        sample={selectedSample}
         open={!!selectedSample}
         onOpenChange={(open) => !open && setSelectedSample(null)}
-      >
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
-              {selectedSample?.visit_services?.services?.name}
-              {selectedSample?.completed_at && (
-                <span className="ml-2 text-xs font-normal text-muted-foreground">
-                  {format(
-                    new Date(selectedSample.completed_at),
-                    "dd.MM.yyyy HH:mm"
-                  )}
-                </span>
-              )}
-            </DialogTitle>
-          </DialogHeader>
-          {selectedSample && <ResultDetail sample={selectedSample} />}
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-function ResultRow({
-  sample,
-  isHistory,
-  onClick,
-}: {
-  sample: any;
-  isHistory?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-muted/50 text-left ${
-        isHistory ? "opacity-80" : ""
-      }`}
-    >
-      <div className="flex items-center gap-2 min-w-0">
-        <span className="font-medium truncate">
-          {sample.visit_services?.services?.name}
-        </span>
-        {sample.visit_services?.hospitalization_id === null && (
-          <span className="text-[10px] rounded bg-amber-100 text-amber-800 px-1.5 py-0.5">
-            Амб.
-          </span>
-        )}
-      </div>
-      <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">
-        {sample.completed_at
-          ? format(new Date(sample.completed_at), "dd.MM.yyyy HH:mm")
-          : ""}
-      </span>
-    </button>
-  );
-}
-
-function ResultDetail({ sample }: { sample: any }) {
-  return (
-    <div className="divide-y">
-      {(sample.lab_results || []).map((r: any) => (
-        <div
-          key={r.id}
-          className="flex items-center justify-between py-1.5 text-sm"
-        >
-          <span className="text-muted-foreground">{r.parameter_name}</span>
-          <div className="flex items-center gap-2">
-            <span className="font-mono">
-              {r.value} {r.unit || ""}
-            </span>
-            <FlagBadge flag={r.flag} />
-          </div>
-        </div>
-      ))}
+      />
     </div>
   );
 }
