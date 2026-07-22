@@ -116,13 +116,19 @@ export default function LabResultsPage() {
                   <TableCell>
                     {(() => {
                       const services = linkedServices(s);
-                      if (services.length === 0) return "—";
+                      const seen = new Set();
+                      const uniq: any[] = [];
+                      for (const sv of services) {
+                        const sid = sv.services?.id;
+                        if (sid && !seen.has(sid)) { seen.add(sid); uniq.push(sv); }
+                      }
+                      if (uniq.length === 0) return "—";
                       return (
                         <span className="flex items-center gap-1.5">
-                          {services[0]?.services?.name}
-                          {services.length > 1 && (
+                          {uniq[0]?.services?.name}
+                          {uniq.length > 1 && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
-                              +{services.length - 1}
+                              +{uniq.length - 1}
                             </span>
                           )}
                         </span>
@@ -176,7 +182,16 @@ function ResultsDialog({
 }: { open: boolean; onOpenChange: (b: boolean) => void; sample: any; onSaved: () => void }) {
   const { user } = useAuth();
   const services = useMemo(() => linkedServices(sample), [sample]);
-  const serviceIds = useMemo(() => services.map((s: any) => s.services?.id).filter(Boolean), [services]);
+  const uniqueServices = useMemo(() => {
+    const seen = new Set();
+    const out: any[] = [];
+    for (const s of services) {
+      const sid = s.services?.id;
+      if (sid && !seen.has(sid)) { seen.add(sid); out.push(s); }
+    }
+    return out;
+  }, [services]);
+  const serviceIds = useMemo(() => uniqueServices.map((s: any) => s.services?.id).filter(Boolean), [uniqueServices]);
   const gender = sample?.patients?.gender as string | null;
 
   const { data: allTemplates = [] } = useQuery({
