@@ -245,7 +245,7 @@ function ResultsDialog({
     if (!user) return;
     setSaving(true);
     try {
-      for (const t of templates) {
+      for (const t of allTemplates) {
         const v = values[t.id];
         if (v == null || v === "") continue;
         const [refMin, refMax] = refRangeFor(t);
@@ -273,20 +273,30 @@ function ResultsDialog({
         }
       }
 
-      const { error: sErr } = await supabase
-        .from("lab_samples")
-        .update({ status: "completed", completed_at: new Date().toISOString() })
-        .eq("id", sample.id);
-      if (sErr) throw sErr;
+      const isFullyEntered = allTemplates.length > 0 && allTemplates.every(
+        (t: any) => values[t.id] != null && values[t.id] !== "",
+      );
 
-      const { error: cErr } = await supabase.rpc("complete_service", {
-        p_visit_service_id: sample.visit_service_id,
-        p_completed_by: user.id,
-      });
-      if (cErr) throw cErr;
+      if (isFullyEntered) {
+        const { error: sErr } = await supabase
+          .from("lab_samples")
+          .update({ status: "completed", completed_at: new Date().toISOString() })
+          .eq("id", sample.id);
+        if (sErr) throw sErr;
 
-      toast.success("Results confirmed.");
-      onOpenChange(false);
+        for (const s of services) {
+          const { error: cErr } = await supabase.rpc("complete_service", {
+            p_visit_service_id: s.id,
+            p_completed_by: user.id,
+          });
+          if (cErr) throw cErr;
+        }
+
+        toast.success("Results confirmed.");
+        onOpenChange(false);
+      } else {
+        toast.success("Progress saved. Some results are still pending.");
+      }
       onSaved();
     } catch (e: any) {
       toast.error(e.message);
