@@ -335,7 +335,18 @@ function ServiceColumn({
         hospitalizationId={hospitalizationId}
         existingVisitServiceId={schedulingConsult?.id}
         preselectedServiceId={schedulingConsult?.services?.id}
-        onBooked={() => {
+        onBooked={async () => {
+          const { data: readyStatus } = await supabase
+            .from("service_statuses")
+            .select("id")
+            .eq("code", "ready_for_execution")
+            .single();
+          if (readyStatus && schedulingConsult?.id) {
+            await supabase
+              .from("visit_services")
+              .update({ status_id: readyStatus.id })
+              .eq("id", schedulingConsult.id);
+          }
           toast.success("Consultation scheduled.");
           setSchedulingConsult(null);
           queryClient.invalidateQueries({ queryKey: ["care-plan-services"] });
