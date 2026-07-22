@@ -11,6 +11,7 @@ import { useCareOrderSchedule } from "@/hooks/useCareOrderSchedule";
 import { useLabOrderAlerts } from "@/hooks/useLabOrderAlerts";
 import { cn } from "@/lib/utils";
 import { LabResultCard } from "@/components/shared/LabResultRow";
+import { BookingModal } from "@/components/booking/BookingModal";
 
 
 
@@ -169,6 +170,7 @@ function ServiceColumn({
   };
 
   const [drawTarget, setDrawTarget] = useState<any>(null);
+  const [schedulingConsult, setSchedulingConsult] = useState<any>(null);
 
   const renderRow = (r: any, isHistory: boolean) => (
     <div
@@ -188,6 +190,13 @@ function ServiceColumn({
         {typeCode === "laboratory" && r.service_statuses?.code === "preliminary" && !isHistory ? (
           <button
             onClick={() => setDrawTarget(r)}
+            className="px-1.5 py-0.5 rounded bg-muted hover:bg-muted/70 underline"
+          >
+            {r.service_statuses?.name_ru}
+          </button>
+        ) : typeCode === "consultation" && r.service_statuses?.code === "preliminary" && !isHistory ? (
+          <button
+            onClick={() => setSchedulingConsult(r)}
             className="px-1.5 py-0.5 rounded bg-muted hover:bg-muted/70 underline"
           >
             {r.service_statuses?.name_ru}
@@ -314,6 +323,21 @@ function ServiceColumn({
               .update({ status_id: readyStatus.id })
               .in("id", visitServiceIds);
           }
+          queryClient.invalidateQueries({ queryKey: ["care-plan-services"] });
+        }}
+      />
+      <BookingModal
+        open={!!schedulingConsult}
+        onOpenChange={(open) => !open && setSchedulingConsult(null)}
+        patientId={patientId}
+        hospitalId={hospitalId}
+        mode="inpatient"
+        hospitalizationId={hospitalizationId}
+        existingVisitServiceId={schedulingConsult?.id}
+        preselectedServiceId={schedulingConsult?.services?.id}
+        onBooked={() => {
+          toast.success("Consultation scheduled.");
+          setSchedulingConsult(null);
           queryClient.invalidateQueries({ queryKey: ["care-plan-services"] });
         }}
       />
