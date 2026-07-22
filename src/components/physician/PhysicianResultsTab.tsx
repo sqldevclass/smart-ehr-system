@@ -150,6 +150,9 @@ export default function PhysicianResultsTab({
 
   const [showHistory, setShowHistory] = useState(false);
 
+  const { flatRows: currentFlat, boxed: currentBoxed } = partitionSamples(current);
+  const { flatRows: historyFlat, boxed: historyBoxed } = partitionSamples(history);
+
   return (
     <div className="space-y-2">
       {current.length === 0 && history.length === 0 ? (
@@ -157,7 +160,15 @@ export default function PhysicianResultsTab({
       ) : (
         <>
           <div className="space-y-2">
-            {current.map((s: any) => (
+            {currentFlat.length > 0 && (
+              <div>
+                <ParamTableHeader />
+                {currentFlat.map(({ key, r, dateStr }) => (
+                  <ParamTableRow key={key} r={r} dateStr={dateStr} />
+                ))}
+              </div>
+            )}
+            {currentBoxed.map((s: any) => (
               <PhysicianResultCard key={s.id} sample={s} />
             ))}
           </div>
