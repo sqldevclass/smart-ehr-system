@@ -26,8 +26,8 @@ interface SlotRow {
 interface BookingRow {
   id: string;
   slot_id: string;
-  patients: { first_name: string | null; last_name: string | null } | null;
-  services: { name: string | null } | null;
+  patients: { first_name: string | null; last_name: string | null }[] | null;
+  services: { name: string | null }[] | null;
 }
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -209,8 +209,11 @@ export default function PhysicianSchedule() {
                       <div className="flex flex-col items-end gap-0.5">
                         {slotBookings.map((b) => (
                           <span key={b.id} className="text-xs text-muted-foreground">
-                            {[b.patients?.last_name, b.patients?.first_name].filter(Boolean).join(" ") || "—"}
-                            {b.services?.name ? ` · ${b.services.name}` : ""}
+                            {[
+                              b.patients?.[0]?.last_name,
+                              b.patients?.[0]?.first_name,
+                            ].filter(Boolean).join(" ") || "—"}
+                            {b.services?.[0]?.name ? ` · ${b.services[0].name}` : ""}
                           </span>
                         ))}
                         <Badge>Booked{slotBookings.length > 1 ? ` (${slotBookings.length})` : ""}</Badge>
