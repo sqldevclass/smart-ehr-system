@@ -10,6 +10,7 @@ import EWSStatusDot from "@/components/ews/EWSStatusDot";
 import { useCareOrderSchedule } from "@/hooks/useCareOrderSchedule";
 import { useLabOrderAlerts } from "@/hooks/useLabOrderAlerts";
 import { cn } from "@/lib/utils";
+import { LabResultRow, LabResultDialog } from "@/components/shared/LabResultRow";
 
 
 
