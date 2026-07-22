@@ -175,22 +175,31 @@ function ResultsDialog({
   open, onOpenChange, sample, onSaved,
 }: { open: boolean; onOpenChange: (b: boolean) => void; sample: any; onSaved: () => void }) {
   const { user } = useAuth();
-  const serviceId = sample?.visit_services?.services?.id;
+  const services = useMemo(() => linkedServices(sample), [sample]);
+  const serviceIds = useMemo(() => services.map((s: any) => s.services?.id).filter(Boolean), [services]);
   const gender = sample?.patients?.gender as string | null;
 
-  const { data: templates = [] } = useQuery({
-    queryKey: ["lab-templates", serviceId, user?.hospitalId],
+  const { data: allTemplates = [] } = useQuery({
+    queryKey: ["lab-templates-combo", serviceIds, user?.hospitalId],
     queryFn: async () => {
       const { data } = await supabase
         .from("lab_parameter_templates")
         .select("*")
-        .eq("service_id", serviceId)
+        .in("service_id", serviceIds)
         .eq("hospital_id", user!.hospitalId)
         .order("sort_order");
       return data || [];
     },
-    enabled: !!serviceId && !!user,
+    enabled: serviceIds.length > 0 && !!user,
   });
+
+  const templatesByService = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    for (const t of allTemplates as any[]) {
+      (map[t.service_id] ||= []).push(t);
+    }
+    return map;
+  }, [allTemplates]);
 
   const { data: existing = [] } = useQuery({
     queryKey: ["lab-results-for-sample", sample?.id],
