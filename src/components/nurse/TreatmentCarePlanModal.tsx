@@ -10,6 +10,7 @@ import EWSStatusDot from "@/components/ews/EWSStatusDot";
 import { useCareOrderSchedule } from "@/hooks/useCareOrderSchedule";
 import { useLabOrderAlerts } from "@/hooks/useLabOrderAlerts";
 import { cn } from "@/lib/utils";
+import { LabResultRow, LabResultDialog } from "@/components/shared/LabResultRow";
 
 
 
@@ -100,6 +101,44 @@ function ServiceColumn({
     },
   });
 
+  const { data: completedSamples = [] } = useQuery({
+    queryKey: ["service-column-completed-samples", typeCode, patientId, hospitalId],
+    enabled: typeCode === "laboratory",
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("lab_samples")
+        .select(`
+          id, completed_at,
+          lab_sample_services(
+            visit_service_id,
+            visit_services!inner(id, hospitalization_id, services!inner(id, name))
+          ),
+          lab_results(id, parameter_name, value, unit, flag, parameter_template_id, lab_parameter_templates(service_id))
+        `)
+        .eq("hospital_id", hospitalId)
+        .eq("patient_id", patientId)
+        .eq("status", "completed")
+        .order("completed_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const [selectedResultSample, setSelectedResultSample] = useState<any>(null);
+
+  const { currentSamples, historySamples } = useMemo(() => {
+    const cur: any[] = [];
+    const hist: any[] = [];
+    for (const s of completedSamples as any[]) {
+      const belongs = (s.lab_sample_services || []).some(
+        (l: any) => l.visit_services?.hospitalization_id === hospitalizationId,
+      );
+      (belongs ? cur : hist).push(s);
+    }
+    return { currentSamples: cur, historySamples: hist };
+  }, [completedSamples, hospitalizationId]);
+
+
   const sampleIdByVisitService = useMemo(() => {
     const map: Record<string, string> = {};
     for (const link of sampleLinks as any[]) {
@@ -174,12 +213,15 @@ function ServiceColumn({
   );
 
   const renderGroupedList = (list: any[], isHistory: boolean) => {
+    const filtered = typeCode === "laboratory"
+      ? list.filter((r: any) => r.service_statuses?.code !== "completed")
+      : list;
     const shown = new Set<string>();
-    return list.map((r: any) => {
+    return filtered.map((r: any) => {
       if (shown.has(r.id)) return null;
       const sampleId = typeCode === "laboratory" ? sampleIdByVisitService[r.id] : undefined;
       const group = sampleId
-        ? list.filter((x: any) => sampleIdByVisitService[x.id] === sampleId)
+        ? filtered.filter((x: any) => sampleIdByVisitService[x.id] === sampleId)
         : [r];
       if (group.length <= 1) {
         shown.add(r.id);
@@ -225,15 +267,40 @@ function ServiceColumn({
         <div className="space-y-1.5">
           {isLoading ? (
             <div className="text-xs text-muted-foreground">Загрузка…</div>
-          ) : current.length === 0 ? (
+          ) : current.length === 0 && currentSamples.length === 0 ? (
             <div className="text-xs text-muted-foreground">Нет записей</div>
           ) : (
-            renderGroupedList(current, false)
+            <>
+              {renderGroupedList(current, false)}
+              {typeCode === "laboratory" && currentSamples.length > 0 && (
+                <div className="divide-y border rounded">
+                  {currentSamples.map((s: any) => (
+                    <LabResultRow
+                      key={s.id}
+                      sample={s}
+                      onClick={() => setSelectedResultSample(s)}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
-        {!isLoading && history.length > 0 && (
-          <HistorySection count={history.length}>
+        {!isLoading && (history.length > 0 || historySamples.length > 0) && (
+          <HistorySection count={history.length + historySamples.length}>
             {renderGroupedList(history, true)}
+            {typeCode === "laboratory" && historySamples.length > 0 && (
+              <div className="divide-y border rounded">
+                {historySamples.map((s: any) => (
+                  <LabResultRow
+                    key={s.id}
+                    sample={s}
+                    isHistory
+                    onClick={() => setSelectedResultSample(s)}
+                  />
+                ))}
+              </div>
+            )}
           </HistorySection>
         )}
       </div>
@@ -258,6 +325,11 @@ function ServiceColumn({
           }
           queryClient.invalidateQueries({ queryKey: ["care-plan-services"] });
         }}
+      />
+      <LabResultDialog
+        sample={selectedResultSample}
+        open={!!selectedResultSample}
+        onOpenChange={(open) => !open && setSelectedResultSample(null)}
       />
     </div>
   );
