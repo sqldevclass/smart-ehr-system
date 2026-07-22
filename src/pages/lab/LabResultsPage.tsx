@@ -225,13 +225,13 @@ function ResultsDialog({
   // Initialize values from existing on open
   useEffect(() => {
     const init: Record<string, string> = {};
-    templates.forEach((t: any) => {
+    allTemplates.forEach((t: any) => {
       const ex = existingByTemplate[t.id];
       init[t.id] = ex?.value ?? "";
     });
     setValues(init);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [templates, existing]);
+  }, [allTemplates, existing]);
 
   const isCompleted = sample?.status === "completed";
 
