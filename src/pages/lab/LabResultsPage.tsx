@@ -116,13 +116,19 @@ export default function LabResultsPage() {
                   <TableCell>
                     {(() => {
                       const services = linkedServices(s);
-                      if (services.length === 0) return "—";
+                      const seen = new Set();
+                      const uniq: any[] = [];
+                      for (const sv of services) {
+                        const sid = sv.services?.id;
+                        if (sid && !seen.has(sid)) { seen.add(sid); uniq.push(sv); }
+                      }
+                      if (uniq.length === 0) return "—";
                       return (
                         <span className="flex items-center gap-1.5">
-                          {services[0]?.services?.name}
-                          {services.length > 1 && (
+                          {uniq[0]?.services?.name}
+                          {uniq.length > 1 && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
-                              +{services.length - 1}
+                              +{uniq.length - 1}
                             </span>
                           )}
                         </span>
@@ -176,7 +182,16 @@ function ResultsDialog({
 }: { open: boolean; onOpenChange: (b: boolean) => void; sample: any; onSaved: () => void }) {
   const { user } = useAuth();
   const services = useMemo(() => linkedServices(sample), [sample]);
-  const serviceIds = useMemo(() => services.map((s: any) => s.services?.id).filter(Boolean), [services]);
+  const uniqueServices = useMemo(() => {
+    const seen = new Set();
+    const out: any[] = [];
+    for (const s of services) {
+      const sid = s.services?.id;
+      if (sid && !seen.has(sid)) { seen.add(sid); out.push(s); }
+    }
+    return out;
+  }, [services]);
+  const serviceIds = useMemo(() => uniqueServices.map((s: any) => s.services?.id).filter(Boolean), [uniqueServices]);
   const gender = sample?.patients?.gender as string | null;
 
   const { data: allTemplates = [] } = useQuery({
@@ -307,27 +322,27 @@ function ResultsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader>
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0">
+        <DialogHeader className="p-6 pb-2 shrink-0">
           <DialogTitle>
             {isCompleted ? "View Results" : "Enter Results"} — {sample?.barcode}
-            {services.length > 1 && (
+            {uniqueServices.length > 1 && (
               <span className="ml-2 text-sm font-normal text-muted-foreground">
-                ({services.length} tests combined)
+                ({uniqueServices.length} tests combined)
               </span>
             )}
           </DialogTitle>
         </DialogHeader>
-        <div className="overflow-x-auto">
-          {services.length === 0 ? (
+        <div className="flex-1 overflow-y-auto overflow-x-auto px-6">
+          {uniqueServices.length === 0 ? (
             <p className="text-sm text-muted-foreground p-2">No linked services for this sample.</p>
           ) : (
             <div className="space-y-4">
-              {services.map((s: any) => {
+              {uniqueServices.map((s: any) => {
                 const svcTemplates = templatesByService[s.services?.id] || [];
                 return (
-                  <div key={s.id}>
-                    {services.length > 1 && (
+                  <div key={s.services?.id}>
+                    {uniqueServices.length > 1 && (
                       <div className="text-sm font-medium mb-1">{s.services?.name}</div>
                     )}
                     {svcTemplates.length === 0 ? (
@@ -378,7 +393,7 @@ function ResultsDialog({
             </div>
           )}
         </div>
-        <DialogFooter>
+        <DialogFooter className="p-6 pt-2 shrink-0 border-t">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
           {!isCompleted && (
             <Button onClick={handleConfirm} disabled={saving || allTemplates.length === 0}>
