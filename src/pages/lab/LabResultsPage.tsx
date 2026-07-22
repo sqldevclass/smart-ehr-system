@@ -311,57 +311,78 @@ function ResultsDialog({
         <DialogHeader>
           <DialogTitle>
             {isCompleted ? "View Results" : "Enter Results"} — {sample?.barcode}
+            {services.length > 1 && (
+              <span className="ml-2 text-sm font-normal text-muted-foreground">
+                ({services.length} tests combined)
+              </span>
+            )}
           </DialogTitle>
         </DialogHeader>
         <div className="overflow-x-auto">
-          {templates.length === 0 ? (
-            <p className="text-sm text-muted-foreground p-2">No parameter template defined for this service.</p>
+          {services.length === 0 ? (
+            <p className="text-sm text-muted-foreground p-2">No linked services for this sample.</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Parameter</TableHead>
-                  <TableHead>Unit</TableHead>
-                  <TableHead>Value</TableHead>
-                  <TableHead>Ref Range</TableHead>
-                  <TableHead>Flag</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {templates.map((t: any) => {
-                  const [refMin, refMax] = refRangeFor(t);
-                  const v = values[t.id] ?? "";
-                  const flag = computeFlag(v, refMin, refMax, t.critical_min, t.critical_max);
-                  return (
-                    <TableRow key={t.id}>
-                      <TableCell className="font-medium">{t.name}</TableCell>
-                      <TableCell className="text-muted-foreground">{t.unit || "—"}</TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={v}
-                          disabled={isCompleted}
-                          onChange={(e) => setValues((s) => ({ ...s, [t.id]: e.target.value }))}
-                          className="h-8 w-28"
-                        />
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {refMin != null || refMax != null ? `${refMin ?? "—"} – ${refMax ?? "—"}` : "—"}
-                      </TableCell>
-                      <TableCell>{v ? <FlagBadge flag={flag} /> : <span className="text-muted-foreground">–</span>}</TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+            <div className="space-y-4">
+              {services.map((s: any) => {
+                const svcTemplates = templatesByService[s.services?.id] || [];
+                return (
+                  <div key={s.id}>
+                    {services.length > 1 && (
+                      <div className="text-sm font-medium mb-1">{s.services?.name}</div>
+                    )}
+                    {svcTemplates.length === 0 ? (
+                      <p className="text-sm text-muted-foreground p-2">No parameter template defined for this service.</p>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Parameter</TableHead>
+                            <TableHead>Unit</TableHead>
+                            <TableHead>Value</TableHead>
+                            <TableHead>Ref Range</TableHead>
+                            <TableHead>Flag</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {svcTemplates.map((t: any) => {
+                            const [refMin, refMax] = refRangeFor(t);
+                            const v = values[t.id] ?? "";
+                            const flag = computeFlag(v, refMin, refMax, t.critical_min, t.critical_max);
+                            return (
+                              <TableRow key={t.id}>
+                                <TableCell className="font-medium">{t.name}</TableCell>
+                                <TableCell className="text-muted-foreground">{t.unit || "—"}</TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    value={v}
+                                    disabled={isCompleted}
+                                    onChange={(e) => setValues((s2) => ({ ...s2, [t.id]: e.target.value }))}
+                                    className="h-8 w-28"
+                                  />
+                                </TableCell>
+                                <TableCell className="text-xs text-muted-foreground">
+                                  {refMin != null || refMax != null ? `${refMin ?? "—"} – ${refMax ?? "—"}` : "—"}
+                                </TableCell>
+                                <TableCell>{v ? <FlagBadge flag={flag} /> : <span className="text-muted-foreground">–</span>}</TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
           {!isCompleted && (
-            <Button onClick={handleConfirm} disabled={saving || templates.length === 0}>
-              {saving ? "Saving…" : "Confirm Results"}
+            <Button onClick={handleConfirm} disabled={saving || allTemplates.length === 0}>
+              {saving ? "Saving…" : "Save Results"}
             </Button>
           )}
         </DialogFooter>
