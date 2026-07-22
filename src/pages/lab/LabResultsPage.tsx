@@ -27,6 +27,12 @@ const computeFlag = (value: string, refMin: any, refMax: any, critMin: any, crit
   return "normal";
 };
 
+function linkedServices(sample: any) {
+  return (sample?.lab_sample_services || [])
+    .map((l: any) => l.visit_services)
+    .filter(Boolean);
+}
+
 export const FlagBadge = ({ flag }: { flag: Flag | string | null }) => {
   if (!flag || flag === "pending") return <span className="text-muted-foreground">–</span>;
   const map: Record<string, { cls: string; label: string }> = {
@@ -51,7 +57,14 @@ export default function LabResultsPage() {
       today.setHours(0, 0, 0, 0);
       const { data, error } = await supabase
         .from("lab_samples")
-        .select("id, barcode, status, drawn_at, notes, visit_service_id, patients(first_name, last_name, patient_number, date_of_birth, gender), visit_services!visit_service_id(services(id, name, service_type_id))")
+        .select(`
+          id, barcode, status, drawn_at, notes,
+          patients(first_name, last_name, patient_number, date_of_birth, gender),
+          lab_sample_services(
+            visit_service_id,
+            visit_services!inner(id, services(id, name, service_type_id))
+          )
+        `)
         .eq("hospital_id", user!.hospitalId)
         .in("status", ["drawn", "in_progress", "completed"])
         .gte("drawn_at", today.toISOString())
@@ -100,7 +113,22 @@ export default function LabResultsPage() {
                     <div className="text-xs text-muted-foreground font-mono">#{p?.patient_number}</div>
                   </TableCell>
                   <TableCell className="font-mono text-xs">{s.barcode}</TableCell>
-                  <TableCell>{s.visit_services?.services?.name || "—"}</TableCell>
+                  <TableCell>
+                    {(() => {
+                      const services = linkedServices(s);
+                      if (services.length === 0) return "—";
+                      return (
+                        <span className="flex items-center gap-1.5">
+                          {services[0]?.services?.name}
+                          {services.length > 1 && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
+                              +{services.length - 1}
+                            </span>
+                          )}
+                        </span>
+                      );
+                    })()}
+                  </TableCell>
                   <TableCell>{s.drawn_at ? format(new Date(s.drawn_at), "HH:mm") : "—"}</TableCell>
                 </TableRow>
               );
@@ -147,22 +175,31 @@ function ResultsDialog({
   open, onOpenChange, sample, onSaved,
 }: { open: boolean; onOpenChange: (b: boolean) => void; sample: any; onSaved: () => void }) {
   const { user } = useAuth();
-  const serviceId = sample?.visit_services?.services?.id;
+  const services = useMemo(() => linkedServices(sample), [sample]);
+  const serviceIds = useMemo(() => services.map((s: any) => s.services?.id).filter(Boolean), [services]);
   const gender = sample?.patients?.gender as string | null;
 
-  const { data: templates = [] } = useQuery({
-    queryKey: ["lab-templates", serviceId, user?.hospitalId],
+  const { data: allTemplates = [] } = useQuery({
+    queryKey: ["lab-templates-combo", serviceIds, user?.hospitalId],
     queryFn: async () => {
       const { data } = await supabase
         .from("lab_parameter_templates")
         .select("*")
-        .eq("service_id", serviceId)
+        .in("service_id", serviceIds)
         .eq("hospital_id", user!.hospitalId)
         .order("sort_order");
       return data || [];
     },
-    enabled: !!serviceId && !!user,
+    enabled: serviceIds.length > 0 && !!user,
   });
+
+  const templatesByService = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    for (const t of allTemplates as any[]) {
+      (map[t.service_id] ||= []).push(t);
+    }
+    return map;
+  }, [allTemplates]);
 
   const { data: existing = [] } = useQuery({
     queryKey: ["lab-results-for-sample", sample?.id],
@@ -188,13 +225,13 @@ function ResultsDialog({
   // Initialize values from existing on open
   useEffect(() => {
     const init: Record<string, string> = {};
-    templates.forEach((t: any) => {
+    allTemplates.forEach((t: any) => {
       const ex = existingByTemplate[t.id];
       init[t.id] = ex?.value ?? "";
     });
     setValues(init);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [templates, existing]);
+  }, [allTemplates, existing]);
 
   const isCompleted = sample?.status === "completed";
 
@@ -208,7 +245,7 @@ function ResultsDialog({
     if (!user) return;
     setSaving(true);
     try {
-      for (const t of templates) {
+      for (const t of allTemplates) {
         const v = values[t.id];
         if (v == null || v === "") continue;
         const [refMin, refMax] = refRangeFor(t);
@@ -236,20 +273,30 @@ function ResultsDialog({
         }
       }
 
-      const { error: sErr } = await supabase
-        .from("lab_samples")
-        .update({ status: "completed", completed_at: new Date().toISOString() })
-        .eq("id", sample.id);
-      if (sErr) throw sErr;
+      const isFullyEntered = allTemplates.length > 0 && allTemplates.every(
+        (t: any) => values[t.id] != null && values[t.id] !== "",
+      );
 
-      const { error: cErr } = await supabase.rpc("complete_service", {
-        p_visit_service_id: sample.visit_service_id,
-        p_completed_by: user.id,
-      });
-      if (cErr) throw cErr;
+      if (isFullyEntered) {
+        const { error: sErr } = await supabase
+          .from("lab_samples")
+          .update({ status: "completed", completed_at: new Date().toISOString() })
+          .eq("id", sample.id);
+        if (sErr) throw sErr;
 
-      toast.success("Results confirmed.");
-      onOpenChange(false);
+        for (const s of services) {
+          const { error: cErr } = await supabase.rpc("complete_service", {
+            p_visit_service_id: s.id,
+            p_completed_by: user.id,
+          });
+          if (cErr) throw cErr;
+        }
+
+        toast.success("Results confirmed.");
+        onOpenChange(false);
+      } else {
+        toast.success("Progress saved. Some results are still pending.");
+      }
       onSaved();
     } catch (e: any) {
       toast.error(e.message);
@@ -264,57 +311,78 @@ function ResultsDialog({
         <DialogHeader>
           <DialogTitle>
             {isCompleted ? "View Results" : "Enter Results"} — {sample?.barcode}
+            {services.length > 1 && (
+              <span className="ml-2 text-sm font-normal text-muted-foreground">
+                ({services.length} tests combined)
+              </span>
+            )}
           </DialogTitle>
         </DialogHeader>
         <div className="overflow-x-auto">
-          {templates.length === 0 ? (
-            <p className="text-sm text-muted-foreground p-2">No parameter template defined for this service.</p>
+          {services.length === 0 ? (
+            <p className="text-sm text-muted-foreground p-2">No linked services for this sample.</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Parameter</TableHead>
-                  <TableHead>Unit</TableHead>
-                  <TableHead>Value</TableHead>
-                  <TableHead>Ref Range</TableHead>
-                  <TableHead>Flag</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {templates.map((t: any) => {
-                  const [refMin, refMax] = refRangeFor(t);
-                  const v = values[t.id] ?? "";
-                  const flag = computeFlag(v, refMin, refMax, t.critical_min, t.critical_max);
-                  return (
-                    <TableRow key={t.id}>
-                      <TableCell className="font-medium">{t.name}</TableCell>
-                      <TableCell className="text-muted-foreground">{t.unit || "—"}</TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={v}
-                          disabled={isCompleted}
-                          onChange={(e) => setValues((s) => ({ ...s, [t.id]: e.target.value }))}
-                          className="h-8 w-28"
-                        />
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {refMin != null || refMax != null ? `${refMin ?? "—"} – ${refMax ?? "—"}` : "—"}
-                      </TableCell>
-                      <TableCell>{v ? <FlagBadge flag={flag} /> : <span className="text-muted-foreground">–</span>}</TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+            <div className="space-y-4">
+              {services.map((s: any) => {
+                const svcTemplates = templatesByService[s.services?.id] || [];
+                return (
+                  <div key={s.id}>
+                    {services.length > 1 && (
+                      <div className="text-sm font-medium mb-1">{s.services?.name}</div>
+                    )}
+                    {svcTemplates.length === 0 ? (
+                      <p className="text-sm text-muted-foreground p-2">No parameter template defined for this service.</p>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Parameter</TableHead>
+                            <TableHead>Unit</TableHead>
+                            <TableHead>Value</TableHead>
+                            <TableHead>Ref Range</TableHead>
+                            <TableHead>Flag</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {svcTemplates.map((t: any) => {
+                            const [refMin, refMax] = refRangeFor(t);
+                            const v = values[t.id] ?? "";
+                            const flag = computeFlag(v, refMin, refMax, t.critical_min, t.critical_max);
+                            return (
+                              <TableRow key={t.id}>
+                                <TableCell className="font-medium">{t.name}</TableCell>
+                                <TableCell className="text-muted-foreground">{t.unit || "—"}</TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    value={v}
+                                    disabled={isCompleted}
+                                    onChange={(e) => setValues((s2) => ({ ...s2, [t.id]: e.target.value }))}
+                                    className="h-8 w-28"
+                                  />
+                                </TableCell>
+                                <TableCell className="text-xs text-muted-foreground">
+                                  {refMin != null || refMax != null ? `${refMin ?? "—"} – ${refMax ?? "—"}` : "—"}
+                                </TableCell>
+                                <TableCell>{v ? <FlagBadge flag={flag} /> : <span className="text-muted-foreground">–</span>}</TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
           {!isCompleted && (
-            <Button onClick={handleConfirm} disabled={saving || templates.length === 0}>
-              {saving ? "Saving…" : "Confirm Results"}
+            <Button onClick={handleConfirm} disabled={saving || allTemplates.length === 0}>
+              {saving ? "Saving…" : "Save Results"}
             </Button>
           )}
         </DialogFooter>
