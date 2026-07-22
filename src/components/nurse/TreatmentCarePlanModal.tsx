@@ -213,8 +213,11 @@ function ServiceColumn({
   );
 
   const renderGroupedList = (list: any[], isHistory: boolean) => {
+    const filtered = typeCode === "laboratory"
+      ? list.filter((r: any) => r.service_statuses?.code !== "completed")
+      : list;
     const shown = new Set<string>();
-    return list.map((r: any) => {
+    return filtered.map((r: any) => {
       if (shown.has(r.id)) return null;
       const sampleId = typeCode === "laboratory" ? sampleIdByVisitService[r.id] : undefined;
       const group = sampleId
