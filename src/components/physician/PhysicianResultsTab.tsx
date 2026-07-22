@@ -11,17 +11,35 @@ interface Props {
   hospitalId: string;
 }
 
-function ParamRow({ r, dateStr }: { r: any; dateStr?: string }) {
+function ParamTableHeader() {
   return (
-    <div className="flex items-center justify-between py-1 text-xs">
+    <div className="grid grid-cols-[1fr_140px_140px] items-center py-1 text-xs font-medium text-muted-foreground border-b">
+      <span>Название</span>
+      <span>Дата</span>
+      <span className="text-right">Результат</span>
+    </div>
+  );
+}
+
+function ParamTableRow({ r, dateStr }: { r: any; dateStr: string }) {
+  return (
+    <div className="grid grid-cols-[1fr_140px_140px] items-center py-1.5 text-sm border-b last:border-0">
+      <span className="text-slate-600">{r.parameter_name}</span>
+      <span className="text-xs text-muted-foreground">{dateStr}</span>
+      <div className="flex items-center gap-2 justify-end">
+        <span className="font-mono">{r.value} {r.unit || ""}</span>
+        <FlagBadge flag={r.flag} />
+      </div>
+    </div>
+  );
+}
+
+function ParamRow({ r }: { r: any }) {
+  return (
+    <div className="flex items-center justify-between py-1 text-xs border-b last:border-0">
       <span className="text-muted-foreground">{r.parameter_name}</span>
-      <div className="flex items-center gap-3">
-        {dateStr && (
-          <span className="text-muted-foreground whitespace-nowrap">{dateStr}</span>
-        )}
-        <span className="font-mono">
-          {r.value} {r.unit || ""}
-        </span>
+      <div className="flex items-center gap-2">
+        <span className="font-mono">{r.value} {r.unit || ""}</span>
         <FlagBadge flag={r.flag} />
       </div>
     </div>
@@ -36,19 +54,6 @@ function PhysicianResultCard({ sample, isHistory }: { sample: any; isHistory?: b
   const [expanded, setExpanded] = useState(false);
 
   const services = uniqueServices(sample);
-  const isCombo = services.length > 1;
-
-  if (isCombo || results.length <= 1) {
-    if (results.length === 0) return null;
-    return (
-      <div className={`border rounded p-2 space-y-0 ${isHistory ? "opacity-80" : ""}`}>
-        {results.map((r: any) => (
-          <ParamRow key={r.id} r={r} dateStr={dateStr} />
-        ))}
-      </div>
-    );
-  }
-
   const hospId = services[0]?.hospitalization_id;
   const visible = expanded ? results : results.slice(0, 3);
 
@@ -80,6 +85,27 @@ function PhysicianResultCard({ sample, isHistory }: { sample: any; isHistory?: b
       )}
     </div>
   );
+}
+
+function partitionSamples(list: any[]) {
+  const flatRows: { key: string; r: any; dateStr: string }[] = [];
+  const boxed: any[] = [];
+  for (const s of list) {
+    const results = s?.lab_results || [];
+    const services = uniqueServices(s);
+    const isCombo = services.length > 1;
+    const dateStr = s?.completed_at
+      ? format(new Date(s.completed_at), "dd.MM.yyyy HH:mm")
+      : "";
+    if (isCombo || results.length <= 1) {
+      results.forEach((r: any) => {
+        flatRows.push({ key: `${s.id}-${r.id}`, r, dateStr });
+      });
+    } else {
+      boxed.push(s);
+    }
+  }
+  return { flatRows, boxed };
 }
 
 export default function PhysicianResultsTab({
@@ -124,6 +150,9 @@ export default function PhysicianResultsTab({
 
   const [showHistory, setShowHistory] = useState(false);
 
+  const { flatRows: currentFlat, boxed: currentBoxed } = partitionSamples(current);
+  const { flatRows: historyFlat, boxed: historyBoxed } = partitionSamples(history);
+
   return (
     <div className="space-y-2">
       {current.length === 0 && history.length === 0 ? (
@@ -131,7 +160,15 @@ export default function PhysicianResultsTab({
       ) : (
         <>
           <div className="space-y-2">
-            {current.map((s: any) => (
+            {currentFlat.length > 0 && (
+              <div>
+                <ParamTableHeader />
+                {currentFlat.map(({ key, r, dateStr }) => (
+                  <ParamTableRow key={key} r={r} dateStr={dateStr} />
+                ))}
+              </div>
+            )}
+            {currentBoxed.map((s: any) => (
               <PhysicianResultCard key={s.id} sample={s} />
             ))}
           </div>
@@ -147,7 +184,15 @@ export default function PhysicianResultsTab({
               </button>
               {showHistory && (
                 <div className="mt-2 space-y-2">
-                  {history.map((s: any) => (
+                  {historyFlat.length > 0 && (
+                    <div className="opacity-80">
+                      <ParamTableHeader />
+                      {historyFlat.map(({ key, r, dateStr }) => (
+                        <ParamTableRow key={key} r={r} dateStr={dateStr} />
+                      ))}
+                    </div>
+                  )}
+                  {historyBoxed.map((s: any) => (
                     <PhysicianResultCard key={s.id} sample={s} isHistory />
                   ))}
                 </div>
