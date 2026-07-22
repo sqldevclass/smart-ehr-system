@@ -113,7 +113,22 @@ export default function LabResultsPage() {
                     <div className="text-xs text-muted-foreground font-mono">#{p?.patient_number}</div>
                   </TableCell>
                   <TableCell className="font-mono text-xs">{s.barcode}</TableCell>
-                  <TableCell>{s.visit_services?.services?.name || "—"}</TableCell>
+                  <TableCell>
+                    {(() => {
+                      const services = linkedServices(s);
+                      if (services.length === 0) return "—";
+                      return (
+                        <span className="flex items-center gap-1.5">
+                          {services[0]?.services?.name}
+                          {services.length > 1 && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
+                              +{services.length - 1}
+                            </span>
+                          )}
+                        </span>
+                      );
+                    })()}
+                  </TableCell>
                   <TableCell>{s.drawn_at ? format(new Date(s.drawn_at), "HH:mm") : "—"}</TableCell>
                 </TableRow>
               );
