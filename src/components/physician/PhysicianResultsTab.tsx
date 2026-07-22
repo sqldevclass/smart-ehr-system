@@ -184,7 +184,15 @@ export default function PhysicianResultsTab({
               </button>
               {showHistory && (
                 <div className="mt-2 space-y-2">
-                  {history.map((s: any) => (
+                  {historyFlat.length > 0 && (
+                    <div className="opacity-80">
+                      <ParamTableHeader />
+                      {historyFlat.map(({ key, r, dateStr }) => (
+                        <ParamTableRow key={key} r={r} dateStr={dateStr} />
+                      ))}
+                    </div>
+                  )}
+                  {historyBoxed.map((s: any) => (
                     <PhysicianResultCard key={s.id} sample={s} isHistory />
                   ))}
                 </div>
