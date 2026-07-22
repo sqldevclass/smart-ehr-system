@@ -59,7 +59,7 @@ export default function PhysicianResultsTab({
         <>
           <div className="space-y-2">
             {current.map((s: any) => (
-              <LabResultCard key={s.id} sample={s} layout="horizontal" />
+              <LabResultCard key={s.id} sample={s} />
             ))}
           </div>
           {history.length > 0 && (
@@ -75,12 +75,7 @@ export default function PhysicianResultsTab({
               {showHistory && (
                 <div className="mt-2 space-y-2">
                   {history.map((s: any) => (
-                    <LabResultCard
-                      key={s.id}
-                      sample={s}
-                      isHistory
-                      layout="horizontal"
-                    />
+                    <LabResultCard key={s.id} sample={s} isHistory />
                   ))}
                 </div>
               )}

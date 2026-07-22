@@ -275,7 +275,7 @@ function ServiceColumn({
               {typeCode === "laboratory" && currentSamples.length > 0 && (
                 <div className="space-y-1.5">
                   {currentSamples.map((s: any) => (
-                    <LabResultCard key={s.id} sample={s} layout="vertical" />
+                    <LabResultCard key={s.id} sample={s} />
                   ))}
                 </div>
               )}
@@ -288,12 +288,7 @@ function ServiceColumn({
             {typeCode === "laboratory" && historySamples.length > 0 && (
               <div className="space-y-1.5">
                 {historySamples.map((s: any) => (
-                  <LabResultCard
-                    key={s.id}
-                    sample={s}
-                    isHistory
-                    layout="vertical"
-                  />
+                  <LabResultCard key={s.id} sample={s} isHistory />
                 ))}
               </div>
             )}
