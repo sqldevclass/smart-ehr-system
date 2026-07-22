@@ -194,6 +194,13 @@ function ServiceColumn({
           >
             {r.service_statuses?.name_ru}
           </button>
+        ) : typeCode === "consultation" && r.service_statuses?.code === "preliminary" && !isHistory ? (
+          <button
+            onClick={() => setSchedulingConsult(r)}
+            className="px-1.5 py-0.5 rounded bg-muted hover:bg-muted/70 underline"
+          >
+            {r.service_statuses?.name_ru}
+          </button>
         ) : (
           <span className="px-1.5 py-0.5 rounded bg-muted">
             {r.service_statuses?.name_ru}
