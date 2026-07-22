@@ -11,6 +11,7 @@ import { useCareOrderSchedule } from "@/hooks/useCareOrderSchedule";
 import { useLabOrderAlerts } from "@/hooks/useLabOrderAlerts";
 import { cn } from "@/lib/utils";
 import { LabResultCard } from "@/components/shared/LabResultRow";
+import { BookingModal } from "@/components/booking/BookingModal";
 
 
 
