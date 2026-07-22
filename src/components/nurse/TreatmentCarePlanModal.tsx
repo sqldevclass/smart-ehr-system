@@ -326,6 +326,21 @@ function ServiceColumn({
           queryClient.invalidateQueries({ queryKey: ["care-plan-services"] });
         }}
       />
+      <BookingModal
+        open={!!schedulingConsult}
+        onOpenChange={(open) => !open && setSchedulingConsult(null)}
+        patientId={patientId}
+        hospitalId={hospitalId}
+        mode="inpatient"
+        hospitalizationId={hospitalizationId}
+        existingVisitServiceId={schedulingConsult?.id}
+        preselectedServiceId={schedulingConsult?.services?.id}
+        onBooked={() => {
+          toast.success("Consultation scheduled.");
+          setSchedulingConsult(null);
+          queryClient.invalidateQueries({ queryKey: ["care-plan-services"] });
+        }}
+      />
     </div>
   );
 }
