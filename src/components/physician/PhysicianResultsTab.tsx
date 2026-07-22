@@ -15,8 +15,8 @@ function ParamTableHeader() {
   return (
     <div className="grid grid-cols-[1fr_140px_140px] items-center py-1 text-xs font-medium text-muted-foreground border-b">
       <span>Название</span>
+      <span>Результат</span>
       <span>Дата</span>
-      <span className="text-right">Результат</span>
     </div>
   );
 }
@@ -25,11 +25,13 @@ function ParamTableRow({ r, dateStr }: { r: any; dateStr: string }) {
   return (
     <div className="grid grid-cols-[1fr_140px_140px] items-center py-1.5 text-sm border-b last:border-0">
       <span className="text-slate-600">{r.parameter_name}</span>
-      <span className="text-xs text-muted-foreground">{dateStr}</span>
-      <div className="flex items-center gap-2 justify-end">
+      <div className="flex items-center justify-between pr-2">
         <span className="font-mono">{r.value} {r.unit || ""}</span>
-        <FlagBadge flag={r.flag} />
+        {r.flag && r.flag !== "normal" && r.flag !== "pending" && (
+          <FlagBadge flag={r.flag} />
+        )}
       </div>
+      <span className="text-xs text-muted-foreground">{dateStr}</span>
     </div>
   );
 }
@@ -40,7 +42,9 @@ function ParamRow({ r }: { r: any }) {
       <span className="text-muted-foreground">{r.parameter_name}</span>
       <div className="flex items-center gap-2">
         <span className="font-mono">{r.value} {r.unit || ""}</span>
-        <FlagBadge flag={r.flag} />
+        {r.flag && r.flag !== "normal" && r.flag !== "pending" && (
+          <FlagBadge flag={r.flag} />
+        )}
       </div>
     </div>
   );
