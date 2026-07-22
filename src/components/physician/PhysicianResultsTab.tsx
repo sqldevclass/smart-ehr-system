@@ -1,10 +1,7 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  LabResultRow,
-  LabResultDialog,
-} from "@/components/shared/LabResultRow";
+import { useState } from "react";
+import { LabResultCard } from "@/components/shared/LabResultRow";
 
 interface Props {
   hospitalizationId: string;
@@ -53,7 +50,6 @@ export default function PhysicianResultsTab({
   );
 
   const [showHistory, setShowHistory] = useState(false);
-  const [selectedSample, setSelectedSample] = useState<any>(null);
 
   return (
     <div className="space-y-2">
@@ -61,13 +57,9 @@ export default function PhysicianResultsTab({
         <p className="text-sm text-muted-foreground">Пока нет результатов.</p>
       ) : (
         <>
-          <div className="divide-y border rounded">
+          <div className="space-y-2">
             {current.map((s: any) => (
-              <LabResultRow
-                key={s.id}
-                sample={s}
-                onClick={() => setSelectedSample(s)}
-              />
+              <LabResultCard key={s.id} sample={s} layout="horizontal" />
             ))}
           </div>
           {history.length > 0 && (
@@ -81,13 +73,13 @@ export default function PhysicianResultsTab({
                   : `Показать историю (${history.length})`}
               </button>
               {showHistory && (
-                <div className="mt-2 divide-y border rounded">
+                <div className="mt-2 space-y-2">
                   {history.map((s: any) => (
-                    <LabResultRow
+                    <LabResultCard
                       key={s.id}
                       sample={s}
                       isHistory
-                      onClick={() => setSelectedSample(s)}
+                      layout="horizontal"
                     />
                   ))}
                 </div>
@@ -96,12 +88,6 @@ export default function PhysicianResultsTab({
           )}
         </>
       )}
-
-      <LabResultDialog
-        sample={selectedSample}
-        open={!!selectedSample}
-        onOpenChange={(open) => !open && setSelectedSample(null)}
-      />
     </div>
   );
 }

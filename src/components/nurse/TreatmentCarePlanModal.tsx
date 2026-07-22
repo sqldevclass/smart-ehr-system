@@ -10,7 +10,7 @@ import EWSStatusDot from "@/components/ews/EWSStatusDot";
 import { useCareOrderSchedule } from "@/hooks/useCareOrderSchedule";
 import { useLabOrderAlerts } from "@/hooks/useLabOrderAlerts";
 import { cn } from "@/lib/utils";
-import { LabResultRow, LabResultDialog } from "@/components/shared/LabResultRow";
+import { LabResultCard } from "@/components/shared/LabResultRow";
 
 
 
@@ -124,7 +124,7 @@ function ServiceColumn({
     },
   });
 
-  const [selectedResultSample, setSelectedResultSample] = useState<any>(null);
+  
 
   const { currentSamples, historySamples } = useMemo(() => {
     const cur: any[] = [];
@@ -273,13 +273,9 @@ function ServiceColumn({
             <>
               {renderGroupedList(current, false)}
               {typeCode === "laboratory" && currentSamples.length > 0 && (
-                <div className="divide-y border rounded">
+                <div className="space-y-1.5">
                   {currentSamples.map((s: any) => (
-                    <LabResultRow
-                      key={s.id}
-                      sample={s}
-                      onClick={() => setSelectedResultSample(s)}
-                    />
+                    <LabResultCard key={s.id} sample={s} layout="vertical" />
                   ))}
                 </div>
               )}
@@ -290,13 +286,13 @@ function ServiceColumn({
           <HistorySection count={history.length + historySamples.length}>
             {renderGroupedList(history, true)}
             {typeCode === "laboratory" && historySamples.length > 0 && (
-              <div className="divide-y border rounded">
+              <div className="space-y-1.5">
                 {historySamples.map((s: any) => (
-                  <LabResultRow
+                  <LabResultCard
                     key={s.id}
                     sample={s}
                     isHistory
-                    onClick={() => setSelectedResultSample(s)}
+                    layout="vertical"
                   />
                 ))}
               </div>
@@ -325,11 +321,6 @@ function ServiceColumn({
           }
           queryClient.invalidateQueries({ queryKey: ["care-plan-services"] });
         }}
-      />
-      <LabResultDialog
-        sample={selectedResultSample}
-        open={!!selectedResultSample}
-        onOpenChange={(open) => !open && setSelectedResultSample(null)}
       />
     </div>
   );
