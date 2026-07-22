@@ -1,12 +1,85 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
-import { LabResultCard } from "@/components/shared/LabResultRow";
+import { uniqueServices } from "@/components/shared/LabResultRow";
+import { FlagBadge } from "@/pages/lab/LabResultsPage";
+import { format } from "date-fns";
 
 interface Props {
   hospitalizationId: string;
   patientId: string;
   hospitalId: string;
+}
+
+function ParamRow({ r, dateStr }: { r: any; dateStr?: string }) {
+  return (
+    <div className="flex items-center justify-between py-1 text-xs">
+      <span className="text-muted-foreground">{r.parameter_name}</span>
+      <div className="flex items-center gap-3">
+        {dateStr && (
+          <span className="text-muted-foreground whitespace-nowrap">{dateStr}</span>
+        )}
+        <span className="font-mono">
+          {r.value} {r.unit || ""}
+        </span>
+        <FlagBadge flag={r.flag} />
+      </div>
+    </div>
+  );
+}
+
+function PhysicianResultCard({ sample, isHistory }: { sample: any; isHistory?: boolean }) {
+  const results = sample?.lab_results || [];
+  const dateStr = sample?.completed_at
+    ? format(new Date(sample.completed_at), "dd.MM.yyyy HH:mm")
+    : "";
+  const [expanded, setExpanded] = useState(false);
+
+  if (results.length <= 1) {
+    const r = results[0];
+    if (!r) return null;
+    return (
+      <div className={`border rounded px-2 ${isHistory ? "opacity-80" : ""}`}>
+        <ParamRow r={r} dateStr={dateStr} />
+      </div>
+    );
+  }
+
+  const services = uniqueServices(sample);
+  const isCombo = services.length > 1;
+  const hospId = services[0]?.hospitalization_id;
+  const visible = expanded ? results : results.slice(0, 3);
+
+  return (
+    <div className={`border rounded p-2 space-y-2 ${isHistory ? "opacity-80" : ""}`}>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="font-medium text-sm truncate">
+            {isCombo ? `Комбинированный анализ (${services.length})` : services[0]?.services?.name}
+          </span>
+          {hospId === null && (
+            <span className="text-[10px] rounded bg-amber-100 text-amber-800 px-1.5 py-0.5">
+              Амб.
+            </span>
+          )}
+        </div>
+        <span className="text-xs text-muted-foreground whitespace-nowrap">{dateStr}</span>
+      </div>
+      <div className="divide-y">
+        {visible.map((r: any) => (
+          <ParamRow key={r.id} r={r} />
+        ))}
+      </div>
+      {results.length > 3 && (
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="text-xs text-blue-600 hover:underline"
+        >
+          {expanded ? "Свернуть" : `Показать все (${results.length})`}
+        </button>
+      )}
+    </div>
+  );
 }
 
 export default function PhysicianResultsTab({
@@ -59,7 +132,7 @@ export default function PhysicianResultsTab({
         <>
           <div className="space-y-2">
             {current.map((s: any) => (
-              <LabResultCard key={s.id} sample={s} />
+              <PhysicianResultCard key={s.id} sample={s} />
             ))}
           </div>
           {history.length > 0 && (
@@ -75,7 +148,7 @@ export default function PhysicianResultsTab({
               {showHistory && (
                 <div className="mt-2 space-y-2">
                   {history.map((s: any) => (
-                    <LabResultCard key={s.id} sample={s} isHistory />
+                    <PhysicianResultCard key={s.id} sample={s} isHistory />
                   ))}
                 </div>
               )}
