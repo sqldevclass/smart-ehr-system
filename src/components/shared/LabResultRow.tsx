@@ -44,20 +44,13 @@ function ParamList({ results }: { results: any[] }) {
 export function LabResultCard({
   sample,
   isHistory,
-  layout,
 }: {
   sample: any;
   isHistory?: boolean;
-  layout: "horizontal" | "vertical";
 }) {
   const services = uniqueServices(sample);
   const isCombo = services.length > 1;
   const hospId = services[0]?.hospitalization_id;
-
-  const resultsForService = (serviceId: string) =>
-    (sample?.lab_results || []).filter(
-      (r: any) => r.lab_parameter_templates?.service_id === serviceId,
-    );
 
   return (
     <div
@@ -82,28 +75,7 @@ export function LabResultCard({
             : ""}
         </span>
       </div>
-
-      {!isCombo ? (
-        <ParamList results={sample?.lab_results || []} />
-      ) : layout === "horizontal" ? (
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-          {services.map((s: any) => (
-            <div key={s.services?.id}>
-              <p className="text-xs font-medium mb-1">{s.services?.name}</p>
-              <ParamList results={resultsForService(s.services?.id)} />
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {services.map((s: any) => (
-            <div key={s.services?.id}>
-              <p className="text-xs font-medium mb-1">{s.services?.name}</p>
-              <ParamList results={resultsForService(s.services?.id)} />
-            </div>
-          ))}
-        </div>
-      )}
+      <ParamList results={sample?.lab_results || []} />
     </div>
   );
 }
