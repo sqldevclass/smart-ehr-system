@@ -101,6 +101,44 @@ function ServiceColumn({
     },
   });
 
+  const { data: completedSamples = [] } = useQuery({
+    queryKey: ["service-column-completed-samples", typeCode, patientId, hospitalId],
+    enabled: typeCode === "laboratory",
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("lab_samples")
+        .select(`
+          id, completed_at,
+          lab_sample_services(
+            visit_service_id,
+            visit_services!inner(id, hospitalization_id, services!inner(id, name))
+          ),
+          lab_results(id, parameter_name, value, unit, flag, parameter_template_id, lab_parameter_templates(service_id))
+        `)
+        .eq("hospital_id", hospitalId)
+        .eq("patient_id", patientId)
+        .eq("status", "completed")
+        .order("completed_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const [selectedResultSample, setSelectedResultSample] = useState<any>(null);
+
+  const { currentSamples, historySamples } = useMemo(() => {
+    const cur: any[] = [];
+    const hist: any[] = [];
+    for (const s of completedSamples as any[]) {
+      const belongs = (s.lab_sample_services || []).some(
+        (l: any) => l.visit_services?.hospitalization_id === hospitalizationId,
+      );
+      (belongs ? cur : hist).push(s);
+    }
+    return { currentSamples: cur, historySamples: hist };
+  }, [completedSamples, hospitalizationId]);
+
+
   const sampleIdByVisitService = useMemo(() => {
     const map: Record<string, string> = {};
     for (const link of sampleLinks as any[]) {
