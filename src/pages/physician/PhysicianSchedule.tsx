@@ -20,8 +20,14 @@ interface ScheduleRow {
 interface SlotRow {
   id: string;
   slot_datetime: string;
-  is_booked: boolean | null;
-  visit_service_id: string | null;
+  booking_count: number | null;
+}
+
+interface BookingRow {
+  id: string;
+  slot_id: string;
+  patients: { first_name: string | null; last_name: string | null } | null;
+  services: { name: string | null } | null;
 }
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
