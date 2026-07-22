@@ -322,27 +322,27 @@ function ResultsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader>
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0">
+        <DialogHeader className="p-6 pb-2 shrink-0">
           <DialogTitle>
             {isCompleted ? "View Results" : "Enter Results"} — {sample?.barcode}
-            {services.length > 1 && (
+            {uniqueServices.length > 1 && (
               <span className="ml-2 text-sm font-normal text-muted-foreground">
-                ({services.length} tests combined)
+                ({uniqueServices.length} tests combined)
               </span>
             )}
           </DialogTitle>
         </DialogHeader>
-        <div className="overflow-x-auto">
-          {services.length === 0 ? (
+        <div className="flex-1 overflow-y-auto overflow-x-auto px-6">
+          {uniqueServices.length === 0 ? (
             <p className="text-sm text-muted-foreground p-2">No linked services for this sample.</p>
           ) : (
             <div className="space-y-4">
-              {services.map((s: any) => {
+              {uniqueServices.map((s: any) => {
                 const svcTemplates = templatesByService[s.services?.id] || [];
                 return (
-                  <div key={s.id}>
-                    {services.length > 1 && (
+                  <div key={s.services?.id}>
+                    {uniqueServices.length > 1 && (
                       <div className="text-sm font-medium mb-1">{s.services?.name}</div>
                     )}
                     {svcTemplates.length === 0 ? (
@@ -393,7 +393,7 @@ function ResultsDialog({
             </div>
           )}
         </div>
-        <DialogFooter>
+        <DialogFooter className="p-6 pt-2 shrink-0 border-t">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
           {!isCompleted && (
             <Button onClick={handleConfirm} disabled={saving || allTemplates.length === 0}>
