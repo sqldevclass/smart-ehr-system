@@ -27,6 +27,12 @@ const computeFlag = (value: string, refMin: any, refMax: any, critMin: any, crit
   return "normal";
 };
 
+function linkedServices(sample: any) {
+  return (sample?.lab_sample_services || [])
+    .map((l: any) => l.visit_services)
+    .filter(Boolean);
+}
+
 export const FlagBadge = ({ flag }: { flag: Flag | string | null }) => {
   if (!flag || flag === "pending") return <span className="text-muted-foreground">–</span>;
   const map: Record<string, { cls: string; label: string }> = {
