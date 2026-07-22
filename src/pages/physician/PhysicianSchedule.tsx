@@ -38,6 +38,7 @@ export default function PhysicianSchedule() {
   const [physicianMissing, setPhysicianMissing] = useState(false);
   const [schedules, setSchedules] = useState<ScheduleRow[]>([]);
   const [slots, setSlots] = useState<SlotRow[]>([]);
+  const [bookings, setBookings] = useState<BookingRow[]>([]);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -80,7 +81,7 @@ export default function PhysicianSchedule() {
 
     const { data: slotData, error: slErr } = await supabase
       .from("schedule_slots")
-      .select("id, slot_datetime, is_booked, visit_service_id")
+      .select("id, slot_datetime, booking_count")
       .eq("staff_role_id", phys.id)
       .gte("slot_datetime", todayStart.toISOString())
       .lte("slot_datetime", todayEnd.toISOString())
@@ -88,6 +89,18 @@ export default function PhysicianSchedule() {
 
     if (slErr) toast.error(slErr.message);
     setSlots((slotData || []) as SlotRow[]);
+
+    const slotIds = (slotData || []).map((s: any) => s.id);
+    if (slotIds.length > 0) {
+      const { data: bookingData, error: bErr } = await supabase
+        .from("visit_services")
+        .select("id, slot_id, patients(first_name, last_name), services(name)")
+        .in("slot_id", slotIds);
+      if (bErr) toast.error(bErr.message);
+      setBookings((bookingData || []) as BookingRow[]);
+    } else {
+      setBookings([]);
+    }
 
     setLoading(false);
   }, [user]);
@@ -180,19 +193,32 @@ export default function PhysicianSchedule() {
             <p className="text-sm text-muted-foreground">No slots for today.</p>
           ) : (
             <ul className="divide-y rounded border">
-              {slots.map((slot) => (
-                <li
-                  key={slot.id}
-                  className="flex items-center justify-between px-4 py-2 text-sm"
-                >
-                  <span className="font-mono">
-                    {format(new Date(slot.slot_datetime), "HH:mm")}
-                  </span>
-                  <Badge variant={slot.is_booked ? "default" : "secondary"}>
-                    {slot.is_booked ? "Booked" : "Free"}
-                  </Badge>
-                </li>
-              ))}
+              {slots.map((slot) => {
+                const slotBookings = bookings.filter((b) => b.slot_id === slot.id);
+                return (
+                  <li
+                    key={slot.id}
+                    className="flex items-center justify-between px-4 py-2 text-sm"
+                  >
+                    <span className="font-mono">
+                      {format(new Date(slot.slot_datetime), "HH:mm")}
+                    </span>
+                    {slotBookings.length === 0 ? (
+                      <Badge variant="secondary">Free</Badge>
+                    ) : (
+                      <div className="flex flex-col items-end gap-0.5">
+                        {slotBookings.map((b) => (
+                          <span key={b.id} className="text-xs text-muted-foreground">
+                            {[b.patients?.last_name, b.patients?.first_name].filter(Boolean).join(" ") || "—"}
+                            {b.services?.name ? ` · ${b.services.name}` : ""}
+                          </span>
+                        ))}
+                        <Badge>Booked{slotBookings.length > 1 ? ` (${slotBookings.length})` : ""}</Badge>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </CardContent>
