@@ -221,7 +221,7 @@ function ServiceColumn({
       if (shown.has(r.id)) return null;
       const sampleId = typeCode === "laboratory" ? sampleIdByVisitService[r.id] : undefined;
       const group = sampleId
-        ? list.filter((x: any) => sampleIdByVisitService[x.id] === sampleId)
+        ? filtered.filter((x: any) => sampleIdByVisitService[x.id] === sampleId)
         : [r];
       if (group.length <= 1) {
         shown.add(r.id);
