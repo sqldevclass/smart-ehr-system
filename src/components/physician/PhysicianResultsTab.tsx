@@ -35,18 +35,20 @@ function PhysicianResultCard({ sample, isHistory }: { sample: any; isHistory?: b
     : "";
   const [expanded, setExpanded] = useState(false);
 
-  if (results.length <= 1) {
-    const r = results[0];
-    if (!r) return null;
+  const services = uniqueServices(sample);
+  const isCombo = services.length > 1;
+
+  if (isCombo || results.length <= 1) {
+    if (results.length === 0) return null;
     return (
-      <div className={`border rounded px-2 ${isHistory ? "opacity-80" : ""}`}>
-        <ParamRow r={r} dateStr={dateStr} />
+      <div className={`border rounded p-2 space-y-0 ${isHistory ? "opacity-80" : ""}`}>
+        {results.map((r: any) => (
+          <ParamRow key={r.id} r={r} dateStr={dateStr} />
+        ))}
       </div>
     );
   }
 
-  const services = uniqueServices(sample);
-  const isCombo = services.length > 1;
   const hospId = services[0]?.hospitalization_id;
   const visible = expanded ? results : results.slice(0, 3);
 
@@ -54,9 +56,7 @@ function PhysicianResultCard({ sample, isHistory }: { sample: any; isHistory?: b
     <div className={`border rounded p-2 space-y-2 ${isHistory ? "opacity-80" : ""}`}>
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="font-medium text-sm truncate">
-            {isCombo ? `Комбинированный анализ (${services.length})` : services[0]?.services?.name}
-          </span>
+          <span className="font-medium text-sm truncate">{services[0]?.services?.name}</span>
           {hospId === null && (
             <span className="text-[10px] rounded bg-amber-100 text-amber-800 px-1.5 py-0.5">
               Амб.
@@ -65,7 +65,7 @@ function PhysicianResultCard({ sample, isHistory }: { sample: any; isHistory?: b
         </div>
         <span className="text-xs text-muted-foreground whitespace-nowrap">{dateStr}</span>
       </div>
-      <div className="divide-y">
+      <div>
         {visible.map((r: any) => (
           <ParamRow key={r.id} r={r} />
         ))}
