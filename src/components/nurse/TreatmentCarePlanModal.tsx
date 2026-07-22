@@ -170,6 +170,7 @@ function ServiceColumn({
   };
 
   const [drawTarget, setDrawTarget] = useState<any>(null);
+  const [schedulingConsult, setSchedulingConsult] = useState<any>(null);
 
   const renderRow = (r: any, isHistory: boolean) => (
     <div
