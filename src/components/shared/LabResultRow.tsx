@@ -1,13 +1,13 @@
 import { format } from "date-fns";
 import { FlagBadge } from "@/pages/lab/LabResultsPage";
 
-function linkedServices(sample: any) {
+export function linkedServices(sample: any) {
   return (sample?.lab_sample_services || [])
     .map((l: any) => l.visit_services)
     .filter(Boolean);
 }
 
-function uniqueServices(sample: any) {
+export function uniqueServices(sample: any) {
   const seen = new Set();
   const out: any[] = [];
   for (const s of linkedServices(sample)) {
