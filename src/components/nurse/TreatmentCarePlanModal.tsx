@@ -60,7 +60,7 @@ function ServiceColumn({
   hospitalId,
 }: {
   title: string;
-  typeCode: "laboratory" | "consultation";
+  typeCode: "laboratory" | "consultation" | "instrumental";
   hospitalizationId: string;
   patientId: string;
   hospitalId: string;
@@ -194,7 +194,7 @@ function ServiceColumn({
           >
             {r.service_statuses?.name_ru}
           </button>
-        ) : typeCode === "consultation" && r.service_statuses?.code === "preliminary" && !isHistory ? (
+        ) : (typeCode === "consultation" || typeCode === "instrumental") && r.service_statuses?.code === "preliminary" && !isHistory ? (
           <button
             onClick={() => setSchedulingConsult(r)}
             className="px-1.5 py-0.5 rounded bg-muted hover:bg-muted/70 underline"
@@ -565,12 +565,13 @@ export default function TreatmentCarePlanModal({
               />
             </div>
             <div className="md:px-4 h-full min-h-0 flex flex-col">
-              <div className="text-sm font-semibold mb-2">
-                Инструментальные исследования
-              </div>
-              <div className="flex-1 flex items-center justify-center text-xs text-muted-foreground">
-                Инструментальные — в разработке
-              </div>
+              <ServiceColumn
+                title="Инструментальные исследования"
+                typeCode="instrumental"
+                hospitalizationId={hospitalizationId}
+                patientId={patientId}
+                hospitalId={hospitalId}
+              />
             </div>
             <div className="md:px-4 h-full min-h-0 flex flex-col">
               <ServiceColumn
