@@ -43,6 +43,7 @@ export function BookingModal(props: BookingModalProps) {
   const [queueDate, setQueueDate] = useState<Date | null>(null);
   const [registrationSource, setRegistrationSource] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
+  const [autoLoadingService, setAutoLoadingService] = useState(false);
 
   // Patient name
   const { data: patient } = useQuery({
