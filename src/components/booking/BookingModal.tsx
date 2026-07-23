@@ -94,8 +94,11 @@ export function BookingModal(props: BookingModalProps) {
       setQueueDate(null);
       setRegistrationSource("");
       setSubmitting(false);
+      setAutoLoadingService(false);
     } else {
-      if (initialOfficeRoom) {
+      if (existingVisitServiceId && preselectedServiceId) {
+        setAutoLoadingService(true);
+      } else if (initialOfficeRoom) {
         setOfficeRoom(initialOfficeRoom);
         setPickedServices([initialOfficeRoom.service]);
         setShowMultiCalendar(true);
