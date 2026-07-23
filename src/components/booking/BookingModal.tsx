@@ -332,6 +332,10 @@ export function BookingModal(props: BookingModalProps) {
               <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
             </div>
           </div>
+        ) : autoLoadingService ? (
+          <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
+            Loading service…
+          </div>
         ) : !physician ? (
           <div className="space-y-4">
             {existingVisitServiceId && pickedServices && pickedServices.length > 0 && (
