@@ -704,7 +704,7 @@ function TabPanel(props: TabProps) {
     case "diagnosis":
       return <DiagnosisTab {...props} />;
     case "imaging":
-      return <Placeholder text="Инструментальные — Фаза 8 — в разработке" />;
+      return <ServiceTab {...props} typeCode="instrumental" title="Инструментальные" />;
     case "care":
       return <CareTab {...props} />;
     case "scales":
