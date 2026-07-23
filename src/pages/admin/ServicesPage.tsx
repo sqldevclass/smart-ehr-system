@@ -192,12 +192,28 @@ export default function ServicesPage() {
   const saveType = async () => {
     if (!user) return;
     if (!typeNameRu.trim()) { toast.error("Name (RU) is required."); return; }
+    const trimmedCode = typeCode.trim();
+    if (trimmedCode) {
+      const { data: existing, error: checkErr } = await supabase
+        .from("service_types")
+        .select("id")
+        .eq("code", trimmedCode)
+        .or(`hospital_id.is.null,hospital_id.eq.${user.hospitalId}`);
+      if (checkErr) { toast.error(checkErr.message); return; }
+      const conflict = (existing || []).find(
+        (row: any) => !editingType || row.id !== editingType.id,
+      );
+      if (conflict) {
+        toast.info("A service type with this code already exists.");
+        return;
+      }
+    }
     try {
       if (editingType) {
         const { error } = await supabase.from("service_types").update({
           name_ru: typeNameRu.trim(),
           name_en: typeNameEn.trim() || null,
-          code: typeCode.trim() || null,
+          code: trimmedCode || null,
         }).eq("id", editingType.id);
         if (error) throw error;
         toast.success("Type updated.");
@@ -206,14 +222,22 @@ export default function ServicesPage() {
           hospital_id: user.hospitalId,
           name_ru: typeNameRu.trim(),
           name_en: typeNameEn.trim() || null,
-          code: typeCode.trim() || null,
+          code: trimmedCode || null,
         });
         if (error) throw error;
         toast.success("Type created.");
       }
       setTypeDialog(false);
       qc.invalidateQueries({ queryKey: ["service_types"] });
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) {
+      if (e.message?.includes("already used by a platform-default type")) {
+        toast.info("A service type with this code already exists.");
+      } else if (e.code === "23505") {
+        toast.info("A service type with this code already exists.");
+      } else {
+        toast.error(e.message);
+      }
+    }
   };
 
   // ============ Group Dialog ============
