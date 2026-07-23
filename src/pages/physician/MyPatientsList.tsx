@@ -220,21 +220,26 @@ export default function MyPatientsList() {
     }
 
     const selectedDateStr = format(selectedDate, "yyyy-MM-dd");
-    const filteredMain = (vs || []).filter((row: any) => {
+    const matchesSelectedDate = (row: any) => {
       if (row.scheduled_at) {
         return row.scheduled_at >= dayStart && row.scheduled_at <= dayEnd;
       }
-      return row.visits?.visit_date === selectedDateStr;
-    });
+      if (row.visits?.visit_date) {
+        return row.visits.visit_date === selectedDateStr;
+      }
+      // No slot, no visit (inpatient + queue-assigned) — fall back
+      // to the date it was created, since a queue assignment is
+      // always effectively "today" at creation time.
+      return row.created_at?.slice(0, 10) === selectedDateStr;
+    };
+
+    const filteredMain = (vs || []).filter(matchesSelectedDate);
 
     // Avoid double-listing rows already in the main list
     const mainIds = new Set(filteredMain.map((r: any) => r.id));
     const filteredRoom = roomServices.filter((r: any) => {
       if (mainIds.has(r.id)) return false;
-      if (r.scheduled_at) {
-        return r.scheduled_at >= dayStart && r.scheduled_at <= dayEnd;
-      }
-      return r.visits?.visit_date === selectedDateStr;
+      return matchesSelectedDate(r);
     });
 
     // Fetch profiles for completed_by uuids across both lists
