@@ -8,8 +8,10 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format, subDays, addDays, startOfDay, endOfDay, isSameDay } from "date-fns";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarIcon } from "lucide-react";
 import { toLocal } from "@/lib/timezone";
 import DocumentWorkspace from "@/components/documents/DocumentWorkspace";
 import { usePhysicianLayoutContext } from "@/components/physician/PhysicianLayout";
@@ -83,6 +85,7 @@ export default function MyPatientsList() {
   const [roomMap, setRoomMap] = useState<Record<string, string>>({});
   const [completedByNames, setCompletedByNames] = useState<Record<string, string>>({});
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [expandedRooms, setExpandedRooms] = useState<Record<string, boolean>>({});
   const [activeDocument, setActiveDocument] = useState<{
     visitServiceId: string;
@@ -474,25 +477,31 @@ export default function MyPatientsList() {
       </div>
 
       <div className="flex items-center gap-2 flex-wrap">
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => setSelectedDate(subDays(selectedDate, 1))}
-          className="gap-1"
-        >
-          <ChevronLeft className="h-4 w-4" /> Yesterday
-        </Button>
-        <div className="px-3 py-1.5 text-sm font-medium rounded-md bg-muted min-w-[180px] text-center">
-          {format(selectedDate, "EEEE, MMM d")}
-        </div>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => setSelectedDate(addDays(selectedDate, 1))}
-          className="gap-1"
-        >
-          Tomorrow <ChevronRight className="h-4 w-4" />
-        </Button>
+        <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-2 min-w-[180px] justify-start"
+            >
+              <CalendarIcon className="h-4 w-4" />
+              {format(selectedDate, "EEEE, MMM d")}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={(date) => {
+                if (date) {
+                  setSelectedDate(date);
+                  setDatePickerOpen(false);
+                }
+              }}
+              initialFocus
+            />
+          </PopoverContent>
+        </Popover>
         {!isToday && (
           <Button size="sm" variant="ghost" onClick={() => setSelectedDate(new Date())}>
             Today
