@@ -17,7 +17,7 @@ interface Props {
   patientId: string;
   hospitalId: string;
   userId: string;
-  typeCode: "laboratory" | "consultation";
+  typeCode: "laboratory" | "consultation" | "instrumental";
   title: string;
   readOnly?: boolean;
 }
