@@ -131,6 +131,7 @@ export function BookingModal(props: BookingModalProps) {
           }]);
           setShowMultiCalendar(true);
         }
+        setAutoLoadingService(false);
       });
   }, [open, preselectedServiceId, existingVisitServiceId]);
 
