@@ -23,7 +23,8 @@ interface Physician {
 
 interface VisitServiceRow {
   id: string;
-  visit_id: string;
+  visit_id: string | null;
+  patient_id: string | null;
   scheduled_at: string | null;
   queue_number: number | null;
   cost_at_time: number;
@@ -37,6 +38,12 @@ interface VisitServiceRow {
   service_statuses: { code: string | null; name_ru: string | null } | null;
   services: { id?: string; name: string | null; linked_document_type_id?: string | null } | null;
   rooms?: { name: string | null } | null;
+  patients: {
+    first_name: string | null;
+    last_name: string | null;
+    patient_number: string | null;
+    date_of_birth: string | null;
+  } | null;
   visits: {
     patient_id?: string | null;
     patients: {
@@ -172,7 +179,7 @@ export default function MyPatientsList() {
     const { data: vs, error: vsErr } = await supabase
       .from("visit_services")
       .select(
-        "id, scheduled_at, queue_number, cost_at_time, visit_id, slot_id, is_waitlist, created_at, completed_by, assigned_room_id, created_by, service_statuses(code, name_ru), services(id, name, linked_document_type_id), profiles!visit_services_created_by_fkey(full_name), visits!visit_id(patient_id, visit_date, patients(first_name, last_name, patient_number, date_of_birth))"
+        "id, scheduled_at, queue_number, cost_at_time, visit_id, slot_id, is_waitlist, created_at, completed_by, assigned_room_id, created_by, patient_id, patients(first_name, last_name, patient_number, date_of_birth), service_statuses(code, name_ru), services(id, name, linked_document_type_id), profiles!visit_services_created_by_fkey(full_name), visits!visit_id(patient_id, visit_date, patients(first_name, last_name, patient_number, date_of_birth))"
       )
       .eq("assigned_staff_role_id", (phys as Physician).id)
       .eq("hospital_id", user.hospitalId)
@@ -203,7 +210,7 @@ export default function MyPatientsList() {
       const { data: rs, error: rsErr } = await supabase
         .from("visit_services")
         .select(
-          "id, scheduled_at, queue_number, cost_at_time, visit_id, slot_id, is_waitlist, created_at, completed_by, assigned_room_id, service_statuses(code, name_ru), services(id, name, linked_document_type_id), visits!visit_id(patient_id, visit_date, patients(first_name, last_name, patient_number, date_of_birth))"
+          "id, scheduled_at, queue_number, cost_at_time, visit_id, slot_id, is_waitlist, created_at, completed_by, assigned_room_id, patient_id, patients(first_name, last_name, patient_number, date_of_birth), service_statuses(code, name_ru), services(id, name, linked_document_type_id), visits!visit_id(patient_id, visit_date, patients(first_name, last_name, patient_number, date_of_birth))"
         )
         .eq("hospital_id", user.hospitalId)
         .in("assigned_room_id", myRoomIds)
@@ -348,8 +355,8 @@ export default function MyPatientsList() {
   const isToday = isSameDay(selectedDate, new Date());
 
   const renderServiceRow = (r: VisitServiceRow, showActions = true) => {
-    const patient = r.visits?.patients;
-    const pid = r.visits?.patient_id;
+    const patient = r.visits?.patients ?? r.patients;
+    const pid = r.visits?.patient_id ?? r.patient_id;
     const isWL = !!r.is_waitlist;
     const linkedDocTypeId = r.services?.linked_document_type_id || null;
     return (
