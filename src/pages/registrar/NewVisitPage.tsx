@@ -101,7 +101,7 @@ export default function NewVisitPage() {
       const { data, error } = await supabase
         .from("service_types")
         .select("id, name_en, name_ru, code")
-        .eq("hospital_id", user.hospitalId)
+        .or(`hospital_id.is.null,hospital_id.eq.${user.hospitalId}`)
         .eq("is_active", true)
         .order("sort_order");
       if (error) throw error;
