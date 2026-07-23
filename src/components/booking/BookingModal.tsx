@@ -43,6 +43,7 @@ export function BookingModal(props: BookingModalProps) {
   const [queueDate, setQueueDate] = useState<Date | null>(null);
   const [registrationSource, setRegistrationSource] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
+  const [autoLoadingService, setAutoLoadingService] = useState(false);
 
   // Patient name
   const { data: patient } = useQuery({
@@ -93,8 +94,11 @@ export function BookingModal(props: BookingModalProps) {
       setQueueDate(null);
       setRegistrationSource("");
       setSubmitting(false);
+      setAutoLoadingService(false);
     } else {
-      if (initialOfficeRoom) {
+      if (existingVisitServiceId && preselectedServiceId) {
+        setAutoLoadingService(true);
+      } else if (initialOfficeRoom) {
         setOfficeRoom(initialOfficeRoom);
         setPickedServices([initialOfficeRoom.service]);
         setShowMultiCalendar(true);
@@ -127,6 +131,7 @@ export function BookingModal(props: BookingModalProps) {
           }]);
           setShowMultiCalendar(true);
         }
+        setAutoLoadingService(false);
       });
   }, [open, preselectedServiceId, existingVisitServiceId]);
 
@@ -326,6 +331,10 @@ export function BookingModal(props: BookingModalProps) {
             <div className="flex items-center justify-end gap-2 border-t pt-4">
               <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
             </div>
+          </div>
+        ) : autoLoadingService ? (
+          <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
+            Loading service…
           </div>
         ) : !physician ? (
           <div className="space-y-4">
