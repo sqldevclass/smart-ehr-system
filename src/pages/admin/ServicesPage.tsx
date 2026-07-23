@@ -350,10 +350,26 @@ export default function ServicesPage() {
     if (isNaN(costNum) || costNum < 0) { toast.error("Cost must be ≥ 0."); return; }
     const vatNum = svcVatRate.trim() === "" ? null : Number(svcVatRate);
     if (vatNum !== null && isNaN(vatNum)) { toast.error("Invalid VAT rate."); return; }
+    const trimmedSvcCode = svcCode.trim();
+    if (trimmedSvcCode) {
+      const { data: existing, error: checkErr } = await supabase
+        .from("services")
+        .select("id")
+        .eq("hospital_id", user.hospitalId)
+        .eq("code", trimmedSvcCode);
+      if (checkErr) { toast.error(checkErr.message); return; }
+      const conflict = (existing || []).find(
+        (row: any) => !editingSvc || row.id !== editingSvc.id,
+      );
+      if (conflict) {
+        toast.info("A service with this code already exists.");
+        return;
+      }
+    }
     try {
       const payload: any = {
         name: svcName.trim(),
-        code: svcCode.trim() || null,
+        code: trimmedSvcCode || null,
         service_subgroup_id: svcSubgroupId === "none" ? null : svcSubgroupId,
         cost: costNum,
         vat_rate: vatNum,
@@ -376,7 +392,13 @@ export default function ServicesPage() {
       }
       setSvcDialog(false);
       qc.invalidateQueries({ queryKey: ["services"] });
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) {
+      if (e.code === "23505") {
+        toast.info("A service with this code already exists.");
+      } else {
+        toast.error(e.message);
+      }
+    }
   };
 
   const typeLabel = (t: ServiceType) => t.name_ru || t.name_en || t.code || "—";
