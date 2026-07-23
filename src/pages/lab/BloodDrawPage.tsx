@@ -20,7 +20,7 @@ export default function BloodDrawPage() {
       const { data } = await supabase
         .from("service_types")
         .select("id, code")
-        .eq("hospital_id", user!.hospitalId);
+        .or(`hospital_id.is.null,hospital_id.eq.${user!.hospitalId}`);
       return data || [];
     },
     enabled: !!user,
