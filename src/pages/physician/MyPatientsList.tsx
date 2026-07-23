@@ -23,7 +23,8 @@ interface Physician {
 
 interface VisitServiceRow {
   id: string;
-  visit_id: string;
+  visit_id: string | null;
+  patient_id: string | null;
   scheduled_at: string | null;
   queue_number: number | null;
   cost_at_time: number;
@@ -37,6 +38,12 @@ interface VisitServiceRow {
   service_statuses: { code: string | null; name_ru: string | null } | null;
   services: { id?: string; name: string | null; linked_document_type_id?: string | null } | null;
   rooms?: { name: string | null } | null;
+  patients: {
+    first_name: string | null;
+    last_name: string | null;
+    patient_number: string | null;
+    date_of_birth: string | null;
+  } | null;
   visits: {
     patient_id?: string | null;
     patients: {
