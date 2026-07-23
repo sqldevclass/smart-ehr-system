@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Plus, Edit } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { LabParametersSection } from "@/components/admin/LabParametersSection";
@@ -25,6 +26,7 @@ interface ServiceType {
   code: string | null;
   name_ru: string | null;
   name_en: string | null;
+  hospital_id: string | null;
 }
 interface ServiceGroup {
   id: string;
@@ -75,8 +77,8 @@ export default function ServicesPage() {
       if (!user) return [];
       const { data, error } = await supabase
         .from("service_types")
-        .select("id, code, name_ru, name_en")
-        .eq("hospital_id", user.hospitalId)
+        .select("id, code, name_ru, name_en, hospital_id")
+        .or(`hospital_id.is.null,hospital_id.eq.${user.hospitalId}`)
         .eq("is_active", true)
         .order("sort_order");
       if (error) throw error;
@@ -370,21 +372,33 @@ export default function ServicesPage() {
               <p className="p-3 text-sm text-muted-foreground">No types yet.</p>
             ) : (
               <ul className="divide-y">
-                {types.map((t) => (
-                  <li
-                    key={t.id}
-                    className={cn(
-                      "flex items-center justify-between px-3 py-2 text-sm cursor-pointer hover:bg-accent",
-                      selectedTypeId === t.id && "bg-primary/10 text-primary font-medium"
-                    )}
-                    onClick={() => setSelectedTypeId(t.id)}
-                  >
-                    <span className="truncate">{typeLabel(t)}</span>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); openEditType(t); }}>
-                      <Edit className="h-3.5 w-3.5" />
-                    </Button>
-                  </li>
-                ))}
+                {types.map((t) => {
+                  const isPlatform = t.hospital_id == null;
+                  return (
+                    <li
+                      key={t.id}
+                      className={cn(
+                        "flex items-center justify-between px-3 py-2 text-sm cursor-pointer hover:bg-accent",
+                        selectedTypeId === t.id && "bg-primary/10 text-primary font-medium"
+                      )}
+                      onClick={() => setSelectedTypeId(t.id)}
+                    >
+                      <span className="truncate flex items-center gap-2">
+                        {typeLabel(t)}
+                        {isPlatform ? (
+                          <Badge variant="secondary" className="text-[10px] px-1 py-0">Platform</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] px-1 py-0">Hospital</Badge>
+                        )}
+                      </span>
+                      {!isPlatform && (
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); openEditType(t); }}>
+                          <Edit className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>
