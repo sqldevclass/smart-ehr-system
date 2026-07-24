@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -60,6 +61,8 @@ export default function PaymentsPage() {
   const [paidToday, setPaidToday] = useState<Visit[]>([]);
   const [loading, setLoading] = useState(false);
   const [dialogVisit, setDialogVisit] = useState<Visit | null>(null);
+  const [patientSearch, setPatientSearch] = useState("");
+  const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [periodState, setPeriodState] = useState<PeriodState>({ period: "today" });
   const [summary, setSummary] = useState<{
     collected: number; outstanding: number; paidCount: number; unpaidCount: number;
@@ -142,6 +145,22 @@ export default function PaymentsPage() {
     loadSummary();
   }, [loadSummary]);
 
+  const { data: patientResults = [] } = useQuery({
+    queryKey: ["cashier-patient-search", user?.hospitalId, patientSearch],
+    enabled: !!user && patientSearch.trim().length > 1,
+    queryFn: async () => {
+      const s = `%${patientSearch.trim()}%`;
+      const { data, error } = await supabase
+        .from("patients")
+        .select("id, patient_number, first_name, last_name, date_of_birth")
+        .eq("hospital_id", user!.hospitalId)
+        .or(`last_name.ilike.${s},first_name.ilike.${s},patient_number.ilike.${s}`)
+        .limit(10);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   const renderRow = (v: Visit, withPay: boolean, idx: number) => {
     const outstandingAmt = Number(v.total_amount || 0) - Number(v.amount_paid || 0);
     return (
@@ -184,6 +203,47 @@ export default function PaymentsPage() {
       </SummaryCard>
 
       <PeriodFilter value={periodState} onChange={setPeriodState} />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Стационарные платежи</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="relative">
+            <Input
+              placeholder="Поиск пациента (ФИО или П#)…"
+              value={patientSearch}
+              onChange={(e) => setPatientSearch(e.target.value)}
+            />
+            {patientSearch.trim().length > 1 && patientResults.length > 0 && (
+              <div className="absolute z-10 mt-1 w-full rounded border bg-popover shadow">
+                {patientResults.map((p: any) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className="block w-full px-3 py-2 text-left text-sm hover:bg-accent"
+                    onClick={() => {
+                      setSelectedPatient(p);
+                      setPatientSearch("");
+                    }}
+                  >
+                    <span className="font-medium">{p.last_name} {p.first_name}</span>
+                    <span className="ml-2 text-muted-foreground">П# {p.patient_number}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {selectedPatient && user && (
+            <PatientBillingPanel
+              patient={selectedPatient}
+              hospitalId={user.hospitalId}
+              onClose={() => setSelectedPatient(null)}
+            />
+          )}
+        </CardContent>
+      </Card>
+
 
       <Tabs defaultValue="outstanding">
         <TabsList>
@@ -440,6 +500,358 @@ function PaymentDialog({
           <Button onClick={handleConfirm} disabled={submitting}>
             {submitting ? "Processing…" : "Confirm Payment"}
           </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PatientBillingPanel({
+  patient,
+  hospitalId,
+  onClose,
+}: {
+  patient: any;
+  hospitalId: string;
+  onClose: () => void;
+}) {
+  const [showDeposit, setShowDeposit] = useState(false);
+  const [showInvoice, setShowInvoice] = useState(false);
+
+  const { data: balance = 0, refetch: refetchBalance } = useQuery({
+    queryKey: ["patient-deposit-balance", patient.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_patient_deposit_balance", {
+        p_patient_id: patient.id,
+      });
+      if (error) throw error;
+      return data as number;
+    },
+  });
+
+  const { data: latestInvoice } = useQuery({
+    queryKey: ["patient-latest-invoice", patient.id, hospitalId],
+    queryFn: async () => {
+      const { data: hosp } = await supabase
+        .from("hospitalizations")
+        .select("id, hospitalization_number, admitted_at, discharged_at")
+        .eq("patient_id", patient.id)
+        .eq("hospital_id", hospitalId)
+        .order("admitted_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!hosp) return null;
+
+      const { data: invoice } = await supabase
+        .from("invoices")
+        .select("id, invoice_number, created_at")
+        .eq("hospitalization_id", hosp.id)
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!invoice) return null;
+
+      return { hospitalization: hosp, invoice };
+    },
+  });
+
+  return (
+    <div className="rounded border bg-muted/30 p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="font-medium">
+          {patient.last_name} {patient.first_name} · П# {patient.patient_number}
+        </div>
+        <Button size="sm" variant="ghost" onClick={onClose}>Закрыть</Button>
+      </div>
+      <div className="text-sm">
+        Баланс аванса: <span className="font-semibold">{Number(balance).toFixed(2)}</span>
+      </div>
+      <div className="flex gap-2">
+        <Button size="sm" onClick={() => setShowDeposit(true)}>+ Принять аванс</Button>
+        {latestInvoice && (
+          <Button size="sm" variant="secondary" onClick={() => setShowInvoice(true)}>
+            Счет-фактура
+          </Button>
+        )}
+      </div>
+      <DepositDialog
+        open={showDeposit}
+        patient={patient}
+        hospitalId={hospitalId}
+        onClose={() => setShowDeposit(false)}
+        onSaved={() => {
+          setShowDeposit(false);
+          refetchBalance();
+        }}
+      />
+      {latestInvoice && (
+        <InvoiceDialog
+          open={showInvoice}
+          patient={patient}
+          hospitalId={hospitalId}
+          hospitalizationId={latestInvoice.hospitalization.id}
+          invoiceId={latestInvoice.invoice.id}
+          onClose={() => setShowInvoice(false)}
+          onPaid={() => {
+            setShowInvoice(false);
+            refetchBalance();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function DepositDialog({
+  open, patient, hospitalId, onClose, onSaved,
+}: {
+  open: boolean; patient: any; hospitalId: string;
+  onClose: () => void; onSaved: () => void;
+}) {
+  const { user } = useAuth();
+  const [amount, setAmount] = useState("");
+  const [methodId, setMethodId] = useState("");
+  const [methods, setMethods] = useState<PaymentMethod[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setAmount("");
+    supabase.from("payment_methods").select("id, name_en")
+      .eq("is_active", true).order("name_en")
+      .then(({ data }) => {
+        setMethods((data ?? []) as any);
+        if (data && data.length > 0) setMethodId(data[0].id);
+      });
+  }, [open]);
+
+  const handleConfirm = async () => {
+    const amt = Number(amount);
+    if (!amt || amt <= 0) { toast.error("Enter a valid amount."); return; }
+    if (!methodId) { toast.error("Select a payment method."); return; }
+    setSubmitting(true);
+    const { error } = await supabase.rpc("record_patient_deposit", {
+      p_patient_id: patient.id,
+      p_hospital_id: hospitalId,
+      p_amount: amt,
+      p_payment_method_id: methodId,
+      p_received_by: user!.id,
+    });
+    setSubmitting(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Аванс принят.");
+    onSaved();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Принять аванс</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label>Сумма</Label>
+            <Input type="number" step="0.01" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          </div>
+          <div>
+            <Label>Способ оплаты</Label>
+            <Select value={methodId} onValueChange={setMethodId}>
+              <SelectTrigger><SelectValue placeholder="Select method" /></SelectTrigger>
+              <SelectContent>
+                {methods.map((m: any) => (
+                  <SelectItem key={m.id} value={m.id}>{m.name_en}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={submitting}>Отмена</Button>
+          <Button onClick={handleConfirm} disabled={submitting}>
+            {submitting ? "..." : "Принять аванс"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function InvoiceDialog({
+  open, patient, hospitalId, hospitalizationId, invoiceId, onClose, onPaid,
+}: {
+  open: boolean; patient: any; hospitalId: string;
+  hospitalizationId: string; invoiceId: string;
+  onClose: () => void; onPaid: () => void;
+}) {
+  const { user } = useAuth();
+  const [showPay, setShowPay] = useState(false);
+  const [methods, setMethods] = useState<PaymentMethod[]>([]);
+  const [methodId, setMethodId] = useState("");
+  const [paying, setPaying] = useState(false);
+
+  const { data: hosp } = useQuery({
+    queryKey: ["invoice-hosp", hospitalizationId],
+    enabled: open,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hospitalizations")
+        .select("hospitalization_number, admitted_at, discharged_at")
+        .eq("id", hospitalizationId)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: invoice } = useQuery({
+    queryKey: ["invoice-header", invoiceId],
+    enabled: open,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("invoices")
+        .select("invoice_number, created_at")
+        .eq("id", invoiceId)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: items = [] } = useQuery({
+    queryKey: ["invoice-items", invoiceId],
+    enabled: open,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("invoice_items")
+        .select("id, amount, visit_services(created_at, services(name))")
+        .eq("invoice_id", invoiceId);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: balance, refetch: refetchBalance } = useQuery({
+    queryKey: ["invoice-balance", invoiceId],
+    enabled: open,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_invoice_balance", {
+        p_invoice_id: invoiceId,
+      });
+      if (error) throw error;
+      return (data as any[])[0];
+    },
+  });
+
+  useEffect(() => {
+    if (!showPay) return;
+    supabase.from("payment_methods").select("id, name_en")
+      .eq("is_active", true).order("name_en")
+      .then(({ data }) => {
+        setMethods((data ?? []) as any);
+        if (data && data.length > 0) setMethodId(data[0].id);
+      });
+  }, [showPay]);
+
+  const handlePay = async () => {
+    setPaying(true);
+    const { error } = await supabase.rpc("pay_hospitalization_invoice", {
+      p_invoice_id: invoiceId,
+      p_hospital_id: hospitalId,
+      p_patient_id: patient.id,
+      p_hospitalization_id: hospitalizationId,
+      p_payment_method_id: methodId || null,
+      p_received_by: user!.id,
+    });
+    setPaying(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Счёт оплачен.");
+    refetchBalance();
+    setShowPay(false);
+    onPaid();
+  };
+
+  const handlePrint = () => window.print();
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Счет-фактура</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="space-y-1">
+              <p><span className="text-muted-foreground">Пациент:</span> {patient.last_name} {patient.first_name}</p>
+              <p><span className="text-muted-foreground">ДР:</span> {patient.date_of_birth}</p>
+              <p><span className="text-muted-foreground">П#:</span> {patient.patient_number}</p>
+            </div>
+            <div className="space-y-1">
+              <p><span className="text-muted-foreground">Госпитализация №:</span> {hosp?.hospitalization_number}</p>
+              <p><span className="text-muted-foreground">Счёт №:</span> {invoice?.invoice_number}</p>
+              <p><span className="text-muted-foreground">Дата госпитализации:</span> {hosp?.admitted_at}</p>
+              <p><span className="text-muted-foreground">Дата выписки:</span> {hosp?.discharged_at || "—"}</p>
+            </div>
+          </div>
+
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Услуга</TableHead>
+                <TableHead>Дата</TableHead>
+                <TableHead className="text-right">Сумма</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.map((it: any) => (
+                <TableRow key={it.id}>
+                  <TableCell>{it.visit_services?.services?.name ?? "—"}</TableCell>
+                  <TableCell>{it.visit_services?.created_at ?? "—"}</TableCell>
+                  <TableCell className="text-right">{Number(it.amount).toFixed(2)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+
+          <div className="space-y-1 text-sm border-t pt-3">
+            <div className="flex justify-between">
+              <span>Итого</span>
+              <span className="font-medium">{Number(balance?.total_amount || 0).toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Остаток аванса, применённый к счёту</span>
+              <span className="font-medium">{Number(balance?.paid_amount || 0).toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-base">
+              <span className="font-semibold">К оплате</span>
+              <span className="font-semibold">{Number(balance?.remaining_amount || 0).toFixed(2)}</span>
+            </div>
+          </div>
+
+          {showPay && Number(balance?.remaining_amount || 0) > 0 && (
+            <div className="space-y-2 border-t pt-3">
+              <Label>Способ оплаты</Label>
+              <Select value={methodId} onValueChange={setMethodId}>
+                <SelectTrigger><SelectValue placeholder="Select method" /></SelectTrigger>
+                <SelectContent>
+                  {methods.map((m: any) => (
+                    <SelectItem key={m.id} value={m.id}>{m.name_en}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button onClick={handlePay} disabled={paying}>
+                {paying ? "..." : `Оплатить ${Number(balance?.remaining_amount || 0).toFixed(2)}`}
+              </Button>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={handlePrint}>Печать</Button>
+          {!balance?.is_paid && !showPay && (
+            <Button onClick={() => setShowPay(true)}>Оплатить</Button>
+          )}
+          <Button variant="ghost" onClick={onClose}>Закрыть</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
