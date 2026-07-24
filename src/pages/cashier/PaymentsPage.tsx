@@ -877,7 +877,7 @@ function InvoiceDialog({
             </div>
           </div>
 
-          {showPay && Number(balance?.remaining_amount || 0) > 0 && (
+          {showPay && previewRemaining > 0 && (
             <div className="space-y-2 border-t pt-3">
               <Label>Способ оплаты</Label>
               <Select value={methodId} onValueChange={setMethodId}>
@@ -889,12 +889,12 @@ function InvoiceDialog({
                 </SelectContent>
               </Select>
               <Button onClick={handlePay} disabled={paying}>
-                {paying ? "..." : `Оплатить ${Number(balance?.remaining_amount || 0).toFixed(2)}`}
+                {paying ? "..." : `Оплатить ${previewRemaining.toFixed(2)}`}
               </Button>
             </div>
           )}
         </div>
-        <DialogFooter>
+        <DialogFooter className="shrink-0 p-6 pt-3">
           <Button variant="outline" onClick={handlePrint}>Печать</Button>
           {!balance?.is_paid && !showPay && (
             <Button onClick={() => setShowPay(true)}>Оплатить</Button>
