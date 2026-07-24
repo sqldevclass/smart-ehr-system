@@ -746,7 +746,7 @@ function InvoiceDialog({
     },
   });
 
-  const { data: depositBalance = 0 } = useQuery({
+  const { data: depositBalance = 0, error: depositBalanceError } = useQuery({
     queryKey: ["patient-deposit-balance-preview", patient.id],
     enabled: open,
     queryFn: async () => {
@@ -754,17 +754,42 @@ function InvoiceDialog({
         p_patient_id: patient.id,
       });
       if (error) throw error;
-      return data as number;
+      return Number(data);
     },
   });
 
+  useEffect(() => {
+    if (depositBalanceError) {
+      toast.error(`Failed to load deposit balance: ${(depositBalanceError as any).message}`);
+    }
+  }, [depositBalanceError]);
+
   const totalAmount = Number(balance?.total_amount || 0);
-  const previewApplied = balance?.is_paid
+  const isFullyPaid = balance?.is_paid === true;
+  const previewApplied = isFullyPaid
     ? Number(balance?.paid_amount || 0)
     : Math.min(Number(depositBalance || 0), totalAmount);
-  const previewRemaining = balance?.is_paid
+  const previewRemaining = isFullyPaid
     ? Number(balance?.remaining_amount || 0)
     : Math.max(totalAmount - previewApplied, 0);
+
+  const groupedItems = useMemo(() => {
+    const map = new Map<string, { name: string; dates: string[]; totalCost: number }>();
+    for (const it of items as any[]) {
+      const name = it.visit_services?.services?.name ?? "—";
+      const dateStr = it.visit_services?.created_at
+        ? format(new Date(it.visit_services.created_at), "dd.MM.yyyy")
+        : "—";
+      const existing = map.get(name);
+      if (existing) {
+        existing.dates.push(dateStr);
+        existing.totalCost += Number(it.amount);
+      } else {
+        map.set(name, { name, dates: [dateStr], totalCost: Number(it.amount) });
+      }
+    }
+    return Array.from(map.values());
+  }, [items]);
 
   useEffect(() => {
     if (!showPay) return;
