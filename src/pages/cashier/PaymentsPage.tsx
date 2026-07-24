@@ -690,6 +690,7 @@ function InvoiceDialog({
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
   const [methodId, setMethodId] = useState("");
   const [paying, setPaying] = useState(false);
+  const printRef = useRef<HTMLDivElement>(null);
 
   const { data: hosp } = useQuery({
     queryKey: ["invoice-hosp", hospitalizationId],
