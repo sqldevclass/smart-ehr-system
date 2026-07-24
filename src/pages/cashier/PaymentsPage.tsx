@@ -793,7 +793,32 @@ function InvoiceDialog({
     onPaid();
   };
 
-  const handlePrint = () => window.print();
+  const handlePrint = () => {
+    const content = printRef.current;
+    if (!content) return;
+    const printWindow = window.open("", "_blank", "width=800,height=900");
+    if (!printWindow) return;
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Счет-фактура</title>
+          <style>
+            body { font-family: sans-serif; padding: 24px; font-size: 13px; }
+            table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+            th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
+            th:last-child, td:last-child { text-align: right; }
+            .totals-row { display: flex; justify-content: space-between; padding: 4px 0; }
+            .totals-row.total { font-weight: 600; border-top: 1px solid #ccc; padding-top: 8px; margin-top: 4px; }
+          </style>
+        </head>
+        <body>${content.innerHTML}</body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
+  };
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
