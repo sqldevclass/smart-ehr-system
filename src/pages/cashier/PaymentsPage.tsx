@@ -145,6 +145,22 @@ export default function PaymentsPage() {
     loadSummary();
   }, [loadSummary]);
 
+  const { data: patientResults = [] } = useQuery({
+    queryKey: ["cashier-patient-search", user?.hospitalId, patientSearch],
+    enabled: !!user && patientSearch.trim().length > 1,
+    queryFn: async () => {
+      const s = `%${patientSearch.trim()}%`;
+      const { data, error } = await supabase
+        .from("patients")
+        .select("id, patient_number, first_name, last_name, date_of_birth")
+        .eq("hospital_id", user!.hospitalId)
+        .or(`last_name.ilike.${s},first_name.ilike.${s},patient_number.ilike.${s}`)
+        .limit(10);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   const renderRow = (v: Visit, withPay: boolean, idx: number) => {
     const outstandingAmt = Number(v.total_amount || 0) - Number(v.amount_paid || 0);
     return (
