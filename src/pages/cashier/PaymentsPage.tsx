@@ -822,11 +822,11 @@ function InvoiceDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader>
+      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0">
+        <DialogHeader className="shrink-0 p-6 pb-0">
           <DialogTitle>Счет-фактура</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4">
+        <div className="space-y-4 overflow-y-auto flex-1 min-h-0 px-6">
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div className="space-y-1">
               <p><span className="text-muted-foreground">Пациент:</span> {patient.last_name} {patient.first_name}</p>
