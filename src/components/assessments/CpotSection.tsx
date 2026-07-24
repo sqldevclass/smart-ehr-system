@@ -66,19 +66,18 @@ export default function CpotSection({
         </div>
       )}
       {patientType ? (
-        <AssessmentSection
-          scaleCode="cpot"
-          hospitalizationId={hospitalizationId}
-          patientId={patientId}
-          hospitalId={hospitalId}
-          isReadOnly={isReadOnly}
-          autoOpenForm={true}
-          hiddenItemCodes={
-            patientType === "intubated"
-              ? ["vocalization"]
-              : ["ventilator_compliance"]
-          }
-        />
+      <AssessmentSection
+        scaleCode="cpot"
+        hospitalizationId={hospitalizationId}
+        patientId={patientId}
+        hospitalId={hospitalId}
+        isReadOnly={isReadOnly}
+        hiddenItemCodes={
+          patientType === "intubated"
+            ? ["vocalization"]
+            : ["ventilator_compliance"]
+        }
+      />
       ) : isReadOnly ? (
         <p className="text-sm text-muted-foreground">Нет данных</p>
       ) : (
