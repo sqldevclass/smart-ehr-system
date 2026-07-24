@@ -61,6 +61,8 @@ export default function PaymentsPage() {
   const [paidToday, setPaidToday] = useState<Visit[]>([]);
   const [loading, setLoading] = useState(false);
   const [dialogVisit, setDialogVisit] = useState<Visit | null>(null);
+  const [patientSearch, setPatientSearch] = useState("");
+  const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [periodState, setPeriodState] = useState<PeriodState>({ period: "today" });
   const [summary, setSummary] = useState<{
     collected: number; outstanding: number; paidCount: number; unpaidCount: number;
