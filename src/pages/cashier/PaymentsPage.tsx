@@ -204,6 +204,47 @@ export default function PaymentsPage() {
 
       <PeriodFilter value={periodState} onChange={setPeriodState} />
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Стационарные платежи</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="relative">
+            <Input
+              placeholder="Поиск пациента (ФИО или П#)…"
+              value={patientSearch}
+              onChange={(e) => setPatientSearch(e.target.value)}
+            />
+            {patientSearch.trim().length > 1 && patientResults.length > 0 && (
+              <div className="absolute z-10 mt-1 w-full rounded border bg-popover shadow">
+                {patientResults.map((p: any) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className="block w-full px-3 py-2 text-left text-sm hover:bg-accent"
+                    onClick={() => {
+                      setSelectedPatient(p);
+                      setPatientSearch("");
+                    }}
+                  >
+                    <span className="font-medium">{p.last_name} {p.first_name}</span>
+                    <span className="ml-2 text-muted-foreground">П# {p.patient_number}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {selectedPatient && user && (
+            <PatientBillingPanel
+              patient={selectedPatient}
+              hospitalId={user.hospitalId}
+              onClose={() => setSelectedPatient(null)}
+            />
+          )}
+        </CardContent>
+      </Card>
+
+
       <Tabs defaultValue="outstanding">
         <TabsList>
           <TabsTrigger value="outstanding">Outstanding ({outstanding.length})</TabsTrigger>
