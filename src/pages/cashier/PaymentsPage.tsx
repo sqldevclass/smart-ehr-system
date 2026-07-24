@@ -904,7 +904,7 @@ function InvoiceDialog({
           <DialogTitle>Счет-фактура</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 overflow-y-auto flex-1 min-h-0 px-6">
-          <div ref={printRef}>
+          <div>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div className="space-y-1">
                 <p><span className="text-muted-foreground">Пациент:</span> {patient.last_name} {patient.first_name}</p>
@@ -914,25 +914,29 @@ function InvoiceDialog({
               <div className="space-y-1">
                 <p><span className="text-muted-foreground">Госпитализация №:</span> {hosp?.hospitalization_number}</p>
                 <p><span className="text-muted-foreground">Счёт №:</span> {invoice?.invoice_number}</p>
-                <p><span className="text-muted-foreground">Дата госпитализации:</span> {hosp?.admitted_at}</p>
-                <p><span className="text-muted-foreground">Дата выписки:</span> {hosp?.discharged_at || "—"}</p>
+                <p><span className="text-muted-foreground">Дата госпитализации:</span> {hosp?.admitted_at ? format(new Date(hosp.admitted_at), "dd.MM.yyyy") : "—"}</p>
+                <p><span className="text-muted-foreground">Дата выписки:</span> {hosp?.discharged_at ? format(new Date(hosp.discharged_at), "dd.MM.yyyy") : "—"}</p>
               </div>
             </div>
 
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>#</TableHead>
                   <TableHead>Услуга</TableHead>
                   <TableHead>Дата</TableHead>
+                  <TableHead>Кол-во</TableHead>
                   <TableHead className="text-right">Сумма</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {items.map((it: any) => (
-                  <TableRow key={it.id}>
-                    <TableCell>{it.visit_services?.services?.name ?? "—"}</TableCell>
-                    <TableCell>{it.visit_services?.created_at ?? "—"}</TableCell>
-                    <TableCell className="text-right">{Number(it.amount).toFixed(2)}</TableCell>
+                {groupedItems.map((g, idx) => (
+                  <TableRow key={g.name}>
+                    <TableCell>{idx + 1}</TableCell>
+                    <TableCell>{g.name}</TableCell>
+                    <TableCell>{g.dates.join("; ")}</TableCell>
+                    <TableCell>{g.dates.length}</TableCell>
+                    <TableCell className="text-right">{g.totalCost.toFixed(2)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
