@@ -977,7 +977,7 @@ function InvoiceDialog({
         </div>
         <DialogFooter className="shrink-0 p-6 pt-3">
           <Button variant="outline" onClick={handlePrint}>Печать</Button>
-          {!balance?.is_paid && !showPay && (
+          {!isFullyPaid && !showPay && (
             <Button onClick={() => setShowPay(true)}>Оплатить</Button>
           )}
           <Button variant="ghost" onClick={onClose}>Закрыть</Button>
