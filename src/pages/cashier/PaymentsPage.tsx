@@ -745,6 +745,26 @@ function InvoiceDialog({
     },
   });
 
+  const { data: depositBalance = 0 } = useQuery({
+    queryKey: ["patient-deposit-balance-preview", patient.id],
+    enabled: open,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_patient_deposit_balance", {
+        p_patient_id: patient.id,
+      });
+      if (error) throw error;
+      return data as number;
+    },
+  });
+
+  const totalAmount = Number(balance?.total_amount || 0);
+  const previewApplied = balance?.is_paid
+    ? Number(balance?.paid_amount || 0)
+    : Math.min(Number(depositBalance || 0), totalAmount);
+  const previewRemaining = balance?.is_paid
+    ? Number(balance?.remaining_amount || 0)
+    : Math.max(totalAmount - previewApplied, 0);
+
   useEffect(() => {
     if (!showPay) return;
     supabase.from("payment_methods").select("id, name_en")
