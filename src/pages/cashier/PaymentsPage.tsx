@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -690,6 +690,7 @@ function InvoiceDialog({
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
   const [methodId, setMethodId] = useState("");
   const [paying, setPaying] = useState(false);
+  const printRef = useRef<HTMLDivElement>(null);
 
   const { data: hosp } = useQuery({
     queryKey: ["invoice-hosp", hospitalizationId],
@@ -744,6 +745,26 @@ function InvoiceDialog({
     },
   });
 
+  const { data: depositBalance = 0 } = useQuery({
+    queryKey: ["patient-deposit-balance-preview", patient.id],
+    enabled: open,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_patient_deposit_balance", {
+        p_patient_id: patient.id,
+      });
+      if (error) throw error;
+      return data as number;
+    },
+  });
+
+  const totalAmount = Number(balance?.total_amount || 0);
+  const previewApplied = balance?.is_paid
+    ? Number(balance?.paid_amount || 0)
+    : Math.min(Number(depositBalance || 0), totalAmount);
+  const previewRemaining = balance?.is_paid
+    ? Number(balance?.remaining_amount || 0)
+    : Math.max(totalAmount - previewApplied, 0);
+
   useEffect(() => {
     if (!showPay) return;
     supabase.from("payment_methods").select("id, name_en")
@@ -772,64 +793,91 @@ function InvoiceDialog({
     onPaid();
   };
 
-  const handlePrint = () => window.print();
+  const handlePrint = () => {
+    const content = printRef.current;
+    if (!content) return;
+    const printWindow = window.open("", "_blank", "width=800,height=900");
+    if (!printWindow) return;
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Счет-фактура</title>
+          <style>
+            body { font-family: sans-serif; padding: 24px; font-size: 13px; }
+            table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+            th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
+            th:last-child, td:last-child { text-align: right; }
+            .totals-row { display: flex; justify-content: space-between; padding: 4px 0; }
+            .totals-row.total { font-weight: 600; border-top: 1px solid #ccc; padding-top: 8px; margin-top: 4px; }
+          </style>
+        </head>
+        <body>${content.innerHTML}</body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
+  };
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader>
+      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0">
+        <DialogHeader className="shrink-0 p-6 pb-0">
           <DialogTitle>Счет-фактура</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div className="space-y-1">
-              <p><span className="text-muted-foreground">Пациент:</span> {patient.last_name} {patient.first_name}</p>
-              <p><span className="text-muted-foreground">ДР:</span> {patient.date_of_birth}</p>
-              <p><span className="text-muted-foreground">П#:</span> {patient.patient_number}</p>
+        <div className="space-y-4 overflow-y-auto flex-1 min-h-0 px-6">
+          <div ref={printRef}>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="space-y-1">
+                <p><span className="text-muted-foreground">Пациент:</span> {patient.last_name} {patient.first_name}</p>
+                <p><span className="text-muted-foreground">ДР:</span> {patient.date_of_birth}</p>
+                <p><span className="text-muted-foreground">П#:</span> {patient.patient_number}</p>
+              </div>
+              <div className="space-y-1">
+                <p><span className="text-muted-foreground">Госпитализация №:</span> {hosp?.hospitalization_number}</p>
+                <p><span className="text-muted-foreground">Счёт №:</span> {invoice?.invoice_number}</p>
+                <p><span className="text-muted-foreground">Дата госпитализации:</span> {hosp?.admitted_at}</p>
+                <p><span className="text-muted-foreground">Дата выписки:</span> {hosp?.discharged_at || "—"}</p>
+              </div>
             </div>
-            <div className="space-y-1">
-              <p><span className="text-muted-foreground">Госпитализация №:</span> {hosp?.hospitalization_number}</p>
-              <p><span className="text-muted-foreground">Счёт №:</span> {invoice?.invoice_number}</p>
-              <p><span className="text-muted-foreground">Дата госпитализации:</span> {hosp?.admitted_at}</p>
-              <p><span className="text-muted-foreground">Дата выписки:</span> {hosp?.discharged_at || "—"}</p>
-            </div>
-          </div>
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Услуга</TableHead>
-                <TableHead>Дата</TableHead>
-                <TableHead className="text-right">Сумма</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.map((it: any) => (
-                <TableRow key={it.id}>
-                  <TableCell>{it.visit_services?.services?.name ?? "—"}</TableCell>
-                  <TableCell>{it.visit_services?.created_at ?? "—"}</TableCell>
-                  <TableCell className="text-right">{Number(it.amount).toFixed(2)}</TableCell>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Услуга</TableHead>
+                  <TableHead>Дата</TableHead>
+                  <TableHead className="text-right">Сумма</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {items.map((it: any) => (
+                  <TableRow key={it.id}>
+                    <TableCell>{it.visit_services?.services?.name ?? "—"}</TableCell>
+                    <TableCell>{it.visit_services?.created_at ?? "—"}</TableCell>
+                    <TableCell className="text-right">{Number(it.amount).toFixed(2)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
 
-          <div className="space-y-1 text-sm border-t pt-3">
-            <div className="flex justify-between">
-              <span>Итого</span>
-              <span className="font-medium">{Number(balance?.total_amount || 0).toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Остаток аванса, применённый к счёту</span>
-              <span className="font-medium">{Number(balance?.paid_amount || 0).toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-base">
-              <span className="font-semibold">К оплате</span>
-              <span className="font-semibold">{Number(balance?.remaining_amount || 0).toFixed(2)}</span>
+            <div className="space-y-1 text-sm border-t pt-3">
+              <div className="flex justify-between">
+                <span>Итого</span>
+                <span className="font-medium">{totalAmount.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Остаток аванса, применённый к счёту</span>
+                <span className="font-medium">{previewApplied.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-base">
+                <span className="font-semibold">К оплате</span>
+                <span className="font-semibold">{previewRemaining.toFixed(2)}</span>
+              </div>
             </div>
           </div>
 
-          {showPay && Number(balance?.remaining_amount || 0) > 0 && (
+          {showPay && previewRemaining > 0 && (
             <div className="space-y-2 border-t pt-3">
               <Label>Способ оплаты</Label>
               <Select value={methodId} onValueChange={setMethodId}>
@@ -841,12 +889,12 @@ function InvoiceDialog({
                 </SelectContent>
               </Select>
               <Button onClick={handlePay} disabled={paying}>
-                {paying ? "..." : `Оплатить ${Number(balance?.remaining_amount || 0).toFixed(2)}`}
+                {paying ? "..." : `Оплатить ${previewRemaining.toFixed(2)}`}
               </Button>
             </div>
           )}
         </div>
-        <DialogFooter>
+        <DialogFooter className="shrink-0 p-6 pt-3">
           <Button variant="outline" onClick={handlePrint}>Печать</Button>
           {!balance?.is_paid && !showPay && (
             <Button onClick={() => setShowPay(true)}>Оплатить</Button>
