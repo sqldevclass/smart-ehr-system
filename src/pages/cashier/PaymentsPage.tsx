@@ -820,24 +820,75 @@ function InvoiceDialog({
   };
 
   const handlePrint = () => {
-    const content = printRef.current;
-    if (!content) return;
     const printWindow = window.open("", "_blank", "width=800,height=900");
     if (!printWindow) return;
+    const rowsHtml = groupedItems.map((g, idx) => `
+      <tr>
+        <td>${idx + 1}</td>
+        <td>${g.name}</td>
+        <td>${g.dates.join("; ")}</td>
+        <td>${g.dates.length}</td>
+        <td>${g.totalCost.toFixed(2)}</td>
+      </tr>
+    `).join("");
+    const admittedStr = hosp?.admitted_at ? format(new Date(hosp.admitted_at), "dd.MM.yyyy") : "—";
+    const dischargedStr = hosp?.discharged_at ? format(new Date(hosp.discharged_at), "dd.MM.yyyy") : "—";
+    const invoicedDateStr = format(new Date(), "dd.MM.yyyy");
     printWindow.document.write(`
       <html>
         <head>
           <title>Счет-фактура</title>
           <style>
-            body { font-family: sans-serif; padding: 24px; font-size: 13px; }
-            table { width: 100%; border-collapse: collapse; margin: 12px 0; }
-            th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
-            th:last-child, td:last-child { text-align: right; }
-            .totals-row { display: flex; justify-content: space-between; padding: 4px 0; }
-            .totals-row.total { font-weight: 600; border-top: 1px solid #ccc; padding-top: 8px; margin-top: 4px; }
+            body { font-family: Arial, sans-serif; padding: 32px; font-size: 13px; color: #111; }
+            h1 { text-align: center; font-size: 18px; letter-spacing: 1px; margin-bottom: 24px; }
+            h2 { text-align: center; font-size: 14px; margin: 24px 0 12px; }
+            .info-box { display: flex; border: 1px solid #333; margin-bottom: 8px; }
+            .info-box > div { flex: 1; padding: 12px 16px; }
+            .info-box > div:first-child { border-right: 1px solid #333; }
+            .info-box p { margin: 2px 0; }
+            table { width: 100%; border-collapse: collapse; }
+            table.items th, table.items td { border: 1px solid #333; padding: 6px 10px; text-align: left; }
+            table.items th:nth-child(1), table.items td:nth-child(1) { width: 30px; }
+            table.items th:nth-child(4), table.items td:nth-child(4),
+            table.items th:nth-child(5), table.items td:nth-child(5) { text-align: right; }
+            .totals-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+            .totals-table td { border: 1px solid #333; padding: 8px 10px; }
+            .totals-table td:first-child { font-weight: bold; width: 60%; }
+            .footer { margin-top: 32px; display: flex; justify-content: space-between; }
           </style>
         </head>
-        <body>${content.innerHTML}</body>
+        <body>
+          <h1>INVOICE:</h1>
+          <div class="info-box">
+            <div>
+              <p><strong>Patient name:</strong> ${patient.last_name} ${patient.first_name}</p>
+              <p><strong>Patient DOB:</strong> ${patient.date_of_birth ?? "—"}</p>
+              <p><strong>Patient #:</strong> ${patient.patient_number ?? "—"}</p>
+            </div>
+            <div>
+              <p><strong>Hospitalization #:</strong> ${hosp?.hospitalization_number ?? "—"}</p>
+              <p><strong>Invoice #:</strong> ${invoice?.invoice_number ?? "—"}</p>
+              <p><strong>Hospitalization date:</strong> ${admittedStr}</p>
+              <p><strong>Discharge date:</strong> ${dischargedStr}</p>
+            </div>
+          </div>
+          <h2>SERVICES RENDERED:</h2>
+          <table class="items">
+            <thead>
+              <tr><th>#</th><th>SERVICE NAME</th><th>SERVICE DATE</th><th>UNITS</th><th>COST</th></tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+          <table class="totals-table">
+            <tr><td>Total</td><td>${totalAmount.toFixed(2)}</td></tr>
+            <tr><td>Remaining Advance Balance</td><td>${previewApplied.toFixed(2)}</td></tr>
+            <tr><td>Total to pay</td><td>${previewRemaining.toFixed(2)}</td></tr>
+          </table>
+          <div class="footer">
+            <strong>Invoiced Date:</strong>
+            <span>${invoicedDateStr}</span>
+          </div>
+        </body>
       </html>
     `);
     printWindow.document.close();
