@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -690,7 +691,7 @@ function InvoiceDialog({
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
   const [methodId, setMethodId] = useState("");
   const [paying, setPaying] = useState(false);
-  const printRef = useRef<HTMLDivElement>(null);
+
 
   const { data: hosp } = useQuery({
     queryKey: ["invoice-hosp", hospitalizationId],
@@ -745,7 +746,7 @@ function InvoiceDialog({
     },
   });
 
-  const { data: depositBalance = 0 } = useQuery({
+  const { data: depositBalance = 0, error: depositBalanceError } = useQuery({
     queryKey: ["patient-deposit-balance-preview", patient.id],
     enabled: open,
     queryFn: async () => {
@@ -753,17 +754,42 @@ function InvoiceDialog({
         p_patient_id: patient.id,
       });
       if (error) throw error;
-      return data as number;
+      return Number(data);
     },
   });
 
+  useEffect(() => {
+    if (depositBalanceError) {
+      toast.error(`Failed to load deposit balance: ${(depositBalanceError as any).message}`);
+    }
+  }, [depositBalanceError]);
+
   const totalAmount = Number(balance?.total_amount || 0);
-  const previewApplied = balance?.is_paid
+  const isFullyPaid = balance?.is_paid === true;
+  const previewApplied = isFullyPaid
     ? Number(balance?.paid_amount || 0)
     : Math.min(Number(depositBalance || 0), totalAmount);
-  const previewRemaining = balance?.is_paid
+  const previewRemaining = isFullyPaid
     ? Number(balance?.remaining_amount || 0)
     : Math.max(totalAmount - previewApplied, 0);
+
+  const groupedItems = useMemo(() => {
+    const map = new Map<string, { name: string; dates: string[]; totalCost: number }>();
+    for (const it of items as any[]) {
+      const name = it.visit_services?.services?.name ?? "—";
+      const dateStr = it.visit_services?.created_at
+        ? format(new Date(it.visit_services.created_at), "dd.MM.yyyy")
+        : "—";
+      const existing = map.get(name);
+      if (existing) {
+        existing.dates.push(dateStr);
+        existing.totalCost += Number(it.amount);
+      } else {
+        map.set(name, { name, dates: [dateStr], totalCost: Number(it.amount) });
+      }
+    }
+    return Array.from(map.values());
+  }, [items]);
 
   useEffect(() => {
     if (!showPay) return;
@@ -794,24 +820,75 @@ function InvoiceDialog({
   };
 
   const handlePrint = () => {
-    const content = printRef.current;
-    if (!content) return;
     const printWindow = window.open("", "_blank", "width=800,height=900");
     if (!printWindow) return;
+    const rowsHtml = groupedItems.map((g, idx) => `
+      <tr>
+        <td>${idx + 1}</td>
+        <td>${g.name}</td>
+        <td>${g.dates.join("; ")}</td>
+        <td>${g.dates.length}</td>
+        <td>${g.totalCost.toFixed(2)}</td>
+      </tr>
+    `).join("");
+    const admittedStr = hosp?.admitted_at ? format(new Date(hosp.admitted_at), "dd.MM.yyyy") : "—";
+    const dischargedStr = hosp?.discharged_at ? format(new Date(hosp.discharged_at), "dd.MM.yyyy") : "—";
+    const invoicedDateStr = format(new Date(), "dd.MM.yyyy");
     printWindow.document.write(`
       <html>
         <head>
           <title>Счет-фактура</title>
           <style>
-            body { font-family: sans-serif; padding: 24px; font-size: 13px; }
-            table { width: 100%; border-collapse: collapse; margin: 12px 0; }
-            th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
-            th:last-child, td:last-child { text-align: right; }
-            .totals-row { display: flex; justify-content: space-between; padding: 4px 0; }
-            .totals-row.total { font-weight: 600; border-top: 1px solid #ccc; padding-top: 8px; margin-top: 4px; }
+            body { font-family: Arial, sans-serif; padding: 32px; font-size: 13px; color: #111; }
+            h1 { text-align: center; font-size: 18px; letter-spacing: 1px; margin-bottom: 24px; }
+            h2 { text-align: center; font-size: 14px; margin: 24px 0 12px; }
+            .info-box { display: flex; border: 1px solid #333; margin-bottom: 8px; }
+            .info-box > div { flex: 1; padding: 12px 16px; }
+            .info-box > div:first-child { border-right: 1px solid #333; }
+            .info-box p { margin: 2px 0; }
+            table { width: 100%; border-collapse: collapse; }
+            table.items th, table.items td { border: 1px solid #333; padding: 6px 10px; text-align: left; }
+            table.items th:nth-child(1), table.items td:nth-child(1) { width: 30px; }
+            table.items th:nth-child(4), table.items td:nth-child(4),
+            table.items th:nth-child(5), table.items td:nth-child(5) { text-align: right; }
+            .totals-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+            .totals-table td { border: 1px solid #333; padding: 8px 10px; }
+            .totals-table td:first-child { font-weight: bold; width: 60%; }
+            .footer { margin-top: 32px; display: flex; justify-content: space-between; }
           </style>
         </head>
-        <body>${content.innerHTML}</body>
+        <body>
+          <h1>INVOICE:</h1>
+          <div class="info-box">
+            <div>
+              <p><strong>Patient name:</strong> ${patient.last_name} ${patient.first_name}</p>
+              <p><strong>Patient DOB:</strong> ${patient.date_of_birth ?? "—"}</p>
+              <p><strong>Patient #:</strong> ${patient.patient_number ?? "—"}</p>
+            </div>
+            <div>
+              <p><strong>Hospitalization #:</strong> ${hosp?.hospitalization_number ?? "—"}</p>
+              <p><strong>Invoice #:</strong> ${invoice?.invoice_number ?? "—"}</p>
+              <p><strong>Hospitalization date:</strong> ${admittedStr}</p>
+              <p><strong>Discharge date:</strong> ${dischargedStr}</p>
+            </div>
+          </div>
+          <h2>SERVICES RENDERED:</h2>
+          <table class="items">
+            <thead>
+              <tr><th>#</th><th>SERVICE NAME</th><th>SERVICE DATE</th><th>UNITS</th><th>COST</th></tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+          <table class="totals-table">
+            <tr><td>Total</td><td>${totalAmount.toFixed(2)}</td></tr>
+            <tr><td>Remaining Advance Balance</td><td>${previewApplied.toFixed(2)}</td></tr>
+            <tr><td>Total to pay</td><td>${previewRemaining.toFixed(2)}</td></tr>
+          </table>
+          <div class="footer">
+            <strong>Invoiced Date:</strong>
+            <span>${invoicedDateStr}</span>
+          </div>
+        </body>
       </html>
     `);
     printWindow.document.close();
@@ -827,7 +904,7 @@ function InvoiceDialog({
           <DialogTitle>Счет-фактура</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 overflow-y-auto flex-1 min-h-0 px-6">
-          <div ref={printRef}>
+          <div>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div className="space-y-1">
                 <p><span className="text-muted-foreground">Пациент:</span> {patient.last_name} {patient.first_name}</p>
@@ -837,25 +914,29 @@ function InvoiceDialog({
               <div className="space-y-1">
                 <p><span className="text-muted-foreground">Госпитализация №:</span> {hosp?.hospitalization_number}</p>
                 <p><span className="text-muted-foreground">Счёт №:</span> {invoice?.invoice_number}</p>
-                <p><span className="text-muted-foreground">Дата госпитализации:</span> {hosp?.admitted_at}</p>
-                <p><span className="text-muted-foreground">Дата выписки:</span> {hosp?.discharged_at || "—"}</p>
+                <p><span className="text-muted-foreground">Дата госпитализации:</span> {hosp?.admitted_at ? format(new Date(hosp.admitted_at), "dd.MM.yyyy") : "—"}</p>
+                <p><span className="text-muted-foreground">Дата выписки:</span> {hosp?.discharged_at ? format(new Date(hosp.discharged_at), "dd.MM.yyyy") : "—"}</p>
               </div>
             </div>
 
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>#</TableHead>
                   <TableHead>Услуга</TableHead>
                   <TableHead>Дата</TableHead>
+                  <TableHead>Кол-во</TableHead>
                   <TableHead className="text-right">Сумма</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {items.map((it: any) => (
-                  <TableRow key={it.id}>
-                    <TableCell>{it.visit_services?.services?.name ?? "—"}</TableCell>
-                    <TableCell>{it.visit_services?.created_at ?? "—"}</TableCell>
-                    <TableCell className="text-right">{Number(it.amount).toFixed(2)}</TableCell>
+                {groupedItems.map((g, idx) => (
+                  <TableRow key={g.name}>
+                    <TableCell>{idx + 1}</TableCell>
+                    <TableCell>{g.name}</TableCell>
+                    <TableCell>{g.dates.join("; ")}</TableCell>
+                    <TableCell>{g.dates.length}</TableCell>
+                    <TableCell className="text-right">{g.totalCost.toFixed(2)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -896,7 +977,7 @@ function InvoiceDialog({
         </div>
         <DialogFooter className="shrink-0 p-6 pt-3">
           <Button variant="outline" onClick={handlePrint}>Печать</Button>
-          {!balance?.is_paid && !showPay && (
+          {!isFullyPaid && !showPay && (
             <Button onClick={() => setShowPay(true)}>Оплатить</Button>
           )}
           <Button variant="ghost" onClick={onClose}>Закрыть</Button>
