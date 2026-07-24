@@ -827,51 +827,53 @@ function InvoiceDialog({
           <DialogTitle>Счет-фактура</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 overflow-y-auto flex-1 min-h-0 px-6">
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div className="space-y-1">
-              <p><span className="text-muted-foreground">Пациент:</span> {patient.last_name} {patient.first_name}</p>
-              <p><span className="text-muted-foreground">ДР:</span> {patient.date_of_birth}</p>
-              <p><span className="text-muted-foreground">П#:</span> {patient.patient_number}</p>
+          <div ref={printRef}>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="space-y-1">
+                <p><span className="text-muted-foreground">Пациент:</span> {patient.last_name} {patient.first_name}</p>
+                <p><span className="text-muted-foreground">ДР:</span> {patient.date_of_birth}</p>
+                <p><span className="text-muted-foreground">П#:</span> {patient.patient_number}</p>
+              </div>
+              <div className="space-y-1">
+                <p><span className="text-muted-foreground">Госпитализация №:</span> {hosp?.hospitalization_number}</p>
+                <p><span className="text-muted-foreground">Счёт №:</span> {invoice?.invoice_number}</p>
+                <p><span className="text-muted-foreground">Дата госпитализации:</span> {hosp?.admitted_at}</p>
+                <p><span className="text-muted-foreground">Дата выписки:</span> {hosp?.discharged_at || "—"}</p>
+              </div>
             </div>
-            <div className="space-y-1">
-              <p><span className="text-muted-foreground">Госпитализация №:</span> {hosp?.hospitalization_number}</p>
-              <p><span className="text-muted-foreground">Счёт №:</span> {invoice?.invoice_number}</p>
-              <p><span className="text-muted-foreground">Дата госпитализации:</span> {hosp?.admitted_at}</p>
-              <p><span className="text-muted-foreground">Дата выписки:</span> {hosp?.discharged_at || "—"}</p>
-            </div>
-          </div>
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Услуга</TableHead>
-                <TableHead>Дата</TableHead>
-                <TableHead className="text-right">Сумма</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.map((it: any) => (
-                <TableRow key={it.id}>
-                  <TableCell>{it.visit_services?.services?.name ?? "—"}</TableCell>
-                  <TableCell>{it.visit_services?.created_at ?? "—"}</TableCell>
-                  <TableCell className="text-right">{Number(it.amount).toFixed(2)}</TableCell>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Услуга</TableHead>
+                  <TableHead>Дата</TableHead>
+                  <TableHead className="text-right">Сумма</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {items.map((it: any) => (
+                  <TableRow key={it.id}>
+                    <TableCell>{it.visit_services?.services?.name ?? "—"}</TableCell>
+                    <TableCell>{it.visit_services?.created_at ?? "—"}</TableCell>
+                    <TableCell className="text-right">{Number(it.amount).toFixed(2)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
 
-          <div className="space-y-1 text-sm border-t pt-3">
-            <div className="flex justify-between">
-              <span>Итого</span>
-              <span className="font-medium">{Number(balance?.total_amount || 0).toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Остаток аванса, применённый к счёту</span>
-              <span className="font-medium">{Number(balance?.paid_amount || 0).toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-base">
-              <span className="font-semibold">К оплате</span>
-              <span className="font-semibold">{Number(balance?.remaining_amount || 0).toFixed(2)}</span>
+            <div className="space-y-1 text-sm border-t pt-3">
+              <div className="flex justify-between">
+                <span>Итого</span>
+                <span className="font-medium">{totalAmount.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Остаток аванса, применённый к счёту</span>
+                <span className="font-medium">{previewApplied.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-base">
+                <span className="font-semibold">К оплате</span>
+                <span className="font-semibold">{previewRemaining.toFixed(2)}</span>
+              </div>
             </div>
           </div>
 
