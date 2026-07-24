@@ -75,7 +75,7 @@ function ServiceColumn({
         .select(`
           id, created_at, hospitalization_id, patient_id,
           patients(first_name, last_name, patient_number),
-          services!inner(name, service_type_id, service_group_id, service_types!inner(code), service_groups(color)),
+          services!inner(id, name, service_type_id, service_group_id, service_types!inner(code), service_groups(color)),
           service_statuses!inner(code, name_ru)
         `)
         .eq("hospital_id", hospitalId)
