@@ -1109,45 +1109,21 @@ function InvoiceDialog({
             </Table>
 
             <div className="space-y-1 text-sm border-t pt-3">
-              <div className="flex justify-between">
-                <span>Итого</span>
-                <span className="font-medium">{totalAmount.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Остаток аванса, применённый к счёту</span>
-                <span className="font-medium">{previewApplied.toFixed(2)}</span>
-              </div>
               <div className="flex justify-between text-base">
-                <span className="font-semibold">К оплате</span>
-                <span className="font-semibold">{previewRemaining.toFixed(2)}</span>
+                <span className="font-semibold">Итого</span>
+                <span className="font-semibold">{totalAmount.toFixed(2)}</span>
               </div>
             </div>
           </div>
-
-          {showPay && previewRemaining > 0 && (
-            <div className="space-y-2 border-t pt-3">
-              <Label>Способ оплаты</Label>
-              <Select value={methodId} onValueChange={setMethodId}>
-                <SelectTrigger><SelectValue placeholder="Select method" /></SelectTrigger>
-                <SelectContent>
-                  {methods.map((m: any) => (
-                    <SelectItem key={m.id} value={m.id}>{m.name_en}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button onClick={handlePay} disabled={paying}>
-                {paying ? "..." : `Оплатить ${previewRemaining.toFixed(2)}`}
-              </Button>
-            </div>
-          )}
         </div>
         <DialogFooter className="shrink-0 p-6 pt-3">
           <Button variant="outline" onClick={handlePrint}>Печать</Button>
-          {!isFullyPaid && !showPay && (
-            <Button onClick={() => setShowPay(true)}>Оплатить</Button>
-          )}
+          <Button onClick={handleConfirm} disabled={confirming}>
+            {confirming ? "..." : "Подтвердить"}
+          </Button>
           <Button variant="ghost" onClick={onClose}>Закрыть</Button>
         </DialogFooter>
+
       </DialogContent>
     </Dialog>
   );
