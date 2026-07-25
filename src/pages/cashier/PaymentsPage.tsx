@@ -530,7 +530,7 @@ function PatientBillingPanel({
     },
   });
 
-  const { data: latestInvoice } = useQuery({
+  const { data: latestInvoice, refetch: refetchLatestInvoice } = useQuery({
     queryKey: ["patient-latest-invoice", patient.id, hospitalId],
     queryFn: async () => {
       const { data: hosp } = await supabase
@@ -557,11 +557,44 @@ function PatientBillingPanel({
     },
   });
 
+  const { data: totalOutstanding = 0, refetch: refetchOutstanding } = useQuery({
+    queryKey: ["patient-total-outstanding", patient.id],
+    queryFn: async () => {
+      const { data: hosps } = await supabase
+        .from("hospitalizations")
+        .select("id")
+        .eq("patient_id", patient.id);
+      const hospIds = (hosps || []).map((h: any) => h.id);
+      if (hospIds.length === 0) return 0;
+
+      const { data: confirmedInvoices, error } = await supabase
+        .from("invoices")
+        .select("id")
+        .in("hospitalization_id", hospIds)
+        .eq("status", "confirmed");
+      if (error) throw error;
+
+      let total = 0;
+      for (const inv of confirmedInvoices || []) {
+        const { data } = await supabase.rpc("get_invoice_balance", { p_invoice_id: inv.id });
+        total += Number((data as any[])?.[0]?.remaining_amount || 0);
+      }
+      return total;
+    },
+  });
+
+  const refetchAll = () => {
+    refetchBalance();
+    refetchLatestInvoice();
+    refetchOutstanding();
+  };
+
   return (
     <div className="rounded border bg-muted/30 p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <div className="font-medium">
-          {patient.last_name} {patient.first_name} · П# {patient.patient_number}
+        <div className="font-medium flex items-center gap-2">
+          <span>{patient.last_name} {patient.first_name} · П# {patient.patient_number}</span>
+          {totalOutstanding > 0 && <EWSStatusDot status="overdue" />}
         </div>
         <Button size="sm" variant="ghost" onClick={onClose}>Закрыть</Button>
       </div>
@@ -572,10 +605,16 @@ function PatientBillingPanel({
         <Button size="sm" onClick={() => setShowDeposit(true)}>+ Принять аванс</Button>
         {latestInvoice && (
           <Button size="sm" variant="secondary" onClick={() => setShowInvoice(true)}>
-            Счет-фактура
+            Создать Счет-фактура
           </Button>
         )}
       </div>
+      <DebtSection
+        patient={patient}
+        hospitalId={hospitalId}
+        onChanged={refetchAll}
+      />
+      <HistorySection patient={patient} />
       <DepositDialog
         open={showDeposit}
         patient={patient}
@@ -594,12 +633,183 @@ function PatientBillingPanel({
           hospitalizationId={latestInvoice.hospitalization.id}
           invoiceId={latestInvoice.invoice.id}
           onClose={() => setShowInvoice(false)}
-          onPaid={() => {
+          onConfirmed={() => {
             setShowInvoice(false);
-            refetchBalance();
+            refetchAll();
           }}
         />
       )}
+    </div>
+  );
+}
+
+function DebtSection({
+  patient, hospitalId, onChanged,
+}: { patient: any; hospitalId: string; onChanged: () => void }) {
+  const { user } = useAuth();
+  const [payingId, setPayingId] = useState<string | null>(null);
+  const [cancelingId, setCancelingId] = useState<string | null>(null);
+  const [methods, setMethods] = useState<PaymentMethod[]>([]);
+  const [methodByInvoice, setMethodByInvoice] = useState<Record<string, string>>({});
+
+  const { data: debts = [], refetch } = useQuery({
+    queryKey: ["patient-debt-invoices", patient.id],
+    queryFn: async () => {
+      const { data: hosps, error: hErr } = await supabase
+        .from("hospitalizations")
+        .select("id")
+        .eq("patient_id", patient.id);
+      if (hErr) throw hErr;
+      const hospIds = (hosps || []).map((h: any) => h.id);
+      if (hospIds.length === 0) return [];
+
+      const { data, error } = await supabase
+        .from("invoices")
+        .select("id, invoice_number, created_at, hospitalization_id, hospitalizations(hospitalization_number, discharged_at)")
+        .in("hospitalization_id", hospIds)
+        .eq("status", "confirmed");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: balances = {} } = useQuery({
+    queryKey: ["patient-debt-balances", (debts as any[]).map((d: any) => d.id)],
+    enabled: (debts as any[]).length > 0,
+    queryFn: async () => {
+      const result: Record<string, any> = {};
+      for (const d of debts as any[]) {
+        const { data } = await supabase.rpc("get_invoice_balance", { p_invoice_id: d.id });
+        result[d.id] = (data as any[])[0];
+      }
+      return result;
+    },
+  });
+
+  useEffect(() => {
+    supabase.from("payment_methods").select("id, name_en")
+      .eq("is_active", true).order("name_en")
+      .then(({ data }) => setMethods((data ?? []) as any));
+  }, []);
+
+  const handlePay = async (invoiceId: string, hospitalizationId: string) => {
+    const methodId = methodByInvoice[invoiceId];
+    setPayingId(invoiceId);
+    const { error } = await supabase.rpc("pay_hospitalization_invoice", {
+      p_invoice_id: invoiceId,
+      p_hospital_id: hospitalId,
+      p_patient_id: patient.id,
+      p_hospitalization_id: hospitalizationId,
+      p_payment_method_id: methodId || null,
+      p_received_by: user!.id,
+    });
+    setPayingId(null);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Счёт оплачен.");
+    refetch();
+    onChanged();
+  };
+
+  const handleCancel = async (invoiceId: string) => {
+    setCancelingId(invoiceId);
+    const { error } = await supabase.rpc("cancel_hospitalization_invoice", {
+      p_invoice_id: invoiceId,
+      p_cancelled_by: user!.id,
+    });
+    setCancelingId(null);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Счёт отменён.");
+    refetch();
+    onChanged();
+  };
+
+  if ((debts as any[]).length === 0) return null;
+
+  return (
+    <div className="space-y-2 border-t pt-3">
+      <div className="text-sm font-semibold">Долг</div>
+      {(debts as any[]).map((d: any) => {
+        const bal = (balances as any)[d.id];
+        const isActive = !d.hospitalizations?.discharged_at;
+        return (
+          <div key={d.id} className="rounded border bg-background p-3 space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span>
+                Госпитализация № {d.hospitalizations?.hospitalization_number} · Счёт № {d.invoice_number}
+              </span>
+              <span className="font-semibold">{Number(bal?.remaining_amount || 0).toFixed(2)}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Select
+                value={methodByInvoice[d.id] || ""}
+                onValueChange={(v) => setMethodByInvoice((prev) => ({ ...prev, [d.id]: v }))}
+              >
+                <SelectTrigger className="h-8 w-40"><SelectValue placeholder="Способ оплаты" /></SelectTrigger>
+                <SelectContent>
+                  {methods.map((m: any) => (
+                    <SelectItem key={m.id} value={m.id}>{m.name_en}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                onClick={() => handlePay(d.id, d.hospitalization_id)}
+                disabled={payingId === d.id}
+              >
+                {payingId === d.id ? "..." : "Оплатить"}
+              </Button>
+              {isActive && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleCancel(d.id)}
+                  disabled={cancelingId === d.id}
+                >
+                  {cancelingId === d.id ? "..." : "Отменить"}
+                </Button>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function HistorySection({ patient }: { patient: any }) {
+  const { data: history = [] } = useQuery({
+    queryKey: ["patient-history-invoices", patient.id],
+    queryFn: async () => {
+      const { data: hosps, error: hErr } = await supabase
+        .from("hospitalizations")
+        .select("id")
+        .eq("patient_id", patient.id);
+      if (hErr) throw hErr;
+      const hospIds = (hosps || []).map((h: any) => h.id);
+      if (hospIds.length === 0) return [];
+
+      const { data, error } = await supabase
+        .from("invoices")
+        .select("id, invoice_number, created_at, hospitalizations(hospitalization_number)")
+        .in("hospitalization_id", hospIds)
+        .eq("status", "paid")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  if ((history as any[]).length === 0) return null;
+
+  return (
+    <div className="space-y-2 border-t pt-3">
+      <div className="text-sm font-semibold">История</div>
+      {(history as any[]).map((h: any) => (
+        <div key={h.id} className="flex items-center justify-between text-sm text-muted-foreground">
+          <span>Госпитализация № {h.hospitalizations?.hospitalization_number} · Счёт № {h.invoice_number}</span>
+          <span>{format(new Date(h.created_at), "dd.MM.yyyy")}</span>
+        </div>
+      ))}
     </div>
   );
 }
