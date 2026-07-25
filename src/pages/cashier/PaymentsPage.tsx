@@ -891,18 +891,14 @@ function DepositDialog({
 }
 
 function InvoiceDialog({
-  open, patient, hospitalId, hospitalizationId, invoiceId, onClose, onPaid,
+  open, patient, hospitalId, hospitalizationId, invoiceId, onClose, onConfirmed,
 }: {
   open: boolean; patient: any; hospitalId: string;
   hospitalizationId: string; invoiceId: string;
-  onClose: () => void; onPaid: () => void;
+  onClose: () => void; onConfirmed: () => void;
 }) {
   const { user } = useAuth();
-  const [showPay, setShowPay] = useState(false);
-  const [methods, setMethods] = useState<PaymentMethod[]>([]);
-  const [methodId, setMethodId] = useState("");
-  const [paying, setPaying] = useState(false);
-
+  const [confirming, setConfirming] = useState(false);
 
   const { data: hosp } = useQuery({
     queryKey: ["invoice-hosp", hospitalizationId],
@@ -945,7 +941,7 @@ function InvoiceDialog({
     },
   });
 
-  const { data: balance, refetch: refetchBalance } = useQuery({
+  const { data: balance } = useQuery({
     queryKey: ["invoice-balance", invoiceId],
     enabled: open,
     queryFn: async () => {
@@ -957,32 +953,7 @@ function InvoiceDialog({
     },
   });
 
-  const { data: depositBalance = 0, error: depositBalanceError } = useQuery({
-    queryKey: ["patient-deposit-balance-preview", patient.id],
-    enabled: open,
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_patient_deposit_balance", {
-        p_patient_id: patient.id,
-      });
-      if (error) throw error;
-      return Number(data);
-    },
-  });
-
-  useEffect(() => {
-    if (depositBalanceError) {
-      toast.error(`Failed to load deposit balance: ${(depositBalanceError as any).message}`);
-    }
-  }, [depositBalanceError]);
-
   const totalAmount = Number(balance?.total_amount || 0);
-  const isFullyPaid = balance?.is_paid === true;
-  const previewApplied = isFullyPaid
-    ? Number(balance?.paid_amount || 0)
-    : Math.min(Number(depositBalance || 0), totalAmount);
-  const previewRemaining = isFullyPaid
-    ? Number(balance?.remaining_amount || 0)
-    : Math.max(totalAmount - previewApplied, 0);
 
   const groupedItems = useMemo(() => {
     const map = new Map<string, { name: string; dates: string[]; totalCost: number }>();
@@ -1002,33 +973,18 @@ function InvoiceDialog({
     return Array.from(map.values());
   }, [items]);
 
-  useEffect(() => {
-    if (!showPay) return;
-    supabase.from("payment_methods").select("id, name_en")
-      .eq("is_active", true).order("name_en")
-      .then(({ data }) => {
-        setMethods((data ?? []) as any);
-        if (data && data.length > 0) setMethodId(data[0].id);
-      });
-  }, [showPay]);
-
-  const handlePay = async () => {
-    setPaying(true);
-    const { error } = await supabase.rpc("pay_hospitalization_invoice", {
+  const handleConfirm = async () => {
+    setConfirming(true);
+    const { error } = await supabase.rpc("confirm_hospitalization_invoice", {
       p_invoice_id: invoiceId,
-      p_hospital_id: hospitalId,
-      p_patient_id: patient.id,
-      p_hospitalization_id: hospitalizationId,
-      p_payment_method_id: methodId || null,
-      p_received_by: user!.id,
+      p_confirmed_by: user!.id,
     });
-    setPaying(false);
+    setConfirming(false);
     if (error) { toast.error(error.message); return; }
-    toast.success("Счёт оплачен.");
-    refetchBalance();
-    setShowPay(false);
-    onPaid();
+    toast.success("Счёт подтверждён и заблокирован.");
+    onConfirmed();
   };
+
 
   const handlePrint = () => {
     const printWindow = window.open("", "_blank", "width=800,height=900");
