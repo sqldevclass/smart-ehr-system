@@ -1067,7 +1067,7 @@ function InvoiceDialog({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0">
         <DialogHeader className="shrink-0 p-6 pb-0">
-          <DialogTitle>Счет-фактура</DialogTitle>
+          <DialogTitle>Создать Счет-фактура</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 overflow-y-auto flex-1 min-h-0 px-6">
           <div>
