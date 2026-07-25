@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/select";
 import { toLocal } from "@/lib/timezone";
 import { PeriodFilter, PeriodState, getDateBounds, getTodayBounds, SummaryCard, MetricTile } from "@/components/shared/PeriodFilter";
+import EWSStatusDot from "@/components/ews/EWSStatusDot";
 
 interface Visit {
   id: string;
