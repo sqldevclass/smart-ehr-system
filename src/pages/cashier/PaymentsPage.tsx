@@ -1048,9 +1048,8 @@ function InvoiceDialog({
           </table>
           <table class="totals-table">
             <tr><td>Total</td><td>${totalAmount.toFixed(2)}</td></tr>
-            <tr><td>Remaining Advance Balance</td><td>${previewApplied.toFixed(2)}</td></tr>
-            <tr><td>Total to pay</td><td>${previewRemaining.toFixed(2)}</td></tr>
           </table>
+
           <div class="footer">
             <strong>Invoiced Date:</strong>
             <span>${invoicedDateStr}</span>
