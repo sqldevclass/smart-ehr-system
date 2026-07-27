@@ -600,15 +600,18 @@ function PatientBillingPanel({
         <Button size="sm" variant="ghost" onClick={onClose}>Закрыть</Button>
       </div>
       <div className="text-sm">
-        Баланс аванса: <span className="font-semibold">{Number(balance).toFixed(2)}</span>
+        Баланс депозита: <span className="font-semibold">{Number(balance).toFixed(2)}</span>
       </div>
       <div className="flex gap-2">
-        <Button size="sm" onClick={() => setShowDeposit(true)}>+ Принять аванс</Button>
-        {latestInvoice && (
-          <Button size="sm" variant="secondary" onClick={() => setShowInvoice(true)}>
-            Создать Счет-фактура
-          </Button>
-        )}
+        <Button size="sm" onClick={() => setShowDeposit(true)}>+ Принять депозит</Button>
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={!latestInvoice}
+          onClick={() => setShowInvoice(true)}
+        >
+          Создать Счет-фактура
+        </Button>
       </div>
       <DebtSection
         patient={patient}
@@ -633,7 +636,9 @@ function PatientBillingPanel({
           hospitalId={hospitalId}
           hospitalizationId={latestInvoice.hospitalization.id}
           invoiceId={latestInvoice.invoice.id}
+          mode="create"
           onClose={() => setShowInvoice(false)}
+
           onConfirmed={() => {
             setShowInvoice(false);
             refetchAll();
@@ -648,10 +653,8 @@ function DebtSection({
   patient, hospitalId, onChanged,
 }: { patient: any; hospitalId: string; onChanged: () => void }) {
   const { user } = useAuth();
-  const [payingId, setPayingId] = useState<string | null>(null);
   const [cancelingId, setCancelingId] = useState<string | null>(null);
-  const [methods, setMethods] = useState<PaymentMethod[]>([]);
-  const [methodByInvoice, setMethodByInvoice] = useState<Record<string, string>>({});
+  const [openInvoice, setOpenInvoice] = useState<{ id: string; hospitalizationId: string } | null>(null);
 
   const { data: debts = [], refetch } = useQuery({
     queryKey: ["patient-debt-invoices", patient.id],
@@ -687,30 +690,6 @@ function DebtSection({
     },
   });
 
-  useEffect(() => {
-    supabase.from("payment_methods").select("id, name_en")
-      .eq("is_active", true).order("name_en")
-      .then(({ data }) => setMethods((data ?? []) as any));
-  }, []);
-
-  const handlePay = async (invoiceId: string, hospitalizationId: string) => {
-    const methodId = methodByInvoice[invoiceId];
-    setPayingId(invoiceId);
-    const { error } = await supabase.rpc("pay_hospitalization_invoice", {
-      p_invoice_id: invoiceId,
-      p_hospital_id: hospitalId,
-      p_patient_id: patient.id,
-      p_hospitalization_id: hospitalizationId,
-      p_payment_method_id: methodId || null,
-      p_received_by: user!.id,
-    });
-    setPayingId(null);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Счёт оплачен.");
-    refetch();
-    onChanged();
-  };
-
   const handleCancel = async (invoiceId: string) => {
     setCancelingId(invoiceId);
     const { error } = await supabase.rpc("cancel_hospitalization_invoice", {
@@ -724,96 +703,150 @@ function DebtSection({
     onChanged();
   };
 
-  if ((debts as any[]).length === 0) return null;
-
   return (
     <div className="space-y-2 border-t pt-3">
       <div className="text-sm font-semibold">Долг</div>
-      {(debts as any[]).map((d: any) => {
-        const bal = (balances as any)[d.id];
-        const isActive = !d.hospitalizations?.discharged_at;
-        return (
-          <div key={d.id} className="rounded border bg-background p-3 space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span>
-                Госпитализация № {d.hospitalizations?.hospitalization_number} · Счёт № {d.invoice_number}
-              </span>
-              <span className="font-semibold">{Number(bal?.remaining_amount || 0).toFixed(2)}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Select
-                value={methodByInvoice[d.id] || ""}
-                onValueChange={(v) => setMethodByInvoice((prev) => ({ ...prev, [d.id]: v }))}
-              >
-                <SelectTrigger className="h-8 w-40"><SelectValue placeholder="Способ оплаты" /></SelectTrigger>
-                <SelectContent>
-                  {methods.map((m: any) => (
-                    <SelectItem key={m.id} value={m.id}>{m.name_en}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                size="sm"
-                onClick={() => handlePay(d.id, d.hospitalization_id)}
-                disabled={payingId === d.id}
-              >
-                {payingId === d.id ? "..." : "Оплатить"}
-              </Button>
-              {isActive && (
+      {(debts as any[]).length === 0 ? (
+        <div className="text-sm text-muted-foreground">Нет задолженностей.</div>
+      ) : (
+        (debts as any[]).map((d: any) => {
+          const bal = (balances as any)[d.id];
+          const isActive = !d.hospitalizations?.discharged_at;
+          return (
+            <div key={d.id} className="rounded border bg-background p-3 space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span>
+                  Госпитализация № {d.hospitalizations?.hospitalization_number} · Счёт № {d.invoice_number}
+                </span>
+                <span className="font-semibold">{Number(bal?.remaining_amount || 0).toFixed(2)}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => setOpenInvoice({ id: d.id, hospitalizationId: d.hospitalization_id })}
+                >
+                  Просмотреть счёт
+                </Button>
                 <Button
                   size="sm"
                   variant="outline"
+                  disabled={!isActive || cancelingId === d.id}
                   onClick={() => handleCancel(d.id)}
-                  disabled={cancelingId === d.id}
                 >
                   {cancelingId === d.id ? "..." : "Отменить"}
                 </Button>
-              )}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })
+      )}
+      {openInvoice && (
+        <InvoiceDialog
+          open={!!openInvoice}
+          patient={patient}
+          hospitalId={hospitalId}
+          hospitalizationId={openInvoice.hospitalizationId}
+          invoiceId={openInvoice.id}
+          mode="debt"
+          onClose={() => setOpenInvoice(null)}
+          onPaid={() => {
+            setOpenInvoice(null);
+            refetch();
+            onChanged();
+          }}
+        />
+      )}
     </div>
   );
 }
 
 function HistorySection({ patient }: { patient: any }) {
-  const { data: history = [] } = useQuery({
-    queryKey: ["patient-history-invoices", patient.id],
+  const [expandedHospId, setExpandedHospId] = useState<string | null>(null);
+
+  const { data: groups = [] } = useQuery({
+    queryKey: ["patient-history-groups", patient.id],
     queryFn: async () => {
       const { data: hosps, error: hErr } = await supabase
         .from("hospitalizations")
-        .select("id")
-        .eq("patient_id", patient.id);
+        .select("id, hospitalization_number, admitted_at, discharged_at")
+        .eq("patient_id", patient.id)
+        .order("admitted_at", { ascending: false });
       if (hErr) throw hErr;
       const hospIds = (hosps || []).map((h: any) => h.id);
       if (hospIds.length === 0) return [];
 
-      const { data, error } = await supabase
+      const { data: invoices, error } = await supabase
         .from("invoices")
-        .select("id, invoice_number, created_at, hospitalizations(hospitalization_number)")
+        .select("id, invoice_number, created_at, hospitalization_id")
         .in("hospitalization_id", hospIds)
         .eq("status", "paid")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data || [];
+
+      const byHosp = new Map<string, any[]>();
+      for (const inv of invoices || []) {
+        const arr = byHosp.get(inv.hospitalization_id) || [];
+        arr.push(inv);
+        byHosp.set(inv.hospitalization_id, arr);
+      }
+
+      return (hosps || [])
+        .filter((h: any) => byHosp.has(h.id))
+        .map((h: any) => ({ hospitalization: h, invoices: byHosp.get(h.id) || [] }));
     },
   });
 
-  if ((history as any[]).length === 0) return null;
+  const { data: paidAmounts = {} } = useQuery({
+    queryKey: ["patient-history-paid-amounts", (groups as any[]).flatMap((g: any) => g.invoices.map((i: any) => i.id))],
+    enabled: (groups as any[]).length > 0,
+    queryFn: async () => {
+      const result: Record<string, number> = {};
+      for (const g of groups as any[]) {
+        for (const inv of g.invoices) {
+          const { data } = await supabase.rpc("get_invoice_balance", { p_invoice_id: inv.id });
+          result[inv.id] = Number((data as any[])?.[0]?.paid_amount || 0);
+        }
+      }
+      return result;
+    },
+  });
 
   return (
     <div className="space-y-2 border-t pt-3">
       <div className="text-sm font-semibold">История</div>
-      {(history as any[]).map((h: any) => (
-        <div key={h.id} className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>Госпитализация № {h.hospitalizations?.hospitalization_number} · Счёт № {h.invoice_number}</span>
-          <span>{format(new Date(h.created_at), "dd.MM.yyyy")}</span>
-        </div>
-      ))}
+      {(groups as any[]).length === 0 ? (
+        <div className="text-sm text-muted-foreground">Нет истории оплат.</div>
+      ) : (
+        (groups as any[]).map((g: any) => {
+          const isOpen = expandedHospId === g.hospitalization.id;
+          return (
+            <div key={g.hospitalization.id} className="border rounded">
+              <button
+                type="button"
+                onClick={() => setExpandedHospId(isOpen ? null : g.hospitalization.id)}
+                className="w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-muted/50"
+              >
+                <span>Госпитализация № {g.hospitalization.hospitalization_number}</span>
+                <span className="text-muted-foreground">{isOpen ? "▲" : "▼"}</span>
+              </button>
+              {isOpen && (
+                <div className="border-t px-3 py-2 space-y-1">
+                  {g.invoices.map((inv: any) => (
+                    <div key={inv.id} className="flex items-center justify-between text-sm text-muted-foreground">
+                      <span>Счёт № {inv.invoice_number} · {format(new Date(inv.created_at), "dd.MM.yyyy")}</span>
+                      <span>{Number((paidAmounts as any)[inv.id] || 0).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })
+      )}
     </div>
   );
 }
+
 
 function DepositDialog({
   open, patient, hospitalId, onClose, onSaved,
@@ -852,7 +885,7 @@ function DepositDialog({
     });
     setSubmitting(false);
     if (error) { toast.error(error.message); return; }
-    toast.success("Аванс принят.");
+    toast.success("Депозит принят.");
     onSaved();
   };
 
@@ -860,7 +893,7 @@ function DepositDialog({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Принять аванс</DialogTitle>
+          <DialogTitle>Принять депозит</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div>
@@ -882,7 +915,7 @@ function DepositDialog({
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={submitting}>Отмена</Button>
           <Button onClick={handleConfirm} disabled={submitting}>
-            {submitting ? "..." : "Принять аванс"}
+            {submitting ? "..." : "Принять депозит"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -891,14 +924,43 @@ function DepositDialog({
 }
 
 function InvoiceDialog({
-  open, patient, hospitalId, hospitalizationId, invoiceId, onClose, onConfirmed,
+  open, patient, hospitalId, hospitalizationId, invoiceId, mode, onClose, onConfirmed, onPaid,
 }: {
   open: boolean; patient: any; hospitalId: string;
   hospitalizationId: string; invoiceId: string;
-  onClose: () => void; onConfirmed: () => void;
+  mode: "create" | "debt";
+  onClose: () => void;
+  onConfirmed?: () => void;
+  onPaid?: () => void;
 }) {
   const { user } = useAuth();
   const [confirming, setConfirming] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const [methods, setMethods] = useState<PaymentMethod[]>([]);
+  const [methodId, setMethodId] = useState("");
+
+  const { data: depositBalance = 0 } = useQuery({
+    queryKey: ["invoice-dialog-deposit-balance", patient.id],
+    enabled: open && mode === "debt",
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_patient_deposit_balance", {
+        p_patient_id: patient.id,
+      });
+      if (error) throw error;
+      return Number(data);
+    },
+  });
+
+  useEffect(() => {
+    if (!open || mode !== "debt") return;
+    supabase.from("payment_methods").select("id, name_en")
+      .eq("is_active", true).order("name_en")
+      .then(({ data }) => {
+        setMethods((data ?? []) as any);
+        if (data && data.length > 0) setMethodId(data[0].id);
+      });
+  }, [open, mode]);
+
 
   const { data: hosp } = useQuery({
     queryKey: ["invoice-hosp", hospitalizationId],
@@ -955,6 +1017,14 @@ function InvoiceDialog({
 
   const totalAmount = Number(balance?.total_amount || 0);
 
+  const previewApplied = mode === "debt"
+    ? Math.min(Number(depositBalance || 0), totalAmount)
+    : 0;
+  const previewRemaining = mode === "debt"
+    ? Math.max(totalAmount - previewApplied, 0)
+    : totalAmount;
+
+
   const groupedItems = useMemo(() => {
     const map = new Map<string, { name: string; dates: string[]; totalCost: number }>();
     for (const it of items as any[]) {
@@ -982,8 +1052,25 @@ function InvoiceDialog({
     setConfirming(false);
     if (error) { toast.error(error.message); return; }
     toast.success("Счёт подтверждён и заблокирован.");
-    onConfirmed();
+    onConfirmed?.();
   };
+
+  const handlePay = async () => {
+    setPaying(true);
+    const { error } = await supabase.rpc("pay_hospitalization_invoice", {
+      p_invoice_id: invoiceId,
+      p_hospital_id: hospitalId,
+      p_patient_id: patient.id,
+      p_hospitalization_id: hospitalizationId,
+      p_payment_method_id: previewRemaining > 0 ? (methodId || null) : null,
+      p_received_by: user!.id,
+    });
+    setPaying(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Счёт оплачен.");
+    onPaid?.();
+  };
+
 
 
   const handlePrint = () => {
@@ -1067,7 +1154,7 @@ function InvoiceDialog({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0">
         <DialogHeader className="shrink-0 p-6 pb-0">
-          <DialogTitle>Создать Счет-фактура</DialogTitle>
+          <DialogTitle>{mode === "create" ? "Создать Счет-фактура" : "Счёт-фактура"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 overflow-y-auto flex-1 min-h-0 px-6">
           <div>
@@ -1109,20 +1196,51 @@ function InvoiceDialog({
             </Table>
 
             <div className="space-y-1 text-sm border-t pt-3">
-              <div className="flex justify-between text-base">
-                <span className="font-semibold">Итого</span>
-                <span className="font-semibold">{totalAmount.toFixed(2)}</span>
+              <div className="flex justify-between">
+                <span>Итого</span>
+                <span className="font-medium">{totalAmount.toFixed(2)}</span>
               </div>
+              {mode === "debt" && (
+                <>
+                  <div className="flex justify-between">
+                    <span>Остаток депозита, применённый к счёту</span>
+                    <span className="font-medium">{previewApplied.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-base">
+                    <span className="font-semibold">К оплате</span>
+                    <span className="font-semibold">{previewRemaining.toFixed(2)}</span>
+                  </div>
+                </>
+              )}
             </div>
+            {mode === "debt" && previewRemaining > 0 && (
+              <div className="flex items-center gap-2">
+                <Select value={methodId} onValueChange={setMethodId}>
+                  <SelectTrigger className="h-9 w-48"><SelectValue placeholder="Способ оплаты" /></SelectTrigger>
+                  <SelectContent>
+                    {methods.map((m: any) => (
+                      <SelectItem key={m.id} value={m.id}>{m.name_en}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
         </div>
         <DialogFooter className="shrink-0 p-6 pt-3">
           <Button variant="outline" onClick={handlePrint}>Печать</Button>
-          <Button onClick={handleConfirm} disabled={confirming}>
-            {confirming ? "..." : "Подтвердить"}
-          </Button>
+          {mode === "create" ? (
+            <Button onClick={handleConfirm} disabled={confirming}>
+              {confirming ? "..." : "Подтвердить"}
+            </Button>
+          ) : (
+            <Button onClick={handlePay} disabled={paying}>
+              {paying ? "..." : `Оплатить ${previewRemaining.toFixed(2)}`}
+            </Button>
+          )}
           <Button variant="ghost" onClick={onClose}>Закрыть</Button>
         </DialogFooter>
+
 
       </DialogContent>
     </Dialog>
