@@ -860,7 +860,7 @@ function DepositDialog({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Принять аванс</DialogTitle>
+          <DialogTitle>Принять депозит</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div>
