@@ -677,18 +677,25 @@ function DebtSection({
     },
   });
 
-  const { data: balances = {} } = useQuery({
+  const { data: balances = {}, isLoading: balancesLoading, error: balancesError } = useQuery({
     queryKey: ["patient-debt-balances", (debts as any[]).map((d: any) => d.id)],
     enabled: (debts as any[]).length > 0,
     queryFn: async () => {
       const result: Record<string, any> = {};
       for (const d of debts as any[]) {
-        const { data } = await supabase.rpc("get_invoice_balance", { p_invoice_id: d.id });
+        const { data, error } = await supabase.rpc("get_invoice_balance", { p_invoice_id: d.id });
+        if (error) throw error;
         result[d.id] = (data as any[])[0];
       }
       return result;
     },
   });
+
+  useEffect(() => {
+    if (balancesError) {
+      toast.error(`Failed to load debt balances: ${(balancesError as any).message}`);
+    }
+  }, [balancesError]);
 
   const handleCancel = async (invoiceId: string) => {
     setCancelingId(invoiceId);
