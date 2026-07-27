@@ -852,7 +852,7 @@ function DepositDialog({
     });
     setSubmitting(false);
     if (error) { toast.error(error.message); return; }
-    toast.success("Аванс принят.");
+    toast.success("Депозит принят.");
     onSaved();
   };
 
