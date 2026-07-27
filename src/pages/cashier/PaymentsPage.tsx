@@ -600,15 +600,18 @@ function PatientBillingPanel({
         <Button size="sm" variant="ghost" onClick={onClose}>Закрыть</Button>
       </div>
       <div className="text-sm">
-        Баланс аванса: <span className="font-semibold">{Number(balance).toFixed(2)}</span>
+        Баланс депозита: <span className="font-semibold">{Number(balance).toFixed(2)}</span>
       </div>
       <div className="flex gap-2">
-        <Button size="sm" onClick={() => setShowDeposit(true)}>+ Принять аванс</Button>
-        {latestInvoice && (
-          <Button size="sm" variant="secondary" onClick={() => setShowInvoice(true)}>
-            Создать Счет-фактура
-          </Button>
-        )}
+        <Button size="sm" onClick={() => setShowDeposit(true)}>+ Принять депозит</Button>
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={!latestInvoice}
+          onClick={() => setShowInvoice(true)}
+        >
+          Создать Счет-фактура
+        </Button>
       </div>
       <DebtSection
         patient={patient}
@@ -633,7 +636,9 @@ function PatientBillingPanel({
           hospitalId={hospitalId}
           hospitalizationId={latestInvoice.hospitalization.id}
           invoiceId={latestInvoice.invoice.id}
+          mode="create"
           onClose={() => setShowInvoice(false)}
+
           onConfirmed={() => {
             setShowInvoice(false);
             refetchAll();
