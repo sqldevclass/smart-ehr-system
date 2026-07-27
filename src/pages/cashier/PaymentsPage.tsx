@@ -681,11 +681,14 @@ function DebtSection({
     queryKey: ["patient-debt-balances", (debts as any[]).map((d: any) => d.id)],
     enabled: (debts as any[]).length > 0,
     queryFn: async () => {
+      const ids = (debts as any[]).map((d: any) => d.id);
+      const { data, error } = await supabase.rpc("get_invoices_balance_batch", {
+        p_invoice_ids: ids,
+      });
+      if (error) throw error;
       const result: Record<string, any> = {};
-      for (const d of debts as any[]) {
-        const { data, error } = await supabase.rpc("get_invoice_balance", { p_invoice_id: d.id });
-        if (error) throw error;
-        result[d.id] = (data as any[])[0];
+      for (const row of (data as any[]) || []) {
+        result[row.invoice_id] = row;
       }
       return result;
     },
@@ -725,8 +728,9 @@ function DebtSection({
                 <span>
                   Госпитализация № {d.hospitalizations?.hospitalization_number} · Счёт № {d.invoice_number}
                 </span>
-                <span className="font-semibold">
+                <span className="font-semibold flex items-center gap-1.5">
                   {bal ? Number(bal.remaining_amount).toFixed(2) : balancesLoading ? "..." : "—"}
+                  {bal && Number(bal.remaining_amount) > 0 && <EWSStatusDot status="overdue" pulse />}
                 </span>
               </div>
               <div className="flex items-center gap-2">
