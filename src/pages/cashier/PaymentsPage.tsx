@@ -982,8 +982,25 @@ function InvoiceDialog({
     setConfirming(false);
     if (error) { toast.error(error.message); return; }
     toast.success("Счёт подтверждён и заблокирован.");
-    onConfirmed();
+    onConfirmed?.();
   };
+
+  const handlePay = async () => {
+    setPaying(true);
+    const { error } = await supabase.rpc("pay_hospitalization_invoice", {
+      p_invoice_id: invoiceId,
+      p_hospital_id: hospitalId,
+      p_patient_id: patient.id,
+      p_hospitalization_id: hospitalizationId,
+      p_payment_method_id: previewRemaining > 0 ? (methodId || null) : null,
+      p_received_by: user!.id,
+    });
+    setPaying(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Счёт оплачен.");
+    onPaid?.();
+  };
+
 
 
   const handlePrint = () => {
