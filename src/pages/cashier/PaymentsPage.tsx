@@ -725,7 +725,9 @@ function DebtSection({
                 <span>
                   Госпитализация № {d.hospitalizations?.hospitalization_number} · Счёт № {d.invoice_number}
                 </span>
-                <span className="font-semibold">{Number(bal?.remaining_amount || 0).toFixed(2)}</span>
+                <span className="font-semibold">
+                  {bal ? Number(bal.remaining_amount).toFixed(2) : balancesLoading ? "..." : "—"}
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <Button
