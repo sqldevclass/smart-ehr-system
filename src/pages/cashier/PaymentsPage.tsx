@@ -882,7 +882,7 @@ function DepositDialog({
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={submitting}>Отмена</Button>
           <Button onClick={handleConfirm} disabled={submitting}>
-            {submitting ? "..." : "Принять аванс"}
+            {submitting ? "..." : "Принять депозит"}
           </Button>
         </DialogFooter>
       </DialogContent>
