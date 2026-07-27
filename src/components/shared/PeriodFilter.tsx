@@ -1,8 +1,9 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth,
-} from "date-fns";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
 
 export type Period = "today" | "week" | "month" | "custom";
 
@@ -47,45 +48,46 @@ interface Props {
 }
 
 export function PeriodFilter({ value, onChange }: Props) {
-  const opts: { key: Period; label: string }[] = [
-    { key: "today", label: "Today" },
-    { key: "week", label: "This Week" },
-    { key: "month", label: "This Month" },
-    { key: "custom", label: "Custom" },
-  ];
+  const [open, setOpen] = useState(false);
+
+  const selectedRange = {
+    from: value.customFrom ? new Date(value.customFrom) : new Date(),
+    to: value.customTo ? new Date(value.customTo) : new Date(),
+  };
+
+  const label = value.customFrom && value.customTo
+    ? value.customFrom === value.customTo
+      ? format(selectedRange.from, "dd.MM.yyyy")
+      : `${format(selectedRange.from, "dd.MM.yyyy")} – ${format(selectedRange.to, "dd.MM.yyyy")}`
+    : "Сегодня";
+
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <div className="inline-flex rounded-md border bg-background p-0.5">
-        {opts.map((o) => (
-          <Button
-            key={o.key}
-            size="sm"
-            variant={value.period === o.key ? "default" : "ghost"}
-            className="h-8"
-            onClick={() => onChange({ ...value, period: o.key })}
-          >
-            {o.label}
-          </Button>
-        ))}
-      </div>
-      {value.period === "custom" && (
-        <div className="flex items-center gap-2">
-          <Input
-            type="date"
-            className="h-8 w-auto"
-            value={value.customFrom || ""}
-            onChange={(e) => onChange({ ...value, customFrom: e.target.value })}
-          />
-          <span className="text-muted-foreground text-sm">to</span>
-          <Input
-            type="date"
-            className="h-8 w-auto"
-            value={value.customTo || ""}
-            onChange={(e) => onChange({ ...value, customTo: e.target.value })}
-          />
-        </div>
-      )}
-    </div>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="h-8 gap-2">
+          <CalendarIcon className="h-4 w-4" />
+          {label}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="range"
+          selected={
+            value.customFrom
+              ? { from: new Date(value.customFrom), to: value.customTo ? new Date(value.customTo) : undefined }
+              : { from: new Date(), to: new Date() }
+          }
+          onSelect={(range: any) => {
+            if (!range?.from) return;
+            const from = format(range.from, "yyyy-MM-dd");
+            const to = format(range.to || range.from, "yyyy-MM-dd");
+            onChange({ period: "custom", customFrom: from, customTo: to });
+            if (range.to) setOpen(false);
+          }}
+          initialFocus
+        />
+      </PopoverContent>
+    </Popover>
   );
 }
 
