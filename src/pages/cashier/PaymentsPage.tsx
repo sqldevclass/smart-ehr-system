@@ -955,6 +955,14 @@ function InvoiceDialog({
 
   const totalAmount = Number(balance?.total_amount || 0);
 
+  const previewApplied = mode === "debt"
+    ? Math.min(Number(depositBalance || 0), totalAmount)
+    : 0;
+  const previewRemaining = mode === "debt"
+    ? Math.max(totalAmount - previewApplied, 0)
+    : totalAmount;
+
+
   const groupedItems = useMemo(() => {
     const map = new Map<string, { name: string; dates: string[]; totalCost: number }>();
     for (const it of items as any[]) {
