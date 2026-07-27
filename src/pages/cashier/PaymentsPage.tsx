@@ -891,14 +891,43 @@ function DepositDialog({
 }
 
 function InvoiceDialog({
-  open, patient, hospitalId, hospitalizationId, invoiceId, onClose, onConfirmed,
+  open, patient, hospitalId, hospitalizationId, invoiceId, mode, onClose, onConfirmed, onPaid,
 }: {
   open: boolean; patient: any; hospitalId: string;
   hospitalizationId: string; invoiceId: string;
-  onClose: () => void; onConfirmed: () => void;
+  mode: "create" | "debt";
+  onClose: () => void;
+  onConfirmed?: () => void;
+  onPaid?: () => void;
 }) {
   const { user } = useAuth();
   const [confirming, setConfirming] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const [methods, setMethods] = useState<PaymentMethod[]>([]);
+  const [methodId, setMethodId] = useState("");
+
+  const { data: depositBalance = 0 } = useQuery({
+    queryKey: ["invoice-dialog-deposit-balance", patient.id],
+    enabled: open && mode === "debt",
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_patient_deposit_balance", {
+        p_patient_id: patient.id,
+      });
+      if (error) throw error;
+      return Number(data);
+    },
+  });
+
+  useEffect(() => {
+    if (!open || mode !== "debt") return;
+    supabase.from("payment_methods").select("id, name_en")
+      .eq("is_active", true).order("name_en")
+      .then(({ data }) => {
+        setMethods((data ?? []) as any);
+        if (data && data.length > 0) setMethodId(data[0].id);
+      });
+  }, [open, mode]);
+
 
   const { data: hosp } = useQuery({
     queryKey: ["invoice-hosp", hospitalizationId],
