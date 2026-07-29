@@ -119,7 +119,7 @@ export default function ServiceTab({
 
   const { data: favorites = [] } = useQuery({
     queryKey: ["physician-service-favorites", userId, typeCode],
-    enabled: typeCode === "laboratory" && !readOnly,
+    enabled: !readOnly,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("physician_favorites")
@@ -130,7 +130,7 @@ export default function ServiceTab({
         .limit(10);
       if (error) throw error;
       return (data || []).filter(
-        (f: any) => f.services?.service_types?.code === "laboratory"
+        (f: any) => f.services?.service_types?.code === typeCode
       );
     },
   });
@@ -353,42 +353,51 @@ export default function ServiceTab({
 
   );
 
+  const handleFavoriteClick = (f: any) => {
+    if (typeCode === "laboratory") {
+      toggleDraft({ id: f.service_id, name: f.services?.name });
+    } else {
+      setSelectedServiceId(f.service_id);
+    }
+  };
+
+  const isFavoriteActive = (f: any) =>
+    typeCode === "laboratory"
+      ? draft.some((d) => d.id === f.service_id)
+      : selectedServiceId === f.service_id;
+
   return (
     <div className="p-4 space-y-4">
       {typeCode !== "laboratory" && (
         <h3 className="font-semibold">{title}</h3>
       )}
 
-      {typeCode === "laboratory" ? (
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_240px] gap-4">
-          <div className="space-y-4 min-w-0">
-            {orderingAndList}
-          </div>
-          {!readOnly && !showResults && favorites.length > 0 && (
-            <div className="border rounded p-3 space-y-1 bg-muted/20 h-fit">
-              <div className="text-xs uppercase text-muted-foreground mb-2">
-                Часто назначаемые
-              </div>
-              {favorites.map((f: any) => (
-                <button
-                  key={f.service_id}
-                  type="button"
-                  onClick={() => toggleDraft({ id: f.service_id, name: f.services?.name })}
-                  className={cn(
-                    "w-full text-left text-sm px-2 py-1.5 rounded hover:bg-muted truncate",
-                    draft.some((d) => d.id === f.service_id) && "bg-muted font-medium",
-                  )}
-                  title={f.services?.name}
-                >
-                  {f.services?.name}
-                </button>
-              ))}
-            </div>
-          )}
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_240px] gap-4">
+        <div className="space-y-4 min-w-0">
+          {orderingAndList}
         </div>
-      ) : (
-        <div className="space-y-4">{orderingAndList}</div>
-      )}
+        {!readOnly && !showResults && favorites.length > 0 && (
+          <div className="border rounded p-3 space-y-1 bg-muted/20 h-fit">
+            <div className="text-xs uppercase text-muted-foreground mb-2">
+              Часто назначаемые
+            </div>
+            {favorites.map((f: any) => (
+              <button
+                key={f.service_id}
+                type="button"
+                onClick={() => handleFavoriteClick(f)}
+                className={cn(
+                  "w-full text-left text-sm px-2 py-1.5 rounded hover:bg-muted truncate",
+                  isFavoriteActive(f) && "bg-muted font-medium",
+                )}
+                title={f.services?.name}
+              >
+                {f.services?.name}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
