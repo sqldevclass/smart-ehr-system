@@ -195,6 +195,9 @@ export default function InpatientPatientDetail() {
           <span className="text-muted-foreground">
             П#: {patientForCtx.patient_number}
           </span>
+          <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={handlePrintPatientDetails}>
+            Печать
+          </Button>
         </div>
       );
     }
