@@ -23,7 +23,7 @@ import { Label } from "@/components/ui/label";
 import { UserCheck } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { useInpatientContext } from "@/contexts/InpatientContext";
-import StatusToggle from "@/components/shared/StatusToggle";
+
 import { cn } from "@/lib/utils";
 
 export default function InpatientPatientsList() {
@@ -37,14 +37,13 @@ export default function InpatientPatientsList() {
 
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
   const [physicianSearch, setPhysicianSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"active" | "discharged">("active");
   const [showAllDischarged, setShowAllDischarged] = useState(false);
   const [tabletMode, setTabletMode] = useState(false);
   const [focusedRowIndex, setFocusedRowIndex] = useState(0);
   const rowRefs = useRef<(HTMLTableRowElement | null)[]>([]);
 
   const { data: hospitalizations = [], isLoading } = useQuery({
-    queryKey: ["inpatient-list", user?.hospitalId, selectedDeptIds, statusFilter, showAllDischarged],
+    queryKey: ["inpatient-list", user?.hospitalId, selectedDeptIds, showAllDischarged],
     queryFn: async () => {
       if (!selectedDeptIds.length) return [];
       let query = supabase
@@ -60,18 +59,15 @@ export default function InpatientPatientsList() {
         .eq("hospital_id", user!.hospitalId)
         .in("department_id", selectedDeptIds)
         .order("admitted_at", { ascending: false });
-      if (statusFilter === "active") {
-        query = query.is("discharged_at", null);
-      } else {
-        query = query.not("discharged_at", "is", null);
-        if (!showAllDischarged) {
-          const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
-          query = query.gte("discharged_at", fiveDaysAgo);
-        }
+      if (!showAllDischarged) {
+        const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
+        query = query.or(`discharged_at.is.null,discharged_at.gte.${fiveDaysAgo}`);
       }
       const { data, error } = await query;
       if (error) throw error;
-      return data || [];
+      const activeRows = (data || []).filter((h: any) => !h.discharged_at);
+      const dischargedRows = (data || []).filter((h: any) => h.discharged_at);
+      return [...activeRows, ...dischargedRows];
     },
     enabled: !!user?.hospitalId && selectedDeptIds.length > 0,
   });
@@ -188,13 +184,6 @@ export default function InpatientPatientsList() {
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <CardTitle>Стационарные пациенты</CardTitle>
           <div className="flex items-center gap-2">
-            <StatusToggle
-              value={statusFilter}
-              onChange={(v) => {
-                setStatusFilter(v);
-                setShowAllDischarged(false);
-              }}
-            />
             <Switch
               id="physician-tablet-toggle"
               checked={tabletMode}
@@ -456,7 +445,7 @@ export default function InpatientPatientsList() {
             </TableBody>
           </Table>
         )}
-        {statusFilter === "discharged" && !showAllDischarged && filtered.length > 0 && (
+        {!showAllDischarged && filtered.length > 0 && (
           <div className="flex justify-center pt-2">
             <button
               onClick={() => setShowAllDischarged(true)}
