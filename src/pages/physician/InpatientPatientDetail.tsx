@@ -195,6 +195,9 @@ export default function InpatientPatientDetail() {
           <span className="text-muted-foreground">
             П#: {patientForCtx.patient_number}
           </span>
+          <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={handlePrintPatientDetails}>
+            Печать
+          </Button>
         </div>
       );
     }
@@ -306,6 +309,149 @@ export default function InpatientPatientDetail() {
     queryClient.invalidateQueries({
       queryKey: ["inpatient-docs-all", patientId],
     });
+  };
+
+  const handlePrintMedications = async () => {
+    const { data, error } = await supabase
+      .from("drug_prescriptions")
+      .select(`
+        dose, dose_unit, route, prescribed_at,
+        drug_formulary!drug_formulary_id(trade_name, inn)
+      `)
+      .eq("hospitalization_id", hospitalizationId)
+      .neq("status_code", "cancelled")
+      .order("prescribed_at", { ascending: false });
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    const printWindow = window.open("", "_blank", "width=800,height=900");
+    if (!printWindow) return;
+
+    const rowsHtml = (data || [])
+      .map(
+        (p: any) => `
+        <tr>
+          <td>${p.drug_formulary?.trade_name ?? "—"}</td>
+          <td>${p.dose ?? "—"} ${p.dose_unit ?? ""}</td>
+          <td>${p.route ?? "—"}</td>
+          <td>${p.prescribed_at ? format(new Date(p.prescribed_at), "dd.MM.yyyy HH:mm") : "—"}</td>
+        </tr>
+      `,
+      )
+      .join("");
+
+    const patientName = `${patient?.last_name ?? ""} ${patient?.first_name ?? ""}`.trim();
+    const dobStr = patient?.date_of_birth
+      ? format(new Date(patient.date_of_birth), "dd.MM.yyyy")
+      : "—";
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Лист назначения</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 24px; font-size: 13px; }
+            h1 { font-size: 16px; margin-bottom: 4px; }
+            p { margin: 2px 0; }
+            table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+            th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+          </style>
+        </head>
+        <body>
+          <h1>Лист назначения</h1>
+          <p><strong>Пациент:</strong> ${patientName}</p>
+          <p><strong>Дата рождения:</strong> ${dobStr}</p>
+          <table>
+            <thead>
+              <tr><th>Препарат</th><th>Доза</th><th>Путь введения</th><th>Дата назначения</th></tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
+  };
+
+  const handlePrintPatientDetails = async () => {
+    const { data, error } = await supabase
+      .from("visit_services")
+      .select(`
+        completed_at,
+        service_statuses!inner(code, name_ru),
+        services!inner(name, service_types!inner(code))
+      `)
+      .eq("hospital_id", user!.hospitalId)
+      .eq("patient_id", patientForCtx.id)
+      .in("service_statuses.code", ["ready_for_execution", "completed"]);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    const relevant = (data || []).filter((r: any) =>
+      ["laboratory", "instrumental", "consultation"].includes(
+        r.services?.service_types?.code,
+      ),
+    );
+
+    const printWindow = window.open("", "_blank", "width=800,height=900");
+    if (!printWindow) return;
+
+    const rowsHtml = relevant
+      .map(
+        (r: any) => `
+        <tr>
+          <td>${r.services?.name ?? "—"}</td>
+          <td>${r.service_statuses?.name_ru ?? "—"}</td>
+          <td>${r.completed_at ? format(new Date(r.completed_at), "dd.MM.yyyy HH:mm") : "—"}</td>
+        </tr>
+      `,
+      )
+      .join("");
+
+    const nameStr = `${patientForCtx.last_name ?? ""} ${patientForCtx.first_name ?? ""}`.trim();
+    const dobStr = patientForCtx.date_of_birth
+      ? format(new Date(patientForCtx.date_of_birth), "dd.MM.yyyy")
+      : "—";
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Данные пациента</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 24px; font-size: 13px; }
+            h1 { font-size: 16px; margin-bottom: 4px; }
+            p { margin: 2px 0; }
+            table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+            th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+          </style>
+        </head>
+        <body>
+          <h1>Данные пациента</h1>
+          <p><strong>Пациент:</strong> ${nameStr}</p>
+          <p><strong>Дата рождения:</strong> ${dobStr}</p>
+          <p><strong>П#:</strong> ${patientForCtx.patient_number ?? "—"}</p>
+          <table>
+            <thead>
+              <tr><th>Назначение</th><th>Статус</th><th>Дата завершения</th></tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
   };
 
   const selectTab = (tab: TabKey) => {
@@ -558,6 +704,9 @@ export default function InpatientPatientDetail() {
           >
             <div className="flex items-center gap-4 px-4 py-3 border-b shrink-0">
               <h2 className="font-semibold text-base shrink-0">Лист назначения</h2>
+              <Button size="sm" variant="outline" className="shrink-0" onClick={handlePrintMedications}>
+                Печать
+              </Button>
               <div className="flex items-center gap-4 text-sm flex-1 min-w-0">
                 <div className="shrink-0">
                   <div className="font-medium">
