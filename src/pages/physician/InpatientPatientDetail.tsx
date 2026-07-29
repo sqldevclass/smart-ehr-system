@@ -704,6 +704,9 @@ export default function InpatientPatientDetail() {
           >
             <div className="flex items-center gap-4 px-4 py-3 border-b shrink-0">
               <h2 className="font-semibold text-base shrink-0">Лист назначения</h2>
+              <Button size="sm" variant="outline" className="shrink-0" onClick={handlePrintMedications}>
+                Печать
+              </Button>
               <div className="flex items-center gap-4 text-sm flex-1 min-w-0">
                 <div className="shrink-0">
                   <div className="font-medium">
