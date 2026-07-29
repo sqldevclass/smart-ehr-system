@@ -543,6 +543,92 @@ export default function TreatmentCarePlanModal({
   room,
   onClose,
 }: Props) {
+  const handlePrintOrders = async () => {
+    const { data, error } = await supabase
+      .from("visit_services")
+      .select(`
+        id, completed_at, created_at,
+        service_statuses!inner(code, name_ru),
+        services!inner(name, service_types!inner(code))
+      `)
+      .eq("hospital_id", hospitalId)
+      .eq("patient_id", patientId)
+      .in("service_statuses.code", ["ready_for_execution", "completed"]);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    const relevant = (data || []).filter((r: any) =>
+      ["laboratory", "instrumental", "consultation"].includes(
+        r.services?.service_types?.code,
+      ),
+    );
+
+    const printWindow = window.open("", "_blank", "width=800,height=900");
+    if (!printWindow) return;
+
+    const rowsHtml = relevant
+      .map(
+        (r: any) => `
+          <tr>
+            <td>${r.services?.name ?? "—"}</td>
+            <td>${r.service_statuses?.name_ru ?? "—"}</td>
+            <td>${r.completed_at ? format(new Date(r.completed_at), "dd.MM.yyyy HH:mm") : "—"}</td>
+          </tr>
+        `,
+      )
+      .join("");
+
+    const patientName = `${patient?.last_name ?? ""} ${patient?.first_name ?? ""}`.trim();
+    const dobStr = patient?.date_of_birth
+      ? format(new Date(patient.date_of_birth), "dd.MM.yyyy")
+      : "—";
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Назначения — ${patientName}</title>
+          <style>
+            body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 24px; color: #111; }
+            h1 { font-size: 18px; margin: 0 0 8px; }
+            .meta { font-size: 13px; color: #555; margin-bottom: 16px; }
+            table { width: 100%; border-collapse: collapse; font-size: 13px; }
+            th, td { border: 1px solid #ccc; padding: 8px; text-align: left; vertical-align: top; }
+            th { background: #f3f4f6; }
+            .empty { color: #888; font-style: italic; }
+          </style>
+        </head>
+        <body>
+          <h1>Назначения — Лаборатория / Инструментальные / Консультации</h1>
+          <div class="meta">
+            <div>Пациент: ${patientName}</div>
+            <div>Дата рождения: ${dobStr}</div>
+          </div>
+          ${relevant.length === 0 ? '<p class="empty">Нет назначений для печати.</p>' : `
+            <table>
+              <thead>
+                <tr>
+                  <th>Назначение</th>
+                  <th>Статус</th>
+                  <th>Дата завершения</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsHtml}
+              </tbody>
+            </table>
+          `}
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
       <div
@@ -554,6 +640,12 @@ export default function TreatmentCarePlanModal({
           patient={patient}
           room={room}
           onClose={onClose}
+          extra={
+            <Button variant="outline" size="sm" onClick={handlePrintOrders}>
+              <Printer className="w-4 h-4 mr-1.5" />
+              Печать
+            </Button>
+          }
         />
         <div className="flex-1 overflow-hidden p-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 h-full md:divide-x">
