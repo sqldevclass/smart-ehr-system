@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { Printer } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import PatientModalHeader from "@/components/nurse/PatientModalHeader";
 import DrawSampleDialog from "@/components/shared/DrawSampleDialog";
@@ -12,6 +13,7 @@ import { useLabOrderAlerts } from "@/hooks/useLabOrderAlerts";
 import { cn } from "@/lib/utils";
 import { LabResultCard } from "@/components/shared/LabResultRow";
 import { BookingModal } from "@/components/booking/BookingModal";
+import { Button } from "@/components/ui/button";
 
 
 
