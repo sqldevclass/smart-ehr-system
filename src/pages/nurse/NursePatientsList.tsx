@@ -25,7 +25,7 @@ import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from "@/components/ui/tooltip";
 import AssessmentIndicator from "@/components/assessments/AssessmentIndicator";
-import StatusToggle from "@/components/shared/StatusToggle";
+
 import { cn } from "@/lib/utils";
 import NurseInventoryModal from "@/components/medication/NurseInventoryModal";
 
@@ -43,7 +43,7 @@ export default function NursePatientsList() {
   const [assignTarget, setAssignTarget] = useState<any>(null);
   const [roomBed, setRoomBed] = useState<RoomBedValue>({ roomId: "", bedNumber: null });
   const [submitting, setSubmitting] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<"active" | "discharged">("active");
+  
   const [showInventory, setShowInventory] = useState(false);
   const [focusedRowIndex, setFocusedRowIndex] = useState(0);
   const rowRefs = useRef<(HTMLTableRowElement | null)[]>([]);
@@ -85,7 +85,7 @@ export default function NursePatientsList() {
   });
 
   const { data: hospitalizations = [], isLoading, refetch } = useQuery({
-    queryKey: ["nurse-active-hosp", user?.hospitalId, selectedDeptIds, statusFilter],
+    queryKey: ["nurse-active-hosp", user?.hospitalId, selectedDeptIds],
     queryFn: async () => {
       let q = supabase
         .from("hospitalizations")
@@ -105,15 +105,12 @@ export default function NursePatientsList() {
         `)
         .eq("hospital_id", user!.hospitalId)
         .order("admitted_at", { ascending: false });
-      if (statusFilter === "active") {
-        q = q.is("discharged_at", null);
-      } else {
-        q = q.not("discharged_at", "is", null);
-      }
       if (selectedDeptIds.length > 0) q = q.in("department_id", selectedDeptIds);
       const { data, error } = await q;
       if (error) throw error;
-      return data || [];
+      const activeRows = (data || []).filter((h: any) => !h.discharged_at);
+      const dischargedRows = (data || []).filter((h: any) => h.discharged_at);
+      return [...activeRows, ...dischargedRows];
     },
     enabled: !!user?.hospitalId,
   });
@@ -303,7 +300,7 @@ export default function NursePatientsList() {
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <CardTitle>Пациенты</CardTitle>
           <div className="flex items-center gap-2">
-            <StatusToggle value={statusFilter} onChange={setStatusFilter} />
+            
             <Button
               variant="outline"
               onClick={() => setShowInventory(true)}

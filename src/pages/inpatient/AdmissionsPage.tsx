@@ -32,7 +32,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { format, differenceInDays } from "date-fns";
 import { PeriodFilter, PeriodState, getDateBounds, getTodayBounds, SummaryCard, MetricTile } from "@/components/shared/PeriodFilter";
-import StatusToggle from "@/components/shared/StatusToggle";
+
 
 export default function AdmissionsPage() {
   const { user } = useAuth();
@@ -45,7 +45,7 @@ export default function AdmissionsPage() {
   const [departmentId, setDepartmentId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [periodState, setPeriodState] = useState<PeriodState>({ period: "today" });
-  const [hospStatusFilter, setHospStatusFilter] = useState<"active" | "discharged">("active");
+  
   const [showAllDischarged, setShowAllDischarged] = useState(false);
   const [deptFilter, setDeptFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<"all" | "planned" | "emergency">("all");
@@ -89,7 +89,7 @@ export default function AdmissionsPage() {
   });
 
   const { data: active, isLoading: loadingActive } = useQuery({
-    queryKey: ["active-hospitalizations", user?.hospitalId, bounds.from, bounds.to, hospStatusFilter, showAllDischarged, deptFilter, typeFilter],
+    queryKey: ["active-hospitalizations", user?.hospitalId, bounds.from, bounds.to, showAllDischarged, deptFilter, typeFilter],
     queryFn: async () => {
       let q = supabase
         .from("hospitalizations")
@@ -98,19 +98,16 @@ export default function AdmissionsPage() {
         .gte("admitted_at", bounds.from)
         .lte("admitted_at", bounds.to)
         .order("admitted_at", { ascending: false });
-      if (hospStatusFilter === "active") {
-        q = q.is("discharged_at", null);
-      } else {
-        q = q.not("discharged_at", "is", null);
-        if (!showAllDischarged) {
-          const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
-          q = q.gte("discharged_at", fiveDaysAgo);
-        }
+      if (!showAllDischarged) {
+        const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
+        q = q.or(`discharged_at.is.null,discharged_at.gte.${fiveDaysAgo}`);
       }
       if (deptFilter !== "all") q = q.eq("department_id", deptFilter);
       const { data, error } = await q;
       if (error) throw error;
-      let rows = data || [];
+      const activeRows = (data || []).filter((h: any) => !h.discharged_at);
+      const dischargedRows = (data || []).filter((h: any) => h.discharged_at);
+      let rows = [...activeRows, ...dischargedRows];
       if (typeFilter !== "all") {
         rows = rows.filter((h: any) => h.hospitalization_urgency?.code === typeFilter);
       }
@@ -299,13 +296,6 @@ export default function AdmissionsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-center gap-3">
-            <StatusToggle
-              value={hospStatusFilter}
-              onChange={(v) => {
-                setHospStatusFilter(v);
-                setShowAllDischarged(false);
-              }}
-            />
             <PeriodFilter value={periodState} onChange={setPeriodState} />
             <Select value={deptFilter} onValueChange={setDeptFilter}>
               <SelectTrigger className="h-9 w-[180px]"><SelectValue /></SelectTrigger>
@@ -390,7 +380,7 @@ export default function AdmissionsPage() {
               </TableBody>
             </Table>
           )}
-          {hospStatusFilter === "discharged" && !showAllDischarged && (active?.length ?? 0) > 0 && (
+          {!showAllDischarged && (active?.length ?? 0) > 0 && (
             <div className="flex justify-center pt-2">
               <button
                 onClick={() => setShowAllDischarged(true)}
