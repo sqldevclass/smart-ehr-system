@@ -135,7 +135,7 @@ export default function PhysicianLayout() {
             <SidebarGroup>
               <SidebarGroupLabel>Mode</SidebarGroupLabel>
               <SidebarGroupContent>
-                <ModeSwitcher mode={mode} switchMode={switchMode} />
+                <ModeSwitcher mode={isInpatient ? "inpatient" : "ambulatory"} switchMode={switchMode} />
 
               </SidebarGroupContent>
             </SidebarGroup>
