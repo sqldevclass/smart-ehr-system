@@ -946,71 +946,73 @@ export default function EWSSection({
             </span>
           </div>
 
-          {parameters.map((p: any) => {
-            const val = ewsValues[p.id] ?? "";
-            const { color } = val
-              ? calculateScore(p.id, val, p.input_type)
-              : { color: "white" };
-            return (
-              <div
-                key={p.id}
-                className={cn(
-                  "p-2 rounded transition-colors",
-                  bgColor[color] ?? "bg-white",
-                )}
-              >
-                <Label className="text-xs">
-                  {p.name_ru}
-                  {p.unit && (
-                    <span className="text-muted-foreground ml-1">({p.unit})</span>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+            {parameters.map((p: any) => {
+              const val = ewsValues[p.id] ?? "";
+              const { color } = val
+                ? calculateScore(p.id, val, p.input_type)
+                : { color: "white" };
+              return (
+                <div
+                  key={p.id}
+                  className={cn(
+                    "p-2 rounded transition-colors",
+                    bgColor[color] ?? "bg-white",
                   )}
-                </Label>
-                {p.input_type === "enum" ? (
-                  p.code === "consciousness" || p.code === "oxygen" ? (
-                    <Select
+                >
+                  <Label className="text-xs">
+                    {p.name_ru}
+                    {p.unit && (
+                      <span className="text-muted-foreground ml-1">({p.unit})</span>
+                    )}
+                  </Label>
+                  {p.input_type === "enum" ? (
+                    p.code === "consciousness" || p.code === "oxygen" ? (
+                      <Select
+                        value={val}
+                        onValueChange={(v) =>
+                          setEwsValues((prev) => ({ ...prev, [p.id]: v }))
+                        }
+                      >
+                        <SelectTrigger className="h-8 text-sm mt-1">
+                          <SelectValue placeholder="Выбрать..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {p.code === "consciousness" ? (
+                            <>
+                              <SelectItem value="alert">A — Ясное</SelectItem>
+                              <SelectItem value="voice">V — Реакция на голос</SelectItem>
+                              <SelectItem value="pain">P — Реакция на боль</SelectItem>
+                              <SelectItem value="unresponsive">U — Без реакции</SelectItem>
+                              {scale?.code === "news2" && (
+                                <SelectItem value="confusion">C — Спутанность</SelectItem>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <SelectItem value="air">Воздух</SelectItem>
+                              <SelectItem value="o2">Кислород</SelectItem>
+                            </>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    ) : null
+                  ) : (
+                    <Input
+                      type="number"
+                      step={p.input_type === "numeric" ? "0.1" : "1"}
                       value={val}
-                      onValueChange={(v) =>
-                        setEwsValues((prev) => ({ ...prev, [p.id]: v }))
+                      onChange={(e) =>
+                        setEwsValues((prev) => ({ ...prev, [p.id]: e.target.value }))
                       }
-                    >
-                      <SelectTrigger className="h-8 text-sm mt-1">
-                        <SelectValue placeholder="Выбрать..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {p.code === "consciousness" ? (
-                          <>
-                            <SelectItem value="alert">A — Ясное</SelectItem>
-                            <SelectItem value="voice">V — Реакция на голос</SelectItem>
-                            <SelectItem value="pain">P — Реакция на боль</SelectItem>
-                            <SelectItem value="unresponsive">U — Без реакции</SelectItem>
-                            {scale?.code === "news2" && (
-                              <SelectItem value="confusion">C — Спутанность</SelectItem>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            <SelectItem value="air">Воздух</SelectItem>
-                            <SelectItem value="o2">Кислород</SelectItem>
-                          </>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  ) : null
-                ) : (
-                  <Input
-                    type="number"
-                    step={p.input_type === "numeric" ? "0.1" : "1"}
-                    value={val}
-                    onChange={(e) =>
-                      setEwsValues((prev) => ({ ...prev, [p.id]: e.target.value }))
-                    }
-                    className="h-8 text-sm mt-1"
-                    placeholder="—"
-                  />
-                )}
-              </div>
-            );
-          })}
+                      className="h-8 w-20 text-sm mt-1"
+                      placeholder="—"
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
 
           <div>
             <Label className="text-xs">Заметки</Label>
