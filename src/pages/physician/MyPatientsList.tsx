@@ -27,6 +27,7 @@ interface Physician {
 interface VisitServiceRow {
   id: string;
   visit_id: string | null;
+  hospitalization_id: string | null;
   patient_id: string | null;
   scheduled_at: string | null;
   queue_number: number | null;
