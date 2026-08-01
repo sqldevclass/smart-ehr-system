@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { format } from "date-fns";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -56,6 +56,28 @@ interface PaymentMethod {
 }
 
 const fmt = (n: number) => Number(n || 0).toFixed(2);
+
+const PATIENT_BILLING_QUERY_PREFIXES = [
+  "patient-deposit-balance",
+  "patient-deposit-balance-preview",
+  "invoice-dialog-deposit-balance",
+  "patient-latest-invoice",
+  "patient-debt-invoices",
+  "patient-debt-balances",
+  "patient-history-groups",
+  "patient-history-paid-amounts",
+  "patient-total-outstanding",
+  "invoice-header",
+  "invoice-items",
+  "invoice-balance",
+  "invoice-hosp",
+];
+
+function invalidatePatientBilling(queryClient: ReturnType<typeof useQueryClient>) {
+  for (const prefix of PATIENT_BILLING_QUERY_PREFIXES) {
+    queryClient.invalidateQueries({ queryKey: [prefix] });
+  }
+}
 
 export default function PaymentsPage() {
   const { user } = useAuth();
