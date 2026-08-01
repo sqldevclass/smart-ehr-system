@@ -242,7 +242,7 @@ export default function InpatientPatientDetail() {
     queryFn: async () => {
       const { data } = await supabase
         .from("document_types")
-        .select("id, name_ru, color")
+        .select("id, code, name_ru, color, setting")
         .eq("is_active", true)
         .order("name_ru");
       return data || [];
@@ -286,7 +286,10 @@ export default function InpatientPatientDetail() {
     docPrivileges.map((p: any) => p.document_type_id)
   );
   const allowedDocTypes = documentTypes.filter(
-    (dt: any) => allowedDocTypeIds.has(dt.id)
+    (dt: any) =>
+      allowedDocTypeIds.has(dt.id) &&
+      (dt.setting === "inpatient" || dt.setting === "both") &&
+      dt.code !== "consultation"
   );
 
   if (isLoading) return <p className="text-muted-foreground">Loading…</p>;
