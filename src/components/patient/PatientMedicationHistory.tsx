@@ -16,11 +16,11 @@ export default function PatientMedicationHistory({ patientId, hospitalId }: Prop
     queryFn: async () => {
       const { data, error } = await supabase
         .from("drug_prescriptions")
-        .select(`option>
-            id, dose, dose_unit, route, prescribed_at, hospitalization_id,
-            drug_formulary!drug_formulary_id(trade_name, inn),
-            hospitalizations!inner(hospitalization_number, admitted_at, discharged_at)
-          `)
+        .select(`
+          id, dose, dose_unit, route, prescribed_at, hospitalization_id,
+          drug_formulary!drug_formulary_id(trade_name, inn),
+          hospitalizations!inner(hospitalization_number, admitted_at, discharged_at)
+        `)
         .eq("hospital_id", hospitalId)
         .eq("patient_id", patientId)
         .neq("status_code", "cancelled")
