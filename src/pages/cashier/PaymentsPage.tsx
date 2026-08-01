@@ -640,7 +640,7 @@ function PatientBillingPanel({
         hospitalId={hospitalId}
         onChanged={refetchAll}
       />
-      <HistorySection patient={patient} />
+      <HistorySection patient={patient} hospitalId={hospitalId} />
       <DepositDialog
         open={showDeposit}
         patient={patient}
@@ -675,6 +675,7 @@ function DebtSection({
   patient, hospitalId, onChanged,
 }: { patient: any; hospitalId: string; onChanged: () => void }) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [cancelingId, setCancelingId] = useState<string | null>(null);
   const [openInvoice, setOpenInvoice] = useState<{ id: string; hospitalizationId: string } | null>(null);
 
@@ -731,6 +732,7 @@ function DebtSection({
     setCancelingId(null);
     if (error) { toast.error(error.message); return; }
     toast.success("Счёт отменён.");
+    invalidatePatientBilling(queryClient);
     refetch();
     onChanged();
   };
@@ -890,6 +892,7 @@ function DepositDialog({
   onClose: () => void; onSaved: () => void;
 }) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [amount, setAmount] = useState("");
   const [methodId, setMethodId] = useState("");
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
@@ -921,6 +924,7 @@ function DepositDialog({
     setSubmitting(false);
     if (error) { toast.error(error.message); return; }
     toast.success("Депозит принят.");
+    invalidatePatientBilling(queryClient);
     onSaved();
   };
 
@@ -963,12 +967,13 @@ function InvoiceDialog({
 }: {
   open: boolean; patient: any; hospitalId: string;
   hospitalizationId: string; invoiceId: string;
-  mode: "create" | "debt";
+  mode: "create" | "debt" | "history";
   onClose: () => void;
   onConfirmed?: () => void;
   onPaid?: () => void;
 }) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [confirming, setConfirming] = useState(false);
   const [paying, setPaying] = useState(false);
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
@@ -1087,6 +1092,7 @@ function InvoiceDialog({
     setConfirming(false);
     if (error) { toast.error(error.message); return; }
     toast.success("Счёт подтверждён и заблокирован.");
+    invalidatePatientBilling(queryClient);
     onConfirmed?.();
   };
 
@@ -1103,6 +1109,7 @@ function InvoiceDialog({
     setPaying(false);
     if (error) { toast.error(error.message); return; }
     toast.success("Счёт оплачен.");
+    invalidatePatientBilling(queryClient);
     onPaid?.();
   };
 
@@ -1247,6 +1254,12 @@ function InvoiceDialog({
                   </div>
                 </>
               )}
+              {mode === "history" && (
+                <div className="flex justify-between text-base">
+                  <span className="font-semibold">Оплачено</span>
+                  <span className="font-semibold">{Number(balance?.paid_amount || 0).toFixed(2)}</span>
+                </div>
+              )}
             </div>
             {mode === "debt" && previewRemaining > 0 && (
               <div className="flex items-center gap-2">
@@ -1264,11 +1277,12 @@ function InvoiceDialog({
         </div>
         <DialogFooter className="shrink-0 p-6 pt-3">
           <Button variant="outline" onClick={handlePrint}>Печать</Button>
-          {mode === "create" ? (
+          {mode === "create" && (
             <Button onClick={handleConfirm} disabled={confirming}>
               {confirming ? "..." : "Подтвердить"}
             </Button>
-          ) : (
+          )}
+          {mode === "debt" && (
             <Button onClick={handlePay} disabled={paying}>
               {paying ? "..." : `Оплатить ${previewRemaining.toFixed(2)}`}
             </Button>
