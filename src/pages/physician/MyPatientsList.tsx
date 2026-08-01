@@ -8,6 +8,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format, subDays, addDays, startOfDay, endOfDay, isSameDay } from "date-fns";
@@ -26,6 +27,7 @@ interface Physician {
 interface VisitServiceRow {
   id: string;
   visit_id: string | null;
+  hospitalization_id: string | null;
   patient_id: string | null;
   scheduled_at: string | null;
   queue_number: number | null;
@@ -182,7 +184,7 @@ export default function MyPatientsList() {
     const { data: vs, error: vsErr } = await supabase
       .from("visit_services")
       .select(
-        "id, scheduled_at, queue_number, cost_at_time, visit_id, slot_id, is_waitlist, created_at, completed_by, assigned_room_id, created_by, patient_id, patients(first_name, last_name, patient_number, date_of_birth), service_statuses(code, name_ru), services(id, name, linked_document_type_id), profiles!visit_services_created_by_fkey(full_name), visits!visit_id(patient_id, visit_date, patients(first_name, last_name, patient_number, date_of_birth))"
+        "id, scheduled_at, queue_number, cost_at_time, visit_id, hospitalization_id, slot_id, is_waitlist, created_at, completed_by, assigned_room_id, created_by, patient_id, patients(first_name, last_name, patient_number, date_of_birth), service_statuses(code, name_ru), services(id, name, linked_document_type_id), profiles!visit_services_created_by_fkey(full_name), visits!visit_id(patient_id, visit_date, patients(first_name, last_name, patient_number, date_of_birth))"
       )
       .eq("assigned_staff_role_id", (phys as Physician).id)
       .eq("hospital_id", user.hospitalId)
@@ -213,7 +215,7 @@ export default function MyPatientsList() {
       const { data: rs, error: rsErr } = await supabase
         .from("visit_services")
         .select(
-          "id, scheduled_at, queue_number, cost_at_time, visit_id, slot_id, is_waitlist, created_at, completed_by, assigned_room_id, patient_id, patients(first_name, last_name, patient_number, date_of_birth), service_statuses(code, name_ru), services(id, name, linked_document_type_id), visits!visit_id(patient_id, visit_date, patients(first_name, last_name, patient_number, date_of_birth))"
+          "id, scheduled_at, queue_number, cost_at_time, visit_id, hospitalization_id, slot_id, is_waitlist, created_at, completed_by, assigned_room_id, patient_id, patients(first_name, last_name, patient_number, date_of_birth), service_statuses(code, name_ru), services(id, name, linked_document_type_id), visits!visit_id(patient_id, visit_date, patients(first_name, last_name, patient_number, date_of_birth))"
         )
         .eq("hospital_id", user.hospitalId)
         .in("assigned_room_id", myRoomIds)
@@ -387,13 +389,22 @@ export default function MyPatientsList() {
               documentTypeId: linkedDocTypeId,
               serviceStatusCode: statusCode,
             });
+          } else if (linkedDocTypeId && r.hospitalization_id) {
+            navigate(`/physician/inpatient/${r.hospitalization_id}`, {
+              state: { openDocumentTypeId: linkedDocTypeId, openVisitServiceId: r.id },
+            });
           } else if (pid) {
             navigate(`/physician/patients/${pid}`);
           }
         }}
       >
         <TableCell className={`font-medium ${isWL ? "pl-8" : ""}`}>
-          {formatPatient(patient)}
+          <span className="flex items-center gap-1.5">
+            {formatPatient(patient)}
+            <Badge variant={r.visit_id ? "outline" : "secondary"} className="text-[10px] px-1.5 py-0">
+              {r.visit_id ? "OP" : "IP"}
+            </Badge>
+          </span>
         </TableCell>
         <TableCell className="font-mono text-xs">
           {patient?.patient_number || "—"}
