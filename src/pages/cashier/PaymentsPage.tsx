@@ -797,8 +797,9 @@ function DebtSection({
   );
 }
 
-function HistorySection({ patient }: { patient: any }) {
+function HistorySection({ patient, hospitalId }: { patient: any; hospitalId: string }) {
   const [expandedHospId, setExpandedHospId] = useState<string | null>(null);
+  const [openHistoryInvoice, setOpenHistoryInvoice] = useState<{ id: string; hospitalizationId: string } | null>(null);
 
   const { data: groups = [] } = useQuery({
     queryKey: ["patient-history-groups", patient.id],
@@ -869,16 +870,32 @@ function HistorySection({ patient }: { patient: any }) {
               {isOpen && (
                 <div className="border-t px-3 py-2 space-y-1">
                   {g.invoices.map((inv: any) => (
-                    <div key={inv.id} className="flex items-center justify-between text-sm text-muted-foreground">
+                    <button
+                      key={inv.id}
+                      type="button"
+                      onClick={() => setOpenHistoryInvoice({ id: inv.id, hospitalizationId: g.hospitalization.id })}
+                      className="w-full flex items-center justify-between text-sm text-muted-foreground hover:bg-muted/50 rounded px-1 py-0.5"
+                    >
                       <span>Счёт № {inv.invoice_number} · {format(new Date(inv.created_at), "dd.MM.yyyy")}</span>
                       <span>{Number((paidAmounts as any)[inv.id] || 0).toFixed(2)}</span>
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
             </div>
           );
         })
+      )}
+      {openHistoryInvoice && (
+        <InvoiceDialog
+          open={!!openHistoryInvoice}
+          patient={patient}
+          hospitalId={hospitalId}
+          hospitalizationId={openHistoryInvoice.hospitalizationId}
+          invoiceId={openHistoryInvoice.id}
+          mode="history"
+          onClose={() => setOpenHistoryInvoice(null)}
+        />
       )}
     </div>
   );
