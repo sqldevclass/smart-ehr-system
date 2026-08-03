@@ -323,6 +323,7 @@ export default function InpatientPatientDetail() {
   if (!hosp) return <p className="text-destructive">Hospitalization not found.</p>;
 
   const isHospDischarged = !!(hosp as any)?.discharged_at;
+  const isReadOnlyContext = isHospDischarged || isOutpatientMode;
 
   const patient = (hosp as any).patients;
   const allergies = patient?.patient_allergies || [];
