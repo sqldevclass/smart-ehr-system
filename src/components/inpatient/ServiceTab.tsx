@@ -73,7 +73,7 @@ export default function ServiceTab({
     queryFn: async () => {
       const { data } = await supabase
         .from("services")
-        .select("id, name, code, service_type_id, service_group_id, service_types!inner(code), service_groups!inner(name)")
+        .select("id, name, code, cost_with_vat, service_type_id, service_group_id, service_types!inner(code), service_groups!inner(name)")
         .eq("hospital_id", hospitalId)
         .eq("is_active", true)
         .order("name");
