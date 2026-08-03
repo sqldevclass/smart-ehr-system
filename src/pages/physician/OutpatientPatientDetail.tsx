@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import DocumentHistory from "@/components/documents/DocumentHistory";
 import DocumentWorkspace from "@/components/documents/DocumentWorkspace";
 import ServiceTab from "@/components/inpatient/ServiceTab";
+import PatientDiagnosisHistory from "@/components/patient/PatientDiagnosisHistory";
 import PatientMedicationHistory from "@/components/patient/PatientMedicationHistory";
 
 type TabKey = "documents" | "medication" | "lab" | "imaging" | "consultation";
