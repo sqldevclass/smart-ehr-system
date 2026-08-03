@@ -49,8 +49,9 @@ const TABS: { key: TabKey; label: string }[] = [
 
 
 export default function InpatientPatientDetail() {
-  const { hospId } = useParams<{ hospId: string }>();
-  const hospitalizationId = hospId!;
+  const { hospId, patientId: routePatientId } = useParams<{ hospId?: string; patientId?: string }>();
+  const hospitalizationId = hospId || "";
+  const isOutpatientMode = !hospId;
   const { user } = useAuth();
   const { physicianId } = usePhysicianId();
   const navigate = useNavigate();
@@ -150,28 +151,54 @@ export default function InpatientPatientDetail() {
   const hasSepsisAlert = activeClinicalAlerts.length > 0;
 
   const { data: hosp, isLoading, refetch } = useQuery({
-    queryKey: ["inpatient-detail", hospitalizationId],
+    queryKey: ["inpatient-detail", hospitalizationId, routePatientId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("hospitalizations")
+      if (hospId) {
+        const { data, error } = await supabase
+          .from("hospitalizations")
+          .select(`
+            id, hospitalization_number, admitted_at, department_id,
+            discharged_at, discharge_type,
+            departments!department_id(name),
+            patients!inner(
+              id, first_name, last_name, middle_name,
+              patient_number, date_of_birth, gender, phone,
+              weight_kg, height_cm,
+              patient_allergies(allergy_type, severity)
+            ),
+            room_assignments(bed_number, rooms!inner(name))
+          `)
+          .eq("id", hospitalizationId)
+          .single();
+        if (error) throw error;
+        return data;
+      }
+
+      const { data: patientData, error } = await supabase
+        .from("patients")
         .select(`
-          id, hospitalization_number, admitted_at, department_id,
-          discharged_at, discharge_type,
-          departments!department_id(name),
-          patients!inner(
-            id, first_name, last_name, middle_name,
-            patient_number, date_of_birth, gender, phone,
-            weight_kg, height_cm,
-            patient_allergies(allergy_type, severity)
-          ),
-          room_assignments(bed_number, rooms!inner(name))
+          id, first_name, last_name, middle_name,
+          patient_number, date_of_birth, gender, phone,
+          weight_kg, height_cm,
+          patient_allergies(allergy_type, severity)
         `)
-        .eq("id", hospitalizationId)
+        .eq("id", routePatientId!)
         .single();
+
       if (error) throw error;
-      return data;
+      return {
+        id: null,
+        hospitalization_number: null,
+        admitted_at: null,
+        department_id: null,
+        discharged_at: null,
+        discharge_type: null,
+        departments: null,
+        patients: patientData,
+        room_assignments: [],
+      };
     },
-    enabled: !!hospitalizationId,
+    enabled: !!hospId || !!routePatientId,
   });
 
   const patientId = (hosp as any)?.patients?.id;
@@ -296,6 +323,7 @@ export default function InpatientPatientDetail() {
   if (!hosp) return <p className="text-destructive">Hospitalization not found.</p>;
 
   const isHospDischarged = !!(hosp as any)?.discharged_at;
+  const isReadOnlyContext = isHospDischarged || isOutpatientMode;
 
   const patient = (hosp as any).patients;
   const allergies = patient?.patient_allergies || [];
