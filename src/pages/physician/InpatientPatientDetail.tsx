@@ -49,8 +49,9 @@ const TABS: { key: TabKey; label: string }[] = [
 
 
 export default function InpatientPatientDetail() {
-  const { hospId } = useParams<{ hospId: string }>();
-  const hospitalizationId = hospId!;
+  const { hospId, patientId: routePatientId } = useParams<{ hospId?: string; patientId?: string }>();
+  const hospitalizationId = hospId || "";
+  const isOutpatientMode = !hospId;
   const { user } = useAuth();
   const { physicianId } = usePhysicianId();
   const navigate = useNavigate();
