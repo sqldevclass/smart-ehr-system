@@ -78,7 +78,7 @@ export default function OutpatientPatientDetail() {
     patientId: patientId!,
     hospitalId: user!.hospitalId,
     userId: user!.id,
-    readOnly: true,
+    readOnly: false,
   };
 
   return (
