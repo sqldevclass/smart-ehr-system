@@ -26,6 +26,7 @@ export default function ServiceTab({
   hospitalizationId, patientId, hospitalId, userId, typeCode, title, readOnly,
 }: Props) {
   const queryClient = useQueryClient();
+  const isOutpatientMode = !hospitalizationId;
   const [selectedServiceId, setSelectedServiceId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
@@ -72,7 +73,7 @@ export default function ServiceTab({
     queryFn: async () => {
       const { data } = await supabase
         .from("services")
-        .select("id, name, code, service_type_id, service_group_id, service_types!inner(code), service_groups!inner(name)")
+        .select("id, name, code, cost_with_vat, service_type_id, service_group_id, service_types!inner(code), service_groups!inner(name)")
         .eq("hospital_id", hospitalId)
         .eq("is_active", true)
         .order("name");
@@ -139,16 +140,30 @@ export default function ServiceTab({
     if (!selectedServiceId) return;
     setSubmitting(true);
     try {
-      const { error } = await supabase.rpc("inpatient_order_service", {
-        p_hospitalization_id: hospitalizationId,
-        p_patient_id: patientId,
-        p_hospital_id: hospitalId,
-        p_service_id: selectedServiceId,
-        p_ordered_by: userId,
-      });
-      if (error) {
-        toast.error(error.message);
-        return;
+      if (isOutpatientMode) {
+        const svc = catalog.find((s: any) => s.id === selectedServiceId);
+        const { error } = await supabase.rpc("physician_order_services", {
+          p_patient_id: patientId,
+          p_hospital_id: hospitalId,
+          p_ordered_by: userId,
+          p_services: [{ service_id: selectedServiceId, cost_at_time: svc?.cost_with_vat ?? 0 }],
+        });
+        if (error) {
+          toast.error(error.message);
+          return;
+        }
+      } else {
+        const { error } = await supabase.rpc("inpatient_order_service", {
+          p_hospitalization_id: hospitalizationId,
+          p_patient_id: patientId,
+          p_hospital_id: hospitalId,
+          p_service_id: selectedServiceId,
+          p_ordered_by: userId,
+        });
+        if (error) {
+          toast.error(error.message);
+          return;
+        }
       }
       toast.success("Назначено");
       setSelectedServiceId("");
@@ -166,13 +181,24 @@ export default function ServiceTab({
     const succeededIds: string[] = [];
 
     for (const item of draft) {
-      const { error } = await supabase.rpc("inpatient_order_service", {
-        p_hospitalization_id: hospitalizationId,
-        p_patient_id: patientId,
-        p_hospital_id: hospitalId,
-        p_service_id: item.id,
-        p_ordered_by: userId,
-      });
+      let error;
+      if (isOutpatientMode) {
+        const svc = catalog.find((s: any) => s.id === item.id);
+        ({ error } = await supabase.rpc("physician_order_services", {
+          p_patient_id: patientId,
+          p_hospital_id: hospitalId,
+          p_ordered_by: userId,
+          p_services: [{ service_id: item.id, cost_at_time: svc?.cost_with_vat ?? 0 }],
+        }));
+      } else {
+        ({ error } = await supabase.rpc("inpatient_order_service", {
+          p_hospitalization_id: hospitalizationId,
+          p_patient_id: patientId,
+          p_hospital_id: hospitalId,
+          p_service_id: item.id,
+          p_ordered_by: userId,
+        }));
+      }
       if (error) {
         failures.push({ name: item.name, message: error.message });
       } else {
