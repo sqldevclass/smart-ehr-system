@@ -9,10 +9,22 @@ import { Button } from "@/components/ui/button";
 import DocumentHistory from "@/components/documents/DocumentHistory";
 import DocumentWorkspace from "@/components/documents/DocumentWorkspace";
 import ServiceTab from "@/components/inpatient/ServiceTab";
+import PatientAssessmentHistory from "@/components/patient/PatientAssessmentHistory";
+import PatientCareOrderHistory from "@/components/patient/PatientCareOrderHistory";
 import PatientDiagnosisHistory from "@/components/patient/PatientDiagnosisHistory";
+import PatientEwsHistory from "@/components/patient/PatientEwsHistory";
 import PatientMedicationHistory from "@/components/patient/PatientMedicationHistory";
 
-type TabKey = "documents" | "medication" | "lab" | "imaging" | "consultation" | "diagnosis";
+type TabKey =
+  | "documents"
+  | "medication"
+  | "lab"
+  | "imaging"
+  | "consultation"
+  | "diagnosis"
+  | "care"
+  | "ews"
+  | "scales";
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "documents", label: "Документы" },
@@ -21,6 +33,9 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "imaging", label: "Инструментальные" },
   { key: "consultation", label: "Консультация" },
   { key: "diagnosis", label: "Диагноз" },
+  { key: "care", label: "Назначения по уходу" },
+  { key: "ews", label: "ШРПУ" },
+  { key: "scales", label: "Шкалы" },
 ];
 
 export default function OutpatientPatientDetail() {
@@ -182,12 +197,18 @@ export default function OutpatientPatientDetail() {
               <ServiceTab {...serviceTabProps} typeCode="instrumental" title="Инструментальные" />
             ) : activeTab === "consultation" ? (
               <ServiceTab {...serviceTabProps} typeCode="consultation" title="Консультация" />
-            ) : (
+            ) : activeTab === "diagnosis" ? (
               <PatientDiagnosisHistory
                 patientId={patientId!}
                 hospitalId={user!.hospitalId}
                 currentUserId={user!.id}
               />
+            ) : activeTab === "care" ? (
+              <PatientCareOrderHistory patientId={patientId!} hospitalId={user!.hospitalId} />
+            ) : activeTab === "ews" ? (
+              <PatientEwsHistory patientId={patientId!} hospitalId={user!.hospitalId} />
+            ) : (
+              <PatientAssessmentHistory patientId={patientId!} hospitalId={user!.hospitalId} />
             )}
           </div>
         </div>
