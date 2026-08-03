@@ -26,6 +26,7 @@ export default function ServiceTab({
   hospitalizationId, patientId, hospitalId, userId, typeCode, title, readOnly,
 }: Props) {
   const queryClient = useQueryClient();
+  const isOutpatientMode = !hospitalizationId;
   const [selectedServiceId, setSelectedServiceId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
