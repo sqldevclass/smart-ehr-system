@@ -32,6 +32,7 @@ import PatientDiagnosisHistory from "@/components/patient/PatientDiagnosisHistor
 import PatientCareOrderHistory from "@/components/patient/PatientCareOrderHistory";
 import PatientEwsHistory from "@/components/patient/PatientEwsHistory";
 import PatientAssessmentHistory from "@/components/patient/PatientAssessmentHistory";
+import PatientMedicationHistory from "@/components/patient/PatientMedicationHistory";
 
 type TabKey = "medication" | "imaging" | "lab" | "consultation" | "care" | "diagnosis" | "scales" | "ews";
 
@@ -532,7 +533,7 @@ export default function InpatientPatientDetail() {
             >
               ← Назад
             </Button>
-            {!isHospDischarged && (
+            {!isReadOnlyContext && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button size="sm" className="h-7 px-2 text-xs">+ Создать</Button>
@@ -565,7 +566,7 @@ export default function InpatientPatientDetail() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-            {!isHospDischarged && (
+            {!isReadOnlyContext && (
               <Button
                 variant="destructive"
                 size="sm"
@@ -779,23 +780,25 @@ export default function InpatientPatientDetail() {
                   </div>
                 )}
               </div>
-              {interactions.length > 0 ? (
-                <button
-                  onClick={() => setShowIxModal(true)}
-                  className={cn(
-                    "text-xs border rounded px-2.5 py-1 shrink-0 transition-colors",
-                    ixSeverityClass()
-                  )}
-                >
-                  ⚠ Взаимодействия ({interactions.length})
-                </button>
-              ) : (
-                <button
-                  disabled
-                  className="text-xs border rounded px-2.5 py-1 shrink-0 text-muted-foreground border-muted opacity-50 cursor-not-allowed"
-                >
-                  Взаимодействия
-                </button>
+              {!isOutpatientMode && (
+                interactions.length > 0 ? (
+                  <button
+                    onClick={() => setShowIxModal(true)}
+                    className={cn(
+                      "text-xs border rounded px-2.5 py-1 shrink-0 transition-colors",
+                      ixSeverityClass()
+                    )}
+                  >
+                    ⚠ Взаимодействия ({interactions.length})
+                  </button>
+                ) : (
+                  <button
+                    disabled
+                    className="text-xs border rounded px-2.5 py-1 shrink-0 text-muted-foreground border-muted opacity-50 cursor-not-allowed"
+                  >
+                    Взаимодействия
+                  </button>
+                )
               )}
               <button
                 onClick={() => setShowMedicationModal(false)}
@@ -805,15 +808,19 @@ export default function InpatientPatientDetail() {
               </button>
             </div>
             <div className="flex-1 overflow-hidden">
-              <MedicationTab
-                hospitalizationId={hospId!}
-                patientId={patient.id}
-                hospitalId={user!.hospitalId}
-                physicianId={user!.id}
-                isReadOnly={isHospDischarged}
-                patientAllergies={allergies}
-                patientDateOfBirth={patient?.date_of_birth}
-              />
+              {isOutpatientMode ? (
+                <PatientMedicationHistory patientId={patient.id} hospitalId={user!.hospitalId} />
+              ) : (
+                <MedicationTab
+                  hospitalizationId={hospId!}
+                  patientId={patient.id}
+                  hospitalId={user!.hospitalId}
+                  physicianId={user!.id}
+                  isReadOnly={isHospDischarged}
+                  patientAllergies={allergies}
+                  patientDateOfBirth={patient?.date_of_birth}
+                />
+              )}
             </div>
           </div>
         </div>
