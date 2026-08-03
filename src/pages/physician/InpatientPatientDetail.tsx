@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -37,7 +37,7 @@ import PatientMedicationHistory from "@/components/patient/PatientMedicationHist
 type TabKey = "medication" | "imaging" | "lab" | "consultation" | "care" | "diagnosis" | "scales" | "ews";
 
 type ActiveView =
-  | { type: "document"; documentId: string | null; documentTypeId: string }
+  | { type: "document"; documentId: string | null; documentTypeId: string; visitServiceId?: string; forceReadOnly?: boolean }
   | { type: "tab"; tab: TabKey }
   | null;
 
@@ -63,9 +63,22 @@ export default function InpatientPatientDetail() {
   const queryClient = useQueryClient();
   const { setPatientContext } = usePhysicianLayoutContext();
 
+  const location = useLocation();
+
   const [showPatientCard, setShowPatientCard] = useState(false);
 
-  const [activeView, setActiveView] = useState<ActiveView>(null);
+  const [activeView, setActiveView] = useState<ActiveView>(() => {
+    const navState = location.state as any;
+    if (navState?.openDocumentTypeId) {
+      return {
+        type: "document",
+        documentId: null,
+        documentTypeId: navState.openDocumentTypeId,
+        visitServiceId: navState.openVisitServiceId,
+      };
+    }
+    return null;
+  });
   const [dischargeOpen, setDischargeOpen] = useState(false);
   const [showMedicationModal, setShowMedicationModal] = useState(false);
   const [showIxModal, setShowIxModal] = useState(false);
@@ -692,6 +705,7 @@ export default function InpatientPatientDetail() {
                 hospitalizationId={hospitalizationId}
                 existingDocumentId={activeView.documentId ?? undefined}
                 documentTypeId={activeView.documentTypeId}
+                visitServiceId={(activeView as any)?.visitServiceId}
                 patientId={patientId}
                 hospitalId={user!.hospitalId}
                 forceReadOnly={isHospDischarged || !!(activeView as any)?.forceReadOnly}
