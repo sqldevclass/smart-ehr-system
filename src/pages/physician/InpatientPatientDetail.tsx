@@ -151,28 +151,54 @@ export default function InpatientPatientDetail() {
   const hasSepsisAlert = activeClinicalAlerts.length > 0;
 
   const { data: hosp, isLoading, refetch } = useQuery({
-    queryKey: ["inpatient-detail", hospitalizationId],
+    queryKey: ["inpatient-detail", hospitalizationId, routePatientId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("hospitalizations")
+      if (hospId) {
+        const { data, error } = await supabase
+          .from("hospitalizations")
+          .select(`
+            id, hospitalization_number, admitted_at, department_id,
+            discharged_at, discharge_type,
+            departments!department_id(name),
+            patients!inner(
+              id, first_name, last_name, middle_name,
+              patient_number, date_of_birth, gender, phone,
+              weight_kg, height_cm,
+              patient_allergies(allergy_type, severity)
+            ),
+            room_assignments(bed_number, rooms!inner(name))
+          `)
+          .eq("id", hospitalizationId)
+          .single();
+        if (error) throw error;
+        return data;
+      }
+
+      const { data: patientData, error } = await supabase
+        .from("patients")
         .select(`
-          id, hospitalization_number, admitted_at, department_id,
-          discharged_at, discharge_type,
-          departments!department_id(name),
-          patients!inner(
-            id, first_name, last_name, middle_name,
-            patient_number, date_of_birth, gender, phone,
-            weight_kg, height_cm,
-            patient_allergies(allergy_type, severity)
-          ),
-          room_assignments(bed_number, rooms!inner(name))
+          id, first_name, last_name, middle_name,
+          patient_number, date_of_birth, gender, phone,
+          weight_kg, height_cm,
+          patient_allergies(allergy_type, severity)
         `)
-        .eq("id", hospitalizationId)
+        .eq("id", routePatientId!)
         .single();
+
       if (error) throw error;
-      return data;
+      return {
+        id: null,
+        hospitalization_number: null,
+        admitted_at: null,
+        department_id: null,
+        discharged_at: null,
+        discharge_type: null,
+        departments: null,
+        patients: patientData,
+        room_assignments: [],
+      };
     },
-    enabled: !!hospitalizationId,
+    enabled: !!hospId || !!routePatientId,
   });
 
   const patientId = (hosp as any)?.patients?.id;
