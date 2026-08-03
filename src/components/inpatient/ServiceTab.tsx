@@ -140,16 +140,30 @@ export default function ServiceTab({
     if (!selectedServiceId) return;
     setSubmitting(true);
     try {
-      const { error } = await supabase.rpc("inpatient_order_service", {
-        p_hospitalization_id: hospitalizationId,
-        p_patient_id: patientId,
-        p_hospital_id: hospitalId,
-        p_service_id: selectedServiceId,
-        p_ordered_by: userId,
-      });
-      if (error) {
-        toast.error(error.message);
-        return;
+      if (isOutpatientMode) {
+        const svc = catalog.find((s: any) => s.id === selectedServiceId);
+        const { error } = await supabase.rpc("physician_order_services", {
+          p_patient_id: patientId,
+          p_hospital_id: hospitalId,
+          p_ordered_by: userId,
+          p_services: [{ service_id: selectedServiceId, cost_at_time: svc?.cost_with_vat ?? 0 }],
+        });
+        if (error) {
+          toast.error(error.message);
+          return;
+        }
+      } else {
+        const { error } = await supabase.rpc("inpatient_order_service", {
+          p_hospitalization_id: hospitalizationId,
+          p_patient_id: patientId,
+          p_hospital_id: hospitalId,
+          p_service_id: selectedServiceId,
+          p_ordered_by: userId,
+        });
+        if (error) {
+          toast.error(error.message);
+          return;
+        }
       }
       toast.success("Назначено");
       setSelectedServiceId("");
