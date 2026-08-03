@@ -28,6 +28,10 @@ import PatientCardModal from "@/components/patient/PatientCardModal";
 import ServiceTab from "@/components/inpatient/ServiceTab";
 import CareTab from "@/components/inpatient/CareTab";
 import PhysicianScalesTab from "@/components/physician/PhysicianScalesTab";
+import PatientDiagnosisHistory from "@/components/patient/PatientDiagnosisHistory";
+import PatientCareOrderHistory from "@/components/patient/PatientCareOrderHistory";
+import PatientEwsHistory from "@/components/patient/PatientEwsHistory";
+import PatientAssessmentHistory from "@/components/patient/PatientAssessmentHistory";
 
 type TabKey = "medication" | "imaging" | "lab" | "consultation" | "care" | "diagnosis" | "scales" | "ews";
 
@@ -709,6 +713,7 @@ export default function InpatientPatientDetail() {
                 hospitalId={user!.hospitalId}
                 userId={user!.id}
                 readOnly={isHospDischarged}
+                isOutpatientMode={isOutpatientMode}
                 patientDateOfBirth={(hosp as any)?.patients?.date_of_birth}
                 patientGender={(hosp as any)?.patients?.gender}
                 admittedAt={(hosp as any)?.admitted_at}
@@ -866,6 +871,7 @@ interface TabProps {
   hospitalId: string;
   userId: string;
   readOnly?: boolean;
+  isOutpatientMode?: boolean;
   patientDateOfBirth?: string;
   patientGender?: string;
   admittedAt?: string;
@@ -874,7 +880,7 @@ interface TabProps {
 }
 
 function TabPanel(props: TabProps) {
-  const { tab } = props;
+  const { tab, isOutpatientMode } = props;
   switch (tab) {
 
     case "lab":
@@ -882,13 +888,25 @@ function TabPanel(props: TabProps) {
     case "consultation":
       return <ServiceTab {...props} typeCode="consultation" title="Консультация" />;
     case "diagnosis":
-      return <DiagnosisTab {...props} />;
+      return (
+        <PatientDiagnosisHistory
+          patientId={props.patientId}
+          hospitalId={props.hospitalId}
+          currentUserId={props.userId}
+        />
+      );
     case "imaging":
       return <ServiceTab {...props} typeCode="instrumental" title="Инструментальные" />;
     case "care":
-      return <CareTab {...props} />;
+      return isOutpatientMode ? (
+        <PatientCareOrderHistory patientId={props.patientId} hospitalId={props.hospitalId} />
+      ) : (
+        <CareTab {...props} />
+      );
     case "scales":
-      return (
+      return isOutpatientMode ? (
+        <PatientAssessmentHistory patientId={props.patientId} hospitalId={props.hospitalId} />
+      ) : (
         <PhysicianScalesTab
           hospitalizationId={props.hospitalizationId}
           patientId={props.patientId}
@@ -896,7 +914,9 @@ function TabPanel(props: TabProps) {
         />
       );
     case "ews":
-      return (
+      return isOutpatientMode ? (
+        <PatientEwsHistory patientId={props.patientId} hospitalId={props.hospitalId} />
+      ) : (
         <div className="p-4">
           <EWSSection
             hospitalizationId={props.hospitalizationId}
@@ -921,138 +941,7 @@ function Placeholder({ text }: { text: string }) {
 
 /* ServiceTab moved to @/components/inpatient/ServiceTab */
 
-/* --- Diagnoses tab --- */
-const DIAG_TYPE_LABELS: Record<string, string> = {
-  main: "Основной",
-  complication: "Осложнение",
-  competing: "Конкурирующий",
-  concurrent: "Сопутствующий",
-  background: "Фоновый",
-  comorbid: "Сопутствующий",
-};
-function diagTypeLabel(t: string) {
-  return DIAG_TYPE_LABELS[t] ?? t;
-}
-
-function DiagnosisTab({
-  hospitalizationId, patientId, hospitalId, userId, readOnly,
-}: TabProps) {
-  const { data: currentDiagnoses = [], refetch: refetchCurrentDiagnoses } = useQuery({
-    queryKey: ["inpatient-diagnoses-current", hospitalizationId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("patient_diagnoses")
-        .select(`
-          id, icd10_code, diagnosis_type, notes, recorded_at,
-          icd10_codes!icd10_code(code, name_ru),
-          profiles!recorded_by(full_name)
-        `)
-        .eq("hospital_id", hospitalId)
-        .eq("hospitalization_id", hospitalizationId)
-        .order("recorded_at");
-      return data || [];
-    },
-  });
-
-  const { data: historyDiagnoses = [] } = useQuery({
-    queryKey: ["inpatient-diagnoses-history", patientId, hospitalizationId],
-    enabled: !!patientId,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("patient_diagnoses")
-        .select(`
-          id, icd10_code, diagnosis_type, notes, recorded_at,
-          icd10_codes!icd10_code(code, name_ru),
-          profiles!recorded_by(full_name),
-          hospitalizations!hospitalization_id(hospitalization_number, admitted_at)
-        `)
-        .eq("hospital_id", hospitalId)
-        .eq("patient_id", patientId)
-        .neq("hospitalization_id", hospitalizationId)
-        .order("recorded_at", { ascending: false });
-      return data || [];
-    },
-  });
-
-  const handleCopyDiagnosis = async (d: any) => {
-    await supabase.from("patient_diagnoses").insert({
-      patient_id: patientId,
-      hospital_id: hospitalId,
-      hospitalization_id: hospitalizationId,
-      icd10_code: d.icd10_code,
-      diagnosis_type: d.diagnosis_type,
-      notes: d.notes || null,
-      recorded_by: userId,
-    });
-    refetchCurrentDiagnoses();
-  };
-
-  return (
-    <div className="grid grid-cols-2 gap-4 p-4 h-full overflow-hidden">
-      <div className="overflow-y-auto">
-        <h3 className="font-semibold text-sm mb-3">Текущая госпитализация</h3>
-        {(() => {
-          const diagOrder = ["main", "competing", "complication", "comorbid", "background"];
-          const diagGroups = diagOrder
-            .map(type => ({
-              type,
-              label: diagTypeLabel(type),
-              items: currentDiagnoses.filter((d: any) => d.diagnosis_type === type),
-            }))
-            .filter(g => g.items.length > 0);
-          if (diagGroups.length === 0) {
-            return <p className="text-sm text-muted-foreground">Диагнозов нет</p>;
-          }
-          return diagGroups.map(({ type, label, items }) => (
-            <div key={type} className="mb-4">
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b pb-1 mb-2">
-                {label}
-              </h4>
-              {items.map((d: any) => (
-                <div key={d.id} className="p-3 rounded border mb-2">
-                  <div className="text-sm font-medium">
-                    {d.icd10_codes?.code} — {d.icd10_codes?.name_ru}
-                  </div>
-                  {d.notes && (
-                    <div className="text-xs text-muted-foreground mt-1">{d.notes}</div>
-                  )}
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {d.profiles?.full_name} · {format(new Date(d.recorded_at), "dd.MM.yyyy HH:mm")}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ));
-        })()}
-      </div>
-
-      <div className="overflow-y-auto border-l pl-4">
-        <h3 className="font-semibold text-sm mb-3">История пациента</h3>
-        {historyDiagnoses.length === 0 ? (
-          <p className="text-sm text-muted-foreground">История пуста</p>
-        ) : historyDiagnoses.map((d: any) => (
-          <div key={d.id} className="p-3 rounded border mb-2 group relative">
-            <span className="text-xs text-muted-foreground uppercase">
-              {diagTypeLabel(d.diagnosis_type)}
-            </span>
-            <div className="text-sm font-medium">
-              {d.icd10_codes?.code} — {d.icd10_codes?.name_ru}
-            </div>
-            {d.notes && (
-              <div className="text-xs text-muted-foreground mt-1">{d.notes}</div>
-            )}
-            <div className="text-xs text-muted-foreground mt-1">
-              {d.profiles?.full_name} · {format(new Date(d.recorded_at), "dd.MM.yyyy HH:mm")}
-              {d.hospitalizations && (
-                <span className="ml-1">· {d.hospitalizations?.hospitalization_number}</span>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+/* CareTab moved to @/components/inpatient/CareTab */
 
 /* CareTab moved to @/components/inpatient/CareTab */
 
