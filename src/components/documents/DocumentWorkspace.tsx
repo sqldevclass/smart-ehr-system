@@ -157,15 +157,14 @@ export default function DocumentWorkspace(props: Props) {
         `)
         .eq("hospital_id", hospitalId)
         .eq("source", "physician")
-        .not("visit_id", "is", null)
-        .eq("ordered_from_visit_service_id", visitServiceId)
+        .eq("visit_id", visitId)
         .order("created_at");
       return data || [];
     },
   });
 
   const { data: pendingOrders = [] } = useQuery({
-    queryKey: ["doc-ws-pending", visitServiceId, hospitalId],
+    queryKey: ["doc-ws-pending", patientId, hospitalId],
     ...queryDefaults,
     queryFn: async () => {
       const { data } = await supabase
@@ -178,9 +177,9 @@ export default function DocumentWorkspace(props: Props) {
           service_statuses!inner(code, name_ru)
         `)
         .eq("hospital_id", hospitalId)
+        .eq("patient_id", patientId)
         .eq("source", "physician")
         .is("visit_id", null)
-        .eq("ordered_from_visit_service_id", visitServiceId)
         .order("created_at");
       return data || [];
     },

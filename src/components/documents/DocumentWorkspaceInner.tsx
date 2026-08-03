@@ -595,16 +595,6 @@ export default function DocumentWorkspaceInner({
                       childServices={childServices}
                       pendingOrders={pendingOrders}
                       physicianNameMap={physicianNameMap}
-                      isReadOnly={isReadOnly}
-                      patientId={patientId}
-                      hospitalId={hospitalId}
-                      visitId={visitId}
-                      visitServiceId={visitServiceId}
-                      onOrderCreated={() => {
-                        queryClient.invalidateQueries({ queryKey: ["doc-ws-main", visitId, hospitalId] });
-                        queryClient.invalidateQueries({ queryKey: ["doc-ws-child", visitId, hospitalId] });
-                        queryClient.invalidateQueries({ queryKey: ["doc-ws-pending", visitServiceId, hospitalId] });
-                      }}
                     />
                     {isConsultation && (
                       <HospRecommendationSection
@@ -635,16 +625,6 @@ export default function DocumentWorkspaceInner({
                 childServices={childServices}
                 pendingOrders={pendingOrders}
                 physicianNameMap={physicianNameMap}
-                isReadOnly={isReadOnly}
-                patientId={patientId}
-                hospitalId={hospitalId}
-                visitId={visitId}
-                visitServiceId={visitServiceId}
-                onOrderCreated={() => {
-                  queryClient.invalidateQueries({ queryKey: ["doc-ws-main", visitId, hospitalId] });
-                  queryClient.invalidateQueries({ queryKey: ["doc-ws-child", visitId, hospitalId] });
-                  queryClient.invalidateQueries({ queryKey: ["doc-ws-pending", visitServiceId, hospitalId] });
-                }}
               />
             </div>
           )}
