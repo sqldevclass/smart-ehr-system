@@ -7,6 +7,7 @@ interface Props {
   patientId: string;
   hospitalId: string;
   forceReadOnly?: boolean;
+  visitServiceId?: string;
   onClose: () => void;
   onComplete?: (documentId: string) => void;
   onDocumentCreated?: (documentId: string) => void;
@@ -14,7 +15,7 @@ interface Props {
 
 export default function InpatientDocumentWorkspace(props: Props) {
   const extra: any = {
-    visitServiceId: undefined,
+    visitServiceId: props.visitServiceId,
     patientId: props.patientId,
     visitId: "",
     hospitalId: props.hospitalId,
