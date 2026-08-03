@@ -143,10 +143,10 @@ export default function DocumentWorkspace(props: Props) {
   });
 
   const { data: childServices = [] } = useQuery({
-    queryKey: ["doc-ws-child", visitId, hospitalId],
+    queryKey: ["doc-ws-child", visitId, hospitalizationId, hospitalId],
     ...queryDefaults,
     queryFn: async () => {
-      const { data } = await supabase
+      let q = supabase
         .from("visit_services")
         .select(`
           id, source, scheduled_at, queue_number,
@@ -156,16 +156,21 @@ export default function DocumentWorkspace(props: Props) {
           service_statuses!inner(code, name_ru)
         `)
         .eq("hospital_id", hospitalId)
-        .eq("source", "physician")
-        .eq("visit_id", visitId)
-        .order("created_at");
+        .eq("source", "physician");
+
+      q = hospitalizationId
+        ? q.eq("hospitalization_id", hospitalizationId)
+        : q.eq("visit_id", visitId);
+
+      const { data } = await q.order("created_at");
       return data || [];
     },
   });
 
   const { data: pendingOrders = [] } = useQuery({
-    queryKey: ["doc-ws-pending", patientId, hospitalId],
+    queryKey: ["doc-ws-pending", patientId, hospitalizationId, hospitalId],
     ...queryDefaults,
+    enabled: !hospitalizationId,
     queryFn: async () => {
       const { data } = await supabase
         .from("visit_services")
