@@ -9,9 +9,10 @@ import { Button } from "@/components/ui/button";
 import DocumentHistory from "@/components/documents/DocumentHistory";
 import DocumentWorkspace from "@/components/documents/DocumentWorkspace";
 import ServiceTab from "@/components/inpatient/ServiceTab";
+import PatientDiagnosisHistory from "@/components/patient/PatientDiagnosisHistory";
 import PatientMedicationHistory from "@/components/patient/PatientMedicationHistory";
 
-type TabKey = "documents" | "medication" | "lab" | "imaging" | "consultation";
+type TabKey = "documents" | "medication" | "lab" | "imaging" | "consultation" | "diagnosis";
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "documents", label: "Документы" },
@@ -19,6 +20,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "lab", label: "Лаборатория" },
   { key: "imaging", label: "Инструментальные" },
   { key: "consultation", label: "Консультация" },
+  { key: "diagnosis", label: "Диагноз" },
 ];
 
 export default function OutpatientPatientDetail() {
@@ -178,8 +180,14 @@ export default function OutpatientPatientDetail() {
               <ServiceTab {...serviceTabProps} typeCode="laboratory" title="Лаборатория" />
             ) : activeTab === "imaging" ? (
               <ServiceTab {...serviceTabProps} typeCode="instrumental" title="Инструментальные" />
-            ) : (
+            ) : activeTab === "consultation" ? (
               <ServiceTab {...serviceTabProps} typeCode="consultation" title="Консультация" />
+            ) : (
+              <PatientDiagnosisHistory
+                patientId={patientId!}
+                hospitalId={user!.hospitalId}
+                currentUserId={user!.id}
+              />
             )}
           </div>
         </div>
