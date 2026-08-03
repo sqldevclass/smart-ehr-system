@@ -181,13 +181,24 @@ export default function ServiceTab({
     const succeededIds: string[] = [];
 
     for (const item of draft) {
-      const { error } = await supabase.rpc("inpatient_order_service", {
-        p_hospitalization_id: hospitalizationId,
-        p_patient_id: patientId,
-        p_hospital_id: hospitalId,
-        p_service_id: item.id,
-        p_ordered_by: userId,
-      });
+      let error;
+      if (isOutpatientMode) {
+        const svc = catalog.find((s: any) => s.id === item.id);
+        ({ error } = await supabase.rpc("physician_order_services", {
+          p_patient_id: patientId,
+          p_hospital_id: hospitalId,
+          p_ordered_by: userId,
+          p_services: [{ service_id: item.id, cost_at_time: svc?.cost_with_vat ?? 0 }],
+        }));
+      } else {
+        ({ error } = await supabase.rpc("inpatient_order_service", {
+          p_hospitalization_id: hospitalizationId,
+          p_patient_id: patientId,
+          p_hospital_id: hospitalId,
+          p_service_id: item.id,
+          p_ordered_by: userId,
+        }));
+      }
       if (error) {
         failures.push({ name: item.name, message: error.message });
       } else {
