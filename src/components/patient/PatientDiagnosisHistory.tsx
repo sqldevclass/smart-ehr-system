@@ -101,13 +101,17 @@ export default function PatientDiagnosisHistory({ patientId, hospitalId, current
       recorded_by: currentUserId,
     });
     setSubmitting(false);
-    if (error) return;
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     setShowAddForm(false);
     setAddSearch("");
     setAddSelected(null);
     setAddNote("");
     setAddType("main");
-    refetch();
+    setExpandedGroup("general");
+    await refetch();
   };
 
   return (
