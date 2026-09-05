@@ -349,20 +349,7 @@ export default function MyPatientsList() {
       >
         <TableCell className={`font-medium ${isWL ? "pl-8" : ""}`}>
           <span className="flex items-center gap-1.5">
-            <button
-              type="button"
-              className="hover:underline hover:text-primary transition-colors text-left"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (r.hospitalization_id) {
-                  navigate(`/physician/inpatient/${r.hospitalization_id}`);
-                } else if (pid) {
-                  navigate(`/physician/patients/${pid}`);
-                }
-              }}
-            >
-              {formatPatient(patient)}
-            </button>
+            {formatPatient(patient)}
             <Badge variant={r.visit_id ? "outline" : "secondary"} className="text-[10px] px-1.5 py-0">
               {r.visit_id ? "OP" : "IP"}
             </Badge>
