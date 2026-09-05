@@ -14,8 +14,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format, subDays, addDays, startOfDay, endOfDay, isSameDay } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { toLocal } from "@/lib/timezone";
-import DocumentWorkspace from "@/components/documents/DocumentWorkspace";
-import { usePhysicianLayoutContext } from "@/components/physician/PhysicianLayout";
 import { cn } from "@/lib/utils";
 
 
