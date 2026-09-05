@@ -333,20 +333,17 @@ export default function MyPatientsList() {
           const statusCode =
             r.service_statuses?.code ?? "preliminary";
           if (statusCode === "preliminary") return;
-          if (linkedDocTypeId && pid && r.visit_id) {
-            setActiveDocument({
-              visitServiceId: r.id,
-              patientId: pid,
-              visitId: r.visit_id,
-              documentTypeId: linkedDocTypeId,
-              serviceStatusCode: statusCode,
-            });
-          } else if (linkedDocTypeId && r.hospitalization_id) {
-            navigate(`/physician/inpatient/${r.hospitalization_id}`, {
+
+          const destination = r.hospitalization_id
+            ? `/physician/inpatient/${r.hospitalization_id}`
+            : `/physician/patients/${pid}`;
+
+          if (linkedDocTypeId && pid) {
+            navigate(destination, {
               state: { openDocumentTypeId: linkedDocTypeId, openVisitServiceId: r.id },
             });
           } else if (pid) {
-            navigate(`/physician/patients/${pid}`);
+            navigate(destination);
           }
         }}
       >
