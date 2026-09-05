@@ -87,52 +87,6 @@ export default function MyPatientsList() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [expandedRooms, setExpandedRooms] = useState<Record<string, boolean>>({});
-  const [activeDocument, setActiveDocument] = useState<{
-    visitServiceId: string;
-    patientId: string;
-    visitId: string;
-    documentTypeId: string;
-    serviceStatusCode: string;
-  } | null>(null);
-
-  const { setPatientContext } = usePhysicianLayoutContext() ?? { setPatientContext: () => {} };
-
-  const { data: activePatient } = useQuery({
-    queryKey: ["nav-patient", activeDocument?.patientId],
-    enabled: !!activeDocument?.patientId,
-    staleTime: Infinity,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("patients")
-        .select("first_name, last_name, middle_name, date_of_birth, patient_number")
-        .eq("id", activeDocument!.patientId)
-        .single();
-      return data;
-    },
-  });
-
-  useEffect(() => {
-    if (activeDocument && activePatient) {
-      setPatientContext(
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">
-            {activePatient.last_name} {activePatient.first_name} {activePatient.middle_name}
-          </span>
-          <span>
-            {activePatient.date_of_birth
-              ? format(new Date(activePatient.date_of_birth), "dd.MM.yyyy")
-              : "—"}
-          </span>
-          <span className="font-mono text-xs">
-            {activePatient.patient_number}
-          </span>
-        </div>
-      );
-    } else {
-      setPatientContext(null);
-    }
-    return () => setPatientContext(null);
-  }, [activeDocument, activePatient, setPatientContext]);
 
 
   const load = useCallback(async () => {
