@@ -72,6 +72,23 @@ export default function PayrollDashboardPage() {
     enabled: !!user && !!year && !!month,
   });
 
+  const { data: detailItems = [], isLoading: detailLoading } = useQuery({
+    queryKey: ["physician-payroll-detail", selectedRow?.staff_role_id, year, month],
+    queryFn: async () => {
+      if (!selectedRow) return [];
+      const { data, error } = await supabase
+        .from("physician_service_pay_items")
+        .select("category, completed_at, service_name, cost_at_time, rate_percent, amount")
+        .eq("staff_role_id", selectedRow.staff_role_id)
+        .gte("completed_at", periodStartISO)
+        .lt("completed_at", periodEndISO)
+        .order("completed_at", { ascending: false });
+      if (error) throw error;
+      return (data || []) as PayrollDetailItem[];
+    },
+    enabled: !!selectedRow,
+  });
+
   const allConfirmed = rows.length > 0 && rows.every((r) => r.is_confirmed);
   const anyConfirmed = rows.some((r) => r.is_confirmed);
   const grandTotal = rows.reduce((sum, r) => sum + Number(r.total_amount || 0), 0);
