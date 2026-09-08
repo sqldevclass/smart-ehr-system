@@ -71,41 +71,46 @@ export default function DailyReportSummaryTab({ from, to }: { from: string; to: 
   );
 
   return (
-    <div className="mt-4 rounded-md border bg-card">
-      {isLoading ? (
-        <p className="p-4 text-sm text-muted-foreground">Loading…</p>
-      ) : rows.length === 0 ? (
-        <p className="p-4 text-sm text-muted-foreground">No completed services in this period.</p>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Service Category</TableHead>
-              <TableHead className="text-right">Services</TableHead>
-              <TableHead className="text-right">Visitors</TableHead>
-              <TableHead className="text-right">Revenue</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((r) => (
-              <TableRow key={r.name}>
-                <TableCell>{r.name}</TableCell>
-                <TableCell className="text-right">{r.serviceCount}</TableCell>
-                <TableCell className="text-right">{r.visitorCount}</TableCell>
-                <TableCell className="text-right">{fmt(r.revenue)}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-          <TableFooter>
-            <TableRow>
-              <TableCell className="font-semibold">Total</TableCell>
-              <TableCell className="text-right font-semibold">{totals.serviceCount}</TableCell>
-              <TableCell />
-              <TableCell className="text-right font-semibold">{fmt(totals.revenue)}</TableCell>
-            </TableRow>
-          </TableFooter>
-        </Table>
+    <>
+      {rows.length > 0 && (
+        <DailyReportSummaryChart data={rows.map((r) => ({ name: r.name, revenue: r.revenue }))} />
       )}
-    </div>
+      <div className="mt-4 rounded-md border bg-card">
+        {isLoading ? (
+          <p className="p-4 text-sm text-muted-foreground">Loading…</p>
+        ) : rows.length === 0 ? (
+          <p className="p-4 text-sm text-muted-foreground">No completed services in this period.</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Service Category</TableHead>
+                <TableHead className="text-right">Services</TableHead>
+                <TableHead className="text-right">Visitors</TableHead>
+                <TableHead className="text-right">Revenue</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((r) => (
+                <TableRow key={r.name}>
+                  <TableCell>{r.name}</TableCell>
+                  <TableCell className="text-right">{r.serviceCount}</TableCell>
+                  <TableCell className="text-right">{r.visitorCount}</TableCell>
+                  <TableCell className="text-right">{fmt(r.revenue)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+            <TableFooter>
+              <TableRow>
+                <TableCell className="font-semibold">Total</TableCell>
+                <TableCell className="text-right font-semibold">{totals.serviceCount}</TableCell>
+                <TableCell />
+                <TableCell className="text-right font-semibold">{fmt(totals.revenue)}</TableCell>
+              </TableRow>
+            </TableFooter>
+          </Table>
+        )}
+      </div>
+    </>
   );
 }

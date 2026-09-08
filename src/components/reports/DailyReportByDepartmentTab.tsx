@@ -81,44 +81,47 @@ export default function DailyReportByDepartmentTab({ from, to }: { from: string;
   );
 
   return (
-    <div className="mt-4 rounded-md border bg-card">
-      {isLoading ? (
-        <p className="p-4 text-sm text-muted-foreground">Loading…</p>
-      ) : rows.length === 0 ? (
-        <p className="p-4 text-sm text-muted-foreground">No completed services in this period.</p>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Department</TableHead>
-              <TableHead className="text-right">Outpatient</TableHead>
-              <TableHead className="text-right">Inpatient</TableHead>
-              <TableHead className="text-right">Operating Room</TableHead>
-              <TableHead className="text-right">Total</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((r) => (
-              <TableRow key={r.name}>
-                <TableCell>{r.name}</TableCell>
-                <TableCell className="text-right">{fmt(r.outpatient)}</TableCell>
-                <TableCell className="text-right">{fmt(r.inpatient)}</TableCell>
-                <TableCell className="text-right">{fmt(r.operatingRoom)}</TableCell>
-                <TableCell className="text-right">{fmt(r.total)}</TableCell>
+    <>
+      {rows.length > 0 && <DailyReportDepartmentChart data={rows} />}
+      <div className="mt-4 rounded-md border bg-card">
+        {isLoading ? (
+          <p className="p-4 text-sm text-muted-foreground">Loading…</p>
+        ) : rows.length === 0 ? (
+          <p className="p-4 text-sm text-muted-foreground">No completed services in this period.</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Department</TableHead>
+                <TableHead className="text-right">Outpatient</TableHead>
+                <TableHead className="text-right">Inpatient</TableHead>
+                <TableHead className="text-right">Operating Room</TableHead>
+                <TableHead className="text-right">Total</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-          <TableFooter>
-            <TableRow>
-              <TableCell className="font-semibold">Total</TableCell>
-              <TableCell className="text-right font-semibold">{fmt(grandTotal.outpatient)}</TableCell>
-              <TableCell className="text-right font-semibold">{fmt(grandTotal.inpatient)}</TableCell>
-              <TableCell className="text-right font-semibold">{fmt(grandTotal.operatingRoom)}</TableCell>
-              <TableCell className="text-right font-semibold">{fmt(grandTotal.total)}</TableCell>
-            </TableRow>
-          </TableFooter>
-        </Table>
-      )}
-    </div>
+            </TableHeader>
+            <TableBody>
+              {rows.map((r) => (
+                <TableRow key={r.name}>
+                  <TableCell>{r.name}</TableCell>
+                  <TableCell className="text-right">{fmt(r.outpatient)}</TableCell>
+                  <TableCell className="text-right">{fmt(r.inpatient)}</TableCell>
+                  <TableCell className="text-right">{fmt(r.operatingRoom)}</TableCell>
+                  <TableCell className="text-right">{fmt(r.total)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+            <TableFooter>
+              <TableRow>
+                <TableCell className="font-semibold">Total</TableCell>
+                <TableCell className="text-right font-semibold">{fmt(grandTotal.outpatient)}</TableCell>
+                <TableCell className="text-right font-semibold">{fmt(grandTotal.inpatient)}</TableCell>
+                <TableCell className="text-right font-semibold">{fmt(grandTotal.operatingRoom)}</TableCell>
+                <TableCell className="text-right font-semibold">{fmt(grandTotal.total)}</TableCell>
+              </TableRow>
+            </TableFooter>
+          </Table>
+        )}
+      </div>
+    </>
   );
 }
