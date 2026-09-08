@@ -167,7 +167,11 @@ export default function PayrollDashboardPage() {
             </TableHeader>
             <TableBody>
               {rows.map((r) => (
-                <TableRow key={r.staff_role_id}>
+                <TableRow
+                  key={r.staff_role_id}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => setSelectedRow(r)}
+                >
                   <TableCell className="font-medium">{r.full_name}</TableCell>
                   <TableCell className="text-right">{fmt(r.base_pay_amount)}</TableCell>
                   <TableCell className="text-right">{fmt(r.own_service_amount)}</TableCell>
