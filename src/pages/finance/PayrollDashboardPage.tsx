@@ -221,6 +221,55 @@ export default function PayrollDashboardPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!selectedRow} onOpenChange={(open) => !open && setSelectedRow(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>{selectedRow?.full_name} — {monthLabel}</DialogTitle>
+          </DialogHeader>
+          {detailLoading ? (
+            <p className="text-muted-foreground">Loading…</p>
+          ) : detailItems.length === 0 ? (
+            <p className="text-muted-foreground">No own-service or referral services completed this period.</p>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date Completed</TableHead>
+                    <TableHead>Service</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead className="text-right">Price</TableHead>
+                    <TableHead className="text-right">Rate</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {detailItems.map((item, i) => (
+                    <TableRow key={i}>
+                      <TableCell>{new Date(item.completed_at).toLocaleDateString()}</TableCell>
+                      <TableCell>{item.service_name}</TableCell>
+                      <TableCell>{item.category === "own_service" ? "Own-Service" : "Referral"}</TableCell>
+                      <TableCell className="text-right">{fmt(item.cost_at_time)}</TableCell>
+                      <TableCell className="text-right">{item.rate_percent ?? 0}%</TableCell>
+                      <TableCell className="text-right">{fmt(item.amount)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+                <TableFooter>
+                  <TableRow>
+                    <TableCell className="font-semibold">Total</TableCell>
+                    <TableCell colSpan={4} />
+                    <TableCell className="text-right font-semibold">
+                      {fmt(detailItems.reduce((sum, item) => sum + Number(item.amount || 0), 0))}
+                    </TableCell>
+                  </TableRow>
+                </TableFooter>
+              </Table>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
