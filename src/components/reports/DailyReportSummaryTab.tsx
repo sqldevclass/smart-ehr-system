@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import DailyReportSummaryChart from "@/components/reports/DailyReportSummaryChart";
 
 interface ServiceItem {
   service_type_id: string | null;

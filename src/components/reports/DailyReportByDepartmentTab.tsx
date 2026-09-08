@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import DailyReportDepartmentChart from "@/components/reports/DailyReportDepartmentChart";
 
 interface ServiceItem {
   department_id: string | null;
