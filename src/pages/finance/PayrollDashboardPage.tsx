@@ -12,6 +12,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import { Lock } from "lucide-react";
 import { toast } from "sonner";
 
@@ -24,6 +27,15 @@ interface PayrollRow {
   department_bucket_amount: number;
   total_amount: number;
   is_confirmed: boolean;
+}
+
+interface PayrollDetailItem {
+  category: "own_service" | "referral";
+  completed_at: string;
+  service_name: string;
+  cost_at_time: number;
+  rate_percent: number | null;
+  amount: number;
 }
 
 const fmt = (n: number) => Number(n ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -39,8 +51,11 @@ export default function PayrollDashboardPage() {
   const [monthValue, setMonthValue] = useState(currentMonthValue());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [selectedRow, setSelectedRow] = useState<PayrollRow | null>(null);
 
   const [year, month] = monthValue.split("-").map(Number);
+  const periodStartISO = new Date(year, (month || 1) - 1, 1).toISOString();
+  const periodEndISO = new Date(year, month || 1, 1).toISOString();
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["physician-payroll", user?.hospitalId, year, month],
@@ -55,6 +70,23 @@ export default function PayrollDashboardPage() {
       return (data || []) as PayrollRow[];
     },
     enabled: !!user && !!year && !!month,
+  });
+
+  const { data: detailItems = [], isLoading: detailLoading } = useQuery({
+    queryKey: ["physician-payroll-detail", selectedRow?.staff_role_id, year, month],
+    queryFn: async () => {
+      if (!selectedRow) return [];
+      const { data, error } = await supabase
+        .from("physician_service_pay_items")
+        .select("category, completed_at, service_name, cost_at_time, rate_percent, amount")
+        .eq("staff_role_id", selectedRow.staff_role_id)
+        .gte("completed_at", periodStartISO)
+        .lt("completed_at", periodEndISO)
+        .order("completed_at", { ascending: false });
+      if (error) throw error;
+      return (data || []) as PayrollDetailItem[];
+    },
+    enabled: !!selectedRow,
   });
 
   const allConfirmed = rows.length > 0 && rows.every((r) => r.is_confirmed);
@@ -135,7 +167,11 @@ export default function PayrollDashboardPage() {
             </TableHeader>
             <TableBody>
               {rows.map((r) => (
-                <TableRow key={r.staff_role_id}>
+                <TableRow
+                  key={r.staff_role_id}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => setSelectedRow(r)}
+                >
                   <TableCell className="font-medium">{r.full_name}</TableCell>
                   <TableCell className="text-right">{fmt(r.base_pay_amount)}</TableCell>
                   <TableCell className="text-right">{fmt(r.own_service_amount)}</TableCell>
@@ -185,6 +221,55 @@ export default function PayrollDashboardPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!selectedRow} onOpenChange={(open) => !open && setSelectedRow(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>{selectedRow?.full_name} — {monthLabel}</DialogTitle>
+          </DialogHeader>
+          {detailLoading ? (
+            <p className="text-muted-foreground">Loading…</p>
+          ) : detailItems.length === 0 ? (
+            <p className="text-muted-foreground">No own-service or referral services completed this period.</p>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date Completed</TableHead>
+                    <TableHead>Service</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead className="text-right">Price</TableHead>
+                    <TableHead className="text-right">Rate</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {detailItems.map((item, i) => (
+                    <TableRow key={i}>
+                      <TableCell>{new Date(item.completed_at).toLocaleDateString()}</TableCell>
+                      <TableCell>{item.service_name}</TableCell>
+                      <TableCell>{item.category === "own_service" ? "Own-Service" : "Referral"}</TableCell>
+                      <TableCell className="text-right">{fmt(item.cost_at_time)}</TableCell>
+                      <TableCell className="text-right">{item.rate_percent ?? 0}%</TableCell>
+                      <TableCell className="text-right">{fmt(item.amount)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+                <TableFooter>
+                  <TableRow>
+                    <TableCell className="font-semibold">Total</TableCell>
+                    <TableCell colSpan={4} />
+                    <TableCell className="text-right font-semibold">
+                      {fmt(detailItems.reduce((sum, item) => sum + Number(item.amount || 0), 0))}
+                    </TableCell>
+                  </TableRow>
+                </TableFooter>
+              </Table>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
