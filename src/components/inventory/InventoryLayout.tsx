@@ -1,5 +1,5 @@
 import { Outlet, useNavigate } from "react-router-dom";
-import { Wrench, UserCircle, LogOut } from "lucide-react";
+import { Wrench, UserCircle, LogOut, BarChart3 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -20,6 +20,7 @@ import {
 
 const navItems = [
   { title: "Equipment", url: "/inventory", icon: Wrench, end: true },
+  { title: "Reports", url: "/reports", icon: BarChart3 },
   { title: "Profile", url: "/inventory/profile", icon: UserCircle },
 ];
 

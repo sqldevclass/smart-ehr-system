@@ -1,5 +1,5 @@
 import { Outlet, useNavigate } from "react-router-dom";
-import { Users, UserCircle, LogOut, Settings, DoorOpen } from "lucide-react";
+import { Users, UserCircle, LogOut, Settings, DoorOpen, BarChart3 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -14,6 +14,7 @@ const navItems = [
   { title: "Сотрудники", url: "/hr/employees", icon: Users },
   { title: "Кабинеты", url: "/hr/rooms", icon: DoorOpen },
   { title: "Настройки", url: "/hr/settings", icon: Settings },
+  { title: "Отчёты", url: "/reports", icon: BarChart3 },
   { title: "Профиль", url: "/hr/profile", icon: UserCircle },
 ];
 

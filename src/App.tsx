@@ -10,6 +10,7 @@ import Signup from "./pages/Signup.tsx";
 import Login from "./pages/Login.tsx";
 import DashboardPlaceholder from "./pages/DashboardPlaceholder.tsx";
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
+import ReportsPage from "./pages/reports/ReportsPage.tsx";
 import AdminLayout from "./components/admin/AdminLayout.tsx";
 import AdminOverview from "./pages/admin/AdminOverview.tsx";
 import UserManagement from "./pages/admin/UserManagement.tsx";
@@ -195,6 +196,14 @@ const App = () => (
             <Route index element={<EquipmentPage />} />
             <Route path="profile" element={<InventoryProfile />} />
           </Route>
+          <Route
+            path="/reports"
+            element={
+              <ProtectedRoute allowedRoles={["admin", "senior_manager", "cashier", "finance", "hr", "physician", "outpatient_registrar", "inpatient_registrar", "inpatient_nurse", "head_nurse", "lab_physician", "blood_draw_nurse", "pharmacist", "warehouse_staff", "inventory_manager"]}>
+                <ReportsPage />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/auth/set-password" element={<SetPassword />} />
           <Route path="/auth/callback-error" element={<CallbackError />} />

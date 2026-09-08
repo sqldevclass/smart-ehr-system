@@ -1,5 +1,5 @@
 import { Outlet, useNavigate } from "react-router-dom";
-import { Droplets, FlaskConical, UserCircle, LogOut } from "lucide-react";
+import { Droplets, FlaskConical, UserCircle, LogOut, BarChart3 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -13,6 +13,7 @@ import {
 const navItems = [
   { title: "Blood Draw", url: "/lab/blood-draw", icon: Droplets },
   { title: "Results", url: "/lab/results", icon: FlaskConical },
+  { title: "Reports", url: "/reports", icon: BarChart3 },
   { title: "Profile", url: "/lab/profile", icon: UserCircle },
 ];
 

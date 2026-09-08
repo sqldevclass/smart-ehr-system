@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Outlet, useNavigate, useLocation, useOutletContext } from "react-router-dom";
-import { Users, UserCircle, LogOut } from "lucide-react";
+import { Users, UserCircle, LogOut, BarChart3 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -23,6 +23,7 @@ import {
 
 const navItems = [
   { title: "Пациенты", url: "/nurse", icon: Users },
+  { title: "Отчёты", url: "/reports", icon: BarChart3 },
   { title: "Профиль", url: "/nurse/profile", icon: UserCircle },
 ];
 
