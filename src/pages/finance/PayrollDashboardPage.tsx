@@ -29,6 +29,15 @@ interface PayrollRow {
   is_confirmed: boolean;
 }
 
+interface PayrollDetailItem {
+  category: "own_service" | "referral";
+  completed_at: string;
+  service_name: string;
+  cost_at_time: number;
+  rate_percent: number | null;
+  amount: number;
+}
+
 const fmt = (n: number) => Number(n ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function currentMonthValue() {
