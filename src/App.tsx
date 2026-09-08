@@ -32,6 +32,7 @@ import PaymentsPage from "./pages/cashier/PaymentsPage.tsx";
 import CashierProfile from "./pages/cashier/CashierProfile.tsx";
 import FinanceLayout from "./components/finance/FinanceLayout.tsx";
 import PhysicianPayRatesPage from "./pages/finance/PhysicianPayRatesPage.tsx";
+import PayrollDashboardPage from "./pages/finance/PayrollDashboardPage.tsx";
 import FinanceProfile from "./pages/finance/FinanceProfile.tsx";
 import PhysicianLayout from "./components/physician/PhysicianLayout.tsx";
 import MyPatientsList from "./pages/physician/MyPatientsList.tsx";
@@ -152,6 +153,7 @@ const App = () => (
           </Route>
           <Route path="/finance" element={<ProtectedRoute allowedRoles={["finance"]}><FinanceLayout /></ProtectedRoute>}>
             <Route index element={<PhysicianPayRatesPage />} />
+            <Route path="payroll" element={<PayrollDashboardPage />} />
             <Route path="profile" element={<FinanceProfile />} />
           </Route>
           <Route path="/inpatient" element={<ProtectedRoute allowedRoles={["inpatient_registrar"]}><InpatientLayout /></ProtectedRoute>}>
