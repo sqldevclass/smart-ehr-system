@@ -126,7 +126,8 @@ export default function PhysicianPayRatesPage() {
           service_types(name_ru),
           services(name)
         `)
-        .eq("staff_role_id", selectedId);
+        .eq("staff_role_id", selectedId)
+        .is("valid_to", null);
       if (error) throw error;
       return (data || []).map((r: any) => ({
         id: r.id,
@@ -167,24 +168,13 @@ export default function PhysicianPayRatesPage() {
     }
     setSaving(true);
     try {
-      const existing = rates.find((r) => r.type_code === code);
-      if (existing) {
-        const { error } = await supabase
-          .from("physician_pay_rates")
-          .update({ value: numValue })
-          .eq("id", existing.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("physician_pay_rates").insert({
-          hospital_id: user.hospitalId,
-          staff_role_id: selectedId,
-          pay_rate_type_id: typeIdFor(code),
-          value: numValue,
-          created_by: user.id,
-        });
-        if (error) throw error;
-      }
-      toast.success("Saved.");
+      const { error } = await supabase.rpc("set_physician_pay_rate", {
+        p_staff_role_id: selectedId,
+        p_pay_rate_type_id: typeIdFor(code),
+        p_value: numValue,
+      });
+      if (error) throw error;
+      toast.success("Saved. This rate applies going forward from now.");
       queryClient.invalidateQueries({ queryKey: ["physician-pay-rates", selectedId] });
     } catch (err: any) {
       toast.error(err.message || "Failed to save.");
@@ -213,14 +203,12 @@ export default function PhysicianPayRatesPage() {
     }
     setSaving(true);
     try {
-      const { error } = await supabase.from("physician_pay_rates").insert({
-        hospital_id: user.hospitalId,
-        staff_role_id: selectedId,
-        pay_rate_type_id: typeIdFor(addTypeCode),
-        service_type_id: scopeKind === "type" ? scopeValue : null,
-        service_id: scopeKind === "service" ? scopeValue : null,
-        value: numValue,
-        created_by: user.id,
+      const { error } = await supabase.rpc("set_physician_pay_rate", {
+        p_staff_role_id: selectedId,
+        p_pay_rate_type_id: typeIdFor(addTypeCode),
+        p_value: numValue,
+        p_service_type_id: scopeKind === "type" ? scopeValue : null,
+        p_service_id: scopeKind === "service" ? scopeValue : null,
       });
       if (error) throw error;
       toast.success("Rate added.");
@@ -236,12 +224,12 @@ export default function PhysicianPayRatesPage() {
   const handleDelete = async (id: string) => {
     setSaving(true);
     try {
-      const { error } = await supabase.from("physician_pay_rates").delete().eq("id", id);
+      const { error } = await supabase.rpc("end_physician_pay_rate", { p_rate_id: id });
       if (error) throw error;
-      toast.success("Rate removed.");
+      toast.success("Rate ended.");
       queryClient.invalidateQueries({ queryKey: ["physician-pay-rates", selectedId] });
     } catch (err: any) {
-      toast.error(err.message || "Failed to delete.");
+      toast.error(err.message || "Failed to end rate.");
     } finally {
       setSaving(false);
     }
