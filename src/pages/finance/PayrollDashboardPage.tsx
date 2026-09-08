@@ -51,6 +51,7 @@ export default function PayrollDashboardPage() {
   const [monthValue, setMonthValue] = useState(currentMonthValue());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [selectedRow, setSelectedRow] = useState<PayrollRow | null>(null);
 
   const [year, month] = monthValue.split("-").map(Number);
 
