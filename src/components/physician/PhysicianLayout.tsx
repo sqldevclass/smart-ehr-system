@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Outlet, useNavigate, useLocation, useOutletContext } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
-import { UserCircle, LogOut } from "lucide-react";
+import { UserCircle, LogOut, BarChart3 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/sidebar";
 
 const navItems = [
+  { title: "Reports", url: "/reports", icon: BarChart3 },
   { title: "Profile", url: "/physician/profile", icon: UserCircle },
 ];
 

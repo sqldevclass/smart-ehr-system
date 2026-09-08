@@ -1,5 +1,5 @@
 import { Outlet, useNavigate } from "react-router-dom";
-import { CreditCard, UserCircle, LogOut } from "lucide-react";
+import { CreditCard, UserCircle, LogOut, BarChart3 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -20,6 +20,7 @@ import {
 
 const navItems = [
   { title: "Payments", url: "/cashier", icon: CreditCard },
+  { title: "Reports", url: "/reports", icon: BarChart3 },
   { title: "Profile", url: "/cashier/profile", icon: UserCircle },
 ];
 
