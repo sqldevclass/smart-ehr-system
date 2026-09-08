@@ -28,14 +28,19 @@ const ENUM_ROW_HEIGHT = 36;
 const Y_AXIS_WIDTH = 28;
 
 // Same score -> color mapping as before: 0 = normal, 1 = caution, 2/3 = alert.
+// Richer/more saturated than the original pale versions -- same hue
+// meanings (this is a clinical early-warning convention, not decoration),
+// just more vibrant execution.
+const CHART_BG = "#fdfcfa";
+const CHART_HEADER_BG = "#f5f1e8";
 const ZONE_FILL: Record<string, string> = {
-  white: "#ffffff",
-  yellow: "#fef9c3",
-  pink: "#fce7f3",
+  white: "#fbfcfd",
+  yellow: "#fde68a",
+  pink: "#fca5a5",
 };
-const DOT_FILL = { 0: "#ffffff", 1: "#fde047", 2: "#f9a8d4", 3: "#f9a8d4" } as Record<number, string>;
-const DOT_STROKE = { 0: "#94a3b8", 1: "#ca8a04", 2: "#be185d", 3: "#be185d" } as Record<number, string>;
-const TEXT_COLOR = { 0: "#6b7280", 1: "#92400e", 2: "#9d174d", 3: "#9d174d" } as Record<number, string>;
+const DOT_FILL = { 0: "#ffffff", 1: "#fbbf24", 2: "#f43f5e", 3: "#f43f5e" } as Record<number, string>;
+const DOT_STROKE = { 0: "#94a3b8", 1: "#ffffff", 2: "#ffffff", 3: "#ffffff" } as Record<number, string>;
+const TEXT_COLOR = { 0: "#64748b", 1: "#b45309", 2: "#be123c", 3: "#be123c" } as Record<number, string>;
 
 const ENUM_LABELS: Record<string, string> = {
   alert: "A",
@@ -68,10 +73,10 @@ function CustomDot({ cx, cy, payload }: any) {
     <circle
       cx={cx}
       cy={cy}
-      r={4}
+      r={5}
       fill={DOT_FILL[score] ?? "#ffffff"}
       stroke={DOT_STROKE[score] ?? "#94a3b8"}
-      strokeWidth={1.5}
+      strokeWidth={score === 0 ? 1.5 : 2}
     />
   );
 }
@@ -197,9 +202,9 @@ export default function EWSChart({
           Нет данных за выбранный период
         </p>
       ) : (
-        <div className="border rounded-md overflow-hidden">
+        <div className="border rounded-md overflow-hidden" style={{ backgroundColor: CHART_BG }}>
           {/* Shared day/time header */}
-          <div className="flex border-b bg-muted/40">
+          <div className="flex border-b" style={{ backgroundColor: CHART_HEADER_BG }}>
             <div style={{ width: LABEL_WIDTH }} className="shrink-0" />
             <div className="flex-1" style={{ paddingLeft: Y_AXIS_WIDTH + chartMargin.left, paddingRight: chartMargin.right }}>
               <div className="flex">
@@ -335,10 +340,10 @@ export default function EWSChart({
                       />
                       <Tooltip content={<RowTooltip />} />
                       <Line
-                        type="linear"
+                        type="natural"
                         dataKey="value"
                         stroke="hsl(var(--primary))"
-                        strokeWidth={1.5}
+                        strokeWidth={2}
                         dot={<CustomDot />}
                         activeDot={false}
                         connectNulls
