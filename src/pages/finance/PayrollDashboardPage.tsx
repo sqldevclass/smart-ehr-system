@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Lock } from "lucide-react";
 import { toast } from "sonner";
+import FinancePayrollCharts from "@/components/finance/FinancePayrollCharts";
 
 interface PayrollRow {
   staff_role_id: string;
