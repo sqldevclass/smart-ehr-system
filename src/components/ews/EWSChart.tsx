@@ -1,7 +1,18 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import {
+  ComposedChart,
+  Line,
+  ReferenceArea,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ScatterChart,
+  Scatter,
+  ResponsiveContainer,
+} from "recharts";
 
 interface Props {
   hospitalizationId: string;
@@ -11,32 +22,29 @@ interface Props {
   alertSlot?: React.ReactNode;
 }
 
-const MARGIN_LEFT = 110;
+const LABEL_WIDTH = 110;
 const ROW_HEIGHT = 100;
-const PADDING_TOP = 8;
-const PADDING_BOTTOM = 8;
-const PADDING_X = 24;
-const chartHeight = ROW_HEIGHT - PADDING_TOP - PADDING_BOTTOM;
-const LEVEL1_HEIGHT = 20;
-const X_AXIS_HEIGHT = 48;
+const ENUM_ROW_HEIGHT = 36;
+const Y_AXIS_WIDTH = 28;
 
-const zoneFill: Record<string, string> = {
+// Same score -> color mapping as before: 0 = normal, 1 = caution, 2/3 = alert.
+const ZONE_FILL: Record<string, string> = {
   white: "#ffffff",
-  yellow: "#fef08a",
-  pink: "#fbcfe8",
+  yellow: "#fef9c3",
+  pink: "#fce7f3",
 };
-const zoneFillOverride = "#ffffff";
+const DOT_FILL = { 0: "#ffffff", 1: "#fde047", 2: "#f9a8d4", 3: "#f9a8d4" } as Record<number, string>;
+const DOT_STROKE = { 0: "#94a3b8", 1: "#ca8a04", 2: "#be185d", 3: "#be185d" } as Record<number, string>;
+const TEXT_COLOR = { 0: "#6b7280", 1: "#92400e", 2: "#9d174d", 3: "#9d174d" } as Record<number, string>;
 
-const LINE_COLORS = [
-  "#3b82f6",
-  "#10b981",
-  "#f59e0b",
-  "#ef4444",
-  "#8b5cf6",
-  "#06b6d4",
-  "#f97316",
-  "#ec4899",
-];
+const ENUM_LABELS: Record<string, string> = {
+  alert: "A",
+  voice: "V",
+  pain: "P",
+  unresponsive: "U",
+  air: "Возд",
+  oxygen: "O₂",
+};
 
 const deduplicateTicks = (ticks: number[]) => {
   const sorted = [...ticks].sort((a, b) => a - b);
@@ -47,13 +55,44 @@ const deduplicateTicks = (ticks: number[]) => {
       result.push(val);
     } else {
       const idx = result.indexOf(near);
-      if (val === Math.round(val) && near !== Math.round(near)) {
-        result[idx] = val;
-      }
+      if (val === Math.round(val) && near !== Math.round(near)) result[idx] = val;
     }
   }
   return result;
 };
+
+function CustomDot({ cx, cy, payload }: any) {
+  if (cx == null || cy == null) return null;
+  const score = payload?.score ?? 0;
+  return (
+    <circle
+      cx={cx}
+      cy={cy}
+      r={4}
+      fill={DOT_FILL[score] ?? "#ffffff"}
+      stroke={DOT_STROKE[score] ?? "#94a3b8"}
+      strokeWidth={1.5}
+    />
+  );
+}
+
+function RowTooltip({ active, payload }: any) {
+  if (!active || !payload?.length) return null;
+  const p = payload[0]?.payload;
+  if (!p) return null;
+  return (
+    <div className="rounded border bg-background px-2 py-1 shadow-md text-xs">
+      <div className="font-medium">{p.paramName}</div>
+      <div style={{ color: TEXT_COLOR[p.score] ?? "#6b7280" }}>{p.displayValue}</div>
+      <div className="text-muted-foreground">{p.timeLabel}</div>
+      {p.score > 0 && (
+        <div className="font-medium" style={{ color: TEXT_COLOR[p.score] }}>
+          +{p.score} балл
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function EWSChart({
   hospitalizationId,
@@ -62,28 +101,7 @@ export default function EWSChart({
   overrideMap,
   alertSlot,
 }: Props) {
-  const [timeWindow, setTimeWindow] = useState<"1d" | "3d" | "5d" | "7d" | "all">("all");
-  const [tooltip, setTooltip] = useState<{
-    x: number;
-    y: number;
-    value: string;
-    time: string;
-    score: number;
-    paramName: string;
-  } | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [containerWidth, setContainerWidth] = useState(600);
-
-  useEffect(() => {
-    const el = containerRef.current?.parentElement;
-    if (!el) return;
-    const ro = new ResizeObserver((entries) => {
-      const w = entries[0].contentRect.width;
-      setContainerWidth((prev) => (Math.abs(prev - w) > 10 ? w : prev));
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
+  const [timeWindow, setTimeWindow] = useState<"5d" | "all">("all");
 
   const { data: readings = [] } = useQuery({
     queryKey: ["ews-chart-readings", hospitalizationId],
@@ -104,62 +122,25 @@ export default function EWSChart({
 
   const now = new Date();
   const windowStart =
-    timeWindow === "all"
-      ? new Date(0)
-      : new Date(
-          now.getTime() -
-            (timeWindow === "1d"
-              ? 1
-              : timeWindow === "3d"
-              ? 3
-              : timeWindow === "5d"
-              ? 5
-              : 7) *
-              24 *
-              60 *
-              60 *
-              1000,
-        );
+    timeWindow === "all" ? new Date(0) : new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000);
   const filteredReadings = readings.filter(
     (r: any) => new Date(r.recorded_at) >= windowStart,
   );
-
-  const chartWidth = Math.max(
-    containerWidth - MARGIN_LEFT,
-    200,
-  );
-
-  const cellWidth =
-    filteredReadings.length > 1
-      ? (chartWidth - 2 * PADDING_X) / (filteredReadings.length - 1)
-      : chartWidth / 2;
-  const xScale = (index: number) =>
-    filteredReadings.length <= 1
-      ? chartWidth / 2
-      : PADDING_X + index * cellWidth;
 
   const dayGroups = useMemo(() => {
     const groups: { date: string; startIndex: number; count: number }[] = [];
     filteredReadings.forEach((r: any, i: number) => {
       const dt = new Date(r.recorded_at);
-      const dateStr =
-        `${dt.getDate().toString().padStart(2, "0")}.` +
-        `${(dt.getMonth() + 1).toString().padStart(2, "0")}`;
+      const dateStr = `${dt.getDate().toString().padStart(2, "0")}.${(dt.getMonth() + 1)
+        .toString()
+        .padStart(2, "0")}`;
       const last = groups[groups.length - 1];
-      if (last && last.date === dateStr) {
-        last.count++;
-      } else {
-        groups.push({ date: dateStr, startIndex: i, count: 1 });
-      }
+      if (last && last.date === dateStr) last.count++;
+      else groups.push({ date: dateStr, startIndex: i, count: 1 });
     });
     return groups;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredReadings]);
-
-  const yScale = (value: number, yMin: number, yMax: number) => {
-    const range = yMax - yMin || 1;
-    const raw = PADDING_TOP + chartHeight - ((value - yMin) / range) * chartHeight;
-    return Math.max(PADDING_TOP, Math.min(ROW_HEIGHT - PADDING_BOTTOM, raw));
-  };
 
   const getYRange = (paramId: string) => {
     const t = thresholds.filter((th: any) => th.parameter_id === paramId);
@@ -173,520 +154,267 @@ export default function EWSChart({
     return { yMin: Math.floor(min - pad), yMax: Math.ceil(max + pad) };
   };
 
+  const timeLabelFor = (idx: number) => {
+    const dt = new Date(filteredReadings[idx].recorded_at);
+    return `${dt.getHours().toString().padStart(2, "0")}:${dt
+      .getMinutes()
+      .toString()
+      .padStart(2, "0")}`;
+  };
+
+  const numericParams = parameters.filter((p: any) => p.input_type !== "enum");
+  const enumParams = parameters.filter((p: any) => p.input_type === "enum");
+
+  const xDomain: [number, number] = [-0.5, Math.max(filteredReadings.length - 1, 0) + 0.5];
+  const chartMargin = { top: 8, right: 8, bottom: 4, left: 0 };
+
   return (
-    <div className="space-y-0" ref={containerRef}>
-      <div className="flex items-center gap-1 mb-3">
-        {(["5д", "Всё"] as const).map((w, i) => {
-          const key = (["5d", "all"] as const)[i];
-          return (
-            <button
-              key={w}
-              onClick={() => setTimeWindow(key)}
-              className={cn(
-                "px-2 py-0.5 text-xs rounded border",
-                timeWindow === key
-                  ? "bg-primary text-white border-primary"
-                  : "bg-white text-muted-foreground border-gray-200 hover:bg-muted",
-              )}
-            >
-              {w}
-            </button>
-          );
-        })}
-        <span className="text-xs text-muted-foreground ml-2">
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        {(["5d", "all"] as const).map((key) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setTimeWindow(key)}
+            className={cn(
+              "px-2 py-0.5 text-xs rounded border",
+              timeWindow === key
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-background text-muted-foreground border-border hover:bg-muted",
+            )}
+          >
+            {key === "5d" ? "5д" : "Всё"}
+          </button>
+        ))}
+        <span className="text-xs text-muted-foreground">
           {filteredReadings.length} показаний
         </span>
-        {alertSlot && (
-          <div className="ml-auto">
-            {alertSlot}
-          </div>
-        )}
+        {alertSlot && <div className="ml-auto">{alertSlot}</div>}
       </div>
 
       {filteredReadings.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-8 text-center">
+        <p className="text-sm text-muted-foreground py-6 text-center">
           Нет данных за выбранный период
         </p>
       ) : (
-        <div
-          className="overflow-x-auto border rounded-lg relative"
-          style={{ borderColor: "#1607eb" }}
-        >
-          {tooltip && (
-            <div
-              className="absolute z-50 bg-gray-900 text-white text-xs rounded px-2 py-1.5 pointer-events-none shadow-lg"
-              style={{
-                left: tooltip.x + MARGIN_LEFT + 8,
-                top: tooltip.y - 40,
-                transform: "translateX(-50%)",
-              }}
-            >
-              <div className="font-medium">{tooltip.paramName}</div>
-              <div>{tooltip.value}</div>
-              <div className="text-gray-300">{tooltip.time}</div>
-              {tooltip.score > 0 && (
-                <div
-                  className={cn(
-                    "mt-0.5 font-bold",
-                    tooltip.score === 1 ? "text-yellow-300" : "text-pink-300",
-                  )}
-                >
-                  +{tooltip.score} балл
-                </div>
-              )}
-            </div>
-          )}
-          <div style={{ width: MARGIN_LEFT + chartWidth }}>
-            <div className="flex sticky top-0 bg-white z-10 border-b-2 border-gray-300">
-              <div style={{ width: MARGIN_LEFT }} className="shrink-0" />
-              <svg width={chartWidth} height={X_AXIS_HEIGHT} className="overflow-visible">
-                {dayGroups.map((group, gi) => {
-                  const startX = xScale(group.startIndex);
-                  const lastIdx = group.startIndex + group.count - 1;
-                  const endX =
-                    lastIdx < filteredReadings.length - 1
-                      ? xScale(lastIdx) + cellWidth / 2
-                      : chartWidth;
-                  const groupWidth = endX - (startX - cellWidth / 2);
-                  const labelX = startX + ((group.count - 1) * cellWidth) / 2;
-                  return (
-                    <g key={gi}>
-                      <rect
-                        x={startX - cellWidth / 2}
-                        y={0}
-                        width={groupWidth}
-                        height={LEVEL1_HEIGHT}
-                        fill={gi % 2 === 0 ? "#f9fafb" : "#ffffff"}
-                      />
-                      <text
-                        x={labelX}
-                        y={14}
-                        textAnchor="middle"
-                        fontSize={10}
-                        fontWeight={600}
-                        fill="#374151"
-                      >
-                        {group.date}
-                      </text>
-                      {gi > 0 && (
-                        <line
-                          x1={startX - cellWidth / 2}
-                          y1={0}
-                          x2={startX - cellWidth / 2}
-                          y2={X_AXIS_HEIGHT}
-                          stroke="#e5e7eb"
-                          strokeWidth={1}
-                        />
-                      )}
-                    </g>
-                  );
-                })}
-                <line
-                  x1={0}
-                  y1={LEVEL1_HEIGHT}
-                  x2={chartWidth}
-                  y2={LEVEL1_HEIGHT}
-                  stroke="#e5e7eb"
-                  strokeWidth={1}
-                />
-                {filteredReadings.map((r: any, i: number) => {
-                  const x = xScale(i);
-                  const dt = new Date(r.recorded_at);
-                  const label =
-                    `${dt.getHours().toString().padStart(2, "0")}:` +
-                    `${dt.getMinutes().toString().padStart(2, "0")}`;
-                  const skip = Math.max(1, Math.ceil(28 / Math.max(cellWidth, 1)));
-                  const showLabel =
-                    cellWidth >= 28 ||
-                    i === 0 ||
-                    i === filteredReadings.length - 1 ||
-                    i % skip === 0;
-                  return (
-                    <g key={r.id}>
-                      <line
-                        x1={x}
-                        y1={LEVEL1_HEIGHT}
-                        x2={x}
-                        y2={LEVEL1_HEIGHT + 4}
-                        stroke="#9ca3af"
-                        strokeWidth={1}
-                      />
-                      {showLabel && (
-                        <text
-                          x={x}
-                          y={LEVEL1_HEIGHT + 16}
-                          textAnchor="middle"
-                          fontSize={9}
-                          fill="#6b7280"
-                        >
-                          {label}
-                        </text>
-                      )}
-                    </g>
-                  );
-                })}
-              </svg>
-            </div>
-
-            {parameters
-              .filter((p: any) => p.input_type !== "enum")
-              .map((p: any, paramIdx: number) => {
-                const { yMin, yMax } = getYRange(p.id);
-                const paramThresholds = thresholds
-                  .filter((t: any) => t.parameter_id === p.id)
-                  .sort(
-                    (a: any, b: any) =>
-                      (a.min_value ?? -999999) - (b.min_value ?? -999999),
-                  );
-
-                const paramReadings = filteredReadings
-                  .map((r: any, i: number) => {
-                    const val = r.ews_reading_values?.find(
-                      (v: any) => v.parameter_id === p.id,
-                    );
-                    if (val?.numeric_value === null || val?.numeric_value === undefined)
-                      return null;
-                    return {
-                      x: xScale(i),
-                      y: yScale(val.numeric_value, yMin, yMax),
-                      value: val.numeric_value,
-                      score: val.score,
-                      time: new Date(r.recorded_at).toLocaleString("ru"),
-                      recorded_at: r.recorded_at,
-                    };
-                  })
-                  .filter(Boolean) as any[];
-
-                const linePath = paramReadings
-                  .map((pt, i) => `${i === 0 ? "M" : "L"} ${pt.x} ${pt.y}`)
-                  .join(" ");
-
-                const latest = paramReadings[paramReadings.length - 1];
-                const override = overrideMap[p.id];
-
-                const yTickVals = new Set<number>();
-                paramThresholds.forEach((t: any) => {
-                  if (
-                    t.min_value !== null &&
-                    t.min_value !== undefined &&
-                    t.min_value >= yMin &&
-                    t.min_value <= yMax
-                  )
-                    yTickVals.add(t.min_value);
-                  if (
-                    t.max_value !== null &&
-                    t.max_value !== undefined &&
-                    t.max_value >= yMin &&
-                    t.max_value <= yMax
-                  )
-                    yTickVals.add(t.max_value);
-                });
-                yTickVals.add(yMin);
-                yTickVals.add(yMax);
-                const yTicks = deduplicateTicks(Array.from(yTickVals));
-                const lineColor =
-                  LINE_COLORS[paramIdx % LINE_COLORS.length];
-
-                return (
+        <div className="border rounded-md overflow-hidden">
+          {/* Shared day/time header */}
+          <div className="flex border-b bg-muted/40">
+            <div style={{ width: LABEL_WIDTH }} className="shrink-0" />
+            <div className="flex-1" style={{ paddingLeft: Y_AXIS_WIDTH + chartMargin.left, paddingRight: chartMargin.right }}>
+              <div className="flex">
+                {dayGroups.map((g, gi) => (
                   <div
-                    key={p.id}
-                    className="flex border relative"
-                    style={{ borderColor: "#1607eb" }}
+                    key={`${g.date}-${gi}`}
+                    className="text-[10px] font-medium text-center border-l first:border-l-0 py-0.5"
+                    style={{ flex: g.count }}
                   >
-                    <div
-                      style={{ width: MARGIN_LEFT, height: ROW_HEIGHT, position: "relative", borderColor: "#424543" }}
-                      className="shrink-0 flex flex-col items-start justify-between pl-2 py-2 border-r bg-white overflow-hidden"
-                    >
-                      <span className="text-xs font-medium text-gray-700 leading-tight text-left break-words hyphens-auto max-w-full pr-7">
-                        {p.name_ru}
-                      </span>
-                      {p.unit && (
-                        <span className="text-xs text-muted-foreground pr-7">
-                          {p.unit}
-                        </span>
-                      )}
-                      {latest && (
-                        <span
-                          className={cn(
-                            "text-xs font-bold pr-7",
-                            latest.score === 0
-                              ? "text-gray-700"
-                              : latest.score === 1
-                              ? "text-yellow-600"
-                              : "text-pink-600",
-                          )}
-                        >
-                          {latest.value}
-                        </span>
-                      )}
-                      <div
-                        style={{
-                          position: "absolute",
-                          right: 2,
-                          top: 0,
-                          bottom: 0,
-                          width: 28,
-                          pointerEvents: "none",
-                        }}
-                      >
-                        {yTicks.map((tick: number) => {
-                          const y = yScale(tick, yMin, yMax);
-                          if (y < 4 || y > ROW_HEIGHT - 4) return null;
-                          return (
-                            <div
-                              key={tick}
-                              style={{
-                                position: "absolute",
-                                top: y - 6,
-                                right: 0,
-                                lineHeight: "1",
-                              }}
-                              className="text-right"
-                            >
-                              <span
-                                style={{
-                                  fontSize: "8px",
-                                  color: "#9ca3af",
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                {tick % 1 === 0 ? tick : tick.toFixed(1)}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-
-                    <svg
-                      width={chartWidth}
-                      height={ROW_HEIGHT}
-                    >
-                      <defs>
-                        <clipPath id={`ews-clip-${p.id}`}>
-                          <rect
-                            x={0}
-                            y={0}
-                            width={chartWidth}
-                            height={ROW_HEIGHT}
-                          />
-                        </clipPath>
-                      </defs>
-
-                      <g clipPath={`url(#ews-clip-${p.id})`}>
-                        {paramThresholds.map((th: any, ti: number) => {
-                          const zMin = th.min_value ?? yMin;
-                          const zMax = th.max_value ?? yMax;
-                          const rectY = yScale(Math.min(zMax, yMax), yMin, yMax);
-                          const rectH =
-                            yScale(Math.max(zMin, yMin), yMin, yMax) - rectY;
-                          const fill =
-                            th.score === 0 && override
-                              ? zoneFillOverride
-                              : zoneFill[th.color as keyof typeof zoneFill] ??
-                                "#ffffff";
-                          return (
-                            <rect
-                              key={ti}
-                              x={0}
-                              y={rectY}
-                              width={chartWidth}
-                              height={Math.max(rectH, 0)}
-                              fill={fill}
-                            />
-                          );
-                        })}
-                        {yTicks.map((tick: number) => {
-                          const y = yScale(tick, yMin, yMax);
-                          return (
-                            <line
-                              key={`hgrid-${tick}`}
-                              x1={0}
-                              y1={y}
-                              x2={chartWidth}
-                              y2={y}
-                              stroke="#424543"
-                              strokeWidth={0.5}
-                              strokeOpacity={0.3}
-                            />
-                          );
-                        })}
-                        {filteredReadings.map((_: any, i: number) => {
-                          const x = xScale(i);
-                          return (
-                            <line
-                              key={`vread-${i}`}
-                              x1={x}
-                              y1={0}
-                              x2={x}
-                              y2={ROW_HEIGHT}
-                              stroke="#424543"
-                              strokeWidth={0.5}
-                              strokeOpacity={0.3}
-                            />
-                          );
-                        })}
-
-                        {paramReadings.length > 1 && (
-                          <path
-                            d={linePath}
-                            fill="none"
-                            stroke={lineColor}
-                            strokeWidth={2}
-                            strokeLinejoin="round"
-                            strokeLinecap="round"
-                          />
-                        )}
-                        {paramReadings.map((pt, di) => {
-                          const labelAboveY = pt.y - 10;
-                          const labelBelowY = pt.y + 18;
-                          const showAbove = labelAboveY >= PADDING_TOP + 2;
-                          const labelY = showAbove ? labelAboveY : labelBelowY;
-                          const labelVisible = showAbove || labelBelowY <= ROW_HEIGHT - 2;
-                          return (
-                            <g key={di}>
-                              <circle
-                                cx={pt.x}
-                                cy={pt.y}
-                                r={5}
-                                fill={
-                                  pt.score === 0
-                                    ? "#ffffff"
-                                    : pt.score === 1
-                                    ? "#fde047"
-                                    : "#f9a8d4"
-                                }
-                                stroke={
-                                  pt.score === 0
-                                    ? lineColor
-                                    : pt.score === 1
-                                    ? "#ca8a04"
-                                    : "#be185d"
-                                }
-                                strokeWidth={2}
-                                className="cursor-pointer"
-                                onMouseEnter={() => {
-                                  setTooltip({
-                                    x: pt.x,
-                                    y: pt.y + paramIdx * ROW_HEIGHT + X_AXIS_HEIGHT,
-                                    value:
-                                      `${pt.value}` + (p.unit ? ` ${p.unit}` : ""),
-                                    time: new Date(pt.recorded_at).toLocaleString("ru"),
-                                    score: pt.score,
-                                    paramName: p.name_ru,
-                                  });
-                                }}
-                                onMouseLeave={() => setTooltip(null)}
-                              />
-                              {labelVisible && (
-                                <text
-                                  x={pt.x}
-                                  y={labelY}
-                                  textAnchor="middle"
-                                  fontSize={9}
-                                  fontWeight="500"
-                                  fill={
-                                    pt.score === 0
-                                      ? "#6b7280"
-                                      : pt.score === 1
-                                      ? "#92400e"
-                                      : "#9d174d"
-                                  }
-                                >
-                                  {pt.value % 1 === 0
-                                    ? pt.value
-                                    : pt.value.toFixed(1)}
-                                </text>
-                              )}
-                            </g>
-                          );
-                        })}
-
-                      </g>
-                    </svg>
+                    {g.date}
                   </div>
-                );
-              })}
-
-            {parameters
-              .filter((p: any) => p.input_type === "enum")
-              .map((p: any) => {
-                const paramReadings = filteredReadings
-                  .map((r: any, i: number) => {
-                    const val = r.ews_reading_values?.find(
-                      (v: any) => v.parameter_id === p.id,
-                    );
-                    if (!val?.text_value) return null;
-                    return {
-                      x: xScale(i),
-                      value: val.text_value,
-                      score: val.score,
-                      recorded_at: r.recorded_at,
-                    };
-                  })
-                  .filter(Boolean) as any[];
-
-                return (
+                ))}
+              </div>
+              <div className="flex">
+                {filteredReadings.map((_r: any, i: number) => (
                   <div
-                    key={p.id}
-                    className="flex border bg-white"
-                    style={{ borderColor: "#1607eb" }}
+                    key={i}
+                    className="text-[9px] text-muted-foreground text-center py-0.5"
+                    style={{ flex: 1 }}
                   >
-                    <div
-                      style={{ width: MARGIN_LEFT, height: 36, borderColor: "#424543" }}
-                      className="shrink-0 flex items-center pl-2 border-r"
-                    >
-                      <span className="text-xs font-medium text-gray-700">
-                        {p.name_ru}
-                      </span>
-                    </div>
-                    <svg width={chartWidth} height={36}>
-                      {filteredReadings.map((_: any, i: number) => (
-                        <line
-                          key={i}
-                          x1={xScale(i)}
-                          y1={0}
-                          x2={xScale(i)}
-                          y2={36}
-                          stroke="#424543"
-                          strokeWidth={0.5}
-                          strokeOpacity={0.3}
-                        />
-                      ))}
-                      {paramReadings.map((pt) => (
-                        <text
-                          key={pt.x}
-                          x={pt.x}
-                          y={20}
-                          textAnchor="middle"
-                          fontSize={9}
-                          fill={
-                            pt.score === 0
-                              ? "#374151"
-                              : pt.score === 1
-                              ? "#92400e"
-                              : "#9d174d"
-                          }
-                        >
-                          {pt.value === "alert"
-                            ? "A"
-                            : pt.value === "voice"
-                            ? "V"
-                            : pt.value === "pain"
-                            ? "P"
-                            : pt.value === "unresponsive"
-                            ? "U"
-                            : pt.value === "air"
-                            ? "Воз"
-                            : "O₂"}
-                        </text>
-                      ))}
-                    </svg>
+                    {timeLabelFor(i)}
                   </div>
-                );
-              })}
+                ))}
+              </div>
+            </div>
           </div>
+
+          {/* One synchronized row per numeric parameter */}
+          {numericParams.map((p: any) => {
+            const { yMin, yMax } = getYRange(p.id);
+            const paramThresholds = thresholds
+              .filter((t: any) => t.parameter_id === p.id)
+              .sort(
+                (a: any, b: any) => (a.min_value ?? -999999) - (b.min_value ?? -999999),
+              );
+            const override = overrideMap[p.id];
+
+            const rowData = filteredReadings.map((r: any, i: number) => {
+              const val = r.ews_reading_values?.find(
+                (v: any) => v.parameter_id === p.id,
+              );
+              const numeric = val?.numeric_value ?? null;
+              return {
+                idx: i,
+                value: numeric,
+                score: val?.score ?? 0,
+                paramName: p.name_ru,
+                displayValue:
+                  numeric === null ? "—" : `${numeric}${p.unit ? ` ${p.unit}` : ""}`,
+                timeLabel: new Date(r.recorded_at).toLocaleString("ru"),
+              };
+            });
+
+            const yTickVals = new Set<number>([yMin, yMax]);
+            paramThresholds.forEach((t: any) => {
+              if (
+                t.min_value !== null &&
+                t.min_value !== undefined &&
+                t.min_value >= yMin &&
+                t.min_value <= yMax
+              )
+                yTickVals.add(t.min_value);
+              if (
+                t.max_value !== null &&
+                t.max_value !== undefined &&
+                t.max_value >= yMin &&
+                t.max_value <= yMax
+              )
+                yTickVals.add(t.max_value);
+            });
+            const yTicks = deduplicateTicks(Array.from(yTickVals));
+            const latest = [...rowData].reverse().find((d) => d.value !== null);
+
+            return (
+              <div key={p.id} className="flex border-b last:border-b-0">
+                <div
+                  style={{ width: LABEL_WIDTH, height: ROW_HEIGHT }}
+                  className="shrink-0 border-r px-2 py-1 flex flex-col justify-center gap-0.5"
+                >
+                  <span className="text-xs font-medium leading-tight">{p.name_ru}</span>
+                  {p.unit && (
+                    <span className="text-[10px] text-muted-foreground">{p.unit}</span>
+                  )}
+                  {latest && (
+                    <span
+                      className="text-sm font-semibold"
+                      style={{ color: TEXT_COLOR[latest.score] ?? "#6b7280" }}
+                    >
+                      {latest.value}
+                    </span>
+                  )}
+                </div>
+                <div className="flex-1" style={{ height: ROW_HEIGHT }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={rowData} margin={chartMargin}>
+                      {paramThresholds.map((th: any, ti: number) => {
+                        const zMin = th.min_value ?? yMin;
+                        const zMax = th.max_value ?? yMax;
+                        const fill =
+                          th.score === 0 && override
+                            ? "#ffffff"
+                            : ZONE_FILL[th.color] ?? "#ffffff";
+                        return (
+                          <ReferenceArea
+                            key={ti}
+                            y1={zMin}
+                            y2={zMax}
+                            fill={fill}
+                            fillOpacity={1}
+                            stroke="none"
+                            ifOverflow="hidden"
+                          />
+                        );
+                      })}
+                      <XAxis
+                        dataKey="idx"
+                        type="number"
+                        domain={xDomain}
+                        hide
+                      />
+                      <YAxis
+                        type="number"
+                        domain={[yMin, yMax]}
+                        ticks={yTicks}
+                        tickFormatter={(v: number) =>
+                          v % 1 === 0 ? String(v) : v.toFixed(1)
+                        }
+                        tickLine={false}
+                        axisLine={false}
+                        width={Y_AXIS_WIDTH}
+                        fontSize={9}
+                        stroke="hsl(var(--muted-foreground))"
+                      />
+                      <Tooltip content={<RowTooltip />} />
+                      <Line
+                        type="linear"
+                        dataKey="value"
+                        stroke="hsl(var(--primary))"
+                        strokeWidth={1.5}
+                        dot={<CustomDot />}
+                        activeDot={false}
+                        connectNulls
+                        isAnimationActive={false}
+                      />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Enum parameters (e.g. AVPU consciousness) as letter markers */}
+          {enumParams.map((p: any) => {
+            const rowData = filteredReadings
+              .map((r: any, i: number) => {
+                const val = r.ews_reading_values?.find(
+                  (v: any) => v.parameter_id === p.id,
+                );
+                if (!val?.text_value) return null;
+                return {
+                  idx: i,
+                  y: 0,
+                  label: ENUM_LABELS[val.text_value] ?? val.text_value,
+                  score: val.score ?? 0,
+                };
+              })
+              .filter(Boolean) as any[];
+
+            return (
+              <div key={p.id} className="flex border-b last:border-b-0">
+                <div
+                  style={{ width: LABEL_WIDTH, height: ENUM_ROW_HEIGHT }}
+                  className="shrink-0 border-r px-2 flex items-center"
+                >
+                  <span className="text-xs font-medium leading-tight">{p.name_ru}</span>
+                </div>
+                <div className="flex-1" style={{ height: ENUM_ROW_HEIGHT }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ScatterChart margin={chartMargin}>
+                      <XAxis
+                        dataKey="idx"
+                        type="number"
+                        domain={xDomain}
+                        hide
+                      />
+                      <YAxis
+                        dataKey="y"
+                        type="number"
+                        domain={[-1, 1]}
+                        width={Y_AXIS_WIDTH}
+                        hide
+                      />
+                      <Scatter
+                        data={rowData}
+                        isAnimationActive={false}
+                        shape={(props: any) => (
+                          <text
+                            x={props.cx}
+                            y={props.cy}
+                            textAnchor="middle"
+                            dominantBaseline="central"
+                            fontSize={11}
+                            fontWeight={600}
+                            fill={TEXT_COLOR[props.payload.score] ?? "#6b7280"}
+                          >
+                            {props.payload.label}
+                          </text>
+                        )}
+                      />
+                    </ScatterChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
