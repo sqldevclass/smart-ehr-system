@@ -15,6 +15,7 @@ export const roleRoutes: Record<string, string> = {
   hr: "/hr",
   lab_physician: "/lab/results",
   blood_draw_nurse: "/lab/blood-draw",
+  finance: "/finance",
 };
 
 // Highest-priority dashboard first
@@ -33,6 +34,7 @@ export const ROLE_PRIORITY = [
   "pharmacy_staff",
   "warehouse_staff",
   "inventory_manager",
+  "finance",
 ];
 
 export function pickPrimaryRole(roles: string[]): string | null {
