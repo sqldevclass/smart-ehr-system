@@ -204,6 +204,8 @@ export default function PayrollDashboardPage() {
         )}
       </div>
 
+      {rows.length > 0 && <FinancePayrollCharts rows={rows} year={year} month={month} />}
+
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
