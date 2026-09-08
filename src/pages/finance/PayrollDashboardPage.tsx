@@ -54,6 +54,8 @@ export default function PayrollDashboardPage() {
   const [selectedRow, setSelectedRow] = useState<PayrollRow | null>(null);
 
   const [year, month] = monthValue.split("-").map(Number);
+  const periodStartISO = new Date(year, (month || 1) - 1, 1).toISOString();
+  const periodEndISO = new Date(year, month || 1, 1).toISOString();
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["physician-payroll", user?.hospitalId, year, month],
