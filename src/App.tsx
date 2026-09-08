@@ -30,6 +30,9 @@ import VisitPage from "./pages/registrar/VisitPage.tsx";
 import CashierLayout from "./components/cashier/CashierLayout.tsx";
 import PaymentsPage from "./pages/cashier/PaymentsPage.tsx";
 import CashierProfile from "./pages/cashier/CashierProfile.tsx";
+import FinanceLayout from "./components/finance/FinanceLayout.tsx";
+import PhysicianPayRatesPage from "./pages/finance/PhysicianPayRatesPage.tsx";
+import FinanceProfile from "./pages/finance/FinanceProfile.tsx";
 import PhysicianLayout from "./components/physician/PhysicianLayout.tsx";
 import MyPatientsList from "./pages/physician/MyPatientsList.tsx";
 
@@ -146,6 +149,10 @@ const App = () => (
           <Route path="/cashier" element={<ProtectedRoute allowedRoles={["cashier"]}><CashierLayout /></ProtectedRoute>}>
             <Route index element={<PaymentsPage />} />
             <Route path="profile" element={<CashierProfile />} />
+          </Route>
+          <Route path="/finance" element={<ProtectedRoute allowedRoles={["finance"]}><FinanceLayout /></ProtectedRoute>}>
+            <Route index element={<PhysicianPayRatesPage />} />
+            <Route path="profile" element={<FinanceProfile />} />
           </Route>
           <Route path="/inpatient" element={<ProtectedRoute allowedRoles={["inpatient_registrar"]}><InpatientLayout /></ProtectedRoute>}>
             <Route index element={<AdmissionsPage />} />
