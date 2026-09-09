@@ -587,54 +587,22 @@ export default function EWSSection({
   return (
     <div className="space-y-4">
       
-      <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
-        <div className="shrink-0">
-          <h3 className="font-semibold">ШРПУ</h3>
-          <p className="text-xs text-muted-foreground">
-            Шкала: {scale?.name}
-          </p>
-        </div>
-        {ewsSchedule && (
-          <div className={cn(
-            "flex-1 min-w-0 px-3 py-1.5 rounded border text-sm",
-            (ewsSchedule.last_score ?? 0) === 0
-              ? "bg-green-50 border-green-200"
-              : (ewsSchedule.last_score ?? 0) <= 2
-              ? "bg-yellow-50 border-yellow-200"
-              : (ewsSchedule.last_score ?? 0) <= 6
-              ? "bg-orange-50 border-orange-200"
-              : "bg-red-50 border-red-200"
-          )}>
-            <div className="flex items-center gap-3">
-              <span className="font-semibold">
-                Балл: {ewsSchedule.last_score ?? 0}
-              </span>
-              <span className="text-xs">
-                Интервал:{" "}
-                <strong>
-                  {getIntervalLabel(ewsSchedule.last_score ?? 0)}
-                </strong>
-              </span>
-            </div>
-            <div className="text-xs text-muted-foreground mt-0.5">
-              Следующее внесение:{" "}
-              {format(new Date(ewsSchedule.next_due_at), "dd.MM.yyyy HH:mm")}
-            </div>
-          </div>
-        )}
-        <div className="flex items-center gap-2 shrink-0">
-          {canOverride ? (
-            <Button variant="outline" size="sm"
-              onClick={() => setShowOverridePanel(!showOverridePanel)}>
-              {showOverridePanel ? "Скрыть границы" : "Изменить границы нормы"}
-            </Button>
-          ) : !isReadOnly ? (
-            <Button size="sm" onClick={() => setShowEWSForm(!showEWSForm)}>
-              + Внести данные
-            </Button>
-          ) : null}
-        </div>
-      </div>
+      {recentReadings.length > 0 && (
+        <PewsScoreHeader
+          readings={[...recentReadings].reverse().map((r: any) => ({
+            total_score: r.total_score ?? 0,
+          }))}
+          scaleLabel={scale?.name ?? "ШРПУ"}
+          interval={getIntervalLabel(ewsSchedule?.last_score ?? 0)}
+          nextDue={
+            ewsSchedule?.next_due_at
+              ? format(new Date(ewsSchedule.next_due_at), "dd.MM.yyyy HH:mm")
+              : undefined
+          }
+          onEditThresholds={canOverride ? () => setShowOverridePanel(!showOverridePanel) : undefined}
+          onEnterData={!isReadOnly ? () => setShowEWSForm(!showEWSForm) : undefined}
+        />
+      )}
 
 
       {showOverridePanel && canOverride && (
@@ -971,23 +939,6 @@ export default function EWSSection({
           </div>
         </div>
       )}
-
-      {recentReadings.length > 0 && (
-        <PewsScoreHeader
-          readings={[...recentReadings].reverse().map((r: any) => ({
-            total_score: r.total_score ?? 0,
-          }))}
-          scaleLabel={scale?.name ?? "ШРПУ"}
-          interval={getIntervalLabel(ewsSchedule?.last_score ?? 0)}
-          nextDue={
-            ewsSchedule?.next_due_at
-              ? format(new Date(ewsSchedule.next_due_at), "dd.MM.yyyy HH:mm")
-              : undefined
-          }
-          onEditThresholds={canOverride ? () => setShowOverridePanel(true) : undefined}
-        />
-      )}
-
 
       {recentReadings.length > 0 && scale && (
         <EWSChart
