@@ -26,7 +26,6 @@ export default function PatientDocumentSidebar({
     documentId: string | null;
     documentTypeId: string;
     forceReadOnly?: boolean;
-    fullView?: boolean;
   } | null>(null);
   const [showCreatePicker, setShowCreatePicker] = useState(false);
 
@@ -162,16 +161,7 @@ export default function PatientDocumentSidebar({
               >
                 <div className="flex items-center gap-2">
                   <span
-                    role="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveDoc({
-                        documentId: doc.id,
-                        documentTypeId: doc.document_types?.id,
-                        fullView: true,
-                      });
-                    }}
-                    className="w-2.5 h-2.5 rounded-full shrink-0 hover:ring-2 hover:ring-offset-1 hover:ring-black/30 transition-shadow"
+                    className="w-2.5 h-2.5 rounded-full shrink-0"
                     style={{ backgroundColor: doc.document_types?.color || "#888" }}
                   />
                   <span className="flex-1 truncate">
@@ -205,13 +195,12 @@ export default function PatientDocumentSidebar({
       <div className="flex-1 overflow-auto">
         {activeDoc ? (
           <InpatientDocumentWorkspace
-            key={`${activeDoc.documentId ?? `new-${activeDoc.documentTypeId}`}-${activeDoc.fullView ? "full" : "edit"}`}
+            key={activeDoc.documentId ?? `new-${activeDoc.documentTypeId}`}
             hospitalizationId={hospitalizationId}
             existingDocumentId={activeDoc.documentId ?? undefined}
             documentTypeId={activeDoc.documentTypeId}
             patientId={patientId}
             hospitalId={hospitalId}
-            fullView={activeDoc.fullView}
             forceReadOnly={isReadOnly || !!activeDoc?.forceReadOnly}
             onClose={() => {
               setActiveDoc(null);
