@@ -15,7 +15,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import EWSChart from "./EWSChart";
+import EWSChart, { PewsScoreHeader } from "./EWSChart";
+import { EWSEntryDrawer, type EwsEntryParam } from "./EWSEntryDrawer";
 
 interface Props {
   hospitalizationId: string;
@@ -510,15 +511,18 @@ export default function EWSSection({
 
 
 
-  const handleSubmitEWS = async () => {
+  const handleSubmitEWS = async (
+    submitValues: Record<string, string>,
+    notes: string,
+  ) => {
     if (!scale) return;
     setSubmitting(true);
     const values = parameters
-      .filter((p: any) => ewsValues[p.id])
+      .filter((p: any) => submitValues[p.id])
       .map((p: any) => ({
         parameter_id: p.id,
-        numeric_value: p.input_type !== "enum" ? parseFloat(ewsValues[p.id]) : null,
-        text_value: p.input_type === "enum" ? ewsValues[p.id] : null,
+        numeric_value: p.input_type !== "enum" ? parseFloat(submitValues[p.id]) : null,
+        text_value: p.input_type === "enum" ? submitValues[p.id] : null,
       }));
 
     const result = await supabase.rpc("submit_ews_reading", {
@@ -527,7 +531,7 @@ export default function EWSSection({
       p_patient_id: patientId,
       p_scale_id: scale.id,
       p_values: values,
-      p_notes: ewsNotes || null,
+      p_notes: notes || null,
     });
 
     if (result.error) {
@@ -554,6 +558,29 @@ export default function EWSSection({
     if (score <= 6) return "каждый час";
     return "непрерывный мониторинг";
   };
+
+  const ewsParams: EwsEntryParam[] = useMemo(
+    () =>
+      (parameters as any[]).map((p) => {
+        const normal = thresholds.find(
+          (t: any) => t.parameter_id === p.id && t.score === 0,
+        );
+        const override = overrideMap[p.id];
+        return {
+          id: p.id,
+          code: p.code,
+          name_ru: p.name_ru,
+          unit: p.unit ?? undefined,
+          input_type: p.input_type,
+          normLo: override?.override_min ?? normal?.min_value ?? null,
+          normHi: override?.override_max ?? normal?.max_value ?? null,
+          scoreFor: (value: string) =>
+            value ? calculateScore(p.id, value, p.input_type).score : 0,
+          showConfusionOption: scale?.code === "news2",
+        };
+      }),
+    [parameters, thresholds, overrideMap, scale],
+  );
 
 
 
@@ -926,125 +953,41 @@ export default function EWSSection({
 
 
 
-      {showEWSForm && (
-        <div className="border rounded-md p-4 space-y-3 bg-muted/30">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium">Внести показатели ШРПУ</span>
-            <span
-              className={cn(
-                "text-sm font-bold px-2 py-0.5 rounded",
-                escalationLevel === 0
-                  ? "bg-green-100 text-green-700"
-                  : escalationLevel === 1
-                  ? "bg-yellow-100 text-yellow-700"
-                  : escalationLevel === 2
-                  ? "bg-orange-100 text-orange-700"
-                  : "bg-red-100 text-red-700",
-              )}
-            >
-              Балл: {totalScore}
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-            {parameters.map((p: any) => {
-              const val = ewsValues[p.id] ?? "";
-              const { color } = val
-                ? calculateScore(p.id, val, p.input_type)
-                : { color: "white" };
-              return (
-                <div
-                  key={p.id}
-                  className={cn(
-                    "p-2 rounded transition-colors",
-                    bgColor[color] ?? "bg-white",
-                  )}
-                >
-                  <Label className="text-xs">
-                    {p.name_ru}
-                    {p.unit && (
-                      <span className="text-muted-foreground ml-1">({p.unit})</span>
-                    )}
-                  </Label>
-                  {p.input_type === "enum" ? (
-                    p.code === "consciousness" || p.code === "oxygen" ? (
-                      <Select
-                        value={val}
-                        onValueChange={(v) =>
-                          setEwsValues((prev) => ({ ...prev, [p.id]: v }))
-                        }
-                      >
-                        <SelectTrigger className="h-8 text-sm mt-1">
-                          <SelectValue placeholder="Выбрать..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {p.code === "consciousness" ? (
-                            <>
-                              <SelectItem value="alert">A — Ясное</SelectItem>
-                              <SelectItem value="voice">V — Реакция на голос</SelectItem>
-                              <SelectItem value="pain">P — Реакция на боль</SelectItem>
-                              <SelectItem value="unresponsive">U — Без реакции</SelectItem>
-                              {scale?.code === "news2" && (
-                                <SelectItem value="confusion">C — Спутанность</SelectItem>
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              <SelectItem value="air">Воздух</SelectItem>
-                              <SelectItem value="o2">Кислород</SelectItem>
-                            </>
-                          )}
-                        </SelectContent>
-                      </Select>
-                    ) : null
-                  ) : (
-                    <Input
-                      type="number"
-                      step={p.input_type === "numeric" ? "0.1" : "1"}
-                      value={val}
-                      onChange={(e) =>
-                        setEwsValues((prev) => ({ ...prev, [p.id]: e.target.value }))
-                      }
-                      className="h-8 w-20 text-sm mt-1"
-                      placeholder="—"
-                    />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          <div>
-            <Label className="text-xs">Заметки</Label>
-            <textarea
-              value={ewsNotes}
-              onChange={(e) => setEwsNotes(e.target.value)}
-              className="w-full text-sm border rounded px-2 py-1 resize-none mt-1"
-              rows={2}
+      {showEWSForm && !isReadOnly && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setShowEWSForm(false)}
+        >
+          <div onClick={(e) => e.stopPropagation()}>
+            <EWSEntryDrawer
+              params={ewsParams}
+              datetime={formatDateTime(new Date())}
+              interval={getIntervalLabel(ewsSchedule?.last_score ?? 0)}
+              scaleLabel={scale?.name ?? "ШРПУ"}
+              saving={submitting}
+              onCancel={() => setShowEWSForm(false)}
+              onSave={(vals, _score, notes) => handleSubmitEWS(vals, notes)}
             />
-          </div>
-
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              disabled={submitting || Object.keys(ewsValues).length === 0}
-              onClick={handleSubmitEWS}
-            >
-              {submitting ? "..." : "Сохранить"}
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                setShowEWSForm(false);
-                setEwsValues({});
-              }}
-            >
-              Отмена
-            </Button>
           </div>
         </div>
       )}
+
+      {recentReadings.length > 0 && (
+        <PewsScoreHeader
+          readings={[...recentReadings].reverse().map((r: any) => ({
+            total_score: r.total_score ?? 0,
+          }))}
+          scaleLabel={scale?.name ?? "ШРПУ"}
+          interval={getIntervalLabel(ewsSchedule?.last_score ?? 0)}
+          nextDue={
+            ewsSchedule?.next_due_at
+              ? format(new Date(ewsSchedule.next_due_at), "dd.MM.yyyy HH:mm")
+              : undefined
+          }
+          onEditThresholds={canOverride ? () => setShowOverridePanel(true) : undefined}
+        />
+      )}
+
 
       {recentReadings.length > 0 && scale && (
         <EWSChart
