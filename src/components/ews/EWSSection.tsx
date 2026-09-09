@@ -940,23 +940,6 @@ export default function EWSSection({
         </div>
       )}
 
-      {recentReadings.length > 0 && (
-        <PewsScoreHeader
-          readings={[...recentReadings].reverse().map((r: any) => ({
-            total_score: r.total_score ?? 0,
-          }))}
-          scaleLabel={scale?.name ?? "ШРПУ"}
-          interval={getIntervalLabel(ewsSchedule?.last_score ?? 0)}
-          nextDue={
-            ewsSchedule?.next_due_at
-              ? format(new Date(ewsSchedule.next_due_at), "dd.MM.yyyy HH:mm")
-              : undefined
-          }
-          onEditThresholds={canOverride ? () => setShowOverridePanel(true) : undefined}
-        />
-      )}
-
-
       {recentReadings.length > 0 && scale && (
         <EWSChart
           hospitalizationId={hospitalizationId}
