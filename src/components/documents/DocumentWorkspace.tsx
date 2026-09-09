@@ -23,6 +23,7 @@ interface Props {
   hospitalizationId?: string;
   existingDocumentId?: string;
   onDocumentCreated?: (documentId: string) => void;
+  fullView?: boolean;
 }
 
 export default function DocumentWorkspace(props: Props) {
@@ -282,6 +283,7 @@ export default function DocumentWorkspace(props: Props) {
       hospitalizationId={hospitalizationId}
       existingDocumentId={existingDocumentId}
       onDocumentCreated={props.onDocumentCreated}
+      fullView={props.fullView}
     />
   );
 }
