@@ -714,7 +714,6 @@ export default function DocumentWorkspaceInner({
           </div>
         )}
         </div>
-        </div>
       </div>
     </div>
   );
