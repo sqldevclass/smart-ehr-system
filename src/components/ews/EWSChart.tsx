@@ -166,10 +166,11 @@ export function PewsScoreHeader({
             </button>
           )}
           {onEnterData && (
-            <button onClick={onEnterData} className="rounded-md px-4 py-2.5 text-[13.5px] font-semibold" style={{ background: "hsl(var(--primary))", color: "hsl(var(--primary-foreground))" }}>
+            <button onClick={onEnterData} className="whitespace-nowrap rounded-md border px-4 py-2.5 text-[13.5px] font-semibold hover:bg-black/5 transition-colors" style={{ borderColor: "#000000", background: "#ffffff", color: "hsl(var(--foreground))" }}>
               + Внести данные
             </button>
           )}
+
         </div>
       )}
     </div>
