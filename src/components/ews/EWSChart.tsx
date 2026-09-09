@@ -105,12 +105,14 @@ export function PewsScoreHeader({
   interval = "непрерывный мониторинг",
   nextDue,
   onEditThresholds,
+  onEnterData,
 }: {
   readings: { total_score: number }[];
   scaleLabel?: string;
   interval?: string;
   nextDue?: string;
   onEditThresholds?: () => void;
+  onEnterData?: () => void;
 }) {
   const scores = readings.map((r) => r.total_score ?? 0);
   const current = scores.length ? scores[scores.length - 1] : 0;
@@ -156,11 +158,18 @@ export function PewsScoreHeader({
         </div>
       </div>
 
-      {onEditThresholds && (
-        <div className="ml-auto">
-          <button onClick={onEditThresholds} className="rounded-md border px-4 py-2.5 text-[13.5px] font-medium" style={{ borderColor: "hsl(var(--input))", color: "hsl(var(--foreground))", background: "hsl(var(--card))" }}>
-            Изменить границы нормы
-          </button>
+      {(onEditThresholds || onEnterData) && (
+        <div className="ml-auto flex items-center gap-2">
+          {onEditThresholds && (
+            <button onClick={onEditThresholds} className="rounded-md border px-4 py-2.5 text-[13.5px] font-medium hover:bg-black/5 transition-colors" style={{ borderColor: "#000000", color: "hsl(var(--foreground))", background: "#ffffff" }}>
+              Изменить границы нормы
+            </button>
+          )}
+          {onEnterData && (
+            <button onClick={onEnterData} className="rounded-md px-4 py-2.5 text-[13.5px] font-semibold" style={{ background: "hsl(var(--primary))", color: "hsl(var(--primary-foreground))" }}>
+              + Внести данные
+            </button>
+          )}
         </div>
       )}
     </div>
