@@ -15,7 +15,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import EWSChart from "./EWSChart";
+import EWSChart, { PewsScoreHeader } from "./EWSChart";
+import { EWSEntryDrawer, type EwsEntryParam } from "./EWSEntryDrawer";
 
 interface Props {
   hospitalizationId: string;
