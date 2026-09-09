@@ -186,6 +186,7 @@ export function PewsChart({
   const [timeWindow, setTimeWindow] = useState<"5d" | "all">("all");
   const [tooltip, setTooltip] = useState<{ x: number; y: number; paramName: string; value: string; time: string; score: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(900);
 
   useEffect(() => {
@@ -261,7 +262,7 @@ export function PewsChart({
       {n === 0 ? (
         <p className="py-8 text-center text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>Нет данных за выбранный период</p>
       ) : (
-        <div className="relative overflow-x-auto rounded-lg border" style={{ borderColor: "hsl(var(--border))" }}>
+        <div ref={scrollRef} className="relative overflow-x-auto rounded-lg border" style={{ borderColor: "hsl(var(--border))" }}>
           {tooltip && (
             <div
               className="pointer-events-none absolute z-50 rounded-md border bg-background px-2.5 py-1.5 text-xs shadow-lg"
@@ -380,8 +381,10 @@ export function PewsChart({
                           const localX = e.clientX - rect.left;
                           const idx = Math.max(0, Math.min(n - 1, Math.round((localX - PADDING_X) / Math.max(cellWidth, 1))));
                           const match = pts.find((pt: any) => pt.origIndex === idx);
-                          if (match) {
-                            setTooltip({ x: match.x, y: match.y, paramName: p.name_ru, value: `${fmt(match.value)}${p.unit ? ` ${p.unit}` : ""}`, time: new Date(match.recorded_at).toLocaleString("ru"), score: match.score });
+                          if (match && scrollRef.current) {
+                            const outerRect = scrollRef.current.getBoundingClientRect();
+                            const rowTop = rect.top - outerRect.top + scrollRef.current.scrollTop;
+                            setTooltip({ x: match.x, y: rowTop + match.y, paramName: p.name_ru, value: `${fmt(match.value)}${p.unit ? ` ${p.unit}` : ""}`, time: new Date(match.recorded_at).toLocaleString("ru"), score: match.score });
                           } else {
                             setTooltip(null);
                           }
@@ -438,8 +441,10 @@ export function PewsChart({
                         const localX = e.clientX - rect.left;
                         const idx = Math.max(0, Math.min(n - 1, Math.round((localX - PADDING_X) / Math.max(cellWidth, 1))));
                         const match = rowPts.find((pt: any) => pt.origIndex === idx);
-                        if (match) {
-                          setTooltip({ x: match.x, y: ENUM_ROW_HEIGHT / 2, paramName: p.name_ru, value: match.label, time: new Date(match.recorded_at).toLocaleString("ru"), score: match.score });
+                        if (match && scrollRef.current) {
+                          const outerRect = scrollRef.current.getBoundingClientRect();
+                          const rowTop = rect.top - outerRect.top + scrollRef.current.scrollTop;
+                          setTooltip({ x: match.x, y: rowTop + ENUM_ROW_HEIGHT / 2, paramName: p.name_ru, value: match.label, time: new Date(match.recorded_at).toLocaleString("ru"), score: match.score });
                         } else {
                           setTooltip(null);
                         }
