@@ -212,12 +212,13 @@ export default function PatientDocumentSidebar({
       <div className="flex-1 overflow-auto">
         {activeDoc ? (
           <InpatientDocumentWorkspace
-            key={activeDoc.documentId ?? `new-${activeDoc.documentTypeId}`}
+            key={`${activeDoc.documentId ?? `new-${activeDoc.documentTypeId}`}-${activeDoc.fullView ? "full" : "edit"}`}
             hospitalizationId={hospitalizationId}
             existingDocumentId={activeDoc.documentId ?? undefined}
             documentTypeId={activeDoc.documentTypeId}
             patientId={patientId}
             hospitalId={hospitalId}
+            fullView={activeDoc.fullView}
             forceReadOnly={isReadOnly || !!activeDoc?.forceReadOnly}
             onClose={() => {
               setActiveDoc(null);
