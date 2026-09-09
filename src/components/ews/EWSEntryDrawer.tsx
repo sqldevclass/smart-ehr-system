@@ -85,7 +85,7 @@ export function EWSEntryDrawer({
   const setVal = (id: string, v: string) => setValues((prev) => ({ ...prev, [id]: v }));
 
   return (
-    <div className="w-[420px] overflow-hidden rounded-2xl border bg-card" style={{ borderColor: "hsl(var(--border))", boxShadow: "var(--shadow-elevated)" }}>
+    <div className="w-[min(92vw,760px)] overflow-hidden rounded-2xl border bg-card" style={{ borderColor: "hsl(var(--border))", boxShadow: "var(--shadow-elevated)" }}>
       <div className="flex items-center justify-between px-5 pb-3.5 pt-[18px]">
         <div>
           <div className="text-[17px] font-semibold" style={{ color: "hsl(var(--card-foreground))" }}>Внести показания</div>
@@ -105,8 +105,9 @@ export function EWSEntryDrawer({
         </label>
       </div>
 
-      <div className="border-t px-5 pb-2 pt-1.5 max-h-[360px] overflow-y-auto" style={{ borderColor: "hsl(var(--muted))" }}>
+      <div className="border-t px-5 pb-2 pt-1.5 grid grid-cols-2 gap-x-6" style={{ borderColor: "hsl(var(--muted))" }}>
         {params.map((p) => {
+
           const val = values[p.id];
           const has = val !== "";
           const st: Status | null = has ? statusFromScore(p.scoreFor(val)) : null;
@@ -200,10 +201,11 @@ export function EWSEntryDrawer({
               onSave?.(out, score, notes);
             }}
             disabled={saving || Object.keys(values).every((k) => values[k] === "")}
-            className="rounded-md px-4 py-2.5 text-[13.5px] font-semibold disabled:opacity-50"
-            style={{ background: "hsl(var(--primary))", color: "hsl(var(--primary-foreground))" }}
+            className="rounded-md border px-4 py-2.5 text-[13.5px] font-semibold hover:bg-black/5 transition-colors disabled:opacity-50"
+            style={{ borderColor: "#000000", background: "#ffffff", color: "hsl(var(--foreground))" }}
           >
             {saving ? "..." : "Сохранить"}
+
           </button>
         </div>
       </div>
