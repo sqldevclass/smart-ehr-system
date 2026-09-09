@@ -511,15 +511,18 @@ export default function EWSSection({
 
 
 
-  const handleSubmitEWS = async () => {
+  const handleSubmitEWS = async (
+    submitValues: Record<string, string>,
+    notes: string,
+  ) => {
     if (!scale) return;
     setSubmitting(true);
     const values = parameters
-      .filter((p: any) => ewsValues[p.id])
+      .filter((p: any) => submitValues[p.id])
       .map((p: any) => ({
         parameter_id: p.id,
-        numeric_value: p.input_type !== "enum" ? parseFloat(ewsValues[p.id]) : null,
-        text_value: p.input_type === "enum" ? ewsValues[p.id] : null,
+        numeric_value: p.input_type !== "enum" ? parseFloat(submitValues[p.id]) : null,
+        text_value: p.input_type === "enum" ? submitValues[p.id] : null,
       }));
 
     const result = await supabase.rpc("submit_ews_reading", {
@@ -528,7 +531,7 @@ export default function EWSSection({
       p_patient_id: patientId,
       p_scale_id: scale.id,
       p_values: values,
-      p_notes: ewsNotes || null,
+      p_notes: notes || null,
     });
 
     if (result.error) {
