@@ -314,7 +314,7 @@ export function PewsChart({
                 .map((r, i) => {
                   const val = r.ews_reading_values?.find((v: any) => v.parameter_id === p.id);
                   if (val?.numeric_value === null || val?.numeric_value === undefined) return null;
-                  return { x: xScale(i), y: yScale(val.numeric_value, yMin, yMax), value: val.numeric_value as number, score: val.score as number, recorded_at: r.recorded_at, isLast: i === n - 1 };
+                  return { x: xScale(i), y: yScale(val.numeric_value, yMin, yMax), value: val.numeric_value as number, score: val.score as number, recorded_at: r.recorded_at, isLast: i === n - 1, origIndex: i };
                 })
                 .filter(Boolean) as any[];
 
@@ -360,20 +360,34 @@ export function PewsChart({
                         const above = pt.y > PADDING_TOP + 16;
                         const labelY = above ? pt.y - 10 : pt.y + 16;
                         return (
-                          <g key={di}>
+                          <g key={di} pointerEvents="none">
                             {pt.isLast && out && <circle cx={pt.x} cy={pt.y} r={10} fill={PT[st].stroke} fillOpacity={0.14} />}
                             <circle
                               cx={pt.x} cy={pt.y} r={out ? 5.2 : 3.6}
                               fill={PT[st].fill} stroke={PT[st].stroke} strokeWidth={out ? 2.2 : 1.7}
-                              className="cursor-pointer"
-                              onMouseEnter={() => setTooltip({ x: pt.x, y: pt.y, paramName: p.name_ru, value: `${fmt(pt.value)}${p.unit ? ` ${p.unit}` : ""}`, time: new Date(pt.recorded_at).toLocaleString("ru"), score: pt.score })}
-                              onMouseLeave={() => setTooltip(null)}
                             />
-                            {out && <circle cx={pt.x} cy={pt.y} r={1.7} fill={(PT[st] as any).dot} pointerEvents="none" />}
-                            <text x={pt.x} y={labelY} textAnchor="middle" fontSize={10.5} fontWeight={out ? 600 : 500} fill={PT[st].text} style={MONO} pointerEvents="none">{fmt(pt.value)}</text>
+                            {out && <circle cx={pt.x} cy={pt.y} r={1.7} fill={(PT[st] as any).dot} />}
+                            <text x={pt.x} y={labelY} textAnchor="middle" fontSize={10.5} fontWeight={out ? 600 : 500} fill={PT[st].text} style={MONO}>{fmt(pt.value)}</text>
                           </g>
                         );
                       })}
+                      <rect
+                        x={0} y={0} width={chartWidth} height={ROW_HEIGHT}
+                        fill="transparent"
+                        onMouseMove={(e) => {
+                          const svg = (e.currentTarget as SVGRectElement).ownerSVGElement!;
+                          const rect = svg.getBoundingClientRect();
+                          const localX = e.clientX - rect.left;
+                          const idx = Math.max(0, Math.min(n - 1, Math.round((localX - PADDING_X) / Math.max(cellWidth, 1))));
+                          const match = pts.find((pt: any) => pt.origIndex === idx);
+                          if (match) {
+                            setTooltip({ x: match.x, y: match.y, paramName: p.name_ru, value: `${fmt(match.value)}${p.unit ? ` ${p.unit}` : ""}`, time: new Date(match.recorded_at).toLocaleString("ru"), score: match.score });
+                          } else {
+                            setTooltip(null);
+                          }
+                        }}
+                        onMouseLeave={() => setTooltip(null)}
+                      />
                     </g>
                   </svg>
                 </div>
@@ -387,7 +401,7 @@ export function PewsChart({
                 .map((r, i) => {
                   const val = r.ews_reading_values?.find((v: any) => v.parameter_id === p.id);
                   if (!val?.text_value) return null;
-                  return { x: xScale(i), label: ENUM_LABELS[val.text_value] ?? val.text_value, score: val.score ?? 0, recorded_at: r.recorded_at, value: val.text_value };
+                  return { x: xScale(i), label: ENUM_LABELS[val.text_value] ?? val.text_value, score: val.score ?? 0, recorded_at: r.recorded_at, value: val.text_value, origIndex: i };
                 })
                 .filter(Boolean) as any[];
 
@@ -409,14 +423,29 @@ export function PewsChart({
                           fontSize={11}
                           fontWeight={600}
                           fill={PT[st].text}
-                          className="cursor-pointer"
-                          onMouseEnter={() => setTooltip({ x: pt.x, y: ENUM_ROW_HEIGHT / 2, paramName: p.name_ru, value: pt.label, time: new Date(pt.recorded_at).toLocaleString("ru"), score: pt.score })}
-                          onMouseLeave={() => setTooltip(null)}
+                          pointerEvents="none"
                         >
                           {pt.label}
                         </text>
                       );
                     })}
+                    <rect
+                      x={0} y={0} width={chartWidth} height={ENUM_ROW_HEIGHT}
+                      fill="transparent"
+                      onMouseMove={(e) => {
+                        const svg = (e.currentTarget as SVGRectElement).ownerSVGElement!;
+                        const rect = svg.getBoundingClientRect();
+                        const localX = e.clientX - rect.left;
+                        const idx = Math.max(0, Math.min(n - 1, Math.round((localX - PADDING_X) / Math.max(cellWidth, 1))));
+                        const match = rowPts.find((pt: any) => pt.origIndex === idx);
+                        if (match) {
+                          setTooltip({ x: match.x, y: ENUM_ROW_HEIGHT / 2, paramName: p.name_ru, value: match.label, time: new Date(match.recorded_at).toLocaleString("ru"), score: match.score });
+                        } else {
+                          setTooltip(null);
+                        }
+                      }}
+                      onMouseLeave={() => setTooltip(null)}
+                    />
                   </svg>
                 </div>
               );

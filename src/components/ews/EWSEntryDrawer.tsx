@@ -192,7 +192,7 @@ export function EWSEntryDrawer({
           </div>
         </div>
         <div className="flex gap-2.5">
-          <button onClick={onCancel} disabled={saving} className="rounded-md border px-4 py-2.5 text-[13.5px] font-medium" style={{ borderColor: "hsl(var(--input))", color: "hsl(var(--foreground))", background: "hsl(var(--card))" }}>Отмена</button>
+          <button onClick={onCancel} disabled={saving} className="rounded-md border px-4 py-2.5 text-[13.5px] font-medium hover:bg-black/5 transition-colors" style={{ borderColor: "#000000", color: "hsl(var(--foreground))", background: "#ffffff" }}>Отмена</button>
           <button
             onClick={() => {
               const out: Record<string, string> = {};
