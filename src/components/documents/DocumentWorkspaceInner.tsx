@@ -43,12 +43,10 @@ interface InnerProps {
   hospitalizationId?: string;
   existingDocumentId?: string;
   onDocumentCreated?: (documentId: string) => void;
-  fullView?: boolean;
 }
 
 export default function DocumentWorkspaceInner({
   visitServiceId, patientId, visitId, hospitalId, documentTypeId, serviceStatusCode, onClose, onComplete,
-  fullView = false,
   sectionsData, fieldsData, patient,
   documentType, mainServices, childServices, pendingOrders, physicianNameMap,
   visitDate, hospitalName, physicianId,
@@ -74,6 +72,7 @@ export default function DocumentWorkspaceInner({
   const hasEditedRef = useRef(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [activeTab, setActiveTab] = useState("0");
+  const [fullView, setFullView] = useState(false);
   const [hasDiagnosis, setHasDiagnosis] = useState(false);
   const [activeEditable, setActiveEditable] = useState<{
     el: HTMLDivElement;
@@ -420,7 +419,7 @@ export default function DocumentWorkspaceInner({
             <Button variant="outline" size="sm" onClick={() => window.print()}>
               <Printer className="h-4 w-4 mr-1" /> Печать
             </Button>
-            <Button variant="outline" size="sm" onClick={onClose}>
+            <Button variant="outline" size="sm" onClick={() => setFullView(false)}>
               ✕ Закрыть
             </Button>
           </div>
@@ -492,6 +491,9 @@ export default function DocumentWorkspaceInner({
           )}
           <Button variant="outline" size="sm" onClick={() => window.print()}>
             <Printer className="h-4 w-4 mr-1" /> Печать
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setFullView(true)}>
+            Просмотреть документ
           </Button>
           {!isReadOnly && (
             <Button size="sm" onClick={handleConfirm} disabled={!canConfirm}>
