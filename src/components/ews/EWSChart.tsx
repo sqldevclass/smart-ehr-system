@@ -266,7 +266,13 @@ export function PewsChart({
           {tooltip && (
             <div
               className="pointer-events-none absolute z-50 rounded-md border bg-background px-2.5 py-1.5 text-xs shadow-lg"
-              style={{ left: tooltip.x + MARGIN_LEFT + 8, top: tooltip.y - 44, transform: "translateX(-50%)", borderColor: "hsl(var(--border))" }}
+              style={{
+                left: tooltip.x + MARGIN_LEFT + 8,
+                top: tooltip.y - 44,
+                transform: "translateX(-50%)",
+                borderColor: "hsl(var(--border))",
+                transition: "left 100ms ease-out, top 100ms ease-out",
+              }}
             >
               <div className="font-medium text-foreground">{tooltip.paramName}</div>
               <div style={MONO}>{tooltip.value}</div>
