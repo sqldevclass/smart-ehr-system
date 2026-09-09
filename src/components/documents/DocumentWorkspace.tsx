@@ -283,7 +283,6 @@ export default function DocumentWorkspace(props: Props) {
       hospitalizationId={hospitalizationId}
       existingDocumentId={existingDocumentId}
       onDocumentCreated={props.onDocumentCreated}
-      fullView={props.fullView}
     />
   );
 }
