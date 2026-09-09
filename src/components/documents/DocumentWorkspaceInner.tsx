@@ -475,6 +475,7 @@ export default function DocumentWorkspaceInner({
 
 
       {/* Tabs */}
+      {!fullView && (
       <div className="document-tabs-bar border-b bg-card px-4 overflow-x-auto">
         <div className="flex">
           {sections.map((s, i) => (
@@ -493,6 +494,7 @@ export default function DocumentWorkspaceInner({
           ))}
         </div>
       </div>
+      )}
 
       {/* A4 Document Area */}
       <div className="document-page-bg flex-1 overflow-y-auto bg-muted/30 p-6 document-print-area">
@@ -505,8 +507,8 @@ export default function DocumentWorkspaceInner({
             const hasFilledFields = s.fields.some(
               (f: any) => values[f.def.id]?.trim()
             );
-            const baseClass =
-              activeTab === String(i)
+            const sectionVisible = fullView || activeTab === String(i);
+            const baseClass = sectionVisible
                 ? "document-print-section"
                 : "document-print-section document-section-hidden-for-print hidden print:block";
             return (
@@ -574,7 +576,7 @@ export default function DocumentWorkspaceInner({
                     hospitalId={hospitalId}
                     documentId={documentId}
                     documentTypeId={documentTypeId}
-                    isReadOnly={isReadOnly}
+                    isReadOnly={effectiveReadOnly}
                     currentUserId={user!.id}
                     onDiagnosisChange={recheckDiagnosis}
                   />
@@ -583,9 +585,8 @@ export default function DocumentWorkspaceInner({
                     section={s}
                     values={values}
                     setVal={setVal}
-                    isReadOnly={isReadOnly}
+                    isReadOnly={effectiveReadOnly}
                     onFocusEditable={handleFocusEditable}
-                    
                   />
                 )}
                 {s.code === "treatment_plan" && (
@@ -600,7 +601,7 @@ export default function DocumentWorkspaceInner({
                       <HospRecommendationSection
                         visitId={visitId}
                         hospitalId={hospitalId}
-                        isReadOnly={isReadOnly}
+                        isReadOnly={effectiveReadOnly}
                         visitData={visitData}
                         onSaved={refetchVisit}
                       />
@@ -615,7 +616,7 @@ export default function DocumentWorkspaceInner({
           {!sections.some((s) => s.code === "treatment_plan") && (
             <div
               className={
-                activeTab === String(sections.length - 1)
+                fullView || activeTab === String(sections.length - 1)
                   ? "document-print-section mt-8 pt-6 border-t border-gray-200"
                   : "document-print-section document-section-hidden-for-print hidden print:block mt-8 pt-6 border-t border-gray-200"
               }
@@ -643,7 +644,7 @@ export default function DocumentWorkspaceInner({
             </div>
           )}
         </div>
-        {(!isReadOnly || (physicianId !== null)) && (
+        {!fullView && (!isReadOnly || (physicianId !== null)) && (
           <div className="w-56 shrink-0 print:hidden">
             {isOnDiagnosisTab ? (
               <DiagnosisHistoryPanel
