@@ -559,6 +559,29 @@ export default function EWSSection({
     return "непрерывный мониторинг";
   };
 
+  const ewsParams: EwsEntryParam[] = useMemo(
+    () =>
+      (parameters as any[]).map((p) => {
+        const normal = thresholds.find(
+          (t: any) => t.parameter_id === p.id && t.score === 0,
+        );
+        const override = overrideMap[p.id];
+        return {
+          id: p.id,
+          code: p.code,
+          name_ru: p.name_ru,
+          unit: p.unit ?? undefined,
+          input_type: p.input_type,
+          normLo: override?.override_min ?? normal?.min_value ?? null,
+          normHi: override?.override_max ?? normal?.max_value ?? null,
+          scoreFor: (value: string) =>
+            value ? calculateScore(p.id, value, p.input_type).score : 0,
+          showConfusionOption: scale?.code === "news2",
+        };
+      }),
+    [parameters, thresholds, overrideMap, scale],
+  );
+
 
 
   return (
