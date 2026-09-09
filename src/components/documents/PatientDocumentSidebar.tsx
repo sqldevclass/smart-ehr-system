@@ -155,13 +155,6 @@ export default function PatientDocumentSidebar({
                     documentTypeId: doc.document_types?.id,
                   })
                 }
-                onDoubleClick={() =>
-                  setActiveDoc({
-                    documentId: doc.id,
-                    documentTypeId: doc.document_types?.id,
-                    fullView: true,
-                  })
-                }
                 className={cn(
                   "w-full text-left px-2 py-2 rounded text-sm hover:bg-muted/50 mb-1",
                   isActive ? "bg-muted" : ""

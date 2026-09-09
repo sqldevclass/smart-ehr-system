@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -401,7 +402,7 @@ export default function DocumentWorkspaceInner({
     );
   }
 
-  return (
+  const content = (
     <div className={fullView ? "fixed inset-0 z-[100] bg-background overflow-y-auto flex flex-col" : "flex flex-col h-[calc(100vh-8rem)]"}>
 
       {fullView && (
@@ -716,6 +717,8 @@ export default function DocumentWorkspaceInner({
       </div>
     </div>
   );
+
+  return fullView ? createPortal(content, document.body) : content;
 }
 
 function DiagnosisHistoryPanel({
