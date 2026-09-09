@@ -26,6 +26,7 @@ export default function PatientDocumentSidebar({
     documentId: string | null;
     documentTypeId: string;
     forceReadOnly?: boolean;
+    fullView?: boolean;
   } | null>(null);
   const [showCreatePicker, setShowCreatePicker] = useState(false);
 
