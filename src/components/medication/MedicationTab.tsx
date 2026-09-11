@@ -806,7 +806,7 @@ export default function MedicationTab({
               </div>
             )}
 
-            <div className="pr-56">
+            <div className="pr-[26rem]">
               <div className="flex items-center gap-2 flex-wrap">
 
               <Select
@@ -861,7 +861,7 @@ export default function MedicationTab({
 
               {/* Dosing info -- absolutely positioned, removed from flow entirely so it can't push anything else down */}
               {dosingInfo && (
-                <div className="absolute top-4 right-4 w-52 z-10">
+                <div className="absolute top-4 right-4 w-96 z-10">
                   <div className="rounded-md border border-blue-200 bg-blue-50 p-3 space-y-1.5 text-sm">
                     <p className="font-medium text-blue-800 flex items-center gap-1.5">
                       <Info className="h-4 w-4 shrink-0" />
