@@ -1064,9 +1064,6 @@ export default function MedicationTab({
             </Button>
           </div>
         )}
-          </div>
-
-        )}
 
 
         {draftPrescriptions.length > 0 && (
