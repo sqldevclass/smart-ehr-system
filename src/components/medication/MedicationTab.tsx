@@ -856,12 +856,12 @@ export default function MedicationTab({
                 </div>
               )}
             </div>
-              {/* end of route/food/duration column */}
-              </div>
+              {/* end of route/food/duration -- plain block, no longer a flex sibling of dosing info */}
+            </div>
 
-              {/* Right: dosing info -- natural height, sits beside the row above only */}
+              {/* Dosing info -- absolutely positioned, removed from flow entirely so it can't push anything else down */}
               {dosingInfo && (
-                <div className="w-52 shrink-0">
+                <div className="absolute top-4 right-4 w-52 z-10">
                   <div className="rounded-md border border-blue-200 bg-blue-50 p-3 space-y-1.5 text-sm">
                     <p className="font-medium text-blue-800 flex items-center gap-1.5">
                       <Info className="h-4 w-4 shrink-0" />
@@ -903,7 +903,6 @@ export default function MedicationTab({
                   </div>
                 </div>
               )}
-            </div>{/* end flex gap-4 */}
 
             <div>
               <Label className="text-xs">Дата начала</Label>
