@@ -861,8 +861,8 @@ export default function MedicationTab({
 
               {/* Dosing info -- absolutely positioned, removed from flow entirely so it can't push anything else down */}
               {dosingInfo && (
-                <div className="absolute top-4 right-4 w-96 z-10">
-                  <div className="rounded-md border border-blue-200 bg-blue-50 p-3 space-y-1.5 text-sm">
+                <div className="absolute top-4 right-4 w-[28rem] z-10">
+                  <div className="rounded-md border border-blue-200 bg-blue-50 p-3 pb-2 space-y-1 text-sm">
                     <p className="font-medium text-blue-800 flex items-center gap-1.5">
                       <Info className="h-4 w-4 shrink-0" />
                       {isAdult ? "Дозирование (взрослые)" : "Дозирование (дети)"}
@@ -893,7 +893,7 @@ export default function MedicationTab({
                       </div>
                     )}
                     {dosingInfo.notes && (
-                      <div className="space-y-0.5 border-t border-blue-200 pt-1.5">
+                      <div className="space-y-0.5 border-t border-blue-200 pt-1">
                         <span className="text-xs text-blue-600 font-medium">
                           Примечание:
                         </span>
