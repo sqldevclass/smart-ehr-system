@@ -701,7 +701,7 @@ export default function MedicationTab({
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         
         {showForm && formData.drug && (
-          <div className="border-2 border-gray-200 rounded-lg p-4 space-y-3 bg-muted/20">
+          <div className="relative border-2 border-gray-200 rounded-lg p-4 space-y-3 bg-muted/20">
             <div className="flex items-start gap-3 flex-wrap">
               <div className="shrink-0">
                 <p className="font-semibold text-sm">{formData.drug?.trade_name}</p>
