@@ -807,8 +807,8 @@ export default function MedicationTab({
             )}
 
             <div className="flex gap-4 items-start">
-              {/* Left: form fields */}
-              <div className="flex-1 space-y-3 min-w-0">
+              {/* Left: route/food/duration only -- dosing info sits beside this row now, not the whole form */}
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
               <Select
                 value={formData.route}
