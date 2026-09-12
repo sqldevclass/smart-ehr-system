@@ -169,6 +169,7 @@ export default function InpatientPatientsList() {
   }, [allVitals, latestVitals]);
 
   const filtered = hospitalizations.filter((h: any) => {
+    if (!showAllDischarged && h.discharged_at) return false;
     const p = h.patients;
     const name = `${p.last_name} ${p.first_name}`.toLowerCase();
     const q = nameSearch.toLowerCase();
