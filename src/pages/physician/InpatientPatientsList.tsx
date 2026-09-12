@@ -446,13 +446,13 @@ export default function InpatientPatientsList() {
             </TableBody>
           </Table>
         )}
-        {!showAllDischarged && filtered.length > 0 && (
+        {filtered.length > 0 && (
           <div className="flex justify-center pt-2">
             <button
-              onClick={() => setShowAllDischarged(true)}
+              onClick={() => setShowAllDischarged(!showAllDischarged)}
               className="text-xs text-primary underline"
             >
-              Показать все выписанные
+              {showAllDischarged ? "Скрыть выписанных" : "Показать все выписанные"}
             </button>
           </div>
         )}

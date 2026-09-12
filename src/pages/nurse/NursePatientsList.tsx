@@ -631,16 +631,14 @@ export default function NursePatientsList() {
                   })}
                 </TableBody>
               </Table>
-              {!showAllDischarged && (
-                <div className="flex justify-center pt-2">
-                  <button
-                    onClick={() => setShowAllDischarged(true)}
-                    className="text-xs text-primary underline"
-                  >
-                    Показать все выписанные
-                  </button>
-                </div>
-              )}
+              <div className="flex justify-center pt-2">
+                <button
+                  onClick={() => setShowAllDischarged(!showAllDischarged)}
+                  className="text-xs text-primary underline"
+                >
+                  {showAllDischarged ? "Скрыть выписанных" : "Показать все выписанные"}
+                </button>
+              </div>
             </>
           );
         })()}
