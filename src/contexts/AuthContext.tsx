@@ -9,6 +9,8 @@ export interface AuthUser {
   hospitalId: string;
   hospitalName: string;
   timezone: string;
+  defaultRoleCode: string | null;
+  defaultDashboardMode: string | null;
 }
 
 interface AuthContextValue {
@@ -16,6 +18,7 @@ interface AuthContextValue {
   loading: boolean;
   hasRole: (role: string) => boolean;
   hasAnyRole: (roles: string[]) => boolean;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -23,6 +26,7 @@ const AuthContext = createContext<AuthContextValue>({
   loading: true,
   hasRole: () => false,
   hasAnyRole: () => false,
+  refreshUser: async () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -46,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name, hospital_id")
+        .select("full_name, hospital_id, default_role_code, default_dashboard_mode")
         .eq("id", session.user.id)
         .single();
 
@@ -90,6 +94,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         hospitalId: profile.hospital_id,
         hospitalName: hospital?.name || "Unknown Hospital",
         timezone: (settings as any)?.timezone || "Asia/Tashkent",
+        defaultRoleCode: (profile as any).default_role_code ?? null,
+        defaultDashboardMode: (profile as any).default_dashboard_mode ?? null,
       };
 
       setUser(newUser);
@@ -119,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const hasAnyRole = useCallback((roles: string[]) => roles.some(r => user?.roles.includes(r)) ?? false, [user]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, hasRole, hasAnyRole }}>
+    <AuthContext.Provider value={{ user, loading, hasRole, hasAnyRole, refreshUser: loadUser }}>
       {children}
     </AuthContext.Provider>
   );

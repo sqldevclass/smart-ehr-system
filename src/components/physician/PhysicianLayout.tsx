@@ -35,13 +35,21 @@ type Mode = "ambulatory" | "inpatient";
 
 function ModeSwitcher({ mode, switchMode }: { mode: Mode; switchMode: (m: Mode) => void }) {
   const { open } = useSidebar();
+  // Exception to the app-wide button styling: the active mode needs
+  // to visibly stand out here, so it's forced black regardless of
+  // the shared Button variants (which are now white/black-border
+  // for both default and outline everywhere else -- intentionally
+  // not touched, this is scoped to just these two buttons).
   return (
     <div className={cn("flex flex-col gap-1.5 py-1", open ? "px-2" : "px-0 items-center")}>
       <Button
         size="sm"
         variant={mode === "ambulatory" ? "default" : "outline"}
         onClick={() => switchMode("ambulatory")}
-        className={cn(!open && "w-9 h-9 p-0 rounded-full")}
+        className={cn(
+          !open && "w-9 h-9 p-0 rounded-full",
+          mode === "ambulatory" && "bg-black text-white border-black hover:bg-black/90 hover:text-white",
+        )}
       >
         {open ? "Outpatient" : "OP"}
       </Button>
@@ -49,7 +57,10 @@ function ModeSwitcher({ mode, switchMode }: { mode: Mode; switchMode: (m: Mode) 
         size="sm"
         variant={mode === "inpatient" ? "default" : "outline"}
         onClick={() => switchMode("inpatient")}
-        className={cn(!open && "w-9 h-9 p-0 rounded-full")}
+        className={cn(
+          !open && "w-9 h-9 p-0 rounded-full",
+          mode === "inpatient" && "bg-black text-white border-black hover:bg-black/90 hover:text-white",
+        )}
       >
         {open ? "Inpatient" : "IP"}
       </Button>
@@ -77,6 +88,21 @@ export default function PhysicianLayout() {
   });
 
   const isInpatient = location.pathname.startsWith("/physician/inpatient");
+
+  // Land on the saved default dashboard exactly once, only when
+  // arriving at the bare /physician route (not on a specific
+  // patient/sub-page, and not if the URL already picked a mode).
+  useEffect(() => {
+    if (
+      location.pathname === "/physician" &&
+      user?.defaultDashboardMode === "inpatient"
+    ) {
+      setMode("inpatient");
+      navigate("/physician/inpatient", { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.defaultDashboardMode]);
+
 
   const { data: physician } = useQuery({
     queryKey: ["layout-staff-role", user?.id],

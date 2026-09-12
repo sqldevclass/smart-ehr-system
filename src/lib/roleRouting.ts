@@ -37,14 +37,15 @@ export const ROLE_PRIORITY = [
   "finance",
 ];
 
-export function pickPrimaryRole(roles: string[]): string | null {
+export function pickPrimaryRole(roles: string[], preferredRole?: string | null): string | null {
+  if (preferredRole && roles.includes(preferredRole)) return preferredRole;
   for (const r of ROLE_PRIORITY) {
     if (roles.includes(r)) return r;
   }
   return roles[0] ?? null;
 }
 
-export function routeForRoles(roles: string[]): string | null {
-  const primary = pickPrimaryRole(roles);
+export function routeForRoles(roles: string[], preferredRole?: string | null): string | null {
+  const primary = pickPrimaryRole(roles, preferredRole);
   return primary ? roleRoutes[primary] ?? null : null;
 }

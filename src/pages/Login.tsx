@@ -19,7 +19,7 @@ const Login = () => {
 
   useEffect(() => {
     if (!user) return;
-    const route = routeForRoles(user.roles);
+    const route = routeForRoles(user.roles, user.defaultRoleCode);
     if (route) {
       toast.success("Welcome back!");
       navigate(route);
