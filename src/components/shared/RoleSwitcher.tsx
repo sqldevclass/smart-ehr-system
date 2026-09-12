@@ -1,5 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { Star } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
+
 
 interface RoleDetail {
   code: string;
@@ -14,8 +19,25 @@ interface Props {
 export default function RoleSwitcher({ roles }: Props) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const { user, refreshUser } = useAuth();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  const setAsDefault = async (code: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user) return;
+    const { error } = await supabase
+      .from("profiles")
+      .update({ default_role_code: code } as any)
+      .eq("id", user.id);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Saved as your default dashboard.");
+      await refreshUser();
+    }
+  };
+
 
   useEffect(() => {
     if (!open) return;
