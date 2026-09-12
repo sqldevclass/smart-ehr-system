@@ -89,6 +89,21 @@ export default function PhysicianLayout() {
 
   const isInpatient = location.pathname.startsWith("/physician/inpatient");
 
+  // Land on the saved default dashboard exactly once, only when
+  // arriving at the bare /physician route (not on a specific
+  // patient/sub-page, and not if the URL already picked a mode).
+  useEffect(() => {
+    if (
+      location.pathname === "/physician" &&
+      user?.defaultDashboardMode === "inpatient"
+    ) {
+      setMode("inpatient");
+      navigate("/physician/inpatient", { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.defaultDashboardMode]);
+
+
   const { data: physician } = useQuery({
     queryKey: ["layout-staff-role", user?.id],
     enabled: !!user?.id,
