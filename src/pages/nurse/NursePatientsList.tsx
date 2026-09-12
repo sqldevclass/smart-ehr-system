@@ -45,6 +45,7 @@ export default function NursePatientsList() {
   const [submitting, setSubmitting] = useState(false);
   
   const [showInventory, setShowInventory] = useState(false);
+  const [showAllDischarged, setShowAllDischarged] = useState(false);
   const [focusedRowIndex, setFocusedRowIndex] = useState(0);
   const rowRefs = useRef<(HTMLTableRowElement | null)[]>([]);
 
@@ -85,7 +86,7 @@ export default function NursePatientsList() {
   });
 
   const { data: hospitalizations = [], isLoading, refetch } = useQuery({
-    queryKey: ["nurse-active-hosp", user?.hospitalId, selectedDeptIds],
+    queryKey: ["nurse-active-hosp", user?.hospitalId, selectedDeptIds, showAllDischarged],
     queryFn: async () => {
       let q = supabase
         .from("hospitalizations")
@@ -324,6 +325,7 @@ export default function NursePatientsList() {
 
         {(() => {
           const filtered = hospitalizations.filter((h: any) => {
+            if (!showAllDischarged && h.discharged_at) return false;
             const p = h.patients;
             const name = `${p?.last_name} ${p?.first_name}`.toLowerCase();
             const q = nameSearch.toLowerCase();
@@ -495,139 +497,151 @@ export default function NursePatientsList() {
             );
           }
           return (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Дата поступления</TableHead>
-                  <TableHead>Отделение</TableHead>
-                  <TableHead>ФИО / ДОБ</TableHead>
-                  <TableHead>№Палаты / Кровать</TableHead>
-                  <TableHead>Лечащий Врач</TableHead>
-                  <TableHead>Оценки</TableHead>
-                  <TableHead>Который день</TableHead>
-                  <TableHead>ШРПУ</TableHead>
-                  <TableHead>Операция</TableHead>
-                  <TableHead>План лечения</TableHead>
-                  <TableHead>Статус</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((h: any) => {
-                  const p = h.patients;
-                  const ra = h.room_assignments?.[0];
-                  const hasRoom = !!ra;
-                  const days = differenceInDays(new Date(), new Date(h.admitted_at));
-                  return (
-                    <TableRow
-                      key={h.id}
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => {
-                        const ra = h.room_assignments?.[0];
-                        if (!ra) {
-                          openAssignDialog(h);
-                        } else {
-                          navigate(`/nurse/${h.id}`);
-                        }
-                      }}
-                    >
-                      <TableCell className="text-sm">
-                        {format(new Date(h.admitted_at), "dd.MM.yyyy HH:mm")}
-                      </TableCell>
-                      <TableCell>{h.departments?.name || "—"}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div>
-                            <div className="font-medium">{p?.last_name} {p?.first_name}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {p?.date_of_birth ? format(new Date(p.date_of_birth), "dd.MM.yyyy") : "—"}
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Дата поступления</TableHead>
+                    <TableHead>Отделение</TableHead>
+                    <TableHead>ФИО / ДОБ</TableHead>
+                    <TableHead>№Палаты / Кровать</TableHead>
+                    <TableHead>Лечащий Врач</TableHead>
+                    <TableHead>Оценки</TableHead>
+                    <TableHead>Который день</TableHead>
+                    <TableHead>ШРПУ</TableHead>
+                    <TableHead>Операция</TableHead>
+                    <TableHead>План лечения</TableHead>
+                    <TableHead>Статус</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((h: any) => {
+                    const p = h.patients;
+                    const ra = h.room_assignments?.[0];
+                    const hasRoom = !!ra;
+                    const days = differenceInDays(new Date(), new Date(h.admitted_at));
+                    return (
+                      <TableRow
+                        key={h.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => {
+                          const ra = h.room_assignments?.[0];
+                          if (!ra) {
+                            openAssignDialog(h);
+                          } else {
+                            navigate(`/nurse/${h.id}`);
+                          }
+                        }}
+                      >
+                        <TableCell className="text-sm">
+                          {format(new Date(h.admitted_at), "dd.MM.yyyy HH:mm")}
+                        </TableCell>
+                        <TableCell>{h.departments?.name || "—"}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div>
+                              <div className="font-medium">{p?.last_name} {p?.first_name}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {p?.date_of_birth ? format(new Date(p.date_of_birth), "dd.MM.yyyy") : "—"}
+                              </div>
                             </div>
+                            {sepsisAlertSet.has(h.id) && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-500 text-white text-xs font-bold shrink-0 cursor-default animate-pulse">!</span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    Активное предупреждение: Сепсис 6
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
                           </div>
-                          {sepsisAlertSet.has(h.id) && (
+                        </TableCell>
+                        <TableCell>
+                          {hasRoom ? `${ra.rooms?.name} / ${ra.bed_number}` : "—"}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {(h as any).staff_roles?.persons
+                            ? `${(h as any).staff_roles.persons.last_name} ${(h as any).staff_roles.persons.first_name}`
+                            : "—"}
+                        </TableCell>
+                        <TableCell>
+                          {assessmentMap[h.id]?.pendingCount > 0 ? (
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-500 text-white text-xs font-bold shrink-0 cursor-default animate-pulse">!</span>
+                                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-orange-500 text-white text-xs font-bold cursor-default">
+                                    {assessmentMap[h.id].pendingCount}
+                                  </span>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  Активное предупреждение: Сепсис 6
+                                  Необходимо заполнить:{" "}
+                                  {[
+                                    assessmentMap[h.id].bradenPending && "Шкала Брадена",
+                                    assessmentMap[h.id].fallRiskPending && (assessmentMap[h.id].fallRiskScale === "humpty_dumpty" ? "Шкала Хамти Дамти" : "Шкала Морзе"),
+                                  ].filter(Boolean).join(", ")}
                                 </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
+                          ) : (
+                            <AssessmentIndicator
+                              bradenScore={assessmentMap[h.id]?.bradenScore ?? null}
+                              fallRiskScore={assessmentMap[h.id]?.fallRiskScore ?? null}
+                              fallRiskScale={assessmentMap[h.id]?.fallRiskScale}
+                            />
                           )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {hasRoom ? `${ra.rooms?.name} / ${ra.bed_number}` : "—"}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {(h as any).staff_roles?.persons
-                          ? `${(h as any).staff_roles.persons.last_name} ${(h as any).staff_roles.persons.first_name}`
-                          : "—"}
-                      </TableCell>
-                      <TableCell>
-                        {assessmentMap[h.id]?.pendingCount > 0 ? (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-orange-500 text-white text-xs font-bold cursor-default">
-                                  {assessmentMap[h.id].pendingCount}
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                Необходимо заполнить:{" "}
-                                {[
-                                  assessmentMap[h.id].bradenPending && "Шкала Брадена",
-                                  assessmentMap[h.id].fallRiskPending && (assessmentMap[h.id].fallRiskScale === "humpty_dumpty" ? "Шкала Хамти Дамти" : "Шкала Морзе"),
-                                ].filter(Boolean).join(", ")}
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        ) : (
-                          <AssessmentIndicator
-                            bradenScore={assessmentMap[h.id]?.bradenScore ?? null}
-                            fallRiskScore={assessmentMap[h.id]?.fallRiskScore ?? null}
-                            fallRiskScale={assessmentMap[h.id]?.fallRiskScale}
+                        </TableCell>
+                        <TableCell className="text-sm">{days} дн.</TableCell>
+                        <TableCell>
+                          <EWSStatusDot
+                            status={getStatus(h.id)}
+                            score={scheduleMap[h.id]?.last_score}
                           />
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm">{days} дн.</TableCell>
-                      <TableCell>
-                        <EWSStatusDot
-                          status={getStatus(h.id)}
-                          score={scheduleMap[h.id]?.last_score}
-                        />
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">—</TableCell>
-                      <TableCell className="text-muted-foreground">—</TableCell>
-                      <TableCell>
-                        {h.discharged_at ? (
-                          <div>
-                            <Badge variant="secondary" className="text-xs">
-                              {h.discharge_type === "discharged"
-                                ? "Выписан"
-                                : h.discharge_type === "transferred"
-                                ? "Переведён"
-                                : "Летальный исход"}
-                            </Badge>
-                            <div className="text-xs text-muted-foreground mt-0.5">
-                              {format(new Date(h.discharged_at), "dd.MM.yyyy HH:mm")}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">—</TableCell>
+                        <TableCell className="text-muted-foreground">—</TableCell>
+                        <TableCell>
+                          {h.discharged_at ? (
+                            <div>
+                              <Badge variant="secondary" className="text-xs">
+                                {h.discharge_type === "discharged"
+                                  ? "Выписан"
+                                  : h.discharge_type === "transferred"
+                                  ? "Переведён"
+                                  : "Летальный исход"}
+                              </Badge>
+                              <div className="text-xs text-muted-foreground mt-0.5">
+                                {format(new Date(h.discharged_at), "dd.MM.yyyy HH:mm")}
+                              </div>
                             </div>
-                          </div>
-                        ) : hasRoom ? (
-                          <Badge variant="outline" className="text-xs text-green-700 border-green-300">
-                            Размещён
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-xs text-yellow-700 border-yellow-300">
-                            Ожидает размещения
-                          </Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                          ) : hasRoom ? (
+                            <Badge variant="outline" className="text-xs text-green-700 border-green-300">
+                              Размещён
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-xs text-yellow-700 border-yellow-300">
+                              Ожидает размещения
+                            </Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+              {!showAllDischarged && (
+                <div className="flex justify-center pt-2">
+                  <button
+                    onClick={() => setShowAllDischarged(true)}
+                    className="text-xs text-primary underline"
+                  >
+                    Показать все выписанные
+                  </button>
+                </div>
+              )}
+            </>
           );
         })()}
 
