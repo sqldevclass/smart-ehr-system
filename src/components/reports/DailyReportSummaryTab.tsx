@@ -1,10 +1,15 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import DailyReportSummaryChart from "@/components/reports/DailyReportSummaryChart";
+import DailyReportBulletChart from "@/components/reports/DailyReportBulletChart";
+import DailyReportYoyChart from "@/components/reports/DailyReportYoyChart";
+import DailyReportPlanDialog from "@/components/reports/DailyReportPlanDialog";
 
 interface ServiceItem {
   service_type_id: string | null;
@@ -12,10 +17,37 @@ interface ServiceItem {
   cost_at_time: number;
 }
 
-const fmt = (n: number) => Number(n ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmt = (n: number) =>
+  Number(n ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function monthsInRange(from: string, to: string) {
+  const start = new Date(from);
+  const end = new Date(to);
+  const months: { year: number; month: number }[] = [];
+  const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+  while (cursor <= end) {
+    months.push({ year: cursor.getFullYear(), month: cursor.getMonth() + 1 });
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  return months;
+}
+
+function shiftYearsISO(iso: string, years: number) {
+  const d = new Date(iso);
+  d.setFullYear(d.getFullYear() + years);
+  return d.toISOString();
+}
 
 export default function DailyReportSummaryTab({ from, to }: { from: string; to: string }) {
-  const { user } = useAuth();
+  const { user, hasAnyRole } = useAuth();
+  const queryClient = useQueryClient();
+  const [planDialogOpen, setPlanDialogOpen] = useState(false);
+  const canManagePlans = hasAnyRole(["admin"]);
+  const months = monthsInRange(from, to);
+  const primaryMonth = months[0] ?? {
+    year: new Date().getFullYear(),
+    month: new Date().getMonth() + 1,
+  };
 
   const { data: serviceTypes = [] } = useQuery({
     queryKey: ["service-types-lookup", user?.hospitalId],
@@ -47,19 +79,63 @@ export default function DailyReportSummaryTab({ from, to }: { from: string; to: 
     enabled: !!user,
   });
 
+  const { data: priorYearItems = [] } = useQuery({
+    queryKey: ["daily-report-items-prior-year", user?.hospitalId, from, to],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("daily_report_service_items")
+        .select("service_type_id, cost_at_time")
+        .eq("hospital_id", user.hospitalId)
+        .gte("completed_at", shiftYearsISO(from, -1))
+        .lte("completed_at", shiftYearsISO(to, -1));
+      if (error) throw error;
+      return (data || []) as unknown as ServiceItem[];
+    },
+    enabled: !!user,
+  });
+
+  const { data: plans = [] } = useQuery({
+    queryKey: ["service-type-plans", user?.hospitalId, from, to],
+    queryFn: async () => {
+      if (!user || months.length === 0) return [];
+      const orClauses = months
+        .map((m) => `and(year.eq.${m.year},month.eq.${m.month})`)
+        .join(",");
+      const { data, error } = await supabase
+        .from("service_type_revenue_plans")
+        .select("service_type_id, planned_revenue")
+        .eq("hospital_id", user.hospitalId)
+        .or(orClauses);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
+  const planByType: Record<string, number> = {};
+  (plans as any[]).forEach((p: any) => {
+    planByType[p.service_type_id] =
+      (planByType[p.service_type_id] || 0) + Number(p.planned_revenue || 0);
+  });
+
   const rows = serviceTypes
     .filter((t: any) => t.code !== "test")
     .map((t: any) => {
       const matching = items.filter((i) => i.service_type_id === t.id);
+      const priorMatching = priorYearItems.filter((i) => i.service_type_id === t.id);
       const patients = new Set(matching.map((i) => i.patient_id));
       return {
-        name: t.name_ru,
+        id: t.id as string,
+        name: t.name_ru as string,
         serviceCount: matching.length,
         visitorCount: patients.size,
         revenue: matching.reduce((sum, i) => sum + Number(i.cost_at_time || 0), 0),
+        priorYearRevenue: priorMatching.reduce((sum, i) => sum + Number(i.cost_at_time || 0), 0),
+        target: planByType[t.id] || 0,
       };
     })
-    .filter((r) => r.serviceCount > 0)
+    .filter((r) => r.serviceCount > 0 || r.target > 0)
     .sort((a, b) => b.revenue - a.revenue);
 
   const totals = rows.reduce(
@@ -71,11 +147,36 @@ export default function DailyReportSummaryTab({ from, to }: { from: string; to: 
   );
 
   return (
-    <>
-      {rows.length > 0 && (
-        <DailyReportSummaryChart data={rows.map((r) => ({ name: r.name, revenue: r.revenue }))} />
+    <div className="mt-4 space-y-6">
+      {canManagePlans && (
+        <div className="flex justify-end">
+          <Button variant="outline" size="sm" onClick={() => setPlanDialogOpen(true)}>
+            Set Revenue Plan
+          </Button>
+        </div>
       )}
-      <div className="mt-4 rounded-md border bg-card">
+
+      {rows.length > 0 && (
+        <>
+          <DailyReportSummaryChart
+            data={rows.map((r) => ({ name: r.name, revenue: r.revenue }))}
+          />
+          <div className="grid gap-6 lg:grid-cols-2">
+            <DailyReportBulletChart
+              data={rows.map((r) => ({ name: r.name, revenue: r.revenue, target: r.target }))}
+            />
+            <DailyReportYoyChart
+              data={rows.map((r) => ({
+                name: r.name,
+                currentRevenue: r.revenue,
+                priorYearRevenue: r.priorYearRevenue,
+              }))}
+            />
+          </div>
+        </>
+      )}
+
+      <div className="rounded-md border bg-card">
         {isLoading ? (
           <p className="p-4 text-sm text-muted-foreground">Loading…</p>
         ) : rows.length === 0 ? (
@@ -92,7 +193,7 @@ export default function DailyReportSummaryTab({ from, to }: { from: string; to: 
             </TableHeader>
             <TableBody>
               {rows.map((r) => (
-                <TableRow key={r.name}>
+                <TableRow key={r.id}>
                   <TableCell>{r.name}</TableCell>
                   <TableCell className="text-right">{r.serviceCount}</TableCell>
                   <TableCell className="text-right">{r.visitorCount}</TableCell>
@@ -111,6 +212,18 @@ export default function DailyReportSummaryTab({ from, to }: { from: string; to: 
           </Table>
         )}
       </div>
-    </>
+
+      <DailyReportPlanDialog
+        open={planDialogOpen}
+        onOpenChange={setPlanDialogOpen}
+        serviceTypes={serviceTypes as any}
+        year={primaryMonth.year}
+        month={primaryMonth.month}
+        existingPlans={planByType}
+        onSaved={() => {
+          queryClient.invalidateQueries({ queryKey: ["service-type-plans"] });
+        }}
+      />
+    </div>
   );
 }
