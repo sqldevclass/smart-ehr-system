@@ -604,6 +604,19 @@ export default function EWSSection({
         />
       )}
 
+      {recentReadings.length === 0 && scale && (
+        <div className="rounded-lg border border-dashed bg-card p-6 text-center space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Показания ШРПУ ещё не внесены. Шкала: {scale.name}.
+          </p>
+          {!isReadOnly && (
+            <Button size="sm" onClick={() => setShowEWSForm(true)}>
+              + Внести данные
+            </Button>
+          )}
+        </div>
+      )}
+
 
       {showOverridePanel && canOverride && (
         <div className="border rounded-md p-4 space-y-3 bg-blue-50/30">
