@@ -93,22 +93,37 @@ export default function RoleSwitcher({ roles }: Props) {
           {otherRoles.map((role) => {
             const label = role.name_ru ?? role.code;
             const route = role.dashboard_route;
-            return route ? (
-              <button
-                key={role.code}
-                type="button"
-                onClick={() => { navigate(route); setOpen(false); }}
-                className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted transition-colors"
-              >
-                {label}
-              </button>
-            ) : (
-              <span
-                key={role.code}
-                className="block px-3 py-1.5 text-xs text-muted-foreground opacity-60"
-              >
-                {label}
-              </span>
+            const isDefault = user?.defaultRoleCode === role.code;
+            return (
+              <div key={role.code} className="flex items-center gap-1 px-1">
+                {route ? (
+                  <button
+                    type="button"
+                    onClick={() => { navigate(route); setOpen(false); }}
+                    className="flex-1 text-left px-2 py-1.5 text-xs hover:bg-muted transition-colors rounded"
+                  >
+                    {label}
+                  </button>
+                ) : (
+                  <span className="flex-1 px-2 py-1.5 text-xs text-muted-foreground opacity-60">
+                    {label}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  aria-label="Set as default dashboard"
+                  onClick={(e) => !isDefault && setAsDefault(role.code, e)}
+                  className="shrink-0 p-1 rounded hover:bg-muted"
+                >
+                  <Star
+                    className={
+                      isDefault
+                        ? "h-3.5 w-3.5 fill-primary text-primary"
+                        : "h-3.5 w-3.5 text-muted-foreground"
+                    }
+                  />
+                </button>
+              </div>
             );
           })}
         </div>
