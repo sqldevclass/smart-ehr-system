@@ -139,12 +139,18 @@ export default function PhysicianResultsTab({ hospitalizationId, patientId, hosp
 
   return (
     <div className="space-y-1.5">
-      <Input
-        placeholder="Поиск по названию показателя..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="h-8 text-sm"
-      />
+      <div className="flex items-center gap-2 print:hidden">
+        <Input
+          placeholder="Поиск по названию показателя..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="h-8 text-sm"
+        />
+        <Button variant="outline" size="sm" onClick={() => window.print()} className="shrink-0">
+          <Printer className="mr-1.5 h-4 w-4" />
+          Печать
+        </Button>
+      </div>
       {current.length === 0 && history.length === 0 ? (
         <p className="text-sm text-muted-foreground">Пока нет результатов.</p>
       ) : currentMatches === 0 && historyMatches === 0 ? (
