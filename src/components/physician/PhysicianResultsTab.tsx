@@ -252,6 +252,13 @@ export default function PhysicianResultsTab({ hospitalizationId, patientId, hosp
       return next;
     });
 
+  const toggleGroup = (names: string[], currentlyAllChecked: boolean) =>
+    setCheckedParams((prev) => {
+      const next = new Set(prev);
+      names.forEach((n) => (currentlyAllChecked ? next.delete(n) : next.add(n)));
+      return next;
+    });
+
   const { data: samples = [] } = useQuery({
     queryKey: ["physician-lab-results", patientId, hospitalId],
     queryFn: async () => {
@@ -300,9 +307,24 @@ export default function PhysicianResultsTab({ hospitalizationId, patientId, hosp
   const historyMatches = matchCount(history);
   const allChecked = checkedParams.size === 0;
 
+  const visibleParamNames = new Set<string>();
+  [...current, ...history].forEach((s: any) => {
+    (s.lab_results || []).forEach((r: any) => {
+      if (!q || r.parameter_name?.toLowerCase().includes(q)) visibleParamNames.add(r.parameter_name);
+    });
+  });
+  const allVisibleSelected = visibleParamNames.size > 0 &&
+    Array.from(visibleParamNames).every((n) => checkedParams.has(n));
+  const toggleSelectAll = () =>
+    setCheckedParams(allVisibleSelected ? new Set() : new Set(visibleParamNames));
+
   return (
     <div className="space-y-1.5 lab-results-print-area">
       <div className="flex items-center gap-2 print:hidden">
+        <label className="flex items-center gap-1.5 text-sm text-muted-foreground shrink-0 cursor-pointer">
+          <Checkbox checked={allVisibleSelected} onCheckedChange={toggleSelectAll} />
+          Выбрать все
+        </label>
         <Input
           placeholder="Поиск по названию показателя..."
           value={search}
