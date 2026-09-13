@@ -16,12 +16,12 @@ interface Props {
 
 function ParamTableHeader() {
   return (
-    <div className="grid grid-cols-[1fr_90px_60px_110px_120px_90px] items-center gap-1 border-b py-1 text-[11px] font-medium text-muted-foreground">
+    <div className="grid grid-cols-[1fr_90px_60px_110px_120px_90px] print:grid-cols-[1fr_90px_60px_110px_90px] items-center gap-1 border-b py-1 text-[11px] font-medium text-muted-foreground">
       <span>Название</span>
       <span>Результат</span>
       <span>Ед.</span>
       <span>Норма</span>
-      <span>Назначил</span>
+      <span className="print:hidden">Назначил</span>
       <span>Дата</span>
     </div>
   );
