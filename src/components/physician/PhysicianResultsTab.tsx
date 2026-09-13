@@ -5,6 +5,8 @@ import { uniqueServices } from "@/components/shared/LabResultRow";
 import { FlagBadge } from "@/pages/lab/LabResultsPage";
 import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Printer } from "lucide-react";
 
 interface Props {
   hospitalizationId: string;
