@@ -360,6 +360,7 @@ export default function PhysicianResultsTab({ hospitalizationId, patientId, hosp
                   search={search}
                   checkedParams={checkedParams}
                   toggleParam={toggleParam}
+                  toggleGroup={toggleGroup}
                   allChecked={allChecked}
                 />
               ))}
@@ -384,6 +385,7 @@ export default function PhysicianResultsTab({ hospitalizationId, patientId, hosp
                       isHistory
                       checkedParams={checkedParams}
                       toggleParam={toggleParam}
+                      toggleGroup={toggleGroup}
                       allChecked={allChecked}
                     />
                   ))}
