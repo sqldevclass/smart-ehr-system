@@ -77,7 +77,7 @@ export default function InpatientPatientDetail() {
         visitServiceId: navState.openVisitServiceId,
       };
     }
-    return null;
+    return { type: "tab", tab: "lab" };
   });
   const [dischargeOpen, setDischargeOpen] = useState(false);
   const [showMedicationModal, setShowMedicationModal] = useState(false);
