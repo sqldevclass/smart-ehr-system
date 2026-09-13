@@ -32,7 +32,7 @@ function ParamTableRow({ r, dateStr, orderedBy }: { r: any; dateStr: string; ord
     ? `${r.ref_min ?? ""}${r.ref_min != null && r.ref_max != null ? "–" : ""}${r.ref_max ?? ""}`
     : "—";
   return (
-    <div className="grid grid-cols-[1fr_90px_60px_110px_120px_90px] items-center gap-1 border-b py-1 text-sm last:border-0">
+    <div className="grid grid-cols-[1fr_90px_60px_110px_120px_90px] print:grid-cols-[1fr_90px_60px_110px_90px] items-center gap-1 border-b py-1 text-sm last:border-0">
       <span className="truncate text-slate-600">{r.parameter_name}</span>
       <div className="flex items-center gap-1">
         <span className="font-mono">{r.value}</span>
@@ -40,7 +40,7 @@ function ParamTableRow({ r, dateStr, orderedBy }: { r: any; dateStr: string; ord
       </div>
       <span className="text-xs text-muted-foreground">{r.unit || "—"}</span>
       <span className="text-xs text-muted-foreground">{norm}</span>
-      <span className="truncate text-xs text-muted-foreground">{orderedBy || "—"}</span>
+      <span className="truncate text-xs text-muted-foreground print:hidden">{orderedBy || "—"}</span>
       <span className="text-xs text-muted-foreground">{dateStr}</span>
     </div>
   );
