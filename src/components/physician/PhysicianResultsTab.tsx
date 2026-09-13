@@ -5,6 +5,8 @@ import { uniqueServices } from "@/components/shared/LabResultRow";
 import { FlagBadge } from "@/pages/lab/LabResultsPage";
 import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Printer } from "lucide-react";
 
 interface Props {
   hospitalizationId: string;
@@ -14,12 +16,12 @@ interface Props {
 
 function ParamTableHeader() {
   return (
-    <div className="grid grid-cols-[1fr_90px_60px_110px_120px_90px] items-center gap-1 border-b py-1 text-[11px] font-medium text-muted-foreground">
+    <div className="grid grid-cols-[1fr_90px_60px_110px_120px_90px] print:grid-cols-[1fr_90px_60px_110px_90px] items-center gap-1 border-b py-1 text-[11px] font-medium text-muted-foreground">
       <span>Название</span>
       <span>Результат</span>
       <span>Ед.</span>
       <span>Норма</span>
-      <span>Назначил</span>
+      <span className="print:hidden">Назначил</span>
       <span>Дата</span>
     </div>
   );
@@ -30,7 +32,7 @@ function ParamTableRow({ r, dateStr, orderedBy }: { r: any; dateStr: string; ord
     ? `${r.ref_min ?? ""}${r.ref_min != null && r.ref_max != null ? "–" : ""}${r.ref_max ?? ""}`
     : "—";
   return (
-    <div className="grid grid-cols-[1fr_90px_60px_110px_120px_90px] items-center gap-1 border-b py-1 text-sm last:border-0">
+    <div className="grid grid-cols-[1fr_90px_60px_110px_120px_90px] print:grid-cols-[1fr_90px_60px_110px_90px] items-center gap-1 border-b py-1 text-sm last:border-0">
       <span className="truncate text-slate-600">{r.parameter_name}</span>
       <div className="flex items-center gap-1">
         <span className="font-mono">{r.value}</span>
@@ -38,7 +40,7 @@ function ParamTableRow({ r, dateStr, orderedBy }: { r: any; dateStr: string; ord
       </div>
       <span className="text-xs text-muted-foreground">{r.unit || "—"}</span>
       <span className="text-xs text-muted-foreground">{norm}</span>
-      <span className="truncate text-xs text-muted-foreground">{orderedBy || "—"}</span>
+      <span className="truncate text-xs text-muted-foreground print:hidden">{orderedBy || "—"}</span>
       <span className="text-xs text-muted-foreground">{dateStr}</span>
     </div>
   );
@@ -137,12 +139,18 @@ export default function PhysicianResultsTab({ hospitalizationId, patientId, hosp
 
   return (
     <div className="space-y-1.5">
-      <Input
-        placeholder="Поиск по названию показателя..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="h-8 text-sm"
-      />
+      <div className="flex items-center gap-2 print:hidden">
+        <Input
+          placeholder="Поиск по названию показателя..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="h-8 text-sm"
+        />
+        <Button variant="outline" size="sm" onClick={() => window.print()} className="shrink-0">
+          <Printer className="mr-1.5 h-4 w-4" />
+          Печать
+        </Button>
+      </div>
       {current.length === 0 && history.length === 0 ? (
         <p className="text-sm text-muted-foreground">Пока нет результатов.</p>
       ) : currentMatches === 0 && historyMatches === 0 ? (
