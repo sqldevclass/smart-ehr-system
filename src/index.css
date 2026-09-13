@@ -118,7 +118,9 @@
   body * { visibility: hidden; }
 
   .document-a4-card,
-  .document-a4-card * {
+  .document-a4-card *,
+  .lab-results-print-area,
+  .lab-results-print-area * {
     visibility: visible;
   }
 
@@ -132,6 +134,14 @@
     padding: 2cm !important;
     min-height: unset !important;
     height: auto !important;
+  }
+
+  .lab-results-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 1cm;
   }
 
   /* No forced page breaks between sections */

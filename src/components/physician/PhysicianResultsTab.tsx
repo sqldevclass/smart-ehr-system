@@ -6,7 +6,12 @@ import { FlagBadge } from "@/pages/lab/LabResultsPage";
 import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Printer } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Printer, LineChart as LineChartIcon } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 interface Props {
   hospitalizationId: string;
@@ -27,13 +32,31 @@ function ParamTableHeader() {
   );
 }
 
-function ParamTableRow({ r, dateStr, orderedBy }: { r: any; dateStr: string; orderedBy: string }) {
+function ParamTableRow({
+  r, dateStr, orderedBy, checked, onToggle, printEligible,
+}: {
+  r: any; dateStr: string; orderedBy: string;
+  checked: boolean; onToggle: () => void; printEligible: boolean;
+}) {
   const norm = r.ref_min != null || r.ref_max != null
     ? `${r.ref_min ?? ""}${r.ref_min != null && r.ref_max != null ? "–" : ""}${r.ref_max ?? ""}`
     : "—";
   return (
-    <div className="grid grid-cols-[1fr_90px_60px_110px_120px_90px] print:grid-cols-[1fr_90px_60px_110px_90px] items-center gap-1 border-b py-1 text-sm last:border-0">
-      <span className="truncate text-slate-600">{r.parameter_name}</span>
+    <div
+      className={cn(
+        "grid grid-cols-[1fr_90px_60px_110px_120px_90px] print:grid-cols-[1fr_90px_60px_110px_90px] items-center gap-1 border-b py-1 text-sm last:border-0",
+        !printEligible && "print:hidden"
+      )}
+    >
+      <div className="flex items-center gap-2 min-w-0">
+        <Checkbox
+          checked={checked}
+          onCheckedChange={onToggle}
+          className="print:hidden"
+          aria-label={`Выбрать ${r.parameter_name}`}
+        />
+        <span className="truncate text-slate-600">{r.parameter_name}</span>
+      </div>
       <div className="flex items-center gap-1">
         <span className="font-mono">{r.value}</span>
         {r.flag && r.flag !== "normal" && r.flag !== "pending" && <FlagBadge flag={r.flag} />}
@@ -54,11 +77,12 @@ function resolveOrderedBy(sample: any, r: any): string {
   return link?.visit_services?.profiles?.full_name || "";
 }
 
-// Every completed sample is its own group -- labeled by which
-// test(s) it covers and when, with all its result rows underneath
-// using the same columns as everywhere else. No more special-casing
-// single-result vs. multi-result samples into two different layouts.
-function SampleGroup({ sample, search, isHistory }: { sample: any; search: string; isHistory?: boolean }) {
+function SampleGroup({
+  sample, search, isHistory, checkedParams, toggleParam, allChecked,
+}: {
+  sample: any; search: string; isHistory?: boolean;
+  checkedParams: Set<string>; toggleParam: (name: string) => void; allChecked: boolean;
+}) {
   const q = search.trim().toLowerCase();
   const allResults = sample?.lab_results || [];
   const results = q ? allResults.filter((r: any) => r.parameter_name?.toLowerCase().includes(q)) : allResults;
@@ -80,15 +104,135 @@ function SampleGroup({ sample, search, isHistory }: { sample: any; search: strin
         </div>
         <span className="whitespace-nowrap text-xs text-muted-foreground">{dateStr}</span>
       </div>
-      {results.map((r: any) => (
-        <ParamTableRow key={r.id} r={r} dateStr={dateStr} orderedBy={resolveOrderedBy(sample, r)} />
-      ))}
+      {results.map((r: any) => {
+        const checked = checkedParams.has(r.parameter_name);
+        return (
+          <ParamTableRow
+            key={r.id}
+            r={r}
+            dateStr={dateStr}
+            orderedBy={resolveOrderedBy(sample, r)}
+            checked={checked}
+            onToggle={() => toggleParam(r.parameter_name)}
+            printEligible={allChecked || checked}
+          />
+        );
+      })}
     </div>
+  );
+}
+
+// Small inline trend line -- no axes/tooltip, just the shape.
+function Sparkline({ values }: { values: number[] }) {
+  const w = 60, h = 22, pad = 2;
+  if (values.length < 2) return <span className="text-xs text-muted-foreground">—</span>;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const points = values
+    .map((v, i) => {
+      const x = pad + (i * (w - 2 * pad)) / (values.length - 1);
+      const y = h - pad - ((v - min) / range) * (h - 2 * pad);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+  return (
+    <svg width={w} height={h} className="overflow-visible">
+      <polyline
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        points={points}
+        className="text-primary"
+      />
+    </svg>
+  );
+}
+
+function buildPivot(samples: any[], checkedParams: Set<string>) {
+  const entries: { param: string; dateKey: number; dateLabel: string; value: string }[] = [];
+  samples.forEach((s: any) => {
+    const ts = s.completed_at ? new Date(s.completed_at).getTime() : 0;
+    const dateLabel = s.completed_at ? format(new Date(s.completed_at), "dd.MM.yyyy") : "—";
+    (s.lab_results || []).forEach((r: any) => {
+      if (checkedParams.has(r.parameter_name)) {
+        entries.push({ param: r.parameter_name, dateKey: ts, dateLabel, value: r.value });
+      }
+    });
+  });
+  const dateKeys = Array.from(new Set(entries.map((e) => e.dateKey))).sort((a, b) => a - b);
+  const dateLabels = dateKeys.map((k) => entries.find((e) => e.dateKey === k)!.dateLabel);
+  const rows = Array.from(checkedParams).map((param) => {
+    const byDate: Record<number, string> = {};
+    entries.filter((e) => e.param === param).forEach((e) => { byDate[e.dateKey] = e.value; });
+    const numericSeries = dateKeys.map((k) => parseFloat(byDate[k])).filter((v) => !isNaN(v));
+    return { param, byDate, numericSeries };
+  });
+  return { dateKeys, dateLabels, rows };
+}
+
+function DynamicsDialog({
+  open, onOpenChange, samples, checkedParams,
+}: {
+  open: boolean; onOpenChange: (v: boolean) => void; samples: any[]; checkedParams: Set<string>;
+}) {
+  const { dateKeys, dateLabels, rows } = buildPivot(samples, checkedParams);
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl">
+        <DialogHeader>
+          <DialogTitle>Динамика показателей</DialogTitle>
+        </DialogHeader>
+        <div className="overflow-x-auto">
+          {dateKeys.length === 0 ? (
+            <div className="rounded border border-dashed p-8 text-center text-sm text-muted-foreground">
+              Нет исторических данных по выбранным показателям.
+            </div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-muted-foreground">
+                  <th className="py-2 pr-4">Показатель</th>
+                  {dateLabels.map((d, i) => (
+                    <th key={i} className="py-2 px-2 text-right whitespace-nowrap">{d}</th>
+                  ))}
+                  <th className="py-2 pl-4 text-center">Тренд</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.param} className="border-b last:border-0">
+                    <td className="py-2 pr-4 font-medium">{row.param}</td>
+                    {dateKeys.map((k) => (
+                      <td key={k} className="py-2 px-2 text-right font-mono">
+                        {row.byDate[k] ?? "—"}
+                      </td>
+                    ))}
+                    <td className="py-2 pl-4 text-center">
+                      <Sparkline values={row.numericSeries} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 export default function PhysicianResultsTab({ hospitalizationId, patientId, hospitalId }: Props) {
   const [search, setSearch] = useState("");
+  const [checkedParams, setCheckedParams] = useState<Set<string>>(new Set());
+  const [dynamicsOpen, setDynamicsOpen] = useState(false);
+
+  const toggleParam = (name: string) =>
+    setCheckedParams((prev) => {
+      const next = new Set(prev);
+      next.has(name) ? next.delete(name) : next.add(name);
+      return next;
+    });
 
   const { data: samples = [] } = useQuery({
     queryKey: ["physician-lab-results", patientId, hospitalId],
@@ -136,9 +280,10 @@ export default function PhysicianResultsTab({ hospitalizationId, patientId, hosp
     );
   const currentMatches = matchCount(current);
   const historyMatches = matchCount(history);
+  const allChecked = checkedParams.size === 0;
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1.5 lab-results-print-area">
       <div className="flex items-center gap-2 print:hidden">
         <Input
           placeholder="Поиск по названию показателя..."
@@ -146,11 +291,19 @@ export default function PhysicianResultsTab({ hospitalizationId, patientId, hosp
           onChange={(e) => setSearch(e.target.value)}
           className="h-8 text-sm"
         />
+        {checkedParams.size > 0 && (
+          <Button variant="outline" size="sm" onClick={() => setDynamicsOpen(true)} className="shrink-0">
+            <LineChartIcon className="mr-1.5 h-4 w-4" />
+            Динамика ({checkedParams.size})
+          </Button>
+        )}
         <Button variant="outline" size="sm" onClick={() => window.print()} className="shrink-0">
           <Printer className="mr-1.5 h-4 w-4" />
           Печать
         </Button>
       </div>
+      <div className="print:hidden" />
+
       {current.length === 0 && history.length === 0 ? (
         <p className="text-sm text-muted-foreground">Пока нет результатов.</p>
       ) : currentMatches === 0 && historyMatches === 0 ? (
@@ -161,7 +314,14 @@ export default function PhysicianResultsTab({ hospitalizationId, patientId, hosp
             <div>
               <ParamTableHeader />
               {current.map((s: any) => (
-                <SampleGroup key={s.id} sample={s} search={search} />
+                <SampleGroup
+                  key={s.id}
+                  sample={s}
+                  search={search}
+                  checkedParams={checkedParams}
+                  toggleParam={toggleParam}
+                  allChecked={allChecked}
+                />
               ))}
             </div>
           )}
@@ -169,7 +329,7 @@ export default function PhysicianResultsTab({ hospitalizationId, patientId, hosp
             <div className="pt-1.5">
               <button
                 onClick={() => setShowHistory((v) => !v)}
-                className="text-sm text-blue-600 hover:underline"
+                className="text-sm text-blue-600 hover:underline print:hidden"
               >
                 {showHistory ? "Скрыть историю" : `Показать историю (${history.length})`}
               </button>
@@ -177,7 +337,15 @@ export default function PhysicianResultsTab({ hospitalizationId, patientId, hosp
                 <div className="mt-1.5">
                   <ParamTableHeader />
                   {history.map((s: any) => (
-                    <SampleGroup key={s.id} sample={s} search={search} isHistory />
+                    <SampleGroup
+                      key={s.id}
+                      sample={s}
+                      search={search}
+                      isHistory
+                      checkedParams={checkedParams}
+                      toggleParam={toggleParam}
+                      allChecked={allChecked}
+                    />
                   ))}
                 </div>
               )}
@@ -185,6 +353,13 @@ export default function PhysicianResultsTab({ hospitalizationId, patientId, hosp
           )}
         </>
       )}
+
+      <DynamicsDialog
+        open={dynamicsOpen}
+        onOpenChange={setDynamicsOpen}
+        samples={samples}
+        checkedParams={checkedParams}
+      />
     </div>
   );
 }
