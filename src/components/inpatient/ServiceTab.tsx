@@ -31,7 +31,7 @@ export default function ServiceTab({
   const [submitting, setSubmitting] = useState(false);
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const [searchText, setSearchText] = useState("");
-  const [showResults, setShowResults] = useState(false);
+  const [showResults, setShowResults] = useState(true);
   const [draft, setDraft] = useState<{ id: string; name: string }[]>([]);
   const [orderErrors, setOrderErrors] = useState<{ name: string; message: string }[]>([]);
 
@@ -276,28 +276,30 @@ export default function ServiceTab({
             />
           )}
           {typeCode === "laboratory" ? (
-            <div className="max-h-72 overflow-y-auto border rounded bg-background divide-y">
+            <div className="max-h-72 overflow-y-auto border rounded bg-background p-1">
               {filteredCatalog.length === 0 ? (
                 <div className="p-3 text-sm text-muted-foreground">Ничего не найдено</div>
               ) : (
-                filteredCatalog.map((s: any) => {
-                  const checked = draft.some((d) => d.id === s.id);
-                  return (
-                    <label
-                      key={s.id}
-                      className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-muted/50"
-                    >
-                      <Checkbox
-                        checked={checked}
-                        onCheckedChange={() => toggleDraft({ id: s.id, name: s.name })}
-                      />
-                      <span className="flex-1">{s.name}</span>
-                      {s.code && (
-                        <span className="text-xs text-muted-foreground">{s.code}</span>
-                      )}
-                    </label>
-                  );
-                })
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-0.5">
+                  {filteredCatalog.map((s: any) => {
+                    const checked = draft.some((d) => d.id === s.id);
+                    return (
+                      <label
+                        key={s.id}
+                        className="flex items-center gap-2 px-2 py-1.5 text-sm cursor-pointer hover:bg-muted/50 rounded"
+                      >
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={() => toggleDraft({ id: s.id, name: s.name })}
+                        />
+                        <span className="flex-1 truncate">{s.name}</span>
+                        {s.code && (
+                          <span className="text-xs text-muted-foreground shrink-0">{s.code}</span>
+                        )}
+                      </label>
+                    );
+                  })}
+                </div>
               )}
             </div>
           ) : (
