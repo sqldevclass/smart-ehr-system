@@ -49,8 +49,7 @@ function resolveOrderedBy(sample: any, r: any): string {
   const link = (sample?.lab_sample_services || []).find(
     (l: any) => l.visit_services?.services?.id === serviceId,
   );
-  const person = link?.visit_services?.staff_roles?.persons;
-  return person ? `${person.last_name ?? ""} ${person.first_name ?? ""}`.trim() : "";
+  return link?.visit_services?.profiles?.full_name || "";
 }
 
 // Every completed sample is its own group -- labeled by which
@@ -99,9 +98,9 @@ export default function PhysicianResultsTab({ hospitalizationId, patientId, hosp
           lab_sample_services(
             visit_service_id,
             visit_services!inner(
-              id, hospitalization_id,
+              id, hospitalization_id, created_by,
               services!inner(id, name),
-              staff_roles!assigned_staff_role_id(persons(first_name, last_name))
+              profiles!created_by(full_name)
             )
           ),
           lab_results(id, parameter_name, value, unit, ref_min, ref_max, flag, parameter_template_id, lab_parameter_templates(service_id))
