@@ -33,10 +33,10 @@ function ParamTableHeader() {
 }
 
 function ParamTableRow({
-  r, dateStr, orderedBy, checked, onToggle, printEligible,
+  r, dateStr, orderedBy, checked, onToggle, printEligible, hideCheckbox,
 }: {
   r: any; dateStr: string; orderedBy: string;
-  checked: boolean; onToggle: () => void; printEligible: boolean;
+  checked: boolean; onToggle: () => void; printEligible: boolean; hideCheckbox?: boolean;
 }) {
   const norm = r.ref_min != null || r.ref_max != null
     ? `${r.ref_min ?? ""}${r.ref_min != null && r.ref_max != null ? "–" : ""}${r.ref_max ?? ""}`
@@ -49,13 +49,15 @@ function ParamTableRow({
       )}
     >
       <div className="flex items-center gap-2 min-w-0">
-        <Checkbox
-          checked={checked}
-          onCheckedChange={onToggle}
-          className="print:hidden"
-          aria-label={`Выбрать ${r.parameter_name}`}
-        />
-        <span className="truncate text-slate-600">{r.parameter_name}</span>
+        {!hideCheckbox && (
+          <Checkbox
+            checked={checked}
+            onCheckedChange={onToggle}
+            className="print:hidden"
+            aria-label={`Выбрать ${r.parameter_name}`}
+          />
+        )}
+        <span className={cn("truncate text-slate-600", hideCheckbox && "pl-6")}>{r.parameter_name}</span>
       </div>
       <div className="flex items-center gap-1">
         <span className="font-mono">{r.value}</span>
@@ -78,10 +80,11 @@ function resolveOrderedBy(sample: any, r: any): string {
 }
 
 function SampleGroup({
-  sample, search, isHistory, checkedParams, toggleParam, allChecked,
+  sample, search, isHistory, checkedParams, toggleParam, toggleGroup, allChecked,
 }: {
   sample: any; search: string; isHistory?: boolean;
-  checkedParams: Set<string>; toggleParam: (name: string) => void; allChecked: boolean;
+  checkedParams: Set<string>; toggleParam: (name: string) => void;
+  toggleGroup: (names: string[], currentlyAllChecked: boolean) => void; allChecked: boolean;
 }) {
   const q = search.trim().toLowerCase();
   const allResults = sample?.lab_results || [];
@@ -93,10 +96,24 @@ function SampleGroup({
   const label = services.map((s: any) => s.services?.name).filter(Boolean).join(" + ") || "Результат";
   const isAmbulatory = services[0]?.hospitalization_id === null;
 
+  // ОАК is one panel with a fixed set of sub-parameters -- select
+  // the whole thing as a unit, not each parameter individually.
+  const isOak = services.length === 1 && services[0]?.services?.name === "ОАК";
+  const oakParamNames = isOak ? results.map((r: any) => r.parameter_name) : [];
+  const oakChecked = isOak && oakParamNames.length > 0 && oakParamNames.every((n: string) => checkedParams.has(n));
+
   return (
     <div className={isHistory ? "opacity-80" : undefined}>
       <div className="flex items-center justify-between gap-2 border-b bg-muted/40 px-2 py-1">
         <div className="flex min-w-0 items-center gap-2">
+          {isOak && (
+            <Checkbox
+              checked={oakChecked}
+              onCheckedChange={() => toggleGroup(oakParamNames, oakChecked)}
+              className="print:hidden"
+              aria-label="Выбрать ОАК"
+            />
+          )}
           <span className="truncate text-sm font-medium">{label}</span>
           {isAmbulatory && (
             <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800">Амб.</span>
@@ -115,6 +132,7 @@ function SampleGroup({
             checked={checked}
             onToggle={() => toggleParam(r.parameter_name)}
             printEligible={allChecked || checked}
+            hideCheckbox={isOak}
           />
         );
       })}
@@ -234,6 +252,13 @@ export default function PhysicianResultsTab({ hospitalizationId, patientId, hosp
       return next;
     });
 
+  const toggleGroup = (names: string[], currentlyAllChecked: boolean) =>
+    setCheckedParams((prev) => {
+      const next = new Set(prev);
+      names.forEach((n) => (currentlyAllChecked ? next.delete(n) : next.add(n)));
+      return next;
+    });
+
   const { data: samples = [] } = useQuery({
     queryKey: ["physician-lab-results", patientId, hospitalId],
     queryFn: async () => {
@@ -282,9 +307,24 @@ export default function PhysicianResultsTab({ hospitalizationId, patientId, hosp
   const historyMatches = matchCount(history);
   const allChecked = checkedParams.size === 0;
 
+  const visibleParamNames = new Set<string>();
+  [...current, ...history].forEach((s: any) => {
+    (s.lab_results || []).forEach((r: any) => {
+      if (!q || r.parameter_name?.toLowerCase().includes(q)) visibleParamNames.add(r.parameter_name);
+    });
+  });
+  const allVisibleSelected = visibleParamNames.size > 0 &&
+    Array.from(visibleParamNames).every((n) => checkedParams.has(n));
+  const toggleSelectAll = () =>
+    setCheckedParams(allVisibleSelected ? new Set() : new Set(visibleParamNames));
+
   return (
     <div className="space-y-1.5 lab-results-print-area">
       <div className="flex items-center gap-2 print:hidden">
+        <label className="flex items-center gap-1.5 text-sm text-muted-foreground shrink-0 cursor-pointer">
+          <Checkbox checked={allVisibleSelected} onCheckedChange={toggleSelectAll} />
+          Выбрать все
+        </label>
         <Input
           placeholder="Поиск по названию показателя..."
           value={search}
@@ -320,6 +360,7 @@ export default function PhysicianResultsTab({ hospitalizationId, patientId, hosp
                   search={search}
                   checkedParams={checkedParams}
                   toggleParam={toggleParam}
+                  toggleGroup={toggleGroup}
                   allChecked={allChecked}
                 />
               ))}
@@ -344,6 +385,7 @@ export default function PhysicianResultsTab({ hospitalizationId, patientId, hosp
                       isHistory
                       checkedParams={checkedParams}
                       toggleParam={toggleParam}
+                      toggleGroup={toggleGroup}
                       allChecked={allChecked}
                     />
                   ))}
