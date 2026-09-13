@@ -14,7 +14,7 @@ interface Props {
 
 function ParamTableHeader() {
   return (
-    <div className="grid grid-cols-[1fr_90px_60px_110px_120px_90px] items-center py-1 text-[11px] font-medium text-muted-foreground border-b gap-1">
+    <div className="grid grid-cols-[1fr_90px_60px_110px_120px_90px] items-center gap-1 border-b py-1 text-[11px] font-medium text-muted-foreground">
       <span>Название</span>
       <span>Результат</span>
       <span>Ед.</span>
@@ -30,29 +30,16 @@ function ParamTableRow({ r, dateStr, orderedBy }: { r: any; dateStr: string; ord
     ? `${r.ref_min ?? ""}${r.ref_min != null && r.ref_max != null ? "–" : ""}${r.ref_max ?? ""}`
     : "—";
   return (
-    <div className="grid grid-cols-[1fr_90px_60px_110px_120px_90px] items-center py-1 text-sm border-b last:border-0 gap-1">
-      <span className="text-slate-600 truncate">{r.parameter_name}</span>
+    <div className="grid grid-cols-[1fr_90px_60px_110px_120px_90px] items-center gap-1 border-b py-1 text-sm last:border-0">
+      <span className="truncate text-slate-600">{r.parameter_name}</span>
       <div className="flex items-center gap-1">
         <span className="font-mono">{r.value}</span>
         {r.flag && r.flag !== "normal" && r.flag !== "pending" && <FlagBadge flag={r.flag} />}
       </div>
       <span className="text-xs text-muted-foreground">{r.unit || "—"}</span>
       <span className="text-xs text-muted-foreground">{norm}</span>
-      <span className="text-xs text-muted-foreground truncate">{orderedBy || "—"}</span>
+      <span className="truncate text-xs text-muted-foreground">{orderedBy || "—"}</span>
       <span className="text-xs text-muted-foreground">{dateStr}</span>
-    </div>
-  );
-}
-
-function ParamRow({ r, orderedBy }: { r: any; orderedBy: string }) {
-  return (
-    <div className="flex items-center justify-between py-0.5 text-xs border-b last:border-0">
-      <span className="text-muted-foreground">{r.parameter_name}</span>
-      <div className="flex items-center gap-2">
-        <span className="font-mono">{r.value} {r.unit || ""}</span>
-        {r.flag && r.flag !== "normal" && r.flag !== "pending" && <FlagBadge flag={r.flag} />}
-        <span className="text-muted-foreground/70 w-24 truncate text-right">{orderedBy || ""}</span>
-      </div>
     </div>
   );
 }
@@ -66,60 +53,37 @@ function resolveOrderedBy(sample: any, r: any): string {
   return person ? `${person.last_name ?? ""} ${person.first_name ?? ""}`.trim() : "";
 }
 
-function PhysicianResultCard({ sample, isHistory }: { sample: any; isHistory?: boolean }) {
-  const results = sample?.lab_results || [];
-  const dateStr = sample?.completed_at ? format(new Date(sample.completed_at), "dd.MM.yyyy HH:mm") : "";
-  const [expanded, setExpanded] = useState(false);
+// Every completed sample is its own group -- labeled by which
+// test(s) it covers and when, with all its result rows underneath
+// using the same columns as everywhere else. No more special-casing
+// single-result vs. multi-result samples into two different layouts.
+function SampleGroup({ sample, search, isHistory }: { sample: any; search: string; isHistory?: boolean }) {
+  const q = search.trim().toLowerCase();
+  const allResults = sample?.lab_results || [];
+  const results = q ? allResults.filter((r: any) => r.parameter_name?.toLowerCase().includes(q)) : allResults;
+  if (results.length === 0) return null;
 
+  const dateStr = sample?.completed_at ? format(new Date(sample.completed_at), "dd.MM.yyyy HH:mm") : "";
   const services = uniqueServices(sample);
-  const hospId = services[0]?.hospitalization_id;
-  const visible = expanded ? results : results.slice(0, 3);
+  const label = services.map((s: any) => s.services?.name).filter(Boolean).join(" + ") || "Результат";
+  const isAmbulatory = services[0]?.hospitalization_id === null;
 
   return (
-    <div className={`border rounded p-2 space-y-1 ${isHistory ? "opacity-80" : ""}`}>
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="font-medium text-sm truncate">{services[0]?.services?.name}</span>
-          {hospId === null && (
-            <span className="text-[10px] rounded bg-amber-100 text-amber-800 px-1.5 py-0.5">Амб.</span>
+    <div className={isHistory ? "opacity-80" : undefined}>
+      <div className="flex items-center justify-between gap-2 border-b bg-muted/40 px-2 py-1">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="truncate text-sm font-medium">{label}</span>
+          {isAmbulatory && (
+            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800">Амб.</span>
           )}
         </div>
-        <span className="text-xs text-muted-foreground whitespace-nowrap">{dateStr}</span>
+        <span className="whitespace-nowrap text-xs text-muted-foreground">{dateStr}</span>
       </div>
-      <div>
-        {visible.map((r: any) => (
-          <ParamRow key={r.id} r={r} orderedBy={resolveOrderedBy(sample, r)} />
-        ))}
-      </div>
-      {results.length > 3 && (
-        <button onClick={() => setExpanded((v) => !v)} className="text-xs text-blue-600 hover:underline">
-          {expanded ? "Свернуть" : `Показать все (${results.length})`}
-        </button>
-      )}
+      {results.map((r: any) => (
+        <ParamTableRow key={r.id} r={r} dateStr={dateStr} orderedBy={resolveOrderedBy(sample, r)} />
+      ))}
     </div>
   );
-}
-
-function partitionSamples(list: any[], search: string) {
-  const q = search.trim().toLowerCase();
-  const flatRows: { key: string; r: any; dateStr: string; orderedBy: string }[] = [];
-  const boxed: any[] = [];
-  for (const s of list) {
-    const allResults = s?.lab_results || [];
-    const results = q ? allResults.filter((r: any) => r.parameter_name?.toLowerCase().includes(q)) : allResults;
-    if (results.length === 0) continue;
-    const services = uniqueServices(s);
-    const isCombo = services.length > 1;
-    const dateStr = s?.completed_at ? format(new Date(s.completed_at), "dd.MM.yyyy HH:mm") : "";
-    if (isCombo || allResults.length <= 1 || q) {
-      results.forEach((r: any) => {
-        flatRows.push({ key: `${s.id}-${r.id}`, r, dateStr, orderedBy: resolveOrderedBy(s, r) });
-      });
-    } else {
-      boxed.push(s);
-    }
-  }
-  return { flatRows, boxed };
 }
 
 export default function PhysicianResultsTab({ hospitalizationId, patientId, hospitalId }: Props) {
@@ -161,8 +125,16 @@ export default function PhysicianResultsTab({ hospitalizationId, patientId, hosp
 
   const [showHistory, setShowHistory] = useState(false);
 
-  const { flatRows: currentFlat, boxed: currentBoxed } = partitionSamples(current, search);
-  const { flatRows: historyFlat, boxed: historyBoxed } = partitionSamples(history, search);
+  const q = search.trim().toLowerCase();
+  const matchCount = (list: any[]) =>
+    list.reduce(
+      (sum, s) => sum + (s.lab_results || []).filter(
+        (r: any) => !q || r.parameter_name?.toLowerCase().includes(q),
+      ).length,
+      0,
+    );
+  const currentMatches = matchCount(current);
+  const historyMatches = matchCount(history);
 
   return (
     <div className="space-y-1.5">
@@ -174,40 +146,31 @@ export default function PhysicianResultsTab({ hospitalizationId, patientId, hosp
       />
       {current.length === 0 && history.length === 0 ? (
         <p className="text-sm text-muted-foreground">Пока нет результатов.</p>
-      ) : currentFlat.length === 0 && currentBoxed.length === 0 && historyFlat.length === 0 && historyBoxed.length === 0 ? (
+      ) : currentMatches === 0 && historyMatches === 0 ? (
         <p className="text-sm text-muted-foreground">Ничего не найдено.</p>
       ) : (
         <>
-          <div className="space-y-1.5">
-            {currentFlat.length > 0 && (
-              <div>
-                <ParamTableHeader />
-                {currentFlat.map(({ key, r, dateStr, orderedBy }) => (
-                  <ParamTableRow key={key} r={r} dateStr={dateStr} orderedBy={orderedBy} />
-                ))}
-              </div>
-            )}
-            {currentBoxed.map((s: any) => (
-              <PhysicianResultCard key={s.id} sample={s} />
-            ))}
-          </div>
+          {currentMatches > 0 && (
+            <div>
+              <ParamTableHeader />
+              {current.map((s: any) => (
+                <SampleGroup key={s.id} sample={s} search={search} />
+              ))}
+            </div>
+          )}
           {history.length > 0 && (
             <div className="pt-1.5">
-              <button onClick={() => setShowHistory((v) => !v)} className="text-sm text-blue-600 hover:underline">
+              <button
+                onClick={() => setShowHistory((v) => !v)}
+                className="text-sm text-blue-600 hover:underline"
+              >
                 {showHistory ? "Скрыть историю" : `Показать историю (${history.length})`}
               </button>
-              {showHistory && (
-                <div className="mt-1.5 space-y-1.5">
-                  {historyFlat.length > 0 && (
-                    <div className="opacity-80">
-                      <ParamTableHeader />
-                      {historyFlat.map(({ key, r, dateStr, orderedBy }) => (
-                        <ParamTableRow key={key} r={r} dateStr={dateStr} orderedBy={orderedBy} />
-                      ))}
-                    </div>
-                  )}
-                  {historyBoxed.map((s: any) => (
-                    <PhysicianResultCard key={s.id} sample={s} isHistory />
+              {showHistory && historyMatches > 0 && (
+                <div className="mt-1.5">
+                  <ParamTableHeader />
+                  {history.map((s: any) => (
+                    <SampleGroup key={s.id} sample={s} search={search} isHistory />
                   ))}
                 </div>
               )}
