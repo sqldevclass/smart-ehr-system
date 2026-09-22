@@ -60,12 +60,16 @@ function ServiceColumn({
   hospitalizationId,
   patientId,
   hospitalId,
+  checkedLabParams,
+  onToggleLabParam,
 }: {
   title: string;
   typeCode: "laboratory" | "consultation" | "instrumental";
   hospitalizationId: string;
   patientId: string;
   hospitalId: string;
+  checkedLabParams?: Set<string>;
+  onToggleLabParam?: (name: string) => void;
 }) {
   const queryClient = useQueryClient();
   const { getHospitalizationStatus: getLabAlertStatus } = useLabOrderAlerts(hospitalId);
@@ -286,7 +290,12 @@ function ServiceColumn({
               {typeCode === "laboratory" && currentSamples.length > 0 && (
                 <div className="space-y-1.5">
                   {currentSamples.map((s: any) => (
-                    <LabResultCard key={s.id} sample={s} />
+                    <LabResultCard
+                      key={s.id}
+                      sample={s}
+                      checkedParams={checkedLabParams}
+                      onToggleParam={onToggleLabParam}
+                    />
                   ))}
                 </div>
               )}
@@ -299,7 +308,13 @@ function ServiceColumn({
             {typeCode === "laboratory" && historySamples.length > 0 && (
               <div className="space-y-1.5">
                 {historySamples.map((s: any) => (
-                  <LabResultCard key={s.id} sample={s} isHistory />
+                  <LabResultCard
+                    key={s.id}
+                    sample={s}
+                    isHistory
+                    checkedParams={checkedLabParams}
+                    onToggleParam={onToggleLabParam}
+                  />
                 ))}
               </div>
             )}
@@ -543,6 +558,14 @@ export default function TreatmentCarePlanModal({
   room,
   onClose,
 }: Props) {
+  const [checkedLabParams, setCheckedLabParams] = useState<Set<string>>(new Set());
+  const toggleLabParam = (name: string) =>
+    setCheckedLabParams((prev) => {
+      const next = new Set(prev);
+      next.has(name) ? next.delete(name) : next.add(name);
+      return next;
+    });
+
   const handlePrintOrders = async () => {
     const { data, error } = await supabase
       .from("visit_services")
@@ -566,6 +589,28 @@ export default function TreatmentCarePlanModal({
       ),
     );
 
+    // If any lab result parameters are checked, pull their actual values too.
+    const checkedResults: any[] = [];
+    if (checkedLabParams.size > 0) {
+      const { data: labData, error: labError } = await supabase
+        .from("lab_samples")
+        .select("completed_at, lab_results(parameter_name, value, unit, ref_min, ref_max)")
+        .eq("hospital_id", hospitalId)
+        .eq("patient_id", patientId)
+        .eq("status", "completed");
+      if (labError) {
+        toast.error(labError.message);
+        return;
+      }
+      (labData || []).forEach((sample: any) => {
+        (sample.lab_results || []).forEach((r: any) => {
+          if (checkedLabParams.has(r.parameter_name)) {
+            checkedResults.push({ ...r, completed_at: sample.completed_at });
+          }
+        });
+      });
+    }
+
     const printWindow = window.open("", "_blank", "width=800,height=900");
     if (!printWindow) return;
 
@@ -581,6 +626,24 @@ export default function TreatmentCarePlanModal({
       )
       .join("");
 
+    const resultsRowsHtml = checkedResults
+      .map((r: any) => {
+        const norm =
+          r.ref_min != null || r.ref_max != null
+            ? `${r.ref_min ?? ""}${r.ref_min != null && r.ref_max != null ? "–" : ""}${r.ref_max ?? ""}`
+            : "—";
+        return `
+          <tr>
+            <td>${r.parameter_name ?? "—"}</td>
+            <td>${r.value ?? "—"}</td>
+            <td>${r.unit ?? "—"}</td>
+            <td>${norm}</td>
+            <td>${r.completed_at ? format(new Date(r.completed_at), "dd.MM.yyyy HH:mm") : "—"}</td>
+          </tr>
+        `;
+      })
+      .join("");
+
     const patientName = `${patient?.last_name ?? ""} ${patient?.first_name ?? ""}`.trim();
     const dobStr = patient?.date_of_birth
       ? format(new Date(patient.date_of_birth), "dd.MM.yyyy")
@@ -593,6 +656,7 @@ export default function TreatmentCarePlanModal({
           <style>
             body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 24px; color: #111; }
             h1 { font-size: 18px; margin: 0 0 8px; }
+            h2 { font-size: 15px; margin: 24px 0 8px; }
             .meta { font-size: 13px; color: #555; margin-bottom: 16px; }
             table { width: 100%; border-collapse: collapse; font-size: 13px; }
             th, td { border: 1px solid #ccc; padding: 8px; text-align: left; vertical-align: top; }
@@ -620,6 +684,23 @@ export default function TreatmentCarePlanModal({
               </tbody>
             </table>
           `}
+          ${checkedResults.length > 0 ? `
+            <h2>Результаты выбранных анализов</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Показатель</th>
+                  <th>Результат</th>
+                  <th>Ед.</th>
+                  <th>Норма</th>
+                  <th>Дата</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${resultsRowsHtml}
+              </tbody>
+            </table>
+          ` : ""}
         </body>
       </html>
     `);
@@ -656,6 +737,8 @@ export default function TreatmentCarePlanModal({
                 hospitalizationId={hospitalizationId}
                 patientId={patientId}
                 hospitalId={hospitalId}
+                checkedLabParams={checkedLabParams}
+                onToggleLabParam={toggleLabParam}
               />
             </div>
             <div className="md:px-4 h-full min-h-0 flex flex-col">

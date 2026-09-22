@@ -1,5 +1,6 @@
 import { format } from "date-fns";
 import { FlagBadge } from "@/pages/lab/LabResultsPage";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export function linkedServices(sample: any) {
   return (sample?.lab_sample_services || [])
@@ -20,7 +21,15 @@ export function uniqueServices(sample: any) {
   return out;
 }
 
-function ParamList({ results }: { results: any[] }) {
+function ParamList({
+  results,
+  checkedParams,
+  onToggle,
+}: {
+  results: any[];
+  checkedParams?: Set<string>;
+  onToggle?: (name: string) => void;
+}) {
   return (
     <div className="divide-y">
       {results.map((r: any) => (
@@ -28,7 +37,17 @@ function ParamList({ results }: { results: any[] }) {
           key={r.id}
           className="flex items-center justify-between py-1 text-xs"
         >
-          <span className="text-muted-foreground">{r.parameter_name}</span>
+          <div className="flex items-center gap-2 min-w-0">
+            {onToggle && (
+              <Checkbox
+                checked={!!checkedParams?.has(r.parameter_name)}
+                onCheckedChange={() => onToggle(r.parameter_name)}
+              />
+            )}
+            <span className="text-muted-foreground truncate">
+              {r.parameter_name}
+            </span>
+          </div>
           <div className="flex items-center gap-2">
             <span className="font-mono">
               {r.value} {r.unit || ""}
@@ -44,9 +63,13 @@ function ParamList({ results }: { results: any[] }) {
 export function LabResultCard({
   sample,
   isHistory,
+  checkedParams,
+  onToggleParam,
 }: {
   sample: any;
   isHistory?: boolean;
+  checkedParams?: Set<string>;
+  onToggleParam?: (name: string) => void;
 }) {
   const services = uniqueServices(sample);
   const isCombo = services.length > 1;
@@ -75,7 +98,11 @@ export function LabResultCard({
             : ""}
         </span>
       </div>
-      <ParamList results={sample?.lab_results || []} />
+      <ParamList
+        results={sample?.lab_results || []}
+        checkedParams={checkedParams}
+        onToggle={onToggleParam}
+      />
     </div>
   );
 }
