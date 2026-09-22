@@ -684,6 +684,23 @@ export default function TreatmentCarePlanModal({
               </tbody>
             </table>
           `}
+          ${checkedResults.length > 0 ? `
+            <h2>Результаты выбранных анализов</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Показатель</th>
+                  <th>Результат</th>
+                  <th>Ед.</th>
+                  <th>Норма</th>
+                  <th>Дата</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${resultsRowsHtml}
+              </tbody>
+            </table>
+          ` : ""}
         </body>
       </html>
     `);
