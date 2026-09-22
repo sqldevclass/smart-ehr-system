@@ -737,6 +737,8 @@ export default function TreatmentCarePlanModal({
                 hospitalizationId={hospitalizationId}
                 patientId={patientId}
                 hospitalId={hospitalId}
+                checkedLabParams={checkedLabParams}
+                onToggleLabParam={toggleLabParam}
               />
             </div>
             <div className="md:px-4 h-full min-h-0 flex flex-col">
