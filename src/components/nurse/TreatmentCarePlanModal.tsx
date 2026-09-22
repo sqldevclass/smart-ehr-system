@@ -558,6 +558,14 @@ export default function TreatmentCarePlanModal({
   room,
   onClose,
 }: Props) {
+  const [checkedLabParams, setCheckedLabParams] = useState<Set<string>>(new Set());
+  const toggleLabParam = (name: string) =>
+    setCheckedLabParams((prev) => {
+      const next = new Set(prev);
+      next.has(name) ? next.delete(name) : next.add(name);
+      return next;
+    });
+
   const handlePrintOrders = async () => {
     const { data, error } = await supabase
       .from("visit_services")
