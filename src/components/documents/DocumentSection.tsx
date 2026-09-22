@@ -76,6 +76,25 @@ function renderField(
           </SelectContent>
         </Select>
       );
+    case "checkbox_note": {
+      const sepIdx = value.indexOf("::");
+      const isChecked = value.startsWith("1::") || value === "1";
+      const note = sepIdx >= 0 ? value.slice(sepIdx + 2) : "";
+      return (
+        <div className="flex items-center gap-2">
+          <Checkbox
+            checked={isChecked}
+            onCheckedChange={(c) => setVal(def.id, `${c ? "1" : "0"}::${note}`)}
+          />
+          <Input
+            value={note}
+            onChange={(e) => setVal(def.id, `${isChecked ? "1" : "0"}::${e.target.value}`)}
+            placeholder="Примечание..."
+            className="flex-1"
+          />
+        </div>
+      );
+    }
     case "multiselect": {
       const selected = value ? value.split(",").filter(Boolean) : [];
       const toggle = (v: string) => {
