@@ -290,7 +290,12 @@ function ServiceColumn({
               {typeCode === "laboratory" && currentSamples.length > 0 && (
                 <div className="space-y-1.5">
                   {currentSamples.map((s: any) => (
-                    <LabResultCard key={s.id} sample={s} />
+                    <LabResultCard
+                      key={s.id}
+                      sample={s}
+                      checkedParams={checkedLabParams}
+                      onToggleParam={onToggleLabParam}
+                    />
                   ))}
                 </div>
               )}
