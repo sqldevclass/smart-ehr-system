@@ -308,7 +308,13 @@ function ServiceColumn({
             {typeCode === "laboratory" && historySamples.length > 0 && (
               <div className="space-y-1.5">
                 {historySamples.map((s: any) => (
-                  <LabResultCard key={s.id} sample={s} isHistory />
+                  <LabResultCard
+                    key={s.id}
+                    sample={s}
+                    isHistory
+                    checkedParams={checkedLabParams}
+                    onToggleParam={onToggleLabParam}
+                  />
                 ))}
               </div>
             )}
