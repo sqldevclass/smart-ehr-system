@@ -656,6 +656,7 @@ export default function TreatmentCarePlanModal({
           <style>
             body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 24px; color: #111; }
             h1 { font-size: 18px; margin: 0 0 8px; }
+            h2 { font-size: 15px; margin: 24px 0 8px; }
             .meta { font-size: 13px; color: #555; margin-bottom: 16px; }
             table { width: 100%; border-collapse: collapse; font-size: 13px; }
             th, td { border: 1px solid #ccc; padding: 8px; text-align: left; vertical-align: top; }
