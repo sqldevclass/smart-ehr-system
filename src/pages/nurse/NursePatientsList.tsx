@@ -29,6 +29,13 @@ import AssessmentIndicator from "@/components/assessments/AssessmentIndicator";
 import { cn } from "@/lib/utils";
 import NurseInventoryModal from "@/components/medication/NurseInventoryModal";
 
+function formatDoctorInitials(persons: any): string {
+  if (!persons) return "—";
+  const first = persons.first_name ? `${persons.first_name[0]}.` : "";
+  const middle = persons.middle_name ? `${persons.middle_name[0]}.` : "";
+  return `${persons.last_name ?? ""} ${first}${middle}`.trim() || "—";
+}
+
 export default function NursePatientsList() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -96,7 +103,7 @@ export default function NursePatientsList() {
           department_id, primary_staff_role_id,
           departments!department_id(name),
           staff_roles!primary_staff_role_id(
-            persons!inner(first_name, last_name)),
+            persons!inner(first_name, last_name, middle_name)),
           patients!inner(
             id, first_name, last_name,
             patient_number, date_of_birth),
@@ -442,12 +449,10 @@ export default function NursePatientsList() {
                             </div>
                           </td>
                           <td className="px-3 py-2 text-xs">
-                            {ra ? `${ra.rooms?.name} / ${ra.bed_number}` : "—"}
+                            {ra ? ra.rooms?.name : "—"}
                           </td>
                           <td className="px-3 py-2 text-xs">
-                            {(h as any).staff_roles?.persons
-                              ? `${(h as any).staff_roles.persons.last_name} ${(h as any).staff_roles.persons.first_name}`
-                              : "—"}
+                            {formatDoctorInitials((h as any).staff_roles?.persons)}
                           </td>
                           <td className="px-3 py-2 text-center text-xs">
                             {v?.bp_systolic ? `${v.bp_systolic}/${v.bp_diastolic}` : "—"}
@@ -504,7 +509,7 @@ export default function NursePatientsList() {
                     <TableHead>Дата поступления</TableHead>
                     <TableHead>Отделение</TableHead>
                     <TableHead>ФИО / ДОБ</TableHead>
-                    <TableHead>№Палаты / Кровать</TableHead>
+                    <TableHead>№Палаты</TableHead>
                     <TableHead>Лечащий Врач</TableHead>
                     <TableHead>Оценки</TableHead>
                     <TableHead>Который день</TableHead>
@@ -560,12 +565,10 @@ export default function NursePatientsList() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          {hasRoom ? `${ra.rooms?.name} / ${ra.bed_number}` : "—"}
+                          {hasRoom ? ra.rooms?.name : "—"}
                         </TableCell>
                         <TableCell className="text-sm">
-                          {(h as any).staff_roles?.persons
-                            ? `${(h as any).staff_roles.persons.last_name} ${(h as any).staff_roles.persons.first_name}`
-                            : "—"}
+                          {formatDoctorInitials((h as any).staff_roles?.persons)}
                         </TableCell>
                         <TableCell>
                           {assessmentMap[h.id]?.pendingCount > 0 ? (

@@ -81,7 +81,7 @@ export default function InpatientPatientsList() {
     queryFn: async () => {
       const { data } = await supabase
         .from("staff_roles")
-        .select("id, persons!inner(first_name, last_name)")
+        .select("id, persons!inner(first_name, last_name, middle_name)")
         .in("id", physicianIds);
       return data || [];
     },
@@ -90,7 +90,10 @@ export default function InpatientPatientsList() {
 
   const physMap: Record<string, string> = {};
   for (const p of physicianNames as any[]) {
-    physMap[p.id] = `${p.persons?.last_name} ${p.persons?.first_name}` || "—";
+    const persons = p.persons;
+    const first = persons?.first_name ? `${persons.first_name[0]}.` : "";
+    const middle = persons?.middle_name ? `${persons.middle_name[0]}.` : "";
+    physMap[p.id] = `${persons?.last_name ?? ""} ${first}${middle}`.trim() || "—";
   }
 
   const { data: allPhysicians = [] } = useQuery({
@@ -257,7 +260,7 @@ export default function InpatientPatientsList() {
                         <div className="font-medium">{h.patients?.last_name} {h.patients?.first_name}</div>
                         <div className="text-xs text-muted-foreground">{h.patients?.patient_number}</div>
                       </td>
-                      <td className="px-3 py-2 text-xs">{ra ? `${ra.rooms?.name} / ${ra.bed_number}` : "—"}</td>
+                      <td className="px-3 py-2 text-xs">{ra ? ra.rooms?.name : "—"}</td>
                       <td className="px-3 py-2 text-xs">{physMap[h.primary_staff_role_id] ?? "—"}</td>
                       <td className="px-3 py-2 text-center text-xs">{v?.bp_systolic && v?.bp_diastolic ? `${v.bp_systolic}/${v.bp_diastolic}` : "—"}</td>
                       <td className="px-3 py-2 text-center text-xs">{v?.pulse ?? "—"}</td>
@@ -300,7 +303,7 @@ export default function InpatientPatientsList() {
                 <TableHead>Дата поступления</TableHead>
                 <TableHead>Отделение</TableHead>
                 <TableHead>ФИО / Дата рождения</TableHead>
-                <TableHead>№Палаты / Кровать</TableHead>
+                <TableHead>№Палаты</TableHead>
                 <TableHead>Лечащий Врач</TableHead>
                 <TableHead>Дней в стационаре</TableHead>
                 <TableHead>ШРПУ</TableHead>
@@ -324,7 +327,7 @@ export default function InpatientPatientsList() {
                         {p?.date_of_birth ? format(new Date(p.date_of_birth), "dd.MM.yyyy") : "—"}
                       </div>
                     </TableCell>
-                    <TableCell>{ra ? `${ra.rooms?.name} / ${ra.bed_number}` : "—"}</TableCell>
+                    <TableCell>{ra ? ra.rooms?.name : "—"}</TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Popover
                         open={openPopoverId === h.id}
