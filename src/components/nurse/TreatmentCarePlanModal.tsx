@@ -626,6 +626,24 @@ export default function TreatmentCarePlanModal({
       )
       .join("");
 
+    const resultsRowsHtml = checkedResults
+      .map((r: any) => {
+        const norm =
+          r.ref_min != null || r.ref_max != null
+            ? `${r.ref_min ?? ""}${r.ref_min != null && r.ref_max != null ? "–" : ""}${r.ref_max ?? ""}`
+            : "—";
+        return `
+          <tr>
+            <td>${r.parameter_name ?? "—"}</td>
+            <td>${r.value ?? "—"}</td>
+            <td>${r.unit ?? "—"}</td>
+            <td>${norm}</td>
+            <td>${r.completed_at ? format(new Date(r.completed_at), "dd.MM.yyyy HH:mm") : "—"}</td>
+          </tr>
+        `;
+      })
+      .join("");
+
     const patientName = `${patient?.last_name ?? ""} ${patient?.first_name ?? ""}`.trim();
     const dobStr = patient?.date_of_birth
       ? format(new Date(patient.date_of_birth), "dd.MM.yyyy")
