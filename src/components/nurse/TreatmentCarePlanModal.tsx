@@ -60,12 +60,16 @@ function ServiceColumn({
   hospitalizationId,
   patientId,
   hospitalId,
+  checkedLabParams,
+  onToggleLabParam,
 }: {
   title: string;
   typeCode: "laboratory" | "consultation" | "instrumental";
   hospitalizationId: string;
   patientId: string;
   hospitalId: string;
+  checkedLabParams?: Set<string>;
+  onToggleLabParam?: (name: string) => void;
 }) {
   const queryClient = useQueryClient();
   const { getHospitalizationStatus: getLabAlertStatus } = useLabOrderAlerts(hospitalId);
