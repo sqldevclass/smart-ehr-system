@@ -567,66 +567,31 @@ export default function TreatmentCarePlanModal({
     });
 
   const handlePrintOrders = async () => {
-    const { data, error } = await supabase
-      .from("visit_services")
-      .select(`
-        id, completed_at, created_at,
-        service_statuses!inner(code, name_ru),
-        services!inner(name, service_types!inner(code))
-      `)
+    const { data: labData, error: labError } = await supabase
+      .from("lab_samples")
+      .select("completed_at, lab_results(parameter_name, value, unit, ref_min, ref_max)")
       .eq("hospital_id", hospitalId)
       .eq("patient_id", patientId)
-      .in("service_statuses.code", ["ready_for_execution", "completed"]);
+      .eq("status", "completed");
 
-    if (error) {
-      toast.error(error.message);
+    if (labError) {
+      toast.error(labError.message);
       return;
     }
 
-    const relevant = (data || []).filter((r: any) =>
-      ["laboratory", "instrumental", "consultation"].includes(
-        r.services?.service_types?.code,
-      ),
-    );
-
-    // If any lab result parameters are checked, pull their actual values too.
-    const checkedResults: any[] = [];
-    if (checkedLabParams.size > 0) {
-      const { data: labData, error: labError } = await supabase
-        .from("lab_samples")
-        .select("completed_at, lab_results(parameter_name, value, unit, ref_min, ref_max)")
-        .eq("hospital_id", hospitalId)
-        .eq("patient_id", patientId)
-        .eq("status", "completed");
-      if (labError) {
-        toast.error(labError.message);
-        return;
-      }
-      (labData || []).forEach((sample: any) => {
-        (sample.lab_results || []).forEach((r: any) => {
-          if (checkedLabParams.has(r.parameter_name)) {
-            checkedResults.push({ ...r, completed_at: sample.completed_at });
-          }
-        });
+    const results: any[] = [];
+    (labData || []).forEach((sample: any) => {
+      (sample.lab_results || []).forEach((r: any) => {
+        if (checkedLabParams.size === 0 || checkedLabParams.has(r.parameter_name)) {
+          results.push({ ...r, completed_at: sample.completed_at });
+        }
       });
-    }
+    });
 
     const printWindow = window.open("", "_blank", "width=800,height=900");
     if (!printWindow) return;
 
-    const rowsHtml = relevant
-      .map(
-        (r: any) => `
-          <tr>
-            <td>${r.services?.name ?? "—"}</td>
-            <td>${r.service_statuses?.name_ru ?? "—"}</td>
-            <td>${r.completed_at ? format(new Date(r.completed_at), "dd.MM.yyyy HH:mm") : "—"}</td>
-          </tr>
-        `,
-      )
-      .join("");
-
-    const resultsRowsHtml = checkedResults
+    const resultsRowsHtml = results
       .map((r: any) => {
         const norm =
           r.ref_min != null || r.ref_max != null
@@ -652,11 +617,10 @@ export default function TreatmentCarePlanModal({
     printWindow.document.write(`
       <html>
         <head>
-          <title>Назначения — ${patientName}</title>
+          <title>Результаты анализов — ${patientName}</title>
           <style>
             body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 24px; color: #111; }
             h1 { font-size: 18px; margin: 0 0 8px; }
-            h2 { font-size: 15px; margin: 24px 0 8px; }
             .meta { font-size: 13px; color: #555; margin-bottom: 16px; }
             table { width: 100%; border-collapse: collapse; font-size: 13px; }
             th, td { border: 1px solid #ccc; padding: 8px; text-align: left; vertical-align: top; }
@@ -665,27 +629,12 @@ export default function TreatmentCarePlanModal({
           </style>
         </head>
         <body>
-          <h1>Назначения — Лаборатория / Инструментальные / Консультации</h1>
+          <h1>Результаты анализов</h1>
           <div class="meta">
             <div>Пациент: ${patientName}</div>
             <div>Дата рождения: ${dobStr}</div>
           </div>
-          ${relevant.length === 0 ? '<p class="empty">Нет назначений для печати.</p>' : `
-            <table>
-              <thead>
-                <tr>
-                  <th>Назначение</th>
-                  <th>Статус</th>
-                  <th>Дата завершения</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${rowsHtml}
-              </tbody>
-            </table>
-          `}
-          ${checkedResults.length > 0 ? `
-            <h2>Результаты выбранных анализов</h2>
+          ${results.length === 0 ? '<p class="empty">Нет результатов для печати.</p>' : `
             <table>
               <thead>
                 <tr>
@@ -700,7 +649,7 @@ export default function TreatmentCarePlanModal({
                 ${resultsRowsHtml}
               </tbody>
             </table>
-          ` : ""}
+          `}
         </body>
       </html>
     `);
