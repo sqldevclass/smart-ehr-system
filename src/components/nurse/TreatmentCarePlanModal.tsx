@@ -589,6 +589,28 @@ export default function TreatmentCarePlanModal({
       ),
     );
 
+    // If any lab result parameters are checked, pull their actual values too.
+    const checkedResults: any[] = [];
+    if (checkedLabParams.size > 0) {
+      const { data: labData, error: labError } = await supabase
+        .from("lab_samples")
+        .select("completed_at, lab_results(parameter_name, value, unit, ref_min, ref_max)")
+        .eq("hospital_id", hospitalId)
+        .eq("patient_id", patientId)
+        .eq("status", "completed");
+      if (labError) {
+        toast.error(labError.message);
+        return;
+      }
+      (labData || []).forEach((sample: any) => {
+        (sample.lab_results || []).forEach((r: any) => {
+          if (checkedLabParams.has(r.parameter_name)) {
+            checkedResults.push({ ...r, completed_at: sample.completed_at });
+          }
+        });
+      });
+    }
+
     const printWindow = window.open("", "_blank", "width=800,height=900");
     if (!printWindow) return;
 
