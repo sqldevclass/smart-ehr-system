@@ -348,7 +348,9 @@ export default function NursePatientDetail() {
                   : undefined
               }
               onAllergyClick={(documentId, documentTypeId) => {
+                setShowPrescriptions(false);
                 setSelectedDoc({ id: documentId, typeId: documentTypeId });
+                setShowMedDocs(true);
               }}
               extra={
                 interactions.length > 0 ? (
