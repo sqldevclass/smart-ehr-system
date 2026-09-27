@@ -2,10 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem,
-} from "@/components/ui/dropdown-menu";
-import { ChevronDown } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 
 const roleTitles: Record<string, string> = {
@@ -118,27 +115,19 @@ export default function PhysicianProfile() {
         <p className="text-muted-foreground">
           Which department's patients to show by default in the inpatient view. Pick one or more.
         </p>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-1">
-              {user.defaultDepartmentIds.length > 0
-                ? `${user.defaultDepartmentIds.length} selected`
-                : "Select departments..."}
-              <ChevronDown className="h-3 w-3" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuCheckboxItem
+        <div className="space-y-1 max-h-56 overflow-y-auto rounded-md border p-2">
+          <label className="flex items-center gap-2 py-1 text-sm cursor-pointer">
+            <Checkbox
               checked={departments.length > 0 && user.defaultDepartmentIds.length === departments.length}
               onCheckedChange={(checked) =>
                 setDefaultDepartments(checked ? departments.map((d: any) => d.id) : [])
               }
-            >
-              All departments
-            </DropdownMenuCheckboxItem>
-            {departments.map((d: any) => (
-              <DropdownMenuCheckboxItem
-                key={d.id}
+            />
+            <span className="font-medium">All departments</span>
+          </label>
+          {departments.map((d: any) => (
+            <label key={d.id} className="flex items-center gap-2 py-1 text-sm cursor-pointer">
+              <Checkbox
                 checked={user.defaultDepartmentIds.includes(d.id)}
                 onCheckedChange={(checked) =>
                   setDefaultDepartments(
@@ -147,12 +136,11 @@ export default function PhysicianProfile() {
                       : user.defaultDepartmentIds.filter((id) => id !== d.id),
                   )
                 }
-              >
-                {d.name}
-              </DropdownMenuCheckboxItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+              />
+              <span>{d.name}</span>
+            </label>
+          ))}
+        </div>
       </div>
     </div>
   );
