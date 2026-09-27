@@ -11,6 +11,7 @@ export interface AuthUser {
   timezone: string;
   defaultRoleCode: string | null;
   defaultDashboardMode: string | null;
+  defaultDepartmentIds: string[];
 }
 
 interface AuthContextValue {
@@ -50,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name, hospital_id, default_role_code, default_dashboard_mode")
+        .select("full_name, hospital_id, default_role_code, default_dashboard_mode, default_department_ids")
         .eq("id", session.user.id)
         .single();
 
@@ -96,6 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         timezone: (settings as any)?.timezone || "Asia/Tashkent",
         defaultRoleCode: (profile as any).default_role_code ?? null,
         defaultDashboardMode: (profile as any).default_dashboard_mode ?? null,
+        defaultDepartmentIds: (profile as any).default_department_ids ?? [],
       };
 
       setUser(newUser);
