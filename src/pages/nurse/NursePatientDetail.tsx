@@ -99,7 +99,7 @@ export default function NursePatientDetail() {
             id, first_name, last_name, middle_name,
             patient_number, date_of_birth, gender,
             weight_kg, height_cm,
-            patient_allergies(allergy_type, severity)
+            patient_allergies(allergy_type, severity, description, patient_document_id, patient_documents!patient_document_id(document_type_id))
           ),
           room_assignments(
             bed_number, rooms!inner(name))
@@ -269,7 +269,27 @@ export default function NursePatientDetail() {
           <div className="flex items-center gap-1 text-xs text-red-700 font-semibold">
             <span>⚠</span>
             <span>АЛЛЕРГИЯ:</span>
-            <span>{allergies.map((a: any) => a.allergy_type).join(", ")}</span>
+            <span>
+              {allergies.map((a: any, i: number) => (
+                <span key={i}>
+                  {i > 0 && ", "}
+                  {a.patient_document_id ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedDoc({ id: a.patient_document_id, typeId: a.patient_documents?.document_type_id });
+                        setShowMedDocs(true);
+                      }}
+                      className="underline hover:opacity-80"
+                    >
+                      {a.description}
+                    </button>
+                  ) : (
+                    a.description
+                  )}
+                </span>
+              ))}
+            </span>
           </div>
         )}
         {isFallRisk && (
@@ -320,9 +340,16 @@ export default function NursePatientDetail() {
               room={ra ? `${ra.rooms?.name} / ${ra.bed_number}` : undefined}
               allergies={
                 allergies.length > 0
-                  ? allergies.map((a: any) => a.allergy_type)
+                  ? allergies.map((a: any) => ({
+                      description: a.description,
+                      patient_document_id: a.patient_document_id,
+                      document_type_id: a.patient_documents?.document_type_id,
+                    }))
                   : undefined
               }
+              onAllergyClick={(documentId, documentTypeId) => {
+                setSelectedDoc({ id: documentId, typeId: documentTypeId });
+              }}
               extra={
                 interactions.length > 0 ? (
                   <button
@@ -382,6 +409,8 @@ export default function NursePatientDetail() {
                 hospitalId={user!.hospitalId}
                 userId={user!.id}
                 isReadOnly={!isOwnDept}
+                openDocumentId={selectedDoc?.id}
+                openDocumentTypeId={selectedDoc?.typeId}
               />
             </div>
           </div>

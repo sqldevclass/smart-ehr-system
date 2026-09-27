@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import { format, differenceInYears } from "date-fns";
 
 interface Patient {
@@ -10,11 +10,18 @@ interface Patient {
   height_cm?: number | null;
 }
 
+interface AllergyEntry {
+  description: string;
+  patient_document_id?: string | null;
+  document_type_id?: string | null;
+}
+
 interface Props {
   title: string;
   patient: Patient | null | undefined;
   room?: string;
-  allergies?: string[];
+  allergies?: AllergyEntry[];
+  onAllergyClick?: (documentId: string, documentTypeId: string) => void;
   extra?: ReactNode;
   onClose: () => void;
 }
@@ -24,9 +31,13 @@ export default function PatientModalHeader({
   patient,
   room,
   allergies,
+  onAllergyClick,
   extra,
   onClose,
 }: Props) {
+  const [showAllAllergies, setShowAllAllergies] = useState(false);
+  const visibleAllergies = allergies ? (showAllAllergies ? allergies : allergies.slice(0, 2)) : [];
+  const extraAllergiesCount = (allergies?.length ?? 0) - visibleAllergies.length;
   return (
     <div className="flex items-start gap-4 p-4 border-b">
       <div className="flex-1">
@@ -63,7 +74,32 @@ export default function PatientModalHeader({
           )}
           {allergies && allergies.length > 0 && (
             <span className="text-red-700 font-semibold text-xs">
-              ⚠ АЛЛЕРГИЯ: {allergies.join(", ")}
+              ⚠ АЛЛЕРГИЯ:{" "}
+              {visibleAllergies.map((a, i) => (
+                <span key={i}>
+                  {i > 0 && ", "}
+                  {a.patient_document_id && a.document_type_id && onAllergyClick ? (
+                    <button
+                      type="button"
+                      onClick={() => onAllergyClick(a.patient_document_id!, a.document_type_id!)}
+                      className="underline hover:opacity-80"
+                    >
+                      {a.description}
+                    </button>
+                  ) : (
+                    a.description
+                  )}
+                </span>
+              ))}
+              {extraAllergiesCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllAllergies(true)}
+                  className="ml-1 underline"
+                >
+                  +{extraAllergiesCount} ещё
+                </button>
+              )}
             </span>
           )}
         </div>
