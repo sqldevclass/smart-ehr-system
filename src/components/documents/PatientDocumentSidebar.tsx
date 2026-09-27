@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Eye } from "lucide-react";
@@ -13,6 +13,8 @@ interface Props {
   hospitalId: string;
   userId: string;
   isReadOnly?: boolean;
+  openDocumentId?: string | null;
+  openDocumentTypeId?: string | null;
 }
 
 export default function PatientDocumentSidebar({
@@ -21,6 +23,8 @@ export default function PatientDocumentSidebar({
   hospitalId,
   userId,
   isReadOnly = false,
+  openDocumentId,
+  openDocumentTypeId,
 }: Props) {
   const queryClient = useQueryClient();
   const [activeDoc, setActiveDoc] = useState<{
@@ -30,6 +34,13 @@ export default function PatientDocumentSidebar({
     fullView?: boolean;
   } | null>(null);
   const [showCreatePicker, setShowCreatePicker] = useState(false);
+
+  useEffect(() => {
+    if (openDocumentId && openDocumentTypeId) {
+      setActiveDoc({ documentId: openDocumentId, documentTypeId: openDocumentTypeId });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openDocumentId, openDocumentTypeId]);
 
   const { data: thisDocs = [], refetch: refetchDocs } = useQuery({
     queryKey: ["patient-doc-sidebar-docs", hospitalizationId, hospitalId],
