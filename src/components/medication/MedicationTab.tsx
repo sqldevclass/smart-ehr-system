@@ -90,6 +90,7 @@ export default function MedicationTab({
   physicianId,
   isReadOnly,
   patientDateOfBirth,
+  patientAllergies = [],
 }: Props) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -402,6 +403,25 @@ export default function MedicationTab({
 
 
   const handleAddDrug = async (drug: any) => {
+    const allergyMatch = (patientAllergies as any[]).find((a: any) => {
+      if (a.allergy_type !== "drug") return false;
+      if (a.drug_id && drug.id && a.drug_id === drug.id) return true;
+      const desc = a.description?.toLowerCase() ?? "";
+      if (!desc) return false;
+      return (
+        (drug.inn && desc.includes(drug.inn.toLowerCase())) ||
+        (drug.trade_name && drug.trade_name.toLowerCase().includes(desc))
+      );
+    });
+    if (allergyMatch) {
+      toast.warning(
+        `У пациента зарегистрирована аллергия на ${allergyMatch.description}` +
+        (allergyMatch.severity ? ` (тяжесть: ${allergyMatch.severity})` : "") +
+        ". Проверьте перед назначением.",
+        { duration: 8000 },
+      );
+    }
+
     if (mixMode && formData.drug) {
       setFormData((prev) => ({
         ...prev,
