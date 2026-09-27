@@ -278,13 +278,3 @@ export default function AllergyTab({ patientId, hospitalId, isReadOnly, currentU
     </div>
   );
 }
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-CHANGE 2 — DocumentWorkspaceInner: render AllergyTab for the shared
-allergy section, same special-case pattern as diagnosis
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Find:
-import DiagnosisTab from "./DiagnosisTab";
-
-Change to:

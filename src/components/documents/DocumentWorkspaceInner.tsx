@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import DocumentPatientHeader from "./DocumentPatientHeader";
 import DocumentSection from "./DocumentSection";
 import DiagnosisTab from "./DiagnosisTab";
+import AllergyTab from "./AllergyTab";
 import AssignmentsSection from "./AssignmentsSection";
 import TemplatePanel from "./TemplatePanel";
 import HospRecommendationSection from "./HospRecommendationSection";
@@ -609,6 +610,13 @@ export default function DocumentWorkspaceInner({
                     isReadOnly={effectiveReadOnly}
                     currentUserId={user!.id}
                     onDiagnosisChange={recheckDiagnosis}
+                  />
+                ) : s.code === "allergy_assessment_nursing" ? (
+                  <AllergyTab
+                    patientId={patientId}
+                    hospitalId={hospitalId}
+                    isReadOnly={effectiveReadOnly}
+                    currentUserId={user!.id}
                   />
                 ) : (
                   <DocumentSection
