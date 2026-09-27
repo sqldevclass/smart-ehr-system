@@ -617,6 +617,7 @@ export default function DocumentWorkspaceInner({
                     hospitalId={hospitalId}
                     isReadOnly={effectiveReadOnly}
                     currentUserId={user!.id}
+                    documentId={documentId}
                   />
                 ) : (
                   <DocumentSection

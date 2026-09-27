@@ -16,6 +16,7 @@ interface Props {
   hospitalId: string;
   isReadOnly: boolean;
   currentUserId: string;
+  documentId?: string | null;
 }
 
 const typeOptions = [
@@ -48,7 +49,7 @@ const severityStyle: Record<string, string> = {
   life_threatening: "bg-red-100 text-red-900 border-red-300",
 };
 
-export default function AllergyTab({ patientId, hospitalId, isReadOnly, currentUserId }: Props) {
+export default function AllergyTab({ patientId, hospitalId, isReadOnly, currentUserId, documentId }: Props) {
   const qc = useQueryClient();
   const [showAddForm, setShowAddForm] = useState(false);
 
@@ -117,6 +118,7 @@ export default function AllergyTab({ patientId, hospitalId, isReadOnly, currentU
       severity,
       reaction: finalReaction,
       recorded_by: currentUserId,
+      patient_document_id: documentId ?? null,
     });
 
     if (error) {
