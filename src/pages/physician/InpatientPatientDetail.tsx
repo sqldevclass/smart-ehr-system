@@ -183,7 +183,7 @@ export default function InpatientPatientDetail() {
               id, first_name, last_name, middle_name,
               patient_number, date_of_birth, gender, phone,
               weight_kg, height_cm,
-              patient_allergies(allergy_type, severity)
+              patient_allergies(allergy_type, severity, drug_id, description)
             ),
             room_assignments(bed_number, rooms!inner(name))
           `)
@@ -199,7 +199,7 @@ export default function InpatientPatientDetail() {
           id, first_name, last_name, middle_name,
           patient_number, date_of_birth, gender, phone,
           weight_kg, height_cm,
-          patient_allergies(allergy_type, severity)
+          patient_allergies(allergy_type, severity, drug_id, description)
         `)
         .eq("id", routePatientId!)
         .single();
