@@ -183,7 +183,7 @@ export default function InpatientPatientDetail() {
               id, first_name, last_name, middle_name,
               patient_number, date_of_birth, gender, phone,
               weight_kg, height_cm,
-              patient_allergies(allergy_type, severity, drug_id, description)
+              patient_allergies(allergy_type, severity, drug_id, description, patient_document_id, patient_documents!patient_document_id(document_type_id))
             ),
             room_assignments(bed_number, rooms!inner(name))
           `)
@@ -199,7 +199,7 @@ export default function InpatientPatientDetail() {
           id, first_name, last_name, middle_name,
           patient_number, date_of_birth, gender, phone,
           weight_kg, height_cm,
-          patient_allergies(allergy_type, severity, drug_id, description)
+          patient_allergies(allergy_type, severity, drug_id, description, patient_document_id, patient_documents!patient_document_id(document_type_id))
         `)
         .eq("id", routePatientId!)
         .single();
@@ -338,6 +338,7 @@ export default function InpatientPatientDetail() {
       dt.code !== "consultation"
   );
 
+  const [showAllAllergies, setShowAllAllergies] = useState(false);
   if (isLoading) return <p className="text-muted-foreground">Loading…</p>;
   if (!hosp) return <p className="text-destructive">Hospitalization not found.</p>;
 
@@ -346,6 +347,44 @@ export default function InpatientPatientDetail() {
 
   const patient = (hosp as any).patients;
   const allergies = patient?.patient_allergies || [];
+  const visibleAllergies = showAllAllergies ? allergies : allergies.slice(0, 2);
+  const extraAllergiesCount = allergies.length - visibleAllergies.length;
+
+  const renderAllergyChips = () => (
+    <>
+      {visibleAllergies.map((a: any, i: number) => (
+        <span key={i}>
+          {i > 0 && ", "}
+          {a.patient_document_id ? (
+            <button
+              type="button"
+              onClick={() =>
+                setActiveView({
+                  type: "document",
+                  documentId: a.patient_document_id,
+                  documentTypeId: a.patient_documents?.document_type_id,
+                })
+              }
+              className="underline hover:opacity-80"
+            >
+              {a.description}
+            </button>
+          ) : (
+            a.description
+          )}
+        </span>
+      ))}
+      {extraAllergiesCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowAllAllergies(true)}
+          className="ml-1 underline"
+        >
+          +{extraAllergiesCount} ещё
+        </button>
+      )}
+    </>
+  );
   
 
   const closeView = () => {
@@ -515,7 +554,7 @@ export default function InpatientPatientDetail() {
         <div className="w-72 shrink-0 border-r flex flex-col">
           {allergies.length > 0 && (
             <div className="m-3 p-2 bg-red-50 border border-red-200 rounded text-red-700 font-semibold text-xs">
-              АЛЛЕРГИЯ: {allergies.map((a: any) => a.allergy_type).join(", ")}
+              АЛЛЕРГИЯ: {renderAllergyChips()}
             </div>
           )}
 
@@ -810,7 +849,7 @@ export default function InpatientPatientDetail() {
                 {allergies.length > 0 && (
                   <div className="text-xs font-semibold text-red-600 shrink-0">
                     ⚠ АЛЛЕРГИЯ:{" "}
-                    {allergies.map((a: any) => a.allergy_type).join(", ")}
+                    {renderAllergyChips()}
                   </div>
                 )}
               </div>
