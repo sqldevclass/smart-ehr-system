@@ -180,9 +180,9 @@ export default function PatientDocumentSidebar({
                         fullView: true,
                       });
                     }}
-                    className="shrink-0 p-1 rounded hover:bg-muted"
+                    className="shrink-0 p-1 rounded cursor-pointer transition-colors hover:bg-muted group"
                   >
-                    <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                    <Eye className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-foreground" />
                   </span>
                 </div>
                 <div className="text-xs text-muted-foreground mt-0.5 pl-4">
