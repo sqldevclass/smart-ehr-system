@@ -232,7 +232,7 @@ export default function DocumentWorkspaceInner({
             def: f.field_definitions,
           })),
       }))
-      .filter((s) => s.fields.length > 0);
+      .filter((s) => s.fields.length > 0 || s.code === "allergy_assessment_nursing");
   }, [sectionsData, fieldsData]);
 
   const isOnDiagnosisTab = sections[parseInt(activeTab)]?.code === "diagnosis";
