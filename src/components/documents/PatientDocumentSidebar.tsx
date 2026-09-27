@@ -37,7 +37,7 @@ export default function PatientDocumentSidebar({
 
   useEffect(() => {
     if (openDocumentId && openDocumentTypeId) {
-      setActiveDoc({ documentId: openDocumentId, documentTypeId: openDocumentTypeId });
+      setActiveDoc({ documentId: openDocumentId, documentTypeId: openDocumentTypeId, fullView: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openDocumentId, openDocumentTypeId]);
