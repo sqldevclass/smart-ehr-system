@@ -651,7 +651,7 @@ export default function InpatientPatientDetail() {
                           startInFullView: true,
                         });
                       }}
-                      className="shrink-0 p-1 rounded cursor-pointer transition-colors hover:bg-muted group"
+                      className="shrink-0 p-1 rounded-md border border-border cursor-pointer transition-all hover:bg-muted hover:shadow-md group"
                     >
                       <Eye className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-foreground" />
                     </span>
