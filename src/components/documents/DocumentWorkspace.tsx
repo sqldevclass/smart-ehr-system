@@ -24,6 +24,7 @@ interface Props {
   existingDocumentId?: string;
   onDocumentCreated?: (documentId: string) => void;
   fullView?: boolean;
+  startInFullView?: boolean;
 }
 
 export default function DocumentWorkspace(props: Props) {
@@ -283,6 +284,7 @@ export default function DocumentWorkspace(props: Props) {
       hospitalizationId={hospitalizationId}
       existingDocumentId={existingDocumentId}
       onDocumentCreated={props.onDocumentCreated}
+      startInFullView={props.startInFullView}
     />
   );
 }

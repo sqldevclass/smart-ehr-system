@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
+import { Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import InpatientDocumentWorkspace from "@/components/documents/InpatientDocumentWorkspace";
@@ -26,6 +27,7 @@ export default function PatientDocumentSidebar({
     documentId: string | null;
     documentTypeId: string;
     forceReadOnly?: boolean;
+    fullView?: boolean;
   } | null>(null);
   const [showCreatePicker, setShowCreatePicker] = useState(false);
 
@@ -167,6 +169,21 @@ export default function PatientDocumentSidebar({
                   <span className="flex-1 truncate">
                     {doc.document_types?.name_ru}
                   </span>
+                  <span
+                    role="button"
+                    title="Просмотреть документ целиком"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveDoc({
+                        documentId: doc.id,
+                        documentTypeId: doc.document_types?.id,
+                        fullView: true,
+                      });
+                    }}
+                    className="shrink-0 p-1 rounded hover:bg-muted"
+                  >
+                    <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                  </span>
                 </div>
                 <div className="text-xs text-muted-foreground mt-0.5 pl-4">
                   {format(new Date(doc.created_at), "dd.MM.yyyy HH:mm")}
@@ -202,6 +219,7 @@ export default function PatientDocumentSidebar({
             patientId={patientId}
             hospitalId={hospitalId}
             forceReadOnly={isReadOnly || !!activeDoc?.forceReadOnly}
+            startInFullView={!!activeDoc?.fullView}
             onClose={() => {
               setActiveDoc(null);
               refetchDocs();

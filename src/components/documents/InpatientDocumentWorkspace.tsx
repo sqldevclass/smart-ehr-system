@@ -8,6 +8,7 @@ interface Props {
   hospitalId: string;
   forceReadOnly?: boolean;
   fullView?: boolean;
+  startInFullView?: boolean;
   visitServiceId?: string;
   onClose: () => void;
   onComplete?: (documentId: string) => void;
@@ -25,6 +26,7 @@ export default function InpatientDocumentWorkspace(props: Props) {
     existingDocumentId: props.existingDocumentId,
     serviceStatusCode: props.forceReadOnly ? "completed" : "ready_for_execution",
     fullView: props.fullView,
+    startInFullView: props.startInFullView,
     onClose: props.onClose,
     onComplete: props.onComplete,
     onDocumentCreated: props.onDocumentCreated,
