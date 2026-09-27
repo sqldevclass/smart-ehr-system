@@ -17,6 +17,7 @@ import { format, differenceInYears } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import InpatientDocumentWorkspace from "@/components/documents/InpatientDocumentWorkspace";
+import { Eye } from "lucide-react";
 import DocumentHistory from "@/components/documents/DocumentHistory";
 import DischargeDialog from "@/components/inpatient/DischargeDialog";
 import EWSSection from "@/components/ews/EWSSection";
@@ -37,7 +38,7 @@ import PatientMedicationHistory from "@/components/patient/PatientMedicationHist
 type TabKey = "medication" | "imaging" | "lab" | "consultation" | "care" | "diagnosis" | "scales" | "ews";
 
 type ActiveView =
-  | { type: "document"; documentId: string | null; documentTypeId: string; visitServiceId?: string; forceReadOnly?: boolean }
+  | { type: "document"; documentId: string | null; documentTypeId: string; visitServiceId?: string; forceReadOnly?: boolean; startInFullView?: boolean }
   | { type: "tab"; tab: TabKey }
   | null;
 
@@ -637,6 +638,24 @@ export default function InpatientPatientDetail() {
                   >
                     {isCompleted ? "✓" : "●"}
                   </span>
+                  {clickable && (
+                    <span
+                      role="button"
+                      title="Просмотреть документ целиком"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveView({
+                          type: "document",
+                          documentId: doc.id,
+                          documentTypeId: doc.document_types?.id,
+                          startInFullView: true,
+                        });
+                      }}
+                      className="shrink-0 p-1 rounded hover:bg-muted"
+                    >
+                      <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                    </span>
+                  )}
                 </div>
               );
             })}
@@ -709,6 +728,7 @@ export default function InpatientPatientDetail() {
                 patientId={patientId}
                 hospitalId={user!.hospitalId}
                 forceReadOnly={isHospDischarged || !!(activeView as any)?.forceReadOnly}
+                startInFullView={!!(activeView as any)?.startInFullView}
                 onClose={closeView}
                 onComplete={handleDocumentComplete}
                 onDocumentCreated={(newDocId) => {
