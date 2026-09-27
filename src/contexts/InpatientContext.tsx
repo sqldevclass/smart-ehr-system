@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, ReactNode } from "react";
+import { useAuth } from "@/hooks/useAuth";
 
 interface InpatientContextValue {
   selectedDeptIds: string[];
@@ -10,7 +11,10 @@ interface InpatientContextValue {
 const InpatientContext = createContext<InpatientContextValue | null>(null);
 
 export function InpatientProvider({ children }: { children: ReactNode }) {
-  const [selectedDeptIds, setSelectedDeptIds] = useState<string[]>([]);
+  const { user } = useAuth();
+  const [selectedDeptIds, setSelectedDeptIds] = useState<string[]>(
+    user?.defaultDepartmentIds ?? [],
+  );
   const [nameSearch, setNameSearch] = useState("");
 
   return (
