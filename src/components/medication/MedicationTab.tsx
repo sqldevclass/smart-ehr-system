@@ -414,12 +414,7 @@ export default function MedicationTab({
       );
     });
     if (allergyMatch) {
-      toast.warning(
-        `У пациента зарегистрирована аллергия на ${allergyMatch.description}` +
-        (allergyMatch.severity ? ` (тяжесть: ${allergyMatch.severity})` : "") +
-        ". Проверьте перед назначением.",
-        { duration: 8000 },
-      );
+      setAllergyWarning(allergyMatch);
     }
 
     if (mixMode && formData.drug) {
@@ -667,6 +662,8 @@ export default function MedicationTab({
     setPendingInteractions(null);
     await actuallyInsertPrescription(finalPayload);
   };
+
+  const [allergyWarning, setAllergyWarning] = useState<{ description: string; severity?: string } | null>(null);
 
   const handleCancelInteractionDialog = () => {
     setPendingInteractions(null);
@@ -1349,6 +1346,25 @@ export default function MedicationTab({
           </>
         )}
       </div>
+
+      <Dialog open={!!allergyWarning} onOpenChange={(o) => { if (!o) setAllergyWarning(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="w-5 h-5" />
+              Внимание: аллергия
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm">
+            У пациента зарегистрирована аллергия на {allergyWarning?.description}
+            {allergyWarning?.severity ? ` (тяжесть: ${allergyWarning.severity})` : ""}.
+            Проверьте перед назначением.
+          </p>
+          <div className="flex justify-end">
+            <Button onClick={() => setAllergyWarning(null)}>Понятно</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={!!pendingInteractions}
