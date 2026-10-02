@@ -37,6 +37,17 @@ const SEPSIS_SIGN_LABELS: Record<string, string> = {
   poor_perfusion: "Нарушение перфузии (ВКН > 2 сек)",
 };
 
+function formatRelativeTime(target: Date): string {
+  const diffMs = target.getTime() - Date.now();
+  if (diffMs <= 0) return "просрочено";
+  const totalMinutes = Math.round(diffMs / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours === 0) return `через ${minutes} мин`;
+  if (minutes === 0) return `через ${hours} ч`;
+  return `через ${hours} ч ${minutes} мин`;
+}
+
 const formatDateTime = (date: Date): string => {
   const dd = date.getDate().toString().padStart(2, "0");
   const mm = (date.getMonth() + 1).toString().padStart(2, "0");
@@ -361,7 +372,7 @@ export default function NurseMonitoringPanel({
         .from("pain_scale_readings")
         .select(`
           id, scale_type, score, pain_character, pain_location,
-          recorded_at, notes,
+          recorded_at, notes, medication_route, next_assessment_at,
           profiles!recorded_by(full_name)
         `)
         .eq("hospitalization_id", hospitalizationId)
@@ -778,7 +789,7 @@ export default function NurseMonitoringPanel({
           ) : (
             <div className="space-y-1">
               <div className="flex gap-4 overflow-x-auto pb-1">
-                {(showAllPain ? painReadings : painReadings.slice(0, 5)).map((r: any) => {
+                {(showAllPain ? painReadings : painReadings.slice(0, 5)).map((r: any, i: number) => {
                   const dt = new Date(r.recorded_at);
                   return (
                     <div key={r.id} className="shrink-0 text-left">
@@ -800,6 +811,13 @@ export default function NurseMonitoringPanel({
                       )}
                       {r.pain_location && (
                         <div className="text-xs text-muted-foreground">{r.pain_location}</div>
+                      )}
+                      {i === 0 && r.next_assessment_at && (
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          Следующая оценка:{" "}
+                          {format(new Date(r.next_assessment_at), "dd.MM.yyyy HH:mm")}{" "}
+                          ({formatRelativeTime(new Date(r.next_assessment_at))})
+                        </div>
                       )}
                     </div>
                   );

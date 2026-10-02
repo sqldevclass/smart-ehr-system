@@ -23,6 +23,17 @@ interface Selection {
   score: number;
 }
 
+function formatRelativeTime(target: Date): string {
+  const diffMs = target.getTime() - Date.now();
+  if (diffMs <= 0) return "просрочено";
+  const totalMinutes = Math.round(diffMs / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours === 0) return `через ${minutes} мин`;
+  if (minutes === 0) return `через ${hours} ч`;
+  return `через ${hours} ч ${minutes} мин`;
+}
+
 function getRiskLevel(score: number, scaleCode: string) {
   if (scaleCode === "morse") {
     if (score >= 51)
@@ -360,7 +371,8 @@ export default function AssessmentSection({
               {format(
                 new Date(latest.next_assessment_at),
                 "dd.MM.yyyy HH:mm"
-              )}
+              )}{" "}
+              ({formatRelativeTime(new Date(latest.next_assessment_at))})
             </div>
           )}
           {showDetail && latest.patient_assessment_responses?.length > 0 && (
