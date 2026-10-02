@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -116,6 +117,7 @@ export default function NurseMonitoringPanel({
   const [painNotes, setPainNotes] = useState("");
   const [painCharacter, setPainCharacter] = useState<string[]>([]);
   const [painLocation, setPainLocation] = useState("");
+  const [painMedicationRoute, setPainMedicationRoute] = useState("");
   const [showAllPain, setShowAllPain] = useState(false);
 
   const [showAllSepsisHistory, setShowAllSepsisHistory] = useState(false);
@@ -384,6 +386,7 @@ export default function NurseMonitoringPanel({
       recorded_by: user!.id,
       pain_character: painCharacter.length > 0 ? painCharacter : null,
       pain_location: painLocation.trim() || null,
+      medication_route: painMedicationRoute || null,
       notes: painNotes || null,
     });
     if (error) {
@@ -738,6 +741,19 @@ export default function NurseMonitoringPanel({
                   </div>
                 </div>
               )}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Обезболивающее введено?</Label>
+                <Select value={painMedicationRoute} onValueChange={setPainMedicationRoute}>
+                  <SelectTrigger className="h-8 text-sm w-full sm:w-56">
+                    <SelectValue placeholder="Нет" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="oral">Перорально</SelectItem>
+                    <SelectItem value="im">В/м</SelectItem>
+                    <SelectItem value="iv">В/в</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="flex gap-2 items-end">
                 <Button size="sm" disabled={!painScore || isReadOnly} onClick={handleSubmitPain}>
                   Сохранить
@@ -750,6 +766,7 @@ export default function NurseMonitoringPanel({
                     setPainScore("");
                     setPainCharacter([]);
                     setPainLocation("");
+                    setPainMedicationRoute("");
                   }}
                 >
                   Отмена
