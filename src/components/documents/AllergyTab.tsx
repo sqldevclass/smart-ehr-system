@@ -61,7 +61,7 @@ export default function AllergyTab({ patientId, hospitalId, isReadOnly, currentU
   const [reaction, setReaction] = useState("");
   const [reactionOther, setReactionOther] = useState("");
 
-  const { data: allergies = [], refetch } = useQuery({
+  const { data: allergies = [], refetch, error: allergiesError } = useQuery({
     queryKey: ["patient-allergies", patientId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -144,6 +144,11 @@ export default function AllergyTab({ patientId, hospitalId, isReadOnly, currentU
 
   return (
     <div className="space-y-3">
+      {allergiesError && (
+        <p className="text-sm text-destructive">
+          Ошибка загрузки аллергий: {(allergiesError as any)?.message}
+        </p>
+      )}
       {allergies.length === 0 ? (
         <p className="text-sm text-muted-foreground">Аллергии не зарегистрированы.</p>
       ) : (
