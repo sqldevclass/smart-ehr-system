@@ -4,6 +4,9 @@ import { format, differenceInYears } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -359,7 +362,14 @@ export default function AssessmentSection({
               {getRiskLevel(latest.total_score, scaleCode).label}
             </span>
             <span className="text-xs opacity-75 flex items-center gap-1">
-              {format(new Date(latest.assessed_at), "dd.MM.yyyy HH:mm")}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span>{format(new Date(latest.assessed_at), "dd.MM.yyyy HH:mm")}</span>
+                  </TooltipTrigger>
+                  <TooltipContent>Внесено: {(latest as any).profiles?.full_name ?? "—"}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
               <span className="text-xs opacity-60 ml-1">
                 {showDetail ? "▲" : "▼"}
               </span>
@@ -541,7 +551,14 @@ export default function AssessmentSection({
                 {a.total_score} — {getRiskLevel(a.total_score, scaleCode).label}
               </span>
               <span className="opacity-75">
-                {format(new Date(a.assessed_at), "dd.MM.yyyy HH:mm")}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span>{format(new Date(a.assessed_at), "dd.MM.yyyy HH:mm")}</span>
+                    </TooltipTrigger>
+                    <TooltipContent>Внесено: {(a as any).profiles?.full_name ?? "—"}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </span>
             </div>
           ))}

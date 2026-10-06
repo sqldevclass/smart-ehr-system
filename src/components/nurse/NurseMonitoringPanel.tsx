@@ -9,6 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -116,7 +119,6 @@ export default function NurseMonitoringPanel({
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const [showAddForm, setShowAddForm] = useState(false);
   const [showGlucoseForm, setShowGlucoseForm] = useState(false);
   const [showAllGlucose, setShowAllGlucose] = useState(false);
   const [glucoseValue, setGlucoseValue] = useState("");
@@ -196,52 +198,6 @@ export default function NurseMonitoringPanel({
     () => new Set((activeFormsData as any[]).map((f) => f.scale_code)),
     [activeFormsData],
   );
-
-  const { data: optionalScales = [] } = useQuery({
-    queryKey: ["optional-scales"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("assessment_scales")
-        .select("id, code, name_ru")
-        .eq("is_optional", true);
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  const allOptionalForms = useMemo(
-    () => [
-      ...(optionalScales as any[]).map((s) => ({ code: s.code, name: s.name_ru })),
-      { code: "fluid_balance", name: "Баланс жидкости" },
-      
-      { code: "daily_notes", name: "Дневниковые записи" },
-      { code: "device_monitoring", name: "Инфекционный контроль" },
-    ],
-    [optionalScales],
-  );
-  const availableForms = useMemo(
-    () => allOptionalForms.filter((f) => !activeFormCodes.has(f.code)),
-    [allOptionalForms, activeFormCodes],
-  );
-
-  const handleActivateForm = async (scaleCode: string) => {
-    const { error } = await supabase
-      .from("hospitalization_active_forms")
-      .insert({
-        hospital_id: hospitalId,
-        hospitalization_id: hospitalizationId,
-        scale_code: scaleCode,
-        activated_by: user!.id,
-      });
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    queryClient.invalidateQueries({
-      queryKey: ["active-forms", hospitalizationId],
-    });
-    setShowAddForm(false);
-  };
 
   // Fluid balance
   const { data: todayEntries = [] } = useQuery({
@@ -534,39 +490,6 @@ export default function NurseMonitoringPanel({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <div className="relative">
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-xs"
-            onClick={() => setShowAddForm(!showAddForm)}
-            disabled={isReadOnly}
-          >
-            Добавить форму ▾
-          </Button>
-          {showAddForm && (
-            <div className="absolute right-0 top-full mt-1 bg-white border rounded-md shadow-lg z-50 min-w-52 py-1">
-              {availableForms.length === 0 ? (
-                <div className="px-3 py-2 text-sm text-muted-foreground">
-                  Все формы добавлены
-                </div>
-              ) : (
-                availableForms.map((f) => (
-                  <button
-                    key={f.code}
-                    onClick={() => handleActivateForm(f.code)}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50"
-                  >
-                    {f.name}
-                  </button>
-                ))
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* Glucose */}
       <div className="border-2 border-gray-200 rounded-lg p-4 space-y-3">
         <div className="flex items-center justify-between">
@@ -832,7 +755,14 @@ export default function NurseMonitoringPanel({
                         <span className="text-xs font-normal text-muted-foreground ml-1">/10</span>
                       </div>
                       <div className="text-xs text-muted-foreground mt-0.5">
-                        {formatDateTime(dt)}
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="cursor-default">{formatDateTime(dt)}</span>
+                            </TooltipTrigger>
+                            <TooltipContent>Внесено: {r.profiles?.full_name ?? "—"}</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </div>
                       {r.pain_character?.length > 0 && (
                         <div className="text-xs text-muted-foreground mt-0.5">
