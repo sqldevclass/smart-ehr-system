@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import EWSSection from "@/components/ews/EWSSection";
 import NursePrescriptions from "@/components/medication/NursePrescriptions";
 import NurseMonitoringPanel from "@/components/nurse/NurseMonitoringPanel";
+import AddFormMenu from "@/components/nurse/AddFormMenu";
 import { getFallRiskScaleCode } from "@/lib/fallRiskScale";
 import PatientDocumentSidebar from "@/components/documents/PatientDocumentSidebar";
 import FallingPersonIcon from "@/components/assessments/FallingPersonIcon";
@@ -298,6 +299,13 @@ export default function NursePatientDetail() {
             <span>Риск падения</span>
           </div>
         )}
+        <div className="ml-auto">
+          <AddFormMenu
+            hospitalizationId={hospId!}
+            hospitalId={user!.hospitalId}
+            isReadOnly={!isOwnDept}
+          />
+        </div>
       </div>
 
       <div className="flex-1 flex overflow-hidden">

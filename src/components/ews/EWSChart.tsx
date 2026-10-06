@@ -149,30 +149,32 @@ export function PewsScoreHeader({
         </div>
       </div>
 
-      <div className="flex min-w-0 flex-col gap-0.5">
-        <div className="font-heading text-lg font-bold tracking-wide" style={{ color: "hsl(var(--foreground))" }}>ШРПУ</div>
-        <div className="mb-2 text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>Шкала · {scaleLabel}</div>
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+          <div>
+            <div className="font-heading text-lg font-bold tracking-wide" style={{ color: "hsl(var(--foreground))" }}>ШРПУ</div>
+            <div className="mb-2 text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>Шкала · {scaleLabel}</div>
+          </div>
+          {(onEditThresholds || onEnterData) && (
+            <div className="flex flex-wrap items-center gap-2">
+              {onEditThresholds && (
+                <button onClick={onEditThresholds} className="rounded-md border px-4 py-2.5 text-[13.5px] font-medium hover:bg-black/5 transition-colors" style={{ borderColor: "#000000", color: "hsl(var(--foreground))", background: "#ffffff" }}>
+                  Изменить границы нормы
+                </button>
+              )}
+              {onEnterData && (
+                <button onClick={onEnterData} className="whitespace-nowrap rounded-md border px-4 py-2.5 text-[13.5px] font-semibold hover:bg-black/5 transition-colors" style={{ borderColor: "#000000", background: "#ffffff", color: "hsl(var(--foreground))" }}>
+                  + Внести данные
+                </button>
+              )}
+            </div>
+          )}
+        </div>
         <div className="flex flex-col gap-0.5 text-[13px]">
-          <div className="flex gap-2.5"><span style={{ color: "hsl(var(--muted-foreground))", minWidth: 152 }}>Интервал</span><span className="font-medium" style={{ color: "hsl(var(--foreground))" }}>{interval}</span></div>
-          <div className="flex gap-2.5"><span style={{ color: "hsl(var(--muted-foreground))", minWidth: 152 }}>Следующее внесение</span><span className="font-medium" style={{ ...MONO, fontSize: 12.5, color: "hsl(var(--foreground))" }}>{nextDue ?? "—"}</span></div>
+          <div className="flex flex-wrap gap-x-2.5"><span style={{ color: "hsl(var(--muted-foreground))", minWidth: 152 }}>Интервал</span><span className="font-medium" style={{ color: "hsl(var(--foreground))" }}>{interval}</span></div>
+          <div className="flex flex-wrap gap-x-2.5"><span style={{ color: "hsl(var(--muted-foreground))", minWidth: 152 }}>Следующее внесение</span><span className="font-medium" style={{ ...MONO, fontSize: 12.5, color: "hsl(var(--foreground))" }}>{nextDue ?? "—"}</span></div>
         </div>
       </div>
-
-      {(onEditThresholds || onEnterData) && (
-        <div className="ml-auto flex items-center gap-2">
-          {onEditThresholds && (
-            <button onClick={onEditThresholds} className="rounded-md border px-4 py-2.5 text-[13.5px] font-medium hover:bg-black/5 transition-colors" style={{ borderColor: "#000000", color: "hsl(var(--foreground))", background: "#ffffff" }}>
-              Изменить границы нормы
-            </button>
-          )}
-          {onEnterData && (
-            <button onClick={onEnterData} className="whitespace-nowrap rounded-md border px-4 py-2.5 text-[13.5px] font-semibold hover:bg-black/5 transition-colors" style={{ borderColor: "#000000", background: "#ffffff", color: "hsl(var(--foreground))" }}>
-              + Внести данные
-            </button>
-          )}
-
-        </div>
-      )}
     </div>
   );
 }
@@ -194,7 +196,7 @@ export function PewsChart({
   alertSlot?: React.ReactNode;
 }) {
   const [timeWindow, setTimeWindow] = useState<"5d" | "all">("all");
-  const [tooltip, setTooltip] = useState<{ x: number; y: number; paramName: string; value: string; time: string; score: number } | null>(null);
+  const [tooltip, setTooltip] = useState<{ x: number; y: number; paramName: string; value: string; time: string; score: number; by?: string } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(900);
@@ -287,6 +289,7 @@ export function PewsChart({
               <div className="font-medium text-foreground">{tooltip.paramName}</div>
               <div style={MONO}>{tooltip.value}</div>
               <div className="text-muted-foreground">{tooltip.time}</div>
+              {tooltip.by && <div className="text-muted-foreground">Внесено: {tooltip.by}</div>}
               {tooltip.score > 0 && (
                 <div className="mt-0.5 font-semibold" style={{ color: tooltip.score === 1 ? PT.amber.text : PT.red.text }}>+{tooltip.score} балл</div>
               )}
@@ -331,7 +334,7 @@ export function PewsChart({
                 .map((r, i) => {
                   const val = r.ews_reading_values?.find((v: any) => v.parameter_id === p.id);
                   if (val?.numeric_value === null || val?.numeric_value === undefined) return null;
-                  return { x: xScale(i), y: yScale(val.numeric_value, yMin, yMax), value: val.numeric_value as number, score: val.score as number, recorded_at: r.recorded_at, isLast: i === n - 1, origIndex: i };
+                  return { x: xScale(i), y: yScale(val.numeric_value, yMin, yMax), value: val.numeric_value as number, score: val.score as number, recorded_at: r.recorded_at, by: r.profiles?.full_name, isLast: i === n - 1, origIndex: i };
                 })
                 .filter(Boolean) as any[];
 
@@ -400,7 +403,7 @@ export function PewsChart({
                           if (match && scrollRef.current) {
                             const outerRect = scrollRef.current.getBoundingClientRect();
                             const rowTop = rect.top - outerRect.top + scrollRef.current.scrollTop;
-                            setTooltip({ x: match.x, y: rowTop + match.y, paramName: p.name_ru, value: `${fmt(match.value)}${p.unit ? ` ${p.unit}` : ""}`, time: new Date(match.recorded_at).toLocaleString("ru"), score: match.score });
+                            setTooltip({ x: match.x, y: rowTop + match.y, paramName: p.name_ru, value: `${fmt(match.value)}${p.unit ? ` ${p.unit}` : ""}`, time: new Date(match.recorded_at).toLocaleString("ru"), score: match.score, by: match.by });
                           } else {
                             setTooltip(null);
                           }
@@ -420,7 +423,7 @@ export function PewsChart({
                 .map((r, i) => {
                   const val = r.ews_reading_values?.find((v: any) => v.parameter_id === p.id);
                   if (!val?.text_value) return null;
-                  return { x: xScale(i), label: ENUM_LABELS[val.text_value] ?? val.text_value, score: val.score ?? 0, recorded_at: r.recorded_at, value: val.text_value, origIndex: i };
+                  return { x: xScale(i), label: ENUM_LABELS[val.text_value] ?? val.text_value, score: val.score ?? 0, recorded_at: r.recorded_at, by: r.profiles?.full_name, value: val.text_value, origIndex: i };
                 })
                 .filter(Boolean) as any[];
 
@@ -460,7 +463,7 @@ export function PewsChart({
                         if (match && scrollRef.current) {
                           const outerRect = scrollRef.current.getBoundingClientRect();
                           const rowTop = rect.top - outerRect.top + scrollRef.current.scrollTop;
-                          setTooltip({ x: match.x, y: rowTop + ENUM_ROW_HEIGHT / 2, paramName: p.name_ru, value: match.label, time: new Date(match.recorded_at).toLocaleString("ru"), score: match.score });
+                          setTooltip({ x: match.x, y: rowTop + ENUM_ROW_HEIGHT / 2, paramName: p.name_ru, value: match.label, time: new Date(match.recorded_at).toLocaleString("ru"), score: match.score, by: match.by });
                         } else {
                           setTooltip(null);
                         }
@@ -487,7 +490,7 @@ export default function EWSChart({ hospitalizationId, parameters, thresholds, ov
     queryFn: async () => {
       const { data, error } = await supabase
         .from("ews_readings")
-        .select(`id, recorded_at, total_score, escalation_level, ews_reading_values(parameter_id, numeric_value, text_value, score)`)
+        .select(`id, recorded_at, total_score, escalation_level, profiles!recorded_by(full_name), ews_reading_values(parameter_id, numeric_value, text_value, score)`)
         .eq("hospitalization_id", hospitalizationId)
         .eq("is_voided", false)
         .order("recorded_at", { ascending: true });
