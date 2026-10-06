@@ -1070,7 +1070,7 @@ function FormularySection() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>Группа (необязательно)</Label>
+                <Label>Группа *</Label>
                 <Select
                   value={formGroupId}
                   onValueChange={(v) => {
@@ -1087,7 +1087,7 @@ function FormularySection() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>Подгруппа (необязательно)</Label>
+                <Label>Подгруппа *</Label>
                 <Select
                   value={form.subgroup_id ?? ""}
                   onValueChange={(v) => setForm((f) => ({ ...f, subgroup_id: v || null }))}
@@ -1167,7 +1167,7 @@ function FormularySection() {
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
             <Button
               onClick={() => saveMutation.mutate()}
-              disabled={saveMutation.isPending || !form.trade_name.trim() || !form.inn.trim()}
+              disabled={saveMutation.isPending || !form.trade_name.trim() || !form.inn.trim() || !form.subgroup_id}
             >
               Save
             </Button>

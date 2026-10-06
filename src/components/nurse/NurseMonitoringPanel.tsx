@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -128,6 +128,30 @@ export default function NurseMonitoringPanel({
   const [painCharacter, setPainCharacter] = useState<string[]>([]);
   const [painLocation, setPainLocation] = useState("");
   const [painMedicationRoute, setPainMedicationRoute] = useState("");
+  const [autoDetectedRoute, setAutoDetectedRoute] = useState<string | null>(null);
+
+  // When the pain form opens, check whether an analgesic (Анальгетики /
+  // НПВП) was administered in the last 30 minutes and pre-fill the route.
+  // The nurse can still change it, including back to "Нет". Always set
+  // from the detection result (empty if none) so a value left over from
+  // a previous entry never leaks into a new one.
+  useEffect(() => {
+    if (!showPainForm) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase.rpc("get_recent_analgesic_route", {
+        p_patient_id: patientId,
+        p_hospital_id: hospitalId,
+      });
+      if (cancelled) return;
+      const detected = !error && data ? (data as string) : null;
+      setAutoDetectedRoute(detected);
+      setPainMedicationRoute(detected ?? "");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [showPainForm, patientId, hospitalId]);
   const [showAllPain, setShowAllPain] = useState(false);
 
   const [showAllSepsisHistory, setShowAllSepsisHistory] = useState(false);
@@ -396,7 +420,8 @@ export default function NurseMonitoringPanel({
       recorded_by: user!.id,
       pain_character: painCharacter.length > 0 ? painCharacter : null,
       pain_location: painLocation.trim() || null,
-      medication_route: painMedicationRoute || null,
+      medication_route:
+        painMedicationRoute && painMedicationRoute !== "none" ? painMedicationRoute : null,
       notes: painNotes || null,
     });
     if (error) {
@@ -407,6 +432,8 @@ export default function NurseMonitoringPanel({
     setPainNotes("");
     setPainCharacter([]);
     setPainLocation("");
+    setPainMedicationRoute("");
+    setAutoDetectedRoute(null);
     setShowPainForm(false);
     queryClient.invalidateQueries({ queryKey: ["pain-readings", hospitalizationId] });
   };
@@ -758,11 +785,17 @@ export default function NurseMonitoringPanel({
                     <SelectValue placeholder="Нет" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="none">Нет</SelectItem>
                     <SelectItem value="oral">Перорально</SelectItem>
                     <SelectItem value="im">В/м</SelectItem>
                     <SelectItem value="iv">В/в</SelectItem>
                   </SelectContent>
                 </Select>
+                {autoDetectedRoute && painMedicationRoute === autoDetectedRoute && (
+                  <p className="text-xs text-muted-foreground">
+                    Определено автоматически: анальгетик введён за последние 30 мин. Можно изменить.
+                  </p>
+                )}
               </div>
               <div className="flex gap-2 items-end">
                 <Button size="sm" disabled={!painScore || isReadOnly} onClick={handleSubmitPain}>
@@ -777,6 +810,7 @@ export default function NurseMonitoringPanel({
                     setPainCharacter([]);
                     setPainLocation("");
                     setPainMedicationRoute("");
+                    setAutoDetectedRoute(null);
                   }}
                 >
                   Отмена
