@@ -1,6 +1,9 @@
 import { useState, useMemo, useRef } from "react";
 import { useEWSSchedule } from "@/hooks/useEWSSchedule";
 import EWSStatusDot from "@/components/ews/EWSStatusDot";
+import AssessmentsCell from "@/components/assessments/AssessmentsCell";
+import { useAssessmentSummaries } from "@/hooks/useAssessmentSummaries";
+import { useNow } from "@/hooks/useNow";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -71,6 +74,12 @@ export default function InpatientPatientsList() {
     },
     enabled: !!user?.hospitalId && selectedDeptIds.length > 0,
   });
+
+  const now = useNow();
+  const assessmentTz = (user as any)?.timezone || "Asia/Tashkent";
+  const { data: assessmentSummaries = {} } = useAssessmentSummaries(
+    hospitalizations.map((h: any) => h.id),
+  );
 
   const physicianIds = Array.from(new Set(
     hospitalizations.map((h: any) => h.primary_staff_role_id).filter(Boolean)
@@ -257,8 +266,19 @@ export default function InpatientPatientsList() {
                       }}
                     >
                       <td className="px-3 py-2">
-                        <div className="font-medium">{h.patients?.last_name} {h.patients?.first_name}</div>
-                        <div className="text-xs text-muted-foreground">{h.patients?.patient_number}</div>
+                        <div className="flex items-center gap-2">
+                          <div className="min-w-0">
+                            <div className="font-medium">{h.patients?.last_name} {h.patients?.first_name}</div>
+                            <div className="text-xs text-muted-foreground">{h.patients?.patient_number}</div>
+                          </div>
+                          <AssessmentsCell
+                            summary={assessmentSummaries[h.id]}
+                            dob={h.patients?.date_of_birth}
+                            now={now}
+                            tz={assessmentTz}
+                            compact
+                          />
+                        </div>
                       </td>
                       <td className="px-3 py-2 text-xs">{ra ? ra.rooms?.name : "—"}</td>
                       <td className="px-3 py-2 text-xs">{physMap[h.primary_staff_role_id] ?? "—"}</td>
@@ -305,6 +325,7 @@ export default function InpatientPatientsList() {
                 <TableHead>ФИО / Дата рождения</TableHead>
                 <TableHead>№Палаты</TableHead>
                 <TableHead>Лечащий Врач</TableHead>
+                <TableHead>Оценки</TableHead>
                 <TableHead>Дней в стационаре</TableHead>
                 <TableHead>ШРПУ</TableHead>
                 <TableHead>Статус</TableHead>
@@ -387,6 +408,14 @@ export default function InpatientPatientsList() {
                           </div>
                         </PopoverContent>
                       </Popover>
+                    </TableCell>
+                    <TableCell>
+                      <AssessmentsCell
+                        summary={assessmentSummaries[h.id]}
+                        dob={h.patients?.date_of_birth}
+                        now={now}
+                        tz={assessmentTz}
+                      />
                     </TableCell>
                     <TableCell>{days}</TableCell>
                     <TableCell>
