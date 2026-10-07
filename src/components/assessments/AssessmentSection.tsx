@@ -14,7 +14,6 @@ import { formatRelativeTime } from "@/lib/formatRelativeTime";
 import AssessmentHistoryRow from "@/components/assessments/AssessmentHistoryRow";
 import { getRiskLevel } from "@/lib/assessmentRisk";
 
-
 interface Props {
   scaleCode: string;
   hospitalizationId: string;
