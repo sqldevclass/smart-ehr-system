@@ -19,6 +19,7 @@ import EWSChart, { PewsScoreHeader } from "./EWSChart";
 import PewsStayChart from "./PewsStayChart";
 import PreviousHospitalizations from "@/components/shared/PreviousHospitalizations";
 import { useEwsOverrides } from "@/hooks/useEwsOverrides";
+import { formatDateTime } from "@/lib/formatDateTime";
 import { EWSEntryDrawer, type EwsEntryParam } from "./EWSEntryDrawer";
 
 interface Props {
@@ -48,14 +49,6 @@ const bgColor: Record<string, string> = {
   yellow: "bg-yellow-100",
   pink: "bg-pink-100",
   red: "bg-red-200",
-};
-
-const formatDateTime = (date: Date): string => {
-  const dd = date.getDate().toString().padStart(2, "0");
-  const mm = (date.getMonth() + 1).toString().padStart(2, "0");
-  const hh = date.getHours().toString().padStart(2, "0");
-  const min = date.getMinutes().toString().padStart(2, "0");
-  return `${dd}.${mm} ${hh}:${min}`;
 };
 
 

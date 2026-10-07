@@ -8,16 +8,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { formatInTimeZone } from "date-fns-tz";
 import EWSStatusDot from "@/components/ews/EWSStatusDot";
 import { useNow } from "@/hooks/useNow";
 import { getDailyNoteStatus } from "@/lib/dailyNoteSchedule";
 import { formatRelativeTime } from "@/lib/formatRelativeTime";
 import PreviousHospitalizations from "@/components/shared/PreviousHospitalizations";
-import StayScalesHistory from "@/components/assessments/StayScalesHistory";
+import { painCharacterOptions } from "@/lib/painScale";
+import PainReadingCell from "@/components/nurse/PainReadingCell";
+import GlucoseReadingCell from "@/components/nurse/GlucoseReadingCell";
+import DailyNoteItem from "@/components/nurse/DailyNoteItem";
+import StayMonitoringHistory from "@/components/nurse/StayMonitoringHistory";
 import {
   Select,
   SelectContent,
@@ -47,14 +48,6 @@ const SEPSIS_SIGN_LABELS: Record<string, string> = {
   poor_perfusion: "Нарушение перфузии (ВКН > 2 сек)",
 };
 
-const formatDateTime = (date: Date): string => {
-  const dd = date.getDate().toString().padStart(2, "0");
-  const mm = (date.getMonth() + 1).toString().padStart(2, "0");
-  const hh = date.getHours().toString().padStart(2, "0");
-  const min = date.getMinutes().toString().padStart(2, "0");
-  return `${dd}.${mm} ${hh}:${min}`;
-};
-
 const intakeCategories = [
   { code: "per_os", label: "PerOs" },
   { code: "iv", label: "Внутривенно (в/в)" },
@@ -72,20 +65,6 @@ const outputCategories = [
   { code: "other_out", label: "Прочие" },
 ];
 
-const painCharacterOptions = [
-  { code: "Ж", label: "Жгучая" },
-  { code: "Кол", label: "Колющая" },
-  { code: "Н", label: "Ноющая" },
-  { code: "О", label: "Острая" },
-  { code: "П", label: "Постоянная" },
-  { code: "Пл", label: "Пульсирующая" },
-  { code: "Р", label: "Режущая" },
-  { code: "Стр", label: "Стреляющая" },
-  { code: "Сх", label: "Схваткообразная" },
-  { code: "Туп", label: "Тупая" },
-  { code: "Тян", label: "Тянущая" },
-];
-
 const facesOptions = [
   { label: "Нет боли", score: 0, emoji: "😊", range: "0",
     behaviour: ["Нормальная активность", "Не плачет", "Весёлый"] },
@@ -96,12 +75,6 @@ const facesOptions = [
   { label: "Сильная", score: 8, emoji: "😭", range: "7–10",
     behaviour: ["Не двигается", "Напуган", "Очень тихий", "Беспокойный", "Безутешный плач"] },
 ];
-
-const painColor = (score: number) =>
-  score === 0 ? "text-green-700"
-  : score <= 3 ? "text-yellow-700"
-  : score <= 6 ? "text-orange-700"
-  : "text-red-700";
 
 export default function NurseMonitoringPanel({
   hospitalizationId,
@@ -544,30 +517,9 @@ export default function NurseMonitoringPanel({
             return (
               <div className="space-y-2">
                 <div className="flex gap-6 overflow-x-auto pb-1 flex-wrap">
-                  {visibleGlucose.map((g: any) => {
-                    const dt = new Date(g.recorded_at);
-                    const value = parseFloat(g.value_mmol);
-                    const isHigh = value > 7.8;
-                    const isLow = value < 3.9;
-                    return (
-                      <div key={g.id} className="shrink-0 text-left">
-                        <div className={cn(
-                          "text-sm font-semibold",
-                          isHigh ? "text-yellow-700"
-                          : isLow ? "text-pink-700"
-                          : "text-gray-800"
-                        )}>
-                          {value % 1 === 0 ? value : value.toFixed(1)}{" "}
-                          <span className="font-normal text-xs text-muted-foreground">
-                            ммоль/л
-                          </span>
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-0.5">
-                          {formatDateTime(dt)}
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {visibleGlucose.map((g: any) => (
+                    <GlucoseReadingCell key={g.id} reading={g} />
+                  ))}
                 </div>
                 {!showAllGlucose && glucoseReadings.length > GLUCOSE_PAGE_SIZE && (
                   <button
@@ -749,51 +701,22 @@ export default function NurseMonitoringPanel({
           ) : (
             <div className="space-y-1">
               <div className="flex gap-4 overflow-x-auto pb-1">
-                {(showAllPain ? painReadings : painReadings.slice(0, 5)).map((r: any, i: number) => {
-                  const dt = new Date(r.recorded_at);
-                  return (
-                    <div key={r.id} className="shrink-0 text-left">
-                      <div className={cn("text-sm font-semibold", painColor(r.score))}>
-                        {r.score}
-                        <span className="text-xs font-normal text-muted-foreground ml-1">/10</span>
+                {(showAllPain ? painReadings : painReadings.slice(0, 5)).map((r: any, i: number) => (
+                  <PainReadingCell key={r.id} reading={r}>
+                    {i === 0 && r.next_assessment_at && (
+                      <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
+                        {!isReadOnly && new Date(r.next_assessment_at) <= now && (
+                          <EWSStatusDot status="overdue" />
+                        )}
+                        <span>
+                          Следующая оценка:{" "}
+                          {format(new Date(r.next_assessment_at), "dd.MM.yyyy HH:mm")}{" "}
+                          ({formatRelativeTime(new Date(r.next_assessment_at))})
+                        </span>
                       </div>
-                      <div className="text-xs text-muted-foreground mt-0.5">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="cursor-default">{formatDateTime(dt)}</span>
-                            </TooltipTrigger>
-                            <TooltipContent>Внесено: {r.profiles?.full_name ?? "—"}</TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                      {r.pain_character?.length > 0 && (
-                        <div className="text-xs text-muted-foreground mt-0.5">
-                          {r.pain_character
-                            .map((code: string) =>
-                              painCharacterOptions.find((o) => o.code === code)?.label ?? code
-                            )
-                            .join(", ")}
-                        </div>
-                      )}
-                      {r.pain_location && (
-                        <div className="text-xs text-muted-foreground">{r.pain_location}</div>
-                      )}
-                      {i === 0 && r.next_assessment_at && (
-                        <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
-                          {!isReadOnly && new Date(r.next_assessment_at) <= now && (
-                            <EWSStatusDot status="overdue" />
-                          )}
-                          <span>
-                            Следующая оценка:{" "}
-                            {format(new Date(r.next_assessment_at), "dd.MM.yyyy HH:mm")}{" "}
-                            ({formatRelativeTime(new Date(r.next_assessment_at))})
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                    )}
+                  </PainReadingCell>
+                ))}
               </div>
               {!showAllPain && painReadings.length > 5 && (
                 <button
@@ -1083,15 +1006,7 @@ export default function NurseMonitoringPanel({
             {dailyNotes.length === 0 ? (
               <p className="text-xs text-muted-foreground">Нет записей</p>
             ) : (
-              (dailyNotes as any[]).map((n) => (
-                <div key={n.id} className="text-xs border-l-2 border-gray-300 pl-2 space-y-0.5">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <span>{new Date(n.recorded_at).toLocaleString("ru-RU")}</span>
-                    {n.profiles?.full_name && <span>· {n.profiles.full_name}</span>}
-                  </div>
-                  <div>{n.note_text}</div>
-                </div>
-              ))
+              (dailyNotes as any[]).map((n) => <DailyNoteItem key={n.id} note={n} />)
             )}
           </div>
         </div>
@@ -1136,7 +1051,7 @@ export default function NurseMonitoringPanel({
         patientId={patientId}
         hospitalId={hospitalId}
         currentHospitalizationId={hospitalizationId}
-        renderStay={(stayId) => <StayScalesHistory hospitalizationId={stayId} />}
+        renderStay={(stayId) => <StayMonitoringHistory hospitalizationId={stayId} />}
       />
     </div>
   );
