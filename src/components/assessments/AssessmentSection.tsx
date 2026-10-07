@@ -10,6 +10,8 @@ import {
 import { cn } from "@/lib/utils";
 import EWSStatusDot from "@/components/ews/EWSStatusDot";
 import { useNow } from "@/hooks/useNow";
+import { formatRelativeTime } from "@/lib/formatRelativeTime";
+import PreviousHospitalizations from "@/components/shared/PreviousHospitalizations";
 
 interface Props {
   scaleCode: string;
@@ -21,22 +23,13 @@ interface Props {
   patientGender?: string;
   hiddenItemCodes?: string[];
   autoOpenForm?: boolean;
+  /** Read-only view of a past hospitalization: no header, add button, next-due line or nested history. */
+  historyMode?: boolean;
 }
 
 interface Selection {
   optionId: string;
   score: number;
-}
-
-function formatRelativeTime(target: Date): string {
-  const diffMs = target.getTime() - Date.now();
-  if (diffMs <= 0) return "просрочено";
-  const totalMinutes = Math.round(diffMs / 60000);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  if (hours === 0) return `через ${minutes} мин`;
-  if (minutes === 0) return `через ${hours} ч`;
-  return `через ${hours} ч ${minutes} мин`;
 }
 
 function getRiskLevel(score: number, scaleCode: string) {
@@ -153,6 +146,7 @@ export default function AssessmentSection({
   patientGender,
   hiddenItemCodes,
   autoOpenForm,
+  historyMode = false,
 }: Props) {
   const queryClient = useQueryClient();
   const now = useNow();
@@ -255,7 +249,7 @@ export default function AssessmentSection({
     }
   }, [scale, scaleCode, patientDateOfBirth, patientGender]);
 
-  const { data: assessments = [] } = useQuery({
+  const { data: assessments = [], isFetched: assessmentsFetched } = useQuery({
     queryKey: ["assessments", hospitalizationId, scaleCode],
     enabled: !!scale?.id,
     queryFn: async () => {
@@ -328,27 +322,29 @@ export default function AssessmentSection({
   const latest = assessments[0] as any;
 
   return (
-    <div className="border-2 border-gray-200 rounded-lg p-4 space-y-3">
+    <div className={cn("space-y-3", !historyMode && "border-2 border-gray-200 rounded-lg p-4")}>
       {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="font-semibold text-sm">{scale?.name_ru}</h3>
-          {scale?.description_ru && (
-            <p className="text-xs text-muted-foreground">
-              {scale.description_ru}
-            </p>
+      {!historyMode && (
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="font-semibold text-sm">{scale?.name_ru}</h3>
+            {scale?.description_ru && (
+              <p className="text-xs text-muted-foreground">
+                {scale.description_ru}
+              </p>
+            )}
+          </div>
+          {!autoOpenForm && !isReadOnly && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowForm(!showForm)}
+            >
+              {showForm ? "Отмена" : "+ Оценить"}
+            </Button>
           )}
         </div>
-        {!autoOpenForm && !isReadOnly && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setShowForm(!showForm)}
-          >
-            {showForm ? "Отмена" : "+ Оценить"}
-          </Button>
-        )}
-      </div>
+      )}
 
       {/* Latest summary */}
       {latest && !showForm && (
@@ -378,7 +374,7 @@ export default function AssessmentSection({
               </span>
             </span>
           </div>
-          {latest.next_assessment_at && (
+          {!historyMode && latest.next_assessment_at && (
             <div className="text-xs opacity-75 mt-1 flex items-center gap-1.5">
               {!isReadOnly && new Date(latest.next_assessment_at) <= now && (
                 <EWSStatusDot status="overdue" />
@@ -568,6 +564,31 @@ export default function AssessmentSection({
             </div>
           ))}
         </div>
+      )}
+
+      {historyMode && assessmentsFetched && assessments.length === 0 && (
+        <p className="text-xs text-muted-foreground">Нет оценок</p>
+      )}
+
+      {!historyMode && (
+        <PreviousHospitalizations
+          patientId={patientId}
+          hospitalId={hospitalId}
+          currentHospitalizationId={hospitalizationId}
+          renderStay={(stayId) => (
+            <AssessmentSection
+              scaleCode={scaleCode}
+              hospitalizationId={stayId}
+              patientId={patientId}
+              hospitalId={hospitalId}
+              patientDateOfBirth={patientDateOfBirth}
+              patientGender={patientGender}
+              hiddenItemCodes={hiddenItemCodes}
+              isReadOnly
+              historyMode
+            />
+          )}
+        />
       )}
     </div>
   );

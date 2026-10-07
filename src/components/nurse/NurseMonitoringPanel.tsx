@@ -15,6 +15,7 @@ import { formatInTimeZone } from "date-fns-tz";
 import EWSStatusDot from "@/components/ews/EWSStatusDot";
 import { useNow } from "@/hooks/useNow";
 import { getDailyNoteStatus } from "@/lib/dailyNoteSchedule";
+import { formatRelativeTime } from "@/lib/formatRelativeTime";
 import {
   Select,
   SelectContent,
@@ -43,17 +44,6 @@ const SEPSIS_SIGN_LABELS: Record<string, string> = {
   altered_mental_state: "Изменение сознания (AVPU)",
   poor_perfusion: "Нарушение перфузии (ВКН > 2 сек)",
 };
-
-function formatRelativeTime(target: Date): string {
-  const diffMs = target.getTime() - Date.now();
-  if (diffMs <= 0) return "просрочено";
-  const totalMinutes = Math.round(diffMs / 60000);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  if (hours === 0) return `через ${minutes} мин`;
-  if (minutes === 0) return `через ${hours} ч`;
-  return `через ${hours} ч ${minutes} мин`;
-}
 
 const formatDateTime = (date: Date): string => {
   const dd = date.getDate().toString().padStart(2, "0");
