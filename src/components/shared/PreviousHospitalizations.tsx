@@ -10,10 +10,13 @@ import { cn } from "@/lib/utils";
 interface Props {
   patientId: string;
   hospitalId: string;
-  currentHospitalizationId: string;
-  /** Renders one past stay's data. Mounted only while that stay is expanded. */
+  /** Left out of the list. Omit it to list every stay, including the current one. */
+  currentHospitalizationId?: string;
+  /** Renders one stay's data. Mounted only while that stay is expanded. */
   renderStay: (hospitalizationId: string) => ReactNode;
   label?: string;
+  /** false: no "show history" toggle, the list is always visible. */
+  collapsible?: boolean;
 }
 
 const formatStayRange = (stay: HospitalizationStay) =>
@@ -22,9 +25,10 @@ const formatStayRange = (stay: HospitalizationStay) =>
   }`;
 
 /**
- * Collapsible list of the patient's other hospitalizations. Closed by default;
- * nothing is fetched until the user opens it, and a stay's data is only
- * rendered (and fetched) while that stay is expanded.
+ * List of the patient's hospitalizations. By default it sits behind a
+ * "show history" toggle that starts closed; nothing is fetched until the user
+ * opens it, and a stay's data is only rendered (and fetched) while that stay is
+ * expanded.
  */
 export default function PreviousHospitalizations({
   patientId,
@@ -32,9 +36,11 @@ export default function PreviousHospitalizations({
   currentHospitalizationId,
   renderStay,
   label = "История госпитализаций",
+  collapsible = true,
 }: Props) {
-  const [open, setOpen] = useState(false);
+  const [toggledOpen, setToggledOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const open = !collapsible || toggledOpen;
   const { data: stays = [], isLoading, error } = usePreviousHospitalizations({
     patientId,
     hospitalId,
@@ -44,24 +50,28 @@ export default function PreviousHospitalizations({
 
   return (
     <div className="pt-1">
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ChevronDown className={cn("h-4 w-4 transition-transform", open && "rotate-180")} />
-        {open ? "Скрыть историю" : label}
-      </button>
+      {collapsible && (
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => setToggledOpen((v) => !v)}
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ChevronDown className={cn("h-4 w-4 transition-transform", open && "rotate-180")} />
+          {open ? "Скрыть историю" : label}
+        </button>
+      )}
 
       {open && (
-        <div className="mt-3 space-y-2">
+        <div className={cn("space-y-2", collapsible && "mt-3")}>
           {isLoading && <p className="text-sm text-muted-foreground pl-2">Загрузка...</p>}
           {error && (
             <p className="text-sm text-destructive pl-2">Не удалось загрузить историю госпитализаций</p>
           )}
           {!isLoading && !error && stays.length === 0 && (
-            <p className="text-sm text-muted-foreground pl-2">Предыдущих госпитализаций нет</p>
+            <p className="text-sm text-muted-foreground pl-2">
+              {currentHospitalizationId ? "Предыдущих госпитализаций нет" : "Госпитализаций нет"}
+            </p>
           )}
           {stays.map((stay) => {
             const isExpanded = expandedId === stay.id;

@@ -1007,6 +1007,7 @@ function TabPanel(props: TabProps) {
             admittedAt={props.admittedAt!}
             isReadOnly={!!props.readOnly}
             canOverride={!props.readOnly}
+            canEnterData={false}
             viewerRole="physician"
             externalAlertActive={!!props.externalAlertActive}
           />
