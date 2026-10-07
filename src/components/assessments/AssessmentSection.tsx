@@ -11,7 +11,15 @@ import { cn } from "@/lib/utils";
 import EWSStatusDot from "@/components/ews/EWSStatusDot";
 import { useNow } from "@/hooks/useNow";
 import { formatRelativeTime } from "@/lib/formatRelativeTime";
-import PreviousHospitalizations from "@/components/shared/PreviousHospitalizations";
+import AssessmentHistoryRow from "@/components/assessments/AssessmentHistoryRow";
+import { getRiskLevel } from "@/lib/assessmentRisk";
+
+DELETE the local declaration of `function getRiskLevel(score: number, scaleCode: string) {`
+-- the whole function, from that first line through its closing `}`
+(about 103 lines, the last statement being `return { level: "none", label: "Нет риска", color: "bg-green-50 text-green-700 border-green-200" };`),
+plus ONE of the two blank lines that follow it, directly above
+`export default function AssessmentSection({`. Its content now lives in
+CHANGE 1 and is imported above. Nothing else in the file changes for this step.
 
 interface Props {
   scaleCode: string;
@@ -23,8 +31,6 @@ interface Props {
   patientGender?: string;
   hiddenItemCodes?: string[];
   autoOpenForm?: boolean;
-  /** Read-only view of a past hospitalization: no header, add button, next-due line or nested history. */
-  historyMode?: boolean;
 }
 
 interface Selection {
@@ -146,7 +152,6 @@ export default function AssessmentSection({
   patientGender,
   hiddenItemCodes,
   autoOpenForm,
-  historyMode = false,
 }: Props) {
   const queryClient = useQueryClient();
   const now = useNow();
@@ -249,7 +254,7 @@ export default function AssessmentSection({
     }
   }, [scale, scaleCode, patientDateOfBirth, patientGender]);
 
-  const { data: assessments = [], isFetched: assessmentsFetched } = useQuery({
+  const { data: assessments = [] } = useQuery({
     queryKey: ["assessments", hospitalizationId, scaleCode],
     enabled: !!scale?.id,
     queryFn: async () => {
@@ -322,29 +327,27 @@ export default function AssessmentSection({
   const latest = assessments[0] as any;
 
   return (
-    <div className={cn("space-y-3", !historyMode && "border-2 border-gray-200 rounded-lg p-4")}>
+    <div className="border-2 border-gray-200 rounded-lg p-4 space-y-3">
       {/* Header */}
-      {!historyMode && (
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="font-semibold text-sm">{scale?.name_ru}</h3>
-            {scale?.description_ru && (
-              <p className="text-xs text-muted-foreground">
-                {scale.description_ru}
-              </p>
-            )}
-          </div>
-          {!autoOpenForm && !isReadOnly && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setShowForm(!showForm)}
-            >
-              {showForm ? "Отмена" : "+ Оценить"}
-            </Button>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="font-semibold text-sm">{scale?.name_ru}</h3>
+          {scale?.description_ru && (
+            <p className="text-xs text-muted-foreground">
+              {scale.description_ru}
+            </p>
           )}
         </div>
-      )}
+        {!autoOpenForm && !isReadOnly && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowForm(!showForm)}
+          >
+            {showForm ? "Отмена" : "+ Оценить"}
+          </Button>
+        )}
+      </div>
 
       {/* Latest summary */}
       {latest && !showForm && (
@@ -374,7 +377,7 @@ export default function AssessmentSection({
               </span>
             </span>
           </div>
-          {!historyMode && latest.next_assessment_at && (
+          {latest.next_assessment_at && (
             <div className="text-xs opacity-75 mt-1 flex items-center gap-1.5">
               {!isReadOnly && new Date(latest.next_assessment_at) <= now && (
                 <EWSStatusDot status="overdue" />
@@ -541,54 +544,9 @@ export default function AssessmentSection({
             История оценок
           </p>
           {assessments.slice(1).map((a: any) => (
-            <div
-              key={a.id}
-              className={cn(
-                "flex items-center justify-between px-3 py-1.5 rounded border text-xs",
-                getRiskLevel(a.total_score, scaleCode).color
-              )}
-            >
-              <span className="font-medium">
-                {a.total_score} — {getRiskLevel(a.total_score, scaleCode).label}
-              </span>
-              <span className="opacity-75">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span>{format(new Date(a.assessed_at), "dd.MM.yyyy HH:mm")}</span>
-                    </TooltipTrigger>
-                    <TooltipContent>Внесено: {(a as any).profiles?.full_name ?? "—"}</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </span>
-            </div>
+            <AssessmentHistoryRow key={a.id} assessment={a} scaleCode={scaleCode} />
           ))}
         </div>
-      )}
-
-      {historyMode && assessmentsFetched && assessments.length === 0 && (
-        <p className="text-xs text-muted-foreground">Нет оценок</p>
-      )}
-
-      {!historyMode && (
-        <PreviousHospitalizations
-          patientId={patientId}
-          hospitalId={hospitalId}
-          currentHospitalizationId={hospitalizationId}
-          renderStay={(stayId) => (
-            <AssessmentSection
-              scaleCode={scaleCode}
-              hospitalizationId={stayId}
-              patientId={patientId}
-              hospitalId={hospitalId}
-              patientDateOfBirth={patientDateOfBirth}
-              patientGender={patientGender}
-              hiddenItemCodes={hiddenItemCodes}
-              isReadOnly
-              historyMode
-            />
-          )}
-        />
       )}
     </div>
   );

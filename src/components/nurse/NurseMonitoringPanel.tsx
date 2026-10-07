@@ -16,6 +16,8 @@ import EWSStatusDot from "@/components/ews/EWSStatusDot";
 import { useNow } from "@/hooks/useNow";
 import { getDailyNoteStatus } from "@/lib/dailyNoteSchedule";
 import { formatRelativeTime } from "@/lib/formatRelativeTime";
+import PreviousHospitalizations from "@/components/shared/PreviousHospitalizations";
+import StayScalesHistory from "@/components/assessments/StayScalesHistory";
 import {
   Select,
   SelectContent,
@@ -1128,6 +1130,14 @@ export default function NurseMonitoringPanel({
           )}
         </div>
       )}
+
+      {/* Hospitalization history */}
+      <PreviousHospitalizations
+        patientId={patientId}
+        hospitalId={hospitalId}
+        currentHospitalizationId={hospitalizationId}
+        renderStay={(stayId) => <StayScalesHistory hospitalizationId={stayId} />}
+      />
     </div>
   );
 }

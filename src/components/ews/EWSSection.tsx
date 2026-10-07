@@ -30,6 +30,8 @@ interface Props {
   admittedAt: string;
   isReadOnly?: boolean;
   canOverride?: boolean;
+  /** false: no way to record vitals from here (e.g. physicians). Unlike isReadOnly it does not affect acknowledging sepsis alerts. */
+  canEnterData?: boolean;
   viewerRole: "nurse" | "physician";
   externalAlertActive?: boolean;
 }
@@ -66,11 +68,13 @@ export default function EWSSection({
   admittedAt,
   isReadOnly = false,
   canOverride = false,
+  canEnterData = true,
   viewerRole,
   externalAlertActive = false,
 }: Props) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const canEnter = canEnterData && !isReadOnly;
 
   const [showEWSForm, setShowEWSForm] = useState(false);
   const [ewsValues, setEwsValues] = useState<Record<string, string>>({});
@@ -584,7 +588,7 @@ export default function EWSSection({
               : undefined
           }
           onEditThresholds={canOverride ? () => setShowOverridePanel(!showOverridePanel) : undefined}
-          onEnterData={!isReadOnly ? () => setShowEWSForm(!showEWSForm) : undefined}
+          onEnterData={canEnter ? () => setShowEWSForm(!showEWSForm) : undefined}
         />
       )}
 
@@ -593,7 +597,7 @@ export default function EWSSection({
           <p className="text-sm text-muted-foreground">
             Показания ШРПУ ещё не внесены. Шкала: {scale.name}.
           </p>
-          {!isReadOnly && (
+          {canEnter && (
             <Button size="sm" onClick={() => setShowEWSForm(true)}>
               + Внести данные
             </Button>
@@ -918,7 +922,7 @@ export default function EWSSection({
 
 
 
-      {showEWSForm && !isReadOnly && (
+      {showEWSForm && canEnter && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
           onClick={() => setShowEWSForm(false)}
@@ -953,7 +957,7 @@ export default function EWSSection({
                   🔴 Сепсис
                 </button>
               )}
-              {!isReadOnly && (isDue || isDueSoon) && (
+              {canEnter && (isDue || isDueSoon) && (
                 <div className={cn(
                   "flex items-center gap-1.5",
                   "px-2 py-1 rounded text-xs border",
