@@ -16,6 +16,9 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import EWSChart, { PewsScoreHeader } from "./EWSChart";
+import PewsStayChart from "./PewsStayChart";
+import PreviousHospitalizations from "@/components/shared/PreviousHospitalizations";
+import { useEwsOverrides } from "@/hooks/useEwsOverrides";
 import { EWSEntryDrawer, type EwsEntryParam } from "./EWSEntryDrawer";
 
 interface Props {
@@ -219,26 +222,7 @@ export default function EWSSection({
 
 
 
-  const { data: overrides = [], refetch: refetchOverrides } = useQuery({
-    queryKey: ["ews-overrides", hospitalizationId],
-    enabled: !!hospitalizationId,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("ews_patient_overrides")
-        .select("parameter_id, override_min, override_max, reason")
-        .eq("hospitalization_id", hospitalizationId)
-        .eq("is_active", true);
-      return data || [];
-    },
-  });
-
-  const overrideMap = useMemo(() => {
-    const map: Record<string, any> = {};
-    overrides.forEach((o: any) => {
-      map[o.parameter_id] = o;
-    });
-    return map;
-  }, [overrides]);
+  const { overrides, overrideMap, refetchOverrides } = useEwsOverrides(hospitalizationId);
 
   useEffect(() => {
     if (!parameters.length) return;
@@ -997,6 +981,17 @@ export default function EWSSection({
 
 
 
+
+      {scale && (
+        <PreviousHospitalizations
+          patientId={patientId}
+          hospitalId={hospitalId}
+          currentHospitalizationId={hospitalizationId}
+          renderStay={(stayId) => (
+            <PewsStayChart hospitalizationId={stayId} parameters={parameters} thresholds={thresholds} />
+          )}
+        />
+      )}
 
       {(pendingSepsisAlert || activeAlert) && (
         <Dialog open={sepsisDialogOpen} onOpenChange={() => {}}>
