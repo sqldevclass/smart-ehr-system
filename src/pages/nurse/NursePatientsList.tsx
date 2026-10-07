@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useNurseContext } from "@/contexts/NurseContext";
-import { format, differenceInDays, differenceInYears } from "date-fns";
+import { format, differenceInDays } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +24,9 @@ import EWSStatusDot from "@/components/ews/EWSStatusDot";
 import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from "@/components/ui/tooltip";
-import AssessmentIndicator from "@/components/assessments/AssessmentIndicator";
+import AssessmentsCell from "@/components/assessments/AssessmentsCell";
+import { useAssessmentSummaries } from "@/hooks/useAssessmentSummaries";
+import { useNow } from "@/hooks/useNow";
 
 import { cn } from "@/lib/utils";
 import NurseInventoryModal from "@/components/medication/NurseInventoryModal";
@@ -168,89 +170,11 @@ export default function NursePatientsList() {
     return map;
   }, [allVitals, latestVitals]);
 
-  const { data: latestAssessments = [] } = useQuery({
-    queryKey: ["nurse-assessments-latest", user?.hospitalId],
-    staleTime: 0,
-    refetchInterval: 300000,
-    enabled: !!user?.hospitalId,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("patient_assessments")
-        .select(`
-          id, hospitalization_id, scale_id,
-          total_score, risk_level,
-          next_assessment_at,
-          assessment_scales!scale_id(code)
-        `)
-        .eq("hospital_id", user!.hospitalId)
-        .eq("is_voided", false)
-        .order("assessed_at", { ascending: false });
-      return data || [];
-    },
-  });
-
-  const { data: scales = [] } = useQuery({
-    queryKey: ["assessment-scales-ids"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("assessment_scales")
-        .select("id, code")
-        .in("code", ["braden", "morse", "humpty_dumpty"]);
-      return data || [];
-    },
-  });
-  const bradenScale = scales.find((s) => s.code === "braden");
-  const morseScale = scales.find((s) => s.code === "morse");
-  const humptyDumptyScale = scales.find((s) => s.code === "humpty_dumpty");
-
-  const assessmentMap = useMemo(() => {
-    const map: Record<string, {
-      bradenScore: number | null;
-      fallRiskScore: number | null;
-      fallRiskScale: "morse" | "humpty_dumpty" | undefined;
-      bradenPending: boolean;
-      fallRiskPending: boolean;
-      pendingCount: number;
-    }> = {};
-    hospitalizations.forEach((h: any) => {
-      const bradenLatest = latestAssessments.find(
-        (a: any) => a.hospitalization_id === h.id && a.scale_id === bradenScale?.id
-      );
-      const dob = h.patients?.date_of_birth;
-      const fallRiskScale: "morse" | "humpty_dumpty" | undefined = dob
-        ? (differenceInYears(new Date(), new Date(dob)) < 18
-            ? "humpty_dumpty"
-            : "morse")
-        : undefined;
-      const fallRiskScaleId = fallRiskScale
-        ? (fallRiskScale === "humpty_dumpty" ? humptyDumptyScale?.id : morseScale?.id)
-        : undefined;
-      const fallRiskLatest = fallRiskScaleId
-        ? latestAssessments.find(
-            (a: any) => a.hospitalization_id === h.id && a.scale_id === fallRiskScaleId
-          )
-        : null;
-      const bradenPending = !bradenLatest || (
-        bradenLatest.next_assessment_at &&
-        new Date(bradenLatest.next_assessment_at) <= new Date()
-      );
-      const fallRiskPending = fallRiskScale
-        ? (!fallRiskLatest || (
-            fallRiskLatest.next_assessment_at &&
-            new Date(fallRiskLatest.next_assessment_at) <= new Date()
-          ))
-        : false;
-      map[h.id] = {
-        bradenScore: (bradenLatest as any)?.total_score ?? null,
-        fallRiskScore: (fallRiskLatest as any)?.total_score ?? null,
-        fallRiskScale: fallRiskScale ?? undefined,
-        bradenPending: !!bradenPending,
-        fallRiskPending: !!fallRiskPending,
-        pendingCount: (bradenPending ? 1 : 0) + (fallRiskPending ? 1 : 0),
-      };
-    });
-    return map;
-  }, [latestAssessments, hospitalizations, bradenScale, morseScale, humptyDumptyScale]);
+  const now = useNow();
+  const assessmentTz = (user as any)?.timezone || "Asia/Tashkent";
+  const { data: assessmentSummaries = {} } = useAssessmentSummaries(
+    hospitalizations.map((h: any) => h.id),
+  );
 
   const { data: activeSepsisAlerts = [] } = useQuery({
     queryKey: ["active-sepsis-alerts", user?.hospitalId],
@@ -410,30 +334,13 @@ export default function NursePatientsList() {
                                 <div className="font-medium">{h.patients?.last_name} {h.patients?.first_name}</div>
                                 <div className="text-xs text-muted-foreground">{h.patients?.patient_number}</div>
                               </div>
-                              {assessmentMap[h.id]?.pendingCount > 0 ? (
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-semibold shrink-0">
-                                        {assessmentMap[h.id].pendingCount}
-                                      </span>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      Необходимо заполнить:{" "}
-                                      {[
-                                        assessmentMap[h.id].bradenPending && "Шкала Брадена",
-                                        assessmentMap[h.id].fallRiskPending && (assessmentMap[h.id].fallRiskScale === "humpty_dumpty" ? "Шкала Хамти Дамти" : "Шкала Морзе"),
-                                      ].filter(Boolean).join(", ")}
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                              ) : (
-                                <AssessmentIndicator
-                                  bradenScore={assessmentMap[h.id]?.bradenScore ?? null}
-                                  fallRiskScore={assessmentMap[h.id]?.fallRiskScore ?? null}
-                                  fallRiskScale={assessmentMap[h.id]?.fallRiskScale}
-                                />
-                              )}
+                              <AssessmentsCell
+                                summary={assessmentSummaries[h.id]}
+                                dob={h.patients?.date_of_birth}
+                                now={now}
+                                tz={assessmentTz}
+                                compact
+                              />
                               {sepsisAlertSet.has(h.id) && (
                                 <TooltipProvider>
                                   <Tooltip>
@@ -571,30 +478,12 @@ export default function NursePatientsList() {
                           {formatDoctorInitials((h as any).staff_roles?.persons)}
                         </TableCell>
                         <TableCell>
-                          {assessmentMap[h.id]?.pendingCount > 0 ? (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-orange-500 text-white text-xs font-bold cursor-default">
-                                    {assessmentMap[h.id].pendingCount}
-                                  </span>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  Необходимо заполнить:{" "}
-                                  {[
-                                    assessmentMap[h.id].bradenPending && "Шкала Брадена",
-                                    assessmentMap[h.id].fallRiskPending && (assessmentMap[h.id].fallRiskScale === "humpty_dumpty" ? "Шкала Хамти Дамти" : "Шкала Морзе"),
-                                  ].filter(Boolean).join(", ")}
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          ) : (
-                            <AssessmentIndicator
-                              bradenScore={assessmentMap[h.id]?.bradenScore ?? null}
-                              fallRiskScore={assessmentMap[h.id]?.fallRiskScore ?? null}
-                              fallRiskScale={assessmentMap[h.id]?.fallRiskScale}
-                            />
-                          )}
+                          <AssessmentsCell
+                            summary={assessmentSummaries[h.id]}
+                            dob={h.patients?.date_of_birth}
+                            now={now}
+                            tz={assessmentTz}
+                          />
                         </TableCell>
                         <TableCell className="text-sm">{days} дн.</TableCell>
                         <TableCell>
