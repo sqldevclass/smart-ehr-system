@@ -22,7 +22,9 @@ const stays = [
   { id: "s1", admitted_at: "2025-11-01T08:00:00Z", discharged_at: null, departments: null },
 ];
 
-function setup() {
+type Overrides = Partial<React.ComponentProps<typeof PreviousHospitalizations>>;
+
+function setup(overrides: Overrides = {}) {
   const renderStay = vi.fn((id: string) => <div>DATA {id}</div>);
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
@@ -32,6 +34,7 @@ function setup() {
         hospitalId="h1"
         currentHospitalizationId="cur"
         renderStay={renderStay}
+        {...overrides}
       />
     </QueryClientProvider>,
   );
@@ -102,5 +105,38 @@ describe("PreviousHospitalizations", () => {
     await screen.findByText("01.03.2026 — 10.03.2026");
     fireEvent.click(screen.getByRole("button", { name: /Скрыть историю/ }));
     await waitFor(() => expect(screen.queryByText("01.03.2026 — 10.03.2026")).not.toBeInTheDocument());
+  });
+
+  describe("without the toggle (collapsible={false})", () => {
+    it("lists the stays straight away, with no show/hide button", async () => {
+      order.mockResolvedValue({ data: stays, error: null });
+      setup({ collapsible: false });
+      expect(await screen.findByText("01.03.2026 — 10.03.2026")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /История госпитализаций|Скрыть историю/ })).not.toBeInTheDocument();
+    });
+
+    it("still renders a stay's data only once it is expanded", async () => {
+      order.mockResolvedValue({ data: stays, error: null });
+      const { renderStay } = setup({ collapsible: false });
+      await screen.findByText("01.03.2026 — 10.03.2026");
+      expect(renderStay).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByText("01.03.2026 — 10.03.2026"));
+      expect(screen.getByText("DATA s2")).toBeInTheDocument();
+    });
+  });
+
+  describe("without a current stay to exclude", () => {
+    it("lists every stay and does not filter any out", async () => {
+      order.mockResolvedValue({ data: stays, error: null });
+      setup({ collapsible: false, currentHospitalizationId: undefined });
+      await screen.findByText("01.03.2026 — 10.03.2026");
+      expect(neq).not.toHaveBeenCalled();
+    });
+
+    it("uses neutral wording when there are none", async () => {
+      order.mockResolvedValue({ data: [], error: null });
+      setup({ collapsible: false, currentHospitalizationId: undefined });
+      expect(await screen.findByText("Госпитализаций нет")).toBeInTheDocument();
+    });
   });
 });
