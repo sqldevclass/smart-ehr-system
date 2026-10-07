@@ -8,6 +8,8 @@ import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import EWSStatusDot from "@/components/ews/EWSStatusDot";
+import { useNow } from "@/hooks/useNow";
 
 interface Props {
   scaleCode: string;
@@ -153,6 +155,7 @@ export default function AssessmentSection({
   autoOpenForm,
 }: Props) {
   const queryClient = useQueryClient();
+  const now = useNow();
   const [showForm, setShowForm] = useState(autoOpenForm ?? false);
   const [selections, setSelections] = useState<Record<string, Selection>>({});
   const [notes, setNotes] = useState("");
@@ -376,13 +379,15 @@ export default function AssessmentSection({
             </span>
           </div>
           {latest.next_assessment_at && (
-            <div className="text-xs opacity-75 mt-1">
-              Следующая оценка:{" "}
-              {format(
-                new Date(latest.next_assessment_at),
-                "dd.MM.yyyy HH:mm"
-              )}{" "}
-              ({formatRelativeTime(new Date(latest.next_assessment_at))})
+            <div className="text-xs opacity-75 mt-1 flex items-center gap-1.5">
+              {!isReadOnly && new Date(latest.next_assessment_at) <= now && (
+                <EWSStatusDot status="overdue" />
+              )}
+              <span>
+                Следующая оценка:{" "}
+                {format(new Date(latest.next_assessment_at), "dd.MM.yyyy HH:mm")}{" "}
+                ({formatRelativeTime(new Date(latest.next_assessment_at))})
+              </span>
             </div>
           )}
           {showDetail && latest.patient_assessment_responses?.length > 0 && (

@@ -11,6 +11,10 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { formatInTimeZone } from "date-fns-tz";
+import EWSStatusDot from "@/components/ews/EWSStatusDot";
+import { useNow } from "@/hooks/useNow";
+import { getDailyNoteStatus } from "@/lib/dailyNoteSchedule";
 import {
   Select,
   SelectContent,
@@ -118,6 +122,7 @@ export default function NurseMonitoringPanel({
 }: Props) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const now = useNow();
 
   const [showGlucoseForm, setShowGlucoseForm] = useState(false);
   const [showAllGlucose, setShowAllGlucose] = useState(false);
@@ -282,6 +287,12 @@ export default function NurseMonitoringPanel({
       return data || [];
     },
   });
+
+  const dailyNoteTz = (user as any)?.timezone || "Asia/Tashkent";
+  const lastDailyNoteAt = (dailyNotes as any[])[0]?.recorded_at
+    ? new Date((dailyNotes as any[])[0].recorded_at)
+    : null;
+  const dailyNoteStatus = getDailyNoteStatus(lastDailyNoteAt, now, dailyNoteTz);
 
   const handleAddDailyNote = async () => {
     if (!dailyNoteText.trim()) return;
@@ -777,10 +788,15 @@ export default function NurseMonitoringPanel({
                         <div className="text-xs text-muted-foreground">{r.pain_location}</div>
                       )}
                       {i === 0 && r.next_assessment_at && (
-                        <div className="text-xs text-muted-foreground mt-0.5">
-                          Следующая оценка:{" "}
-                          {format(new Date(r.next_assessment_at), "dd.MM.yyyy HH:mm")}{" "}
-                          ({formatRelativeTime(new Date(r.next_assessment_at))})
+                        <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
+                          {!isReadOnly && new Date(r.next_assessment_at) <= now && (
+                            <EWSStatusDot status="overdue" />
+                          )}
+                          <span>
+                            Следующая оценка:{" "}
+                            {format(new Date(r.next_assessment_at), "dd.MM.yyyy HH:mm")}{" "}
+                            ({formatRelativeTime(new Date(r.next_assessment_at))})
+                          </span>
                         </div>
                       )}
                     </div>
@@ -1044,6 +1060,14 @@ export default function NurseMonitoringPanel({
             >
               {showDailyNoteForm ? "Отмена" : "+ Запись"}
             </Button>
+          </div>
+          <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+            {!isReadOnly && dailyNoteStatus.overdue && <EWSStatusDot status="overdue" />}
+            <span>
+              Следующая запись:{" "}
+              {formatInTimeZone(dailyNoteStatus.dueAt, dailyNoteTz, "dd.MM.yyyy HH:mm")}{" "}
+              ({formatRelativeTime(dailyNoteStatus.dueAt)})
+            </span>
           </div>
           {showDailyNoteForm && (
             <div className="space-y-2 bg-muted/20 p-3 rounded-md">
