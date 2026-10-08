@@ -1,6 +1,7 @@
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ICD10SearchField from "./ICD10SearchField";
@@ -122,13 +123,20 @@ function renderField(
       return <Input type="datetime-local" value={value} onChange={(e) => setVal(def.id, e.target.value)} />;
     case "boolean":
       return (
-        <div className="flex items-center gap-2">
-          <Switch
-            checked={value === "true"}
-            onCheckedChange={(c) => setValWithNutriTotal(def.id, c ? "true" : "false")}
-          />
-          <span className="text-sm text-muted-foreground">{value === "true" ? "Да" : "Нет"}</span>
-        </div>
+        <RadioGroup
+          value={value === "true" ? "true" : value === "false" ? "false" : undefined}
+          onValueChange={(v) => setValWithNutriTotal(def.id, v)}
+          className="flex items-center gap-4"
+        >
+          <div className="flex items-center gap-1.5">
+            <RadioGroupItem value="true" id={`${def.id}-yes`} />
+            <Label htmlFor={`${def.id}-yes`} className="text-sm font-normal cursor-pointer">Да</Label>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <RadioGroupItem value="false" id={`${def.id}-no`} />
+            <Label htmlFor={`${def.id}-no`} className="text-sm font-normal cursor-pointer">Нет</Label>
+          </div>
+        </RadioGroup>
       );
     case "select":
       return (
@@ -238,10 +246,22 @@ function FieldValue({
     );
   }
   if (isReadOnly) {
+    const raw = values[field.def.id];
+    if (field.def.field_type === "boolean") {
+      return (
+        <div className="text-sm py-1.5">
+          {raw === "true" || raw === "false" ? (
+            <span className="font-medium">{raw === "true" ? "Да" : "Нет"}</span>
+          ) : (
+            <span className="italic text-sm text-muted-foreground">Не заполнено</span>
+          )}
+        </div>
+      );
+    }
     return (
       <div className="text-sm py-1.5">
-        {values[field.def.id] ? (
-          <MarkdownText value={values[field.def.id]} className="leading-relaxed" />
+        {raw ? (
+          <MarkdownText value={raw} className="leading-relaxed" />
         ) : (
           <span className="italic text-sm text-muted-foreground">Не заполнено</span>
         )}
