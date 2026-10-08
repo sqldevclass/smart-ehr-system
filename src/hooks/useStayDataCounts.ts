@@ -6,7 +6,9 @@ export interface StayDataCounts {
   scales: number;
   pain: number;
   glucose: number;
+  fluid: number;
   notes: number;
+  devices: number;
 }
 
 export function useStayDataCounts(hospitalizationId: string) {

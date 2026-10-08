@@ -13,6 +13,8 @@ import EWSStatusDot from "@/components/ews/EWSStatusDot";
 import { useNow } from "@/hooks/useNow";
 import { getDailyNoteStatus } from "@/lib/dailyNoteSchedule";
 import { formatRelativeTime } from "@/lib/formatRelativeTime";
+import { useHospitalTimezone } from "@/hooks/useHospitalTimezone";
+import StayFluidBalanceSummary from "@/components/nurse/StayFluidBalanceSummary";
 import PreviousHospitalizations from "@/components/shared/PreviousHospitalizations";
 import { painCharacterOptions } from "@/lib/painScale";
 import PainReadingCell from "@/components/nurse/PainReadingCell";
@@ -253,7 +255,7 @@ export default function NurseMonitoringPanel({
     },
   });
 
-  const dailyNoteTz = (user as any)?.timezone || "Asia/Tashkent";
+  const dailyNoteTz = useHospitalTimezone();
   const lastDailyNoteAt = (dailyNotes as any[])[0]?.recorded_at
     ? new Date((dailyNotes as any[])[0].recorded_at)
     : null;
@@ -1052,6 +1054,7 @@ export default function NurseMonitoringPanel({
         hospitalId={hospitalId}
         currentHospitalizationId={hospitalizationId}
         renderStay={(stayId) => <StayMonitoringHistory hospitalizationId={stayId} />}
+        renderStaySummary={(stayId) => <StayFluidBalanceSummary hospitalizationId={stayId} />}
       />
     </div>
   );

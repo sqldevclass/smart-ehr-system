@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import StayScalesHistory from "@/components/assessments/StayScalesHistory";
 import StayRows from "@/components/nurse/StayRows";
+import StayFluidHistory from "@/components/nurse/StayFluidHistory";
+import StayDevicesHistory, { STAY_DEVICE_RECORDS_LIMIT } from "@/components/nurse/StayDevicesHistory";
 import PainReadingCell, { type PainReading } from "@/components/nurse/PainReadingCell";
 import GlucoseReadingCell, { type GlucoseReading } from "@/components/nurse/GlucoseReadingCell";
 import DailyNoteItem, { type DailyNote } from "@/components/nurse/DailyNoteItem";
@@ -53,6 +55,12 @@ const STAY_BLOCKS: Block[] = [
     ),
   },
   {
+    key: "fluid",
+    title: "Баланс жидкости",
+    limit: Infinity, // summed per day in the database, so nothing is cut off
+    render: (id) => <StayFluidHistory hospitalizationId={id} />,
+  },
+  {
     key: "notes",
     title: "Дневниковые записи",
     limit: STAY_ROWS_LIMIT,
@@ -66,6 +74,12 @@ const STAY_BLOCKS: Block[] = [
         renderRow={(note) => <DailyNoteItem note={note} />}
       />
     ),
+  },
+  {
+    key: "devices",
+    title: "Устройства",
+    limit: STAY_DEVICE_RECORDS_LIMIT,
+    render: (id) => <StayDevicesHistory hospitalizationId={id} />,
   },
 ];
 
