@@ -689,15 +689,17 @@ export default function DocumentWorkspaceInner({
               <DiagnosisHistoryPanel
                 patientId={patientId}
                 hospitalizationId={hospitalizationId ?? ""}
+                visitId={visitId}
                 hospitalId={hospitalId}
                 isReadOnly={isReadOnly}
-                onCopy={async (d) => {
+                onCopy={async (d, diagnosisType) => {
                   await supabase.from("patient_diagnoses").insert({
                     patient_id: patientId,
                     hospital_id: hospitalId,
                     hospitalization_id: hospitalizationId || null,
+                    visit_id: hospitalizationId ? null : (visitId || null),
                     icd10_code: d.icd10_code,
-                    diagnosis_type: d.diagnosis_type,
+                    diagnosis_type: diagnosisType,
                     notes: d.notes || null,
                     recorded_by: user!.id,
                   });

@@ -1,18 +1,11 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 
 interface Props {
   patientId: string;
   hospitalId: string;
-  currentUserId: string;
 }
 
 const diagTypes = [
@@ -23,16 +16,11 @@ const diagTypes = [
   { value: "comorbid", label: "Сопутствующий" },
 ];
 
-export default function PatientDiagnosisHistory({ patientId, hospitalId, currentUserId }: Props) {
-  const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [addSearch, setAddSearch] = useState("");
-  const [addSelected, setAddSelected] = useState<{ id: string; code: string; name_ru: string } | null>(null);
-  const [addType, setAddType] = useState("main");
-  const [addNote, setAddNote] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+export default function PatientDiagnosisHistory({ patientId, hospitalId }: Props) {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const initializedExpand = useRef(false);
 
-  const { data: groups = [], refetch } = useQuery({
+  const { data: groups = [] } = useQuery({
     queryKey: ["patient-diagnosis-history", patientId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -40,6 +28,7 @@ export default function PatientDiagnosisHistory({ patientId, hospitalId, current
         .select(`
           id, icd10_code, diagnosis_type, notes, recorded_at, hospitalization_id,
           icd10_codes!icd10_code(code, name_ru),
+          profiles!recorded_by(full_name),
           hospitalizations(hospitalization_number, admitted_at, discharged_at)
         `)
         .eq("hospital_id", hospitalId)
@@ -72,132 +61,39 @@ export default function PatientDiagnosisHistory({ patientId, hospitalId, current
     enabled: !!patientId && !!hospitalId,
   });
 
-  const { data: icd10Results = [] } = useQuery({
-    queryKey: ["icd10-diag-add-standalone", addSearch],
-    enabled: addSearch.trim().length >= 1 && !addSelected,
-    queryFn: async () => {
-      const term = addSearch.trim();
-      const { data } = await supabase
-        .from("icd10_codes")
-        .select("id, code, name_ru")
-        .eq("is_leaf", true)
-        .or(`name_ru.ilike.%${term}%,code.ilike.%${term}%`)
-        .limit(20);
-      return data || [];
-    },
-  });
-
-  const handleAdd = async () => {
-    if (!addSelected) return;
-    setSubmitting(true);
-    const { error } = await supabase.from("patient_diagnoses").insert({
-      patient_id: patientId,
-      hospital_id: hospitalId,
-      hospitalization_id: null,
-      visit_id: null,
-      icd10_code: addSelected.code,
-      diagnosis_type: addType,
-      notes: addNote || null,
-      recorded_by: currentUserId,
-    });
-    setSubmitting(false);
-    if (error) {
-      toast.error(error.message);
-      return;
+  useEffect(() => {
+    if (initializedExpand.current) return;
+    if (groups.length === 0) return;
+    initializedExpand.current = true;
+    const current = groups.find((g: any) =>
+      g.diagnoses.some((d: any) => d.hospitalizations && d.hospitalizations.discharged_at === null)
+    );
+    if (current) {
+      setExpanded(new Set([current.key]));
     }
-    setShowAddForm(false);
-    setAddSearch("");
-    setAddSelected(null);
-    setAddNote("");
-    setAddType("main");
-    setExpandedGroup("general");
-    await refetch();
+  }, [groups]);
+
+  const toggleGroup = (key: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   };
 
   return (
     <div className="p-4 space-y-3">
-      <Button variant="outline" size="sm" onClick={() => setShowAddForm((v) => !v)}>
-        + Добавить диагноз
-      </Button>
-
-      {showAddForm && (
-        <div className="border rounded-md p-3 space-y-3 bg-card">
-          {addSelected ? (
-            <div className="flex items-center justify-between">
-              <div className="text-sm">
-                <span className="font-medium">{addSelected.code}</span>
-                {" — "}
-                {addSelected.name_ru}
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => { setAddSelected(null); setAddSearch(""); }}
-              >
-                Изменить
-              </Button>
-            </div>
-          ) : (
-            <div className="relative">
-              <Input
-                placeholder="Поиск по МКБ-10..."
-                value={addSearch}
-                onChange={(e) => setAddSearch(e.target.value)}
-              />
-              {icd10Results.length > 0 && (
-                <div className="absolute z-50 w-full bg-white border rounded-md shadow-lg max-h-48 overflow-y-auto mt-1">
-                  {icd10Results.map((r: any) => (
-                    <div
-                      key={r.id}
-                      className="px-3 py-2 text-sm hover:bg-muted cursor-pointer"
-                      onClick={() => { setAddSelected(r); setAddSearch(""); }}
-                    >
-                      {r.code} — {r.name_ru}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          <Select value={addType} onValueChange={setAddType}>
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {diagTypes.map((t) => (
-                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Input
-            placeholder="Примечание"
-            value={addNote}
-            onChange={(e) => setAddNote(e.target.value)}
-          />
-
-          <div className="flex gap-2">
-            <Button size="sm" onClick={handleAdd} disabled={!addSelected || submitting}>
-              {submitting ? "..." : "Сохранить"}
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => setShowAddForm(false)}>
-              Отмена
-            </Button>
-          </div>
-        </div>
-      )}
-
       {groups.length === 0 ? (
         <div className="text-sm text-muted-foreground">Нет диагнозов.</div>
       ) : (
         groups.map((g: any) => {
-          const isOpen = expandedGroup === g.key;
+          const isOpen = expanded.has(g.key);
           return (
             <div key={g.key} className="border rounded-md overflow-hidden">
               <button
                 type="button"
-                onClick={() => setExpandedGroup(isOpen ? null : g.key)}
+                onClick={() => toggleGroup(g.key)}
                 className="w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-muted/50"
               >
                 {g.label}
@@ -220,6 +116,9 @@ export default function PatientDiagnosisHistory({ patientId, hospitalId, current
                       <div className="text-xs text-muted-foreground mt-0.5">
                         {diagTypes.find((t) => t.value === d.diagnosis_type)?.label}
                         {d.notes ? ` · ${d.notes}` : ""}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        {d.profiles?.full_name}
                       </div>
                     </div>
                   ))}
