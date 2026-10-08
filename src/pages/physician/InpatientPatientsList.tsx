@@ -8,6 +8,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useHospitalTimezone } from "@/hooks/useHospitalTimezone";
 import { usePhysicianId } from "@/hooks/usePhysicianId";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -76,7 +77,7 @@ export default function InpatientPatientsList() {
   });
 
   const now = useNow();
-  const assessmentTz = (user as any)?.timezone || "Asia/Tashkent";
+  const assessmentTz = useHospitalTimezone();
   const { data: assessmentSummaries = {} } = useAssessmentSummaries(
     hospitalizations.map((h: any) => h.id),
   );
