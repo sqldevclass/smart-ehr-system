@@ -11,6 +11,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import DocumentPatientHeader from "./DocumentPatientHeader";
 import DocumentSection from "./DocumentSection";
+import CSSRSSection from "./CSSRSSection";
 import DiagnosisTab from "./DiagnosisTab";
 import AllergyTab from "./AllergyTab";
 import AssignmentsSection from "./AssignmentsSection";
@@ -24,6 +25,17 @@ import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from "@/components/ui/select";
 
+// Document types that carry the C-SSRS suicide-risk screen inside
+// their Объективная оценка tab (same 6 that had the old psych.*
+// fields it replaces).
+const CSSRS_DOCUMENT_TYPES = [
+  "anesthesiologist_exam",
+  "diagnosis_justification",
+  "discharge_summary",
+  "post_mortem_summary",
+  "pre_operative_summary",
+  "primary_physician_exam",
+];
 
 interface InnerProps {
   visitServiceId: string;
@@ -661,6 +673,14 @@ export default function DocumentWorkspaceInner({
                     onFocusEditable={handleFocusEditable}
                   />
                 )}
+                {s.code === "objective_assessment_full" &&
+                  CSSRS_DOCUMENT_TYPES.includes(documentType?.code) && (
+                    <CSSRSSection
+                      values={values}
+                      setVal={setVal}
+                      isReadOnly={effectiveReadOnly}
+                    />
+                  )}
                 {s.code === "treatment_plan" && (
                   <div className="mt-8 pt-6 border-t border-gray-200">
                     <AssignmentsSection

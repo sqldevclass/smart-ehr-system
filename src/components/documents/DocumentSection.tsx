@@ -1,13 +1,12 @@
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ICD10SearchField from "./ICD10SearchField";
 import { cn } from "@/lib/utils";
 import RichTextarea from "./RichTextarea";
 import MarkdownText from "./MarkdownText";
+import YesNoRadio from "./YesNoRadio";
 
 
 interface FieldDef {
@@ -146,20 +145,11 @@ function renderField(
       return <Input type="datetime-local" value={value} onChange={(e) => setVal(def.id, e.target.value)} />;
     case "boolean":
       return (
-        <RadioGroup
-          value={value === "true" ? "true" : value === "false" ? "false" : undefined}
+        <YesNoRadio
+          value={value}
           onValueChange={(v) => setValWithNutriTotal(def.id, v)}
-          className="flex items-center gap-4"
-        >
-          <div className="flex items-center gap-1.5">
-            <RadioGroupItem value="true" id={`${def.id}-yes`} />
-            <Label htmlFor={`${def.id}-yes`} className="text-sm font-normal cursor-pointer">Да</Label>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <RadioGroupItem value="false" id={`${def.id}-no`} />
-            <Label htmlFor={`${def.id}-no`} className="text-sm font-normal cursor-pointer">Нет</Label>
-          </div>
-        </RadioGroup>
+          idPrefix={def.id}
+        />
       );
     case "select":
       return (
