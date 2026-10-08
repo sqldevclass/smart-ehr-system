@@ -86,6 +86,29 @@ function nutritionInterpretation(total: number): string {
   return "0-2 балла — никаких действий";
 }
 
+// Plain-text display for "auto"/"calculated" fields -- these are
+// system-computed and never directly editable, so they never render
+// as an input box in any state (editing or completed/read-only).
+// Larger/bolder than ordinary field text since these are short,
+// often important values (a score, a date, a day-count).
+function CalculatedValue({ def, values }: { def: FieldDef; values: Record<string, string> }) {
+  const value = values[def.id] ?? "";
+  if (def.id === NUTRI_TOTAL_ID) {
+    const total = computeNutritionTotal(values);
+    return (
+      <div className="space-y-1">
+        <div className="text-2xl font-semibold">{total}</div>
+        <p className="text-xs text-muted-foreground">{nutritionInterpretation(total)}</p>
+      </div>
+    );
+  }
+  return (
+    <div className="text-lg font-semibold">
+      {value || <span className="italic text-sm font-normal text-muted-foreground">Не заполнено</span>}
+    </div>
+  );
+}
+
 function renderField(
   def: FieldDef,
   values: Record<string, string>,
@@ -185,19 +208,6 @@ function renderField(
         </div>
       );
     }
-    case "calculated":
-    case "auto": {
-      if (def.id === NUTRI_TOTAL_ID) {
-        const total = computeNutritionTotal(values);
-        return (
-          <div className="space-y-1">
-            <Input readOnly className="bg-muted font-semibold" value={String(total)} />
-            <p className="text-xs text-muted-foreground">{nutritionInterpretation(total)}</p>
-          </div>
-        );
-      }
-      return <Input readOnly className="bg-muted" value={value} />;
-    }
     case "text":
     default:
       return <Input value={value} onChange={(e) => setVal(def.id, e.target.value)} />;
@@ -244,6 +254,11 @@ function FieldValue({
         isReadOnly={isReadOnly}
       />
     );
+  }
+  // auto/calculated fields are never user-editable, regardless of the
+  // document's own edit state -- always plain text, never an input box.
+  if (field.def.field_type === "auto" || field.def.field_type === "calculated") {
+    return <CalculatedValue def={field.def} values={values} />;
   }
   if (isReadOnly) {
     const raw = values[field.def.id];
