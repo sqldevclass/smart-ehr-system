@@ -15,6 +15,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { DEVICE_FORMS } from "@/lib/deviceForms";
+import { groupDeviceRecords, keyOf } from "@/lib/groupDeviceRecords";
 
 interface Props {
   hospitalizationId: string;
@@ -39,9 +41,6 @@ type DraftDevice = {
 };
 
 type DeviceKey = { form_type: string; device_label: string; inserted_at: string };
-const keyOf = (form_type: string, device_label: string | null) =>
-  `${form_type}::${device_label ?? ""}`;
-
 export default function DeviceMonitoringSection({
   hospitalizationId,
   patientId,
@@ -100,31 +99,7 @@ export default function DeviceMonitoringSection({
 
   // Group records by (form_type, device_label). A device is "removed" if
   // its latest record has removed_at set.
-  const deviceGroups = useMemo(() => {
-    const map = new Map<
-      string,
-      { form_type: string; device_label: string | null; inserted_at: string; entries: any[] }
-    >();
-    for (const r of records as any[]) {
-      const k = keyOf(r.form_type, r.device_label);
-      const g = map.get(k);
-      if (!g) {
-        map.set(k, {
-          form_type: r.form_type,
-          device_label: r.device_label,
-          inserted_at: r.inserted_at,
-          entries: [r],
-        });
-      } else {
-        g.entries.push(r);
-        if (r.inserted_at && (!g.inserted_at || r.inserted_at < g.inserted_at)) {
-          g.inserted_at = r.inserted_at;
-        }
-      }
-    }
-    return Array.from(map.entries())
-      .map(([k, g]) => ({ key: k, ...g }));
-  }, [records]);
+  const deviceGroups = useMemo(() => groupDeviceRecords(records as any[]), [records]);
 
   const activeKeys = useMemo(() => new Set(deviceGroups.map((g) => g.key)), [deviceGroups]);
 

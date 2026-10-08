@@ -139,7 +139,8 @@ describe("NurseMonitoringPanel: one hospitalization history at the bottom", () =
     fireEvent.click(screen.getByRole("button", { name: /История госпитализаций/ }));
     const stayRow = await screen.findByText("01.03.2026 — 10.03.2026");
     expect(screen.getByText("Кардиология")).toBeInTheDocument();
-    expect(rpc).not.toHaveBeenCalled(); // nothing is loaded for a stay until it is expanded
+    // none of a stay's records are loaded until it is expanded; only its small fluid total is fetched for the row
+    expect(rpc).not.toHaveBeenCalledWith("get_stay_data_counts", expect.anything());
 
     fireEvent.click(stayRow);
     const stay = stayRow.closest("div.border") as HTMLElement;

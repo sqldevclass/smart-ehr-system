@@ -17,6 +17,8 @@ interface Props {
   label?: string;
   /** false: no "show history" toggle, the list is always visible. */
   collapsible?: boolean;
+  /** Small extra on each stay's row, e.g. a total. Rendered next to the department. */
+  renderStaySummary?: (hospitalizationId: string) => ReactNode;
 }
 
 const formatStayRange = (stay: HospitalizationStay) =>
@@ -37,6 +39,7 @@ export default function PreviousHospitalizations({
   renderStay,
   label = "История госпитализаций",
   collapsible = true,
+  renderStaySummary,
 }: Props) {
   const [toggledOpen, setToggledOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -92,9 +95,10 @@ export default function PreviousHospitalizations({
                     />
                     <span className="font-medium">{formatStayRange(stay)}</span>
                   </span>
-                  {stay.departments?.name && (
-                    <span className="text-xs text-muted-foreground truncate">{stay.departments.name}</span>
-                  )}
+                  <span className="flex min-w-0 items-center gap-3 text-xs text-muted-foreground">
+                    {renderStaySummary?.(stay.id)}
+                    {stay.departments?.name && <span className="truncate">{stay.departments.name}</span>}
+                  </span>
                 </button>
                 {isExpanded && <div className="px-3 pb-3">{renderStay(stay.id)}</div>}
               </div>
