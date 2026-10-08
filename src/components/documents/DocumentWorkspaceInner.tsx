@@ -16,6 +16,7 @@ import AllergyTab from "./AllergyTab";
 import AssignmentsSection from "./AssignmentsSection";
 import TemplatePanel from "./TemplatePanel";
 import HospRecommendationSection from "./HospRecommendationSection";
+import DischargeDialog from "@/components/inpatient/DischargeDialog";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -82,6 +83,7 @@ export default function DocumentWorkspaceInner({
   const [activeTab, setActiveTab] = useState("0");
   const [fullView, setFullView] = useState(startInFullView ?? false);
   const [hasDiagnosis, setHasDiagnosis] = useState(false);
+  const [dischargeOpen, setDischargeOpen] = useState(false);
   const [activeEditable, setActiveEditable] = useState<{
     el: HTMLDivElement;
     onChange: (val: string) => void;
@@ -375,25 +377,50 @@ export default function DocumentWorkspaceInner({
         }
         return;
       }
-      toast.success("Документ подтверждён");
-      setDocStatus("completed");
-      setCompletedAt(new Date().toISOString());
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("full_name")
-          .eq("id", session.user.id)
-          .single();
-        setCompletedBy(profile?.full_name ?? null);
-      }
-      queryClient.invalidateQueries({ queryKey: ["physician-schedule"] });
-      if (docId) onComplete?.(docId);
-      // Do NOT call onClose() — component stays mounted
-      // and re-renders with isReadOnly = true from docStatus
+      await markCompletedLocally(docId);
     } finally {
       setIsConfirming(false);
     }
+  };
+
+  // Shared by handleConfirm and handleDischargeSuccess -- updates all
+  // local state to reflect a document that was just completed, without
+  // calling onClose() (the component stays mounted and re-renders with
+  // isReadOnly = true from docStatus).
+  const markCompletedLocally = async (docId: string) => {
+    toast.success("Документ подтверждён");
+    setDocStatus("completed");
+    setCompletedAt(new Date().toISOString());
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", session.user.id)
+        .single();
+      setCompletedBy(profile?.full_name ?? null);
+    }
+    queryClient.invalidateQueries({ queryKey: ["physician-schedule"] });
+    onComplete?.(docId);
+  };
+
+  const handleOpenDischarge = async () => {
+    let docId = documentIdRef.current;
+    if (!docId) {
+      docId = await ensureDocument();
+      if (!docId) {
+        toast.error("Не удалось создать документ. Попробуйте ещё раз.");
+        return;
+      }
+    }
+    await persistValues(docId, valuesRef.current);
+    setIsDirty(false);
+    setDischargeOpen(true);
+  };
+
+  const handleDischargeSuccess = async () => {
+    const docId = documentIdRef.current;
+    if (docId) await markCompletedLocally(docId);
   };
 
   const canConfirm =
@@ -500,7 +527,7 @@ export default function DocumentWorkspaceInner({
           <Button variant="outline" size="sm" onClick={() => window.print()}>
             <Printer className="h-4 w-4 mr-1" /> Печать
           </Button>
-          {!isReadOnly && (
+          {!isReadOnly && documentType?.code !== "discharge_summary" && (
             <Button size="sm" onClick={handleConfirm} disabled={!canConfirm}>
               {isConfirming ? "..." : "Подтвердить"}
             </Button>
@@ -653,6 +680,16 @@ export default function DocumentWorkspaceInner({
                     )}
                   </div>
                 )}
+                {s.code === "discharge_plan" &&
+                  documentType?.code === "discharge_summary" &&
+                  !effectiveReadOnly &&
+                  !!hospitalizationId && (
+                    <div className="mt-8 pt-6 border-t border-gray-200 flex justify-end">
+                      <Button variant="destructive" onClick={handleOpenDischarge}>
+                        Выписать
+                      </Button>
+                    </div>
+                  )}
 
               </div>
             );
@@ -735,7 +772,21 @@ export default function DocumentWorkspaceInner({
     </div>
   );
 
-  return fullView ? createPortal(content, document.body) : content;
+  return (
+    <>
+      {fullView ? createPortal(content, document.body) : content}
+      {hospitalizationId && (
+        <DischargeDialog
+          open={dischargeOpen}
+          onOpenChange={setDischargeOpen}
+          hospitalizationId={hospitalizationId}
+          patientName={`${patient?.last_name ?? ""} ${patient?.first_name ?? ""}`}
+          documentId={documentId ?? ""}
+          onSuccess={handleDischargeSuccess}
+        />
+      )}
+    </>
+  );
 }
 
 function DiagnosisHistoryPanel({

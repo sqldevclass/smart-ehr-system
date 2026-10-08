@@ -19,7 +19,6 @@ import { cn } from "@/lib/utils";
 import InpatientDocumentWorkspace from "@/components/documents/InpatientDocumentWorkspace";
 import { Eye } from "lucide-react";
 import DocumentHistory from "@/components/documents/DocumentHistory";
-import DischargeDialog from "@/components/inpatient/DischargeDialog";
 import EWSSection from "@/components/ews/EWSSection";
 import MedicationTab from "@/components/medication/MedicationTab";
 import InteractionWarnings, { useInteractionCount } from "@/components/medication/InteractionWarnings";
@@ -80,7 +79,6 @@ export default function InpatientPatientDetail() {
     }
     return { type: "tab", tab: "lab" };
   });
-  const [dischargeOpen, setDischargeOpen] = useState(false);
   const [showMedicationModal, setShowMedicationModal] = useState(false);
   const [showIxModal, setShowIxModal] = useState(false);
   const [ixAutoDismissed, setIxAutoDismissed] = useState(false);
@@ -398,6 +396,7 @@ export default function InpatientPatientDetail() {
     queryClient.invalidateQueries({
       queryKey: ["inpatient-docs-all", patientId],
     });
+    refetch();
   };
 
   const handlePrintMedications = async () => {
@@ -618,16 +617,6 @@ export default function InpatientPatientDetail() {
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>
-            )}
-            {!isReadOnlyContext && (
-              <Button
-                variant="destructive"
-                size="sm"
-                className="h-7 px-2 text-xs"
-                onClick={() => setDischargeOpen(true)}
-              >
-                Выписать
-              </Button>
             )}
           </div>
 
@@ -917,17 +906,6 @@ export default function InpatientPatientDetail() {
         </DialogContent>
       </Dialog>
 
-
-      <DischargeDialog
-        open={dischargeOpen}
-        onOpenChange={setDischargeOpen}
-        hospitalizationId={hospitalizationId}
-        patientName={`${patient?.last_name ?? ""} ${patient?.first_name ?? ""}`}
-        onSuccess={() => {
-          refetch();
-          navigate("/physician/inpatient");
-        }}
-      />
 
       {showPatientCard && hospitalizationId && (
         <PatientCardModal

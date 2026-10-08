@@ -26,7 +26,9 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   hospitalizationId: string;
   patientName: string;
-  onSuccess: () => void;
+  /** When given, discharge also completes this discharge-summary document atomically. */
+  documentId?: string;
+  onSuccess: () => void | Promise<void>;
 }
 
 export default function DischargeDialog({
@@ -34,6 +36,7 @@ export default function DischargeDialog({
   onOpenChange,
   hospitalizationId,
   patientName,
+  documentId,
   onSuccess,
 }: Props) {
   const [dischargeType, setDischargeType] = useState<DischargeType>("discharged");
@@ -42,16 +45,23 @@ export default function DischargeDialog({
 
   const handleDischarge = async () => {
     setSubmitting(true);
-    const { error } = await supabase.rpc("discharge_patient", {
-      p_hospitalization_id: hospitalizationId,
-      p_discharge_type: dischargeType,
-      p_discharge_notes: notes || null,
-    } as any);
+    const { error } = documentId
+      ? await supabase.rpc("discharge_patient_with_summary", {
+          p_hospitalization_id: hospitalizationId,
+          p_discharge_type: dischargeType,
+          p_discharge_notes: notes || null,
+          p_document_id: documentId,
+        } as any)
+      : await supabase.rpc("discharge_patient", {
+          p_hospitalization_id: hospitalizationId,
+          p_discharge_type: dischargeType,
+          p_discharge_notes: notes || null,
+        } as any);
     if (error) {
       toast.error(error.message);
     } else {
       toast.success("Пациент выписан");
-      onSuccess();
+      await onSuccess();
       onOpenChange(false);
     }
     setSubmitting(false);
