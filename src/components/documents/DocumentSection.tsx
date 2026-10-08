@@ -42,6 +42,37 @@ const NUTRI_STRESS_ID = "b1000000-0000-0000-0000-000000000052";
 const NUTRI_TOTAL_ID = "b1000000-0000-0000-0000-000000000053";
 const NUTRI_INPUT_IDS = [NUTRI_BMI_ID, NUTRI_WEIGHT_LOSS_ID, NUTRI_INTAKE_ID, NUTRI_STRESS_ID];
 
+// Field types that render as a short value (a number, or a read-only
+// auto/calculated stamp) and don't need a full-width row. Grouped into
+// compact, flex-wrap rows instead. NUTRI_TOTAL_ID is excluded even
+// though it's "calculated" -- it renders an extra interpretation line
+// below its value and needs the full width.
+const COMPACT_FIELD_TYPES = ["number", "auto", "calculated"];
+
+function isCompactField(field: SectionField) {
+  return COMPACT_FIELD_TYPES.includes(field.def.field_type) && field.def.id !== NUTRI_TOTAL_ID;
+}
+
+// Partitions a section's fields into either single full-width fields
+// or runs of consecutive compact fields (rendered together in one row).
+function groupFields(fields: SectionField[]): (SectionField | SectionField[])[] {
+  const groups: (SectionField | SectionField[])[] = [];
+  let run: SectionField[] = [];
+  for (const f of fields) {
+    if (isCompactField(f)) {
+      run.push(f);
+    } else {
+      if (run.length) {
+        groups.push(run);
+        run = [];
+      }
+      groups.push(f);
+    }
+  }
+  if (run.length) groups.push(run);
+  return groups;
+}
+
 function computeNutritionTotal(vals: Record<string, string>): number {
   const boolScore = (id: string) => (vals[id] === "true" ? 2 : 0);
   const stress = parseInt(vals[NUTRI_STRESS_ID] || "0", 10) || 0;
@@ -165,57 +196,111 @@ function renderField(
   }
 }
 
+function FieldLabel({ field, isReadOnly }: { field: SectionField; isReadOnly: boolean }) {
+  return (
+    <div className="text-sm font-medium flex items-center gap-1">
+      {field.def.label_ru}
+      {field.def.unit && (
+        <span className="text-xs text-muted-foreground">({field.def.unit})</span>
+      )}
+      {field.is_mandatory && !isReadOnly && (
+        <span className="text-destructive">*</span>
+      )}
+    </div>
+  );
+}
+
+function FieldValue({
+  field,
+  values,
+  setVal,
+  isReadOnly,
+  onFocusEditable,
+}: {
+  field: SectionField;
+  values: Record<string, string>;
+  setVal: (id: string, val: string) => void;
+  isReadOnly: boolean;
+  onFocusEditable?: (el: HTMLDivElement, onChange: (val: string) => void) => void;
+}) {
+  const isDiag =
+    field.def.attribute_code?.startsWith("diag.") &&
+    field.def.field_type === "textarea";
+  if (isDiag) {
+    return (
+      <ICD10SearchField
+        fieldId={field.def.id}
+        label={field.def.label_ru}
+        value={values[field.def.id] ?? ""}
+        onChange={(val) => setVal(field.def.id, val)}
+        isReadOnly={isReadOnly}
+      />
+    );
+  }
+  if (isReadOnly) {
+    return (
+      <div className="text-sm py-1.5">
+        {values[field.def.id] ? (
+          <MarkdownText value={values[field.def.id]} className="leading-relaxed" />
+        ) : (
+          <span className="italic text-sm text-muted-foreground">Не заполнено</span>
+        )}
+      </div>
+    );
+  }
+  return <>{renderField(field.def, values, setVal, onFocusEditable)}</>;
+}
+
+// Renders one field's label + value block. `compact` narrows the
+// wrapper so several of these can sit side by side in a flex-wrap row.
+function renderFieldBlock(
+  field: SectionField,
+  values: Record<string, string>,
+  setVal: (id: string, val: string) => void,
+  isReadOnly: boolean,
+  onFocusEditable: ((el: HTMLDivElement, onChange: (val: string) => void) => void) | undefined,
+  compact: boolean,
+) {
+  return (
+    <div
+      key={field.def.id}
+      className={cn(
+        "space-y-1.5",
+        compact ? "w-36 shrink-0" : "w-full",
+        isReadOnly && !values[field.def.id] && "print-hide-empty"
+      )}
+    >
+      <FieldLabel field={field} isReadOnly={isReadOnly} />
+      <FieldValue
+        field={field}
+        values={values}
+        setVal={setVal}
+        isReadOnly={isReadOnly}
+        onFocusEditable={onFocusEditable}
+      />
+    </div>
+  );
+}
+
 export default function DocumentSection({ section, values, setVal, isReadOnly, onFocusEditable }: Props) {
+  const groups = groupFields(section.fields);
   return (
     <div className="document-section-page space-y-4">
       <h2 className="font-heading text-lg font-semibold border-b pb-2">
         {section.name_ru}
       </h2>
       <div className="space-y-4">
-        {section.fields.map((field) => {
-          const isDiag =
-            field.def.attribute_code?.startsWith("diag.") &&
-            field.def.field_type === "textarea";
-          return (
-            <div
-              key={field.def.id}
-              className={cn(
-                "space-y-1.5",
-                isReadOnly && !values[field.def.id] && "print-hide-empty"
-              )}
-            >
-
-              <div className="text-sm font-medium flex items-center gap-1">
-                {field.def.label_ru}
-                {field.def.unit && (
-                  <span className="text-xs text-muted-foreground">({field.def.unit})</span>
-                )}
-                {field.is_mandatory && !isReadOnly && (
-                  <span className="text-destructive">*</span>
-                )}
-              </div>
-              {isDiag ? (
-                <ICD10SearchField
-                  fieldId={field.def.id}
-                  label={field.def.label_ru}
-                  value={values[field.def.id] ?? ""}
-                  onChange={(val) => setVal(field.def.id, val)}
-                  isReadOnly={isReadOnly}
-                />
-              ) : isReadOnly ? (
-                <div className="text-sm py-1.5">
-                  {values[field.def.id] ? (
-                    <MarkdownText value={values[field.def.id]} className="leading-relaxed" />
-                  ) : (
-                    <span className="italic text-sm text-muted-foreground">Не заполнено</span>
-                  )}
-                </div>
-              ) : (
-                renderField(field.def, values, setVal, onFocusEditable)
+        {groups.map((g, i) =>
+          Array.isArray(g) ? (
+            <div key={`row-${i}`} className="flex flex-wrap gap-4">
+              {g.map((field) =>
+                renderFieldBlock(field, values, setVal, isReadOnly, onFocusEditable, true)
               )}
             </div>
-          );
-        })}
+          ) : (
+            renderFieldBlock(g, values, setVal, isReadOnly, onFocusEditable, false)
+          )
+        )}
       </div>
     </div>
   );

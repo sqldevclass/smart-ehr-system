@@ -237,7 +237,7 @@ export default function TemplatePanel({
             className="w-full text-xs h-8 mb-2"
             onClick={() => setShowExistingDocs(true)}
           >
-            Использовать существующий документ
+            Скопировать
           </Button>
           <div className="pt-2 border-t">
             {showNameInput ? (
