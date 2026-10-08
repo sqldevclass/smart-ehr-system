@@ -16,6 +16,12 @@ import AllergyTab from "./AllergyTab";
 import AssignmentsSection from "./AssignmentsSection";
 import TemplatePanel from "./TemplatePanel";
 import HospRecommendationSection from "./HospRecommendationSection";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+} from "@/components/ui/select";
 
 
 interface InnerProps {
@@ -819,7 +825,7 @@ function DiagnosisHistoryPanel({
       </div>
       {!isReadOnly && (
         <button
-          onClick={() => handleCopy(d)}
+          onClick={() => openCopyDialog(d)}
           disabled={copying === d.id}
           className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 text-primary text-[10px] border rounded px-1.5 py-0.5 bg-white hover:bg-primary hover:text-white transition-all disabled:opacity-50"
         >
@@ -851,6 +857,35 @@ function DiagnosisHistoryPanel({
       {history.length === 0 && otherPhysicianDiags.length === 0 && (
         <p className="text-muted-foreground text-xs">История пуста</p>
       )}
+
+      <Dialog open={!!pendingCopy} onOpenChange={(o) => { if (!o) setPendingCopy(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Тип диагноза</DialogTitle>
+          </DialogHeader>
+          <div className="text-sm font-medium">
+            {pendingCopy?.icd10_codes?.code} — {pendingCopy?.icd10_codes?.name_ru}
+          </div>
+          <Select value={copyType} onValueChange={setCopyType}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {copyTypeOptions.map((t) => (
+                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingCopy(null)}>
+              Отмена
+            </Button>
+            <Button onClick={confirmCopy} disabled={confirming}>
+              {confirming ? "..." : "Добавить"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
-}
+  }

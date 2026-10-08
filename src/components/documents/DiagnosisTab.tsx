@@ -394,6 +394,9 @@ export default function DiagnosisTab({
                       </button>
                     )}
                   </div>
+                  <div className="text-xs text-muted-foreground">
+                    {d.profiles?.full_name}
+                  </div>
                   {isEditing ? (
                     <div className="flex gap-1 mt-1">
                       <textarea
