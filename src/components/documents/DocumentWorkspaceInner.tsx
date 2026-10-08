@@ -16,6 +16,12 @@ import AllergyTab from "./AllergyTab";
 import AssignmentsSection from "./AssignmentsSection";
 import TemplatePanel from "./TemplatePanel";
 import HospRecommendationSection from "./HospRecommendationSection";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+} from "@/components/ui/select";
 
 
 interface InnerProps {
@@ -689,15 +695,17 @@ export default function DocumentWorkspaceInner({
               <DiagnosisHistoryPanel
                 patientId={patientId}
                 hospitalizationId={hospitalizationId ?? ""}
+                visitId={visitId}
                 hospitalId={hospitalId}
                 isReadOnly={isReadOnly}
-                onCopy={async (d) => {
+                onCopy={async (d, diagnosisType) => {
                   await supabase.from("patient_diagnoses").insert({
                     patient_id: patientId,
                     hospital_id: hospitalId,
                     hospitalization_id: hospitalizationId || null,
+                    visit_id: hospitalizationId ? null : (visitId || null),
                     icd10_code: d.icd10_code,
-                    diagnosis_type: d.diagnosis_type,
+                    diagnosis_type: diagnosisType,
                     notes: d.notes || null,
                     recorded_by: user!.id,
                   });
@@ -731,16 +739,20 @@ export default function DocumentWorkspaceInner({
 }
 
 function DiagnosisHistoryPanel({
-  patientId, hospitalizationId, hospitalId, isReadOnly, onCopy,
+  patientId, hospitalizationId, visitId, hospitalId, isReadOnly, onCopy,
 }: {
   patientId: string;
   hospitalizationId: string;
+  visitId: string;
   hospitalId: string;
   isReadOnly: boolean;
-  onCopy: (d: any) => Promise<void>;
+  onCopy: (d: any, diagnosisType: string) => Promise<void>;
 }) {
   const qc = useQueryClient();
   const [copying, setCopying] = useState<string | null>(null);
+  const [pendingCopy, setPendingCopy] = useState<any | null>(null);
+  const [copyType, setCopyType] = useState("main");
+  const [confirming, setConfirming] = useState(false);
 
   const { data: history = [] } = useQuery({
     queryKey: ["doc-diag-history", patientId, hospitalizationId],
@@ -791,12 +803,40 @@ function DiagnosisHistoryPanel({
     comorbid: "Сопутствующий",
   }[t] ?? t);
 
-  const handleCopy = async (d: any) => {
-    setCopying(d.id);
+  const copyTypeOptions = [
+    { value: "main", label: "Основной" },
+    { value: "comorbid", label: "Сопутствующий" },
+  ];
+
+  const openCopyDialog = (d: any) => {
+    setPendingCopy(d);
+    setCopyType("main");
+  };
+
+  const confirmCopy = async () => {
+    if (!pendingCopy) return;
+    setConfirming(true);
     try {
-      await onCopy(d);
+      if (copyType === "main") {
+        const scopeColumn = hospitalizationId ? "hospitalization_id" : "visit_id";
+        const scopeValue = hospitalizationId || visitId;
+        const { count } = await supabase
+          .from("patient_diagnoses")
+          .select("id", { count: "exact", head: true })
+          .eq("hospital_id", hospitalId)
+          .eq(scopeColumn, scopeValue)
+          .eq("diagnosis_type", "main");
+        if ((count ?? 0) > 0) {
+          toast.error("В этой госпитализации уже есть основной диагноз");
+          return;
+        }
+      }
+      setCopying(pendingCopy.id);
+      await onCopy(pendingCopy, copyType);
       qc.invalidateQueries({ queryKey: ["doc-diagnoses"] });
+      setPendingCopy(null);
     } finally {
+      setConfirming(false);
       setCopying(null);
     }
   };
@@ -817,7 +857,7 @@ function DiagnosisHistoryPanel({
       </div>
       {!isReadOnly && (
         <button
-          onClick={() => handleCopy(d)}
+          onClick={() => openCopyDialog(d)}
           disabled={copying === d.id}
           className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 text-primary text-[10px] border rounded px-1.5 py-0.5 bg-white hover:bg-primary hover:text-white transition-all disabled:opacity-50"
         >
@@ -849,6 +889,35 @@ function DiagnosisHistoryPanel({
       {history.length === 0 && otherPhysicianDiags.length === 0 && (
         <p className="text-muted-foreground text-xs">История пуста</p>
       )}
+
+      <Dialog open={!!pendingCopy} onOpenChange={(o) => { if (!o) setPendingCopy(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Тип диагноза</DialogTitle>
+          </DialogHeader>
+          <div className="text-sm font-medium">
+            {pendingCopy?.icd10_codes?.code} — {pendingCopy?.icd10_codes?.name_ru}
+          </div>
+          <Select value={copyType} onValueChange={setCopyType}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {copyTypeOptions.map((t) => (
+                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingCopy(null)}>
+              Отмена
+            </Button>
+            <Button onClick={confirmCopy} disabled={confirming}>
+              {confirming ? "..." : "Добавить"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
-}
+  }

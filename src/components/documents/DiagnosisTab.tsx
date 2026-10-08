@@ -234,8 +234,9 @@ export default function DiagnosisTab({
   return (
     <div className="space-y-4">
       {!isReadOnly && (
-        <div>
+        <div className="flex justify-start">
           {showAddForm ? (
+            <div className="w-full">
             <div className="border rounded-md p-3 space-y-3 bg-muted/30">
               <Select value={addType} onValueChange={setAddType}>
                 <SelectTrigger className="text-sm">
@@ -346,6 +347,7 @@ export default function DiagnosisTab({
                 </Button>
               </div>
             </div>
+            </div>
           ) : (
             <Button
               variant="outline"
@@ -391,6 +393,9 @@ export default function DiagnosisTab({
                         ✕
                       </button>
                     )}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {d.profiles?.full_name}
                   </div>
                   {isEditing ? (
                     <div className="flex gap-1 mt-1">

@@ -972,7 +972,6 @@ function TabPanel(props: TabProps) {
         <PatientDiagnosisHistory
           patientId={props.patientId}
           hospitalId={props.hospitalId}
-          currentUserId={props.userId}
         />
       );
     case "imaging":
