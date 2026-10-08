@@ -739,16 +739,20 @@ export default function DocumentWorkspaceInner({
 }
 
 function DiagnosisHistoryPanel({
-  patientId, hospitalizationId, hospitalId, isReadOnly, onCopy,
+  patientId, hospitalizationId, visitId, hospitalId, isReadOnly, onCopy,
 }: {
   patientId: string;
   hospitalizationId: string;
+  visitId: string;
   hospitalId: string;
   isReadOnly: boolean;
-  onCopy: (d: any) => Promise<void>;
+  onCopy: (d: any, diagnosisType: string) => Promise<void>;
 }) {
   const qc = useQueryClient();
   const [copying, setCopying] = useState<string | null>(null);
+  const [pendingCopy, setPendingCopy] = useState<any | null>(null);
+  const [copyType, setCopyType] = useState("main");
+  const [confirming, setConfirming] = useState(false);
 
   const { data: history = [] } = useQuery({
     queryKey: ["doc-diag-history", patientId, hospitalizationId],
@@ -799,12 +803,40 @@ function DiagnosisHistoryPanel({
     comorbid: "Сопутствующий",
   }[t] ?? t);
 
-  const handleCopy = async (d: any) => {
-    setCopying(d.id);
+  const copyTypeOptions = [
+    { value: "main", label: "Основной" },
+    { value: "comorbid", label: "Сопутствующий" },
+  ];
+
+  const openCopyDialog = (d: any) => {
+    setPendingCopy(d);
+    setCopyType("main");
+  };
+
+  const confirmCopy = async () => {
+    if (!pendingCopy) return;
+    setConfirming(true);
     try {
-      await onCopy(d);
+      if (copyType === "main") {
+        const scopeColumn = hospitalizationId ? "hospitalization_id" : "visit_id";
+        const scopeValue = hospitalizationId || visitId;
+        const { count } = await supabase
+          .from("patient_diagnoses")
+          .select("id", { count: "exact", head: true })
+          .eq("hospital_id", hospitalId)
+          .eq(scopeColumn, scopeValue)
+          .eq("diagnosis_type", "main");
+        if ((count ?? 0) > 0) {
+          toast.error("В этой госпитализации уже есть основной диагноз");
+          return;
+        }
+      }
+      setCopying(pendingCopy.id);
+      await onCopy(pendingCopy, copyType);
       qc.invalidateQueries({ queryKey: ["doc-diagnoses"] });
+      setPendingCopy(null);
     } finally {
+      setConfirming(false);
       setCopying(null);
     }
   };
