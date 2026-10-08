@@ -42,6 +42,15 @@ const NUTRI_STRESS_ID = "b1000000-0000-0000-0000-000000000052";
 const NUTRI_TOTAL_ID = "b1000000-0000-0000-0000-000000000053";
 const NUTRI_INPUT_IDS = [NUTRI_BMI_ID, NUTRI_WEIGHT_LOSS_ID, NUTRI_INTAKE_ID, NUTRI_STRESS_ID];
 
+// "Физикальные показатели" (vitals) fields -- these now live at the top of
+// objective_assessment_full (moved there by migration), identified by
+// attribute_code since they're shared across many document types.
+// bmi_nursing is the nursing-exam-specific BMI field for the same group.
+const VITALS_ATTRIBUTE_CODES = [
+  "vitals.bp", "vitals.pulse", "vitals.heart_rate", "vitals.rr", "vitals.spo2",
+  "vitals.temperature", "vitals.height", "vitals.weight", "vitals.bmi", "bmi_nursing",
+];
+
 // Field types that render as a short value (a number, or a read-only
 // auto/calculated stamp) and don't need a full-width row. Grouped into
 // compact, flex-wrap rows instead. NUTRI_TOTAL_ID is excluded even
@@ -309,12 +318,18 @@ function renderFieldBlock(
 
 export default function DocumentSection({ section, values, setVal, isReadOnly, onFocusEditable }: Props) {
   const groups = groupFields(section.fields);
+  const hasVitalsGroup = section.fields.some((f) =>
+    VITALS_ATTRIBUTE_CODES.includes(f.def.attribute_code ?? "")
+  );
   return (
     <div className="document-section-page space-y-4">
       <h2 className="font-heading text-lg font-semibold border-b pb-2">
         {section.name_ru}
       </h2>
       <div className="space-y-4">
+        {hasVitalsGroup && (
+          <h3 className="font-heading text-base font-semibold">Физикальные показатели</h3>
+        )}
         {groups.map((g, i) =>
           Array.isArray(g) ? (
             <div key={`row-${i}`} className="flex flex-wrap gap-4">
