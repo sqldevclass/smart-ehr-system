@@ -33,10 +33,10 @@ function ParamTableHeader() {
 }
 
 function ParamTableRow({
-  r, dateStr, orderedBy, checked, onToggle, printEligible, hideCheckbox,
+  r, dateStr, orderedBy, checked, onToggle, printEligible,
 }: {
   r: any; dateStr: string; orderedBy: string;
-  checked: boolean; onToggle: () => void; printEligible: boolean; hideCheckbox?: boolean;
+  checked: boolean; onToggle: () => void; printEligible: boolean;
 }) {
   const norm = r.ref_min != null || r.ref_max != null
     ? `${r.ref_min ?? ""}${r.ref_min != null && r.ref_max != null ? "–" : ""}${r.ref_max ?? ""}`
@@ -49,15 +49,13 @@ function ParamTableRow({
       )}
     >
       <div className="flex items-center gap-2 min-w-0">
-        {!hideCheckbox && (
-          <Checkbox
-            checked={checked}
-            onCheckedChange={onToggle}
-            className="print:hidden"
-            aria-label={`Выбрать ${r.parameter_name}`}
-          />
-        )}
-        <span className={cn("truncate text-slate-600", hideCheckbox && "pl-6")}>{r.parameter_name}</span>
+        <Checkbox
+          checked={checked}
+          onCheckedChange={onToggle}
+          className="print:hidden"
+          aria-label={`Выбрать ${r.parameter_name}`}
+        />
+        <span className="truncate text-slate-600">{r.parameter_name}</span>
       </div>
       <div className="flex items-center gap-1">
         <span className="font-mono">{r.value}</span>
@@ -96,24 +94,23 @@ function SampleGroup({
   const label = services.map((s: any) => s.services?.name).filter(Boolean).join(" + ") || "Результат";
   const isAmbulatory = services[0]?.hospitalization_id === null;
 
-  // ОАК is one panel with a fixed set of sub-parameters -- select
-  // the whole thing as a unit, not each parameter individually.
-  const isOak = services.length === 1 && services[0]?.services?.name === "ОАК";
-  const oakParamNames = isOak ? results.map((r: any) => r.parameter_name) : [];
-  const oakChecked = isOak && oakParamNames.length > 0 && oakParamNames.every((n: string) => checkedParams.has(n));
+  // Every group (one lab_samples row, labeled by its ordered service(s))
+  // gets its own select-all checkbox, alongside the per-parameter ones --
+  // selecting the group doesn't hide individual selection, it's just a
+  // shortcut for checking all of this group's parameters at once.
+  const groupParamNames = results.map((r: any) => r.parameter_name);
+  const groupChecked = groupParamNames.length > 0 && groupParamNames.every((n: string) => checkedParams.has(n));
 
   return (
     <div className={isHistory ? "opacity-80" : undefined}>
       <div className="flex items-center justify-between gap-2 border-b bg-muted/40 px-2 py-1">
         <div className="flex min-w-0 items-center gap-2">
-          {isOak && (
-            <Checkbox
-              checked={oakChecked}
-              onCheckedChange={() => toggleGroup(oakParamNames, oakChecked)}
-              className="print:hidden"
-              aria-label="Выбрать ОАК"
-            />
-          )}
+          <Checkbox
+            checked={groupChecked}
+            onCheckedChange={() => toggleGroup(groupParamNames, groupChecked)}
+            className="print:hidden"
+            aria-label={`Выбрать группу ${label}`}
+          />
           <span className="truncate text-sm font-medium">{label}</span>
           {isAmbulatory && (
             <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800">Амб.</span>
@@ -132,7 +129,6 @@ function SampleGroup({
             checked={checked}
             onToggle={() => toggleParam(r.parameter_name)}
             printEligible={allChecked || checked}
-            hideCheckbox={isOak}
           />
         );
       })}

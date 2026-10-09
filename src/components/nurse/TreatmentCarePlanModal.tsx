@@ -62,6 +62,7 @@ function ServiceColumn({
   hospitalId,
   checkedLabParams,
   onToggleLabParam,
+  onToggleLabGroup,
 }: {
   title: string;
   typeCode: "laboratory" | "consultation" | "instrumental";
@@ -70,6 +71,7 @@ function ServiceColumn({
   hospitalId: string;
   checkedLabParams?: Set<string>;
   onToggleLabParam?: (name: string) => void;
+  onToggleLabGroup?: (names: string[], currentlyAllChecked: boolean) => void;
 }) {
   const queryClient = useQueryClient();
   const { getHospitalizationStatus: getLabAlertStatus } = useLabOrderAlerts(hospitalId);
@@ -295,6 +297,7 @@ function ServiceColumn({
                       sample={s}
                       checkedParams={checkedLabParams}
                       onToggleParam={onToggleLabParam}
+                      onToggleGroup={onToggleLabGroup}
                     />
                   ))}
                 </div>
@@ -314,6 +317,7 @@ function ServiceColumn({
                     isHistory
                     checkedParams={checkedLabParams}
                     onToggleParam={onToggleLabParam}
+                    onToggleGroup={onToggleLabGroup}
                   />
                 ))}
               </div>
@@ -565,6 +569,12 @@ export default function TreatmentCarePlanModal({
       next.has(name) ? next.delete(name) : next.add(name);
       return next;
     });
+  const toggleLabParamGroup = (names: string[], currentlyAllChecked: boolean) =>
+    setCheckedLabParams((prev) => {
+      const next = new Set(prev);
+      names.forEach((n) => (currentlyAllChecked ? next.delete(n) : next.add(n)));
+      return next;
+    });
 
   const handlePrintOrders = async () => {
     const { data: labData, error: labError } = await supabase
@@ -688,6 +698,7 @@ export default function TreatmentCarePlanModal({
                 hospitalId={hospitalId}
                 checkedLabParams={checkedLabParams}
                 onToggleLabParam={toggleLabParam}
+                onToggleLabGroup={toggleLabParamGroup}
               />
             </div>
             <div className="md:px-4 h-full min-h-0 flex flex-col">
