@@ -105,12 +105,14 @@ function SampleGroup({
     <div className={isHistory ? "opacity-80" : undefined}>
       <div className="flex items-center justify-between gap-2 border-b bg-muted/40 px-2 py-1">
         <div className="flex min-w-0 items-center gap-2">
-          <Checkbox
-            checked={groupChecked}
-            onCheckedChange={() => toggleGroup(groupParamNames, groupChecked)}
-            className="print:hidden"
-            aria-label={`Выбрать группу ${label}`}
-          />
+          <label className="flex items-center gap-1 text-[10px] text-muted-foreground print:hidden cursor-pointer shrink-0">
+            <Checkbox
+              checked={groupChecked}
+              onCheckedChange={() => toggleGroup(groupParamNames, groupChecked)}
+              aria-label={`Выбрать группу ${label}`}
+            />
+            Все
+          </label>
           <span className="truncate text-sm font-medium">{label}</span>
           {isAmbulatory && (
             <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800">Амб.</span>
