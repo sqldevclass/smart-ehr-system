@@ -88,11 +88,14 @@ export function LabResultCard({
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           {onToggleGroup && (
-            <Checkbox
-              checked={groupChecked}
-              onCheckedChange={() => onToggleGroup(groupParamNames, groupChecked)}
-              aria-label="Выбрать всю группу"
-            />
+            <label className="flex items-center gap-1 text-[10px] text-muted-foreground cursor-pointer shrink-0">
+              <Checkbox
+                checked={groupChecked}
+                onCheckedChange={() => onToggleGroup(groupParamNames, groupChecked)}
+                aria-label="Выбрать всю группу"
+              />
+              Все
+            </label>
           )}
           <span className="font-medium text-sm truncate">
             {isCombo
