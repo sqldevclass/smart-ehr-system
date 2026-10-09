@@ -185,11 +185,7 @@ export default function PatientDocumentSidebar({
                     title="Просмотреть документ целиком"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setActiveDoc({
-                        documentId: doc.id,
-                        documentTypeId: doc.document_types?.id,
-                        fullView: true,
-                      });
+                      window.open(`/documents/${doc.id}/view`, "_blank");
                     }}
                     className="shrink-0 p-1 rounded-md border border-border cursor-pointer transition-all hover:bg-muted hover:shadow-md group"
                   >

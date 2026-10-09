@@ -87,6 +87,7 @@ import WarehouseProfile from "./pages/warehouse/WarehouseProfile.tsx";
 import InventoryLayout from "./components/inventory/InventoryLayout.tsx";
 import EquipmentPage from "./pages/inventory/EquipmentPage.tsx";
 import InventoryProfile from "./pages/inventory/InventoryProfile.tsx";
+import DocumentViewPage from "./pages/documents/DocumentViewPage.tsx";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -201,6 +202,14 @@ const App = () => (
             element={
               <ProtectedRoute allowedRoles={["admin", "senior_manager", "cashier", "finance", "hr", "physician", "outpatient_registrar", "inpatient_registrar", "inpatient_nurse", "head_nurse", "lab_physician", "blood_draw_nurse", "pharmacist", "warehouse_staff", "inventory_manager"]}>
                 <ReportsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/documents/:documentId/view"
+            element={
+              <ProtectedRoute allowedRoles={["physician", "inpatient_nurse", "head_nurse"]}>
+                <DocumentViewPage />
               </ProtectedRoute>
             }
           />

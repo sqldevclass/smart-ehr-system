@@ -56,3 +56,4 @@ export default function DocumentViewPage() {
       onClose={() => window.close()}
     />
   );
+}
