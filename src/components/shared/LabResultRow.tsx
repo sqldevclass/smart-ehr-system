@@ -65,15 +65,21 @@ export function LabResultCard({
   isHistory,
   checkedParams,
   onToggleParam,
+  onToggleGroup,
 }: {
   sample: any;
   isHistory?: boolean;
   checkedParams?: Set<string>;
   onToggleParam?: (name: string) => void;
+  onToggleGroup?: (names: string[], currentlyAllChecked: boolean) => void;
 }) {
   const services = uniqueServices(sample);
   const isCombo = services.length > 1;
   const hospId = services[0]?.hospitalization_id;
+  const results = sample?.lab_results || [];
+  const groupParamNames = results.map((r: any) => r.parameter_name);
+  const groupChecked = !!checkedParams && groupParamNames.length > 0 &&
+    groupParamNames.every((n: string) => checkedParams.has(n));
 
   return (
     <div
@@ -81,6 +87,13 @@ export function LabResultCard({
     >
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
+          {onToggleGroup && (
+            <Checkbox
+              checked={groupChecked}
+              onCheckedChange={() => onToggleGroup(groupParamNames, groupChecked)}
+              aria-label="Выбрать всю группу"
+            />
+          )}
           <span className="font-medium text-sm truncate">
             {isCombo
               ? `Комбинированный анализ (${services.length})`
@@ -99,7 +112,7 @@ export function LabResultCard({
         </span>
       </div>
       <ParamList
-        results={sample?.lab_results || []}
+        results={results}
         checkedParams={checkedParams}
         onToggle={onToggleParam}
       />
