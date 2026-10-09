@@ -2,6 +2,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import ICD10SearchField from "./ICD10SearchField";
 import { cn } from "@/lib/utils";
 import RichTextarea from "./RichTextarea";
@@ -171,6 +173,23 @@ function renderField(
           </SelectContent>
         </Select>
       );
+    case "radio_select":
+      return (
+        <RadioGroup
+          value={value || undefined}
+          onValueChange={(v) => setValWithNutriTotal(def.id, v)}
+          className="flex flex-col gap-2"
+        >
+          {options.map((o) => (
+            <div key={o.value} className="flex items-center gap-1.5">
+              <RadioGroupItem value={o.value} id={`${def.id}-${o.value}`} />
+              <Label htmlFor={`${def.id}-${o.value}`} className="text-sm font-normal cursor-pointer">
+                {o.label_ru}
+              </Label>
+            </div>
+          ))}
+        </RadioGroup>
+      );
     case "checkbox_note": {
       const sepIdx = value.indexOf("::");
       const isChecked = value.startsWith("1::") || value === "1";
@@ -266,6 +285,19 @@ function FieldValue({
         <div className="text-sm py-1.5">
           {raw === "true" || raw === "false" ? (
             <span className="font-medium">{raw === "true" ? "Да" : "Нет"}</span>
+          ) : (
+            <span className="italic text-sm text-muted-foreground">Не заполнено</span>
+          )}
+        </div>
+      );
+    }
+    if (field.def.field_type === "radio_select") {
+      const opts: { value: string; label_ru: string }[] = Array.isArray(field.def.options) ? field.def.options : [];
+      const selected = opts.find((o) => o.value === raw);
+      return (
+        <div className="text-sm py-1.5">
+          {selected ? (
+            <span className="font-medium">{selected.label_ru}</span>
           ) : (
             <span className="italic text-sm text-muted-foreground">Не заполнено</span>
           )}
