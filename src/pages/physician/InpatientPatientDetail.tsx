@@ -672,12 +672,7 @@ export default function InpatientPatientDetail() {
                       title="Просмотреть документ целиком"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setActiveView({
-                          type: "document",
-                          documentId: doc.id,
-                          documentTypeId: doc.document_types?.id,
-                          startInFullView: true,
-                        });
+                        window.open(`/documents/${doc.id}/view`, "_blank");
                       }}
                       className="shrink-0 p-1 rounded-md border border-border cursor-pointer transition-all hover:bg-muted hover:shadow-md group"
                     >
