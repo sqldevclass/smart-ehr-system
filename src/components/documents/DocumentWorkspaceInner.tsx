@@ -15,6 +15,7 @@ import CSSRSSection from "./CSSRSSection";
 import DiagnosisTab from "./DiagnosisTab";
 import AllergyTab from "./AllergyTab";
 import AssignmentsSection from "./AssignmentsSection";
+import DischargeMedicationsSection from "./DischargeMedicationsSection";
 import TemplatePanel from "./TemplatePanel";
 import HospRecommendationSection from "./HospRecommendationSection";
 import DischargeDialog from "@/components/inpatient/DischargeDialog";
@@ -701,6 +702,18 @@ export default function DocumentWorkspaceInner({
                   </div>
                 )}
                 {s.code === "discharge_plan" &&
+                  documentType?.code === "post_mortem_summary" && (
+                    <div className="mt-4 space-y-1.5">
+                      <div className="text-sm font-medium">В динамике общее состояние пациента</div>
+                      <div className="text-sm py-1.5 font-medium">Ухудшением</div>
+                    </div>
+                  )}
+                {s.code === "discharge_plan" &&
+                  documentType?.code === "discharge_summary" &&
+                  !!hospitalizationId && (
+                    <DischargeMedicationsSection hospitalizationId={hospitalizationId} />
+                  )}
+                {s.code === "discharge_plan" &&
                   documentType?.code === "discharge_summary" &&
                   !effectiveReadOnly &&
                   !!hospitalizationId && (
@@ -715,7 +728,8 @@ export default function DocumentWorkspaceInner({
             );
           })}
 
-          {!sections.some((s) => s.code === "treatment_plan") && (
+          {!sections.some((s) => s.code === "treatment_plan") &&
+            documentType?.code !== "discharge_summary" && (
             <div
               className={
                 fullView || activeTab === String(sections.length - 1)
