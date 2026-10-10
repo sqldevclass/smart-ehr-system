@@ -53,6 +53,15 @@ const VITALS_ATTRIBUTE_CODES = [
   "vitals.temperature", "vitals.height", "vitals.weight", "vitals.bmi", "bmi_nursing",
 ];
 
+// "При госпитализации проверено" admission-check fields -- rendered as a
+// horizontal row of plain checkboxes (checked = yes, unchecked = no)
+// under their own group heading, instead of the usual Да/Нет radio pair
+// every other boolean field uses.
+const ADMISSION_CHECK_ATTRIBUTE_CODES = [
+  "tx.admission_rw", "tx.admission_hiv", "tx.admission_stool_culture",
+  "tx.admission_pediculosis", "tx.admission_covid",
+];
+
 // Field types that render as a short value (a number, or a read-only
 // auto/calculated stamp) and don't need a full-width row. Grouped into
 // compact, flex-wrap rows instead. NUTRI_TOTAL_ID is excluded even
@@ -61,6 +70,7 @@ const VITALS_ATTRIBUTE_CODES = [
 const COMPACT_FIELD_TYPES = ["number", "auto", "calculated"];
 
 function isCompactField(field: SectionField) {
+  if (ADMISSION_CHECK_ATTRIBUTE_CODES.includes(field.def.attribute_code ?? "")) return true;
   return COMPACT_FIELD_TYPES.includes(field.def.field_type) && field.def.id !== NUTRI_TOTAL_ID;
 }
 
@@ -178,7 +188,7 @@ function renderField(
         <RadioGroup
           value={value || undefined}
           onValueChange={(v) => setValWithNutriTotal(def.id, v)}
-          className="flex flex-col gap-2"
+          className="flex flex-wrap gap-4"
         >
           {options.map((o) => (
             <div key={o.value} className="flex items-center gap-1.5">
@@ -215,10 +225,14 @@ function renderField(
         const next = selected.includes(v) ? selected.filter((x) => x !== v) : [...selected, v];
         setVal(def.id, next.join(","));
       };
+      // "Цели госпитализации" lays its options out horizontally to avoid
+      // dead space; every other multiselect field keeps the original
+      // vertical list.
+      const isHorizontal = def.attribute_code === "tx.goals";
       return (
-        <div className="space-y-1">
+        <div className={isHorizontal ? "flex flex-wrap gap-x-4 gap-y-2" : "space-y-1"}>
           {options.map((o) => (
-            <label key={o.value} className="flex items-center gap-2 text-sm">
+            <label key={o.value} className={cn("flex items-center gap-2 text-sm", isHorizontal && "shrink-0")}>
               <Checkbox checked={selected.includes(o.value)} onCheckedChange={() => toggle(o.value)} />
               {o.label_ru}
             </label>
@@ -317,6 +331,33 @@ function FieldValue({
   return <>{renderField(field.def, values, setVal, onFocusEditable)}</>;
 }
 
+// Checkbox item for the admission-check group (checked = yes, unchecked =
+// no) -- same "true"/"false" stored value as the "boolean" field_type
+// convention elsewhere, just a different widget for this one group.
+function AdmissionCheckItem({
+  field,
+  values,
+  setVal,
+  isReadOnly,
+}: {
+  field: SectionField;
+  values: Record<string, string>;
+  setVal: (id: string, val: string) => void;
+  isReadOnly: boolean;
+}) {
+  const checked = values[field.def.id] === "true";
+  return (
+    <label className="flex items-center gap-2 text-sm shrink-0">
+      <Checkbox
+        checked={checked}
+        disabled={isReadOnly}
+        onCheckedChange={(c) => setVal(field.def.id, c ? "true" : "false")}
+      />
+      {field.def.label_ru}
+    </label>
+  );
+}
+
 // Renders one field's label + value block. `compact` narrows the
 // wrapper so several of these can sit side by side in a flex-wrap row.
 function renderFieldBlock(
@@ -362,17 +403,39 @@ export default function DocumentSection({ section, values, setVal, isReadOnly, o
         {hasVitalsGroup && (
           <h3 className="font-heading text-base font-semibold">Физикальные показатели</h3>
         )}
-        {groups.map((g, i) =>
-          Array.isArray(g) ? (
+        {groups.map((g, i) => {
+          if (!Array.isArray(g)) {
+            return renderFieldBlock(g, values, setVal, isReadOnly, onFocusEditable, false);
+          }
+          const isAdmissionCheckGroup = g.every((f) =>
+            ADMISSION_CHECK_ATTRIBUTE_CODES.includes(f.def.attribute_code ?? "")
+          );
+          if (isAdmissionCheckGroup) {
+            return (
+              <div key={`row-${i}`} className="space-y-2">
+                <h3 className="font-heading text-base font-semibold">При госпитализации проверено:</h3>
+                <div className="flex flex-wrap gap-4">
+                  {g.map((field) => (
+                    <AdmissionCheckItem
+                      key={field.def.id}
+                      field={field}
+                      values={values}
+                      setVal={setVal}
+                      isReadOnly={isReadOnly}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          }
+          return (
             <div key={`row-${i}`} className="flex flex-wrap gap-4">
               {g.map((field) =>
                 renderFieldBlock(field, values, setVal, isReadOnly, onFocusEditable, true)
               )}
             </div>
-          ) : (
-            renderFieldBlock(g, values, setVal, isReadOnly, onFocusEditable, false)
-          )
-        )}
+          );
+        })}
       </div>
     </div>
   );
