@@ -742,7 +742,7 @@ export default function DocumentWorkspaceInner({
           })}
 
           {!sections.some((s) => s.code === "treatment_plan") &&
-            !["discharge_summary", "post_mortem_summary", "high_risk_procedure"].includes(documentType?.code ?? "") && (
+            !["discharge_summary", "post_mortem_summary", "high_risk_procedure", "interventional_radiology"].includes(documentType?.code ?? "") && (
             <div
               className={
                 fullView || activeTab === String(sections.length - 1)
