@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Loader2, Printer, Bold, Italic, Underline } from "lucide-react";
-import { format } from "date-fns";
+import { format, differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import DocumentPatientHeader from "./DocumentPatientHeader";
 import DocumentSection from "./DocumentSection";
@@ -280,6 +280,48 @@ export default function DocumentWorkspaceInner({
     setIsDirty(true);
     hasEditedRef.current = true;
   };
+
+  // discharge_summary / post_mortem_summary only: Дата поступления,
+  // Дата выписки and Количество койко-дней are "auto"/"calculated"
+  // fields derived from the real hospitalization record, not typed in
+  // by hand. Дата выписки defaults to today until the patient is
+  // actually discharged.
+  const DC_ADMISSION_DATE_ID = "b1000000-0000-0000-0000-000000000095";
+  const DC_DISCHARGE_DATE_ID = "b1000000-0000-0000-0000-000000000096";
+  const DC_BED_DAYS_ID = "b1000000-0000-0000-0000-000000000097";
+  const needsHospStayDates =
+    !!hospitalizationId &&
+    ["discharge_summary", "post_mortem_summary"].includes(documentType?.code ?? "");
+
+  const { data: hospStayDates } = useQuery({
+    queryKey: ["doc-hosp-stay-dates", hospitalizationId],
+    enabled: needsHospStayDates,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("hospitalizations")
+        .select("admitted_at, discharged_at")
+        .eq("id", hospitalizationId)
+        .maybeSingle();
+      return data;
+    },
+  });
+
+  useEffect(() => {
+    if (!needsHospStayDates || !hospStayDates?.admitted_at) return;
+    if (fieldsLoading || isReadOnly) return;
+    const admittedAt = new Date(hospStayDates.admitted_at);
+    const dischargedAt = hospStayDates.discharged_at ? new Date(hospStayDates.discharged_at) : new Date();
+    if (!values[DC_ADMISSION_DATE_ID]) {
+      setVal(DC_ADMISSION_DATE_ID, format(admittedAt, "dd.MM.yyyy"));
+    }
+    if (!values[DC_DISCHARGE_DATE_ID]) {
+      setVal(DC_DISCHARGE_DATE_ID, format(dischargedAt, "dd.MM.yyyy"));
+    }
+    if (!values[DC_BED_DAYS_ID]) {
+      setVal(DC_BED_DAYS_ID, String(differenceInDays(dischargedAt, admittedAt)));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needsHospStayDates, hospStayDates, fieldsLoading, isReadOnly]);
 
   // Save field values to DB
   const persistValues = useCallback(async (
