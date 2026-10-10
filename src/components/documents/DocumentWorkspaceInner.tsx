@@ -714,7 +714,8 @@ export default function DocumentWorkspaceInner({
                     <DischargeMedicationsSection hospitalizationId={hospitalizationId} />
                   )}
                 {s.code === "discharge_plan" &&
-                  documentType?.code === "discharge_summary" &&
+                  (documentType?.code === "discharge_summary" ||
+                    documentType?.code === "post_mortem_summary") &&
                   !effectiveReadOnly &&
                   !!hospitalizationId && (
                     <div className="mt-8 pt-6 border-t border-gray-200 flex justify-end">
@@ -729,7 +730,7 @@ export default function DocumentWorkspaceInner({
           })}
 
           {!sections.some((s) => s.code === "treatment_plan") &&
-            documentType?.code !== "discharge_summary" && (
+            !["discharge_summary", "post_mortem_summary"].includes(documentType?.code ?? "") && (
             <div
               className={
                 fullView || activeTab === String(sections.length - 1)
