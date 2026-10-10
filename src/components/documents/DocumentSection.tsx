@@ -67,9 +67,7 @@ const ADMISSION_CHECK_ATTRIBUTE_CODES = [
 // high_risk_procedure, interventional_radiology, operation_protocol).
 const DATETIME_PAIR_ATTRIBUTE_CODES = ["surg.start_datetime", "surg.end_datetime"];
 
-// Compact fields whose label needs more than the default narrow box
-// width to fit on one line.
-const WIDE_COMPACT_ATTRIBUTE_CODES = ["surg.blood_loss", ...DATETIME_PAIR_ATTRIBUTE_CODES];
+(delete these 3 lines entirely)
 
 // Field types that render as a short value (a number, or a read-only
 // auto/calculated stamp) and don't need a full-width row. Grouped into
@@ -286,13 +284,13 @@ function renderField(
 
 function FieldLabel({ field, isReadOnly }: { field: SectionField; isReadOnly: boolean }) {
   return (
-    <div className="text-sm font-medium flex items-center gap-1">
+    <div className="text-sm font-medium leading-snug">
       {field.def.label_ru}
       {field.def.unit && (
-        <span className="text-xs text-muted-foreground">({field.def.unit})</span>
+        <span className="text-xs text-muted-foreground"> ({field.def.unit})</span>
       )}
       {field.is_mandatory && !isReadOnly && (
-        <span className="text-destructive">*</span>
+        <span className="text-destructive"> *</span>
       )}
     </div>
   );
@@ -414,13 +412,12 @@ function renderFieldBlock(
   onFocusEditable: ((el: HTMLDivElement, onChange: (val: string) => void) => void) | undefined,
   compact: boolean,
 ) {
-  const isWideCompact = compact && WIDE_COMPACT_ATTRIBUTE_CODES.includes(field.def.attribute_code ?? "");
   return (
     <div
       key={field.def.id}
       className={cn(
         "space-y-1.5",
-        compact ? (isWideCompact ? "w-56 shrink-0" : "w-36 shrink-0") : "w-full",
+        compact ? "min-w-0" : "w-full",
         isReadOnly && !values[field.def.id] && "print-hide-empty"
       )}
     >
@@ -476,7 +473,10 @@ export default function DocumentSection({ section, values, setVal, isReadOnly, o
             );
           }
           return (
-            <div key={`row-${i}`} className="flex flex-wrap gap-4">
+            <div
+              key={`row-${i}`}
+              className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(190px,1fr))]"
+            >
               {g.map((field) =>
                 renderFieldBlock(field, values, setVal, isReadOnly, onFocusEditable, true)
               )}
