@@ -67,7 +67,6 @@ const ADMISSION_CHECK_ATTRIBUTE_CODES = [
 // high_risk_procedure, interventional_radiology, operation_protocol).
 const DATETIME_PAIR_ATTRIBUTE_CODES = ["surg.start_datetime", "surg.end_datetime"];
 
-(delete these 3 lines entirely)
 
 // Field types that render as a short value (a number, or a read-only
 // auto/calculated stamp) and don't need a full-width row. Grouped into
