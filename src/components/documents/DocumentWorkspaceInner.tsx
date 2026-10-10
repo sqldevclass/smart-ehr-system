@@ -682,6 +682,18 @@ export default function DocumentWorkspaceInner({
                       isReadOnly={effectiveReadOnly}
                     />
                   )}
+                {s.code === "verification_marking" &&
+                  documentType?.code === "high_risk_procedure" && (
+                    <div className="mt-6 pt-6 border-t border-gray-200">
+                      <AllergyTab
+                        patientId={patientId}
+                        hospitalId={hospitalId}
+                        isReadOnly={effectiveReadOnly}
+                        currentUserId={user!.id}
+                        documentId={documentId}
+                      />
+                    </div>
+                  )}
                 {s.code === "treatment_plan" && (
                   <div className="mt-8 pt-6 border-t border-gray-200">
                     <AssignmentsSection
