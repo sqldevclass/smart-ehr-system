@@ -225,10 +225,10 @@ function renderField(
         const next = selected.includes(v) ? selected.filter((x) => x !== v) : [...selected, v];
         setVal(def.id, next.join(","));
       };
-      // "Цели госпитализации" lays its options out horizontally to avoid
-      // dead space; every other multiselect field keeps the original
-      // vertical list.
-      const isHorizontal = def.attribute_code === "tx.goals";
+      // "Цели госпитализации" and "Идентификация" lay their options out
+      // horizontally to avoid dead space; every other multiselect field
+      // keeps the original vertical list.
+      const isHorizontal = def.attribute_code === "tx.goals" || def.attribute_code === "verif.patient_id_multi";
       return (
         <div className={isHorizontal ? "flex flex-wrap gap-x-4 gap-y-2" : "space-y-1"}>
           {options.map((o) => (
