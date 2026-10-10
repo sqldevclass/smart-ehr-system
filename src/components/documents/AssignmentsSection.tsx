@@ -106,9 +106,6 @@ export default function AssignmentsSection({
       {renderGroup("other", "Услуги", groups.other)}
 
       <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-        Медикаменты — доступно в Фазе 6
-      </div>
-      <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
         Уход — доступно в Фазе 9
       </div>
     </div>
