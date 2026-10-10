@@ -62,6 +62,15 @@ const ADMISSION_CHECK_ATTRIBUTE_CODES = [
   "tx.admission_pediculosis", "tx.admission_covid",
 ];
 
+// Дата и время начала/окончания операции -- paired side by side instead
+// of stacked, wherever both appear together (anesthesia_protocol,
+// high_risk_procedure, interventional_radiology, operation_protocol).
+const DATETIME_PAIR_ATTRIBUTE_CODES = ["surg.start_datetime", "surg.end_datetime"];
+
+// Compact fields whose label needs more than the default narrow box
+// width to fit on one line.
+const WIDE_COMPACT_ATTRIBUTE_CODES = ["surg.blood_loss", ...DATETIME_PAIR_ATTRIBUTE_CODES];
+
 // Field types that render as a short value (a number, or a read-only
 // auto/calculated stamp) and don't need a full-width row. Grouped into
 // compact, flex-wrap rows instead. NUTRI_TOTAL_ID is excluded even
@@ -71,6 +80,7 @@ const COMPACT_FIELD_TYPES = ["number", "auto", "calculated"];
 
 function isCompactField(field: SectionField) {
   if (ADMISSION_CHECK_ATTRIBUTE_CODES.includes(field.def.attribute_code ?? "")) return true;
+  if (DATETIME_PAIR_ATTRIBUTE_CODES.includes(field.def.attribute_code ?? "")) return true;
   return COMPACT_FIELD_TYPES.includes(field.def.field_type) && field.def.id !== NUTRI_TOTAL_ID;
 }
 
@@ -164,14 +174,42 @@ function renderField(
       return <Input type="date" value={value} onChange={(e) => setVal(def.id, e.target.value)} />;
     case "datetime":
       return <Input type="datetime-local" value={value} onChange={(e) => setVal(def.id, e.target.value)} />;
-    case "boolean":
+    case "boolean": {
+      // "Осложнения" (surg.complications) is the one boolean field that
+      // carries an inline note when "Да" is picked, stored as
+      // "true::<note>" (mirrors the existing checkbox_note convention).
+      // Every other boolean field's value never contains "::", so this
+      // is a no-op for them.
+      if (def.attribute_code !== "surg.complications") {
+        return (
+          <YesNoRadio
+            value={value}
+            onValueChange={(v) => setValWithNutriTotal(def.id, v)}
+            idPrefix={def.id}
+          />
+        );
+      }
+      const sepIdx = value.indexOf("::");
+      const boolPart = sepIdx >= 0 ? value.slice(0, sepIdx) : value;
+      const note = sepIdx >= 0 ? value.slice(sepIdx + 2) : "";
       return (
-        <YesNoRadio
-          value={value}
-          onValueChange={(v) => setValWithNutriTotal(def.id, v)}
-          idPrefix={def.id}
-        />
+        <div className="space-y-2">
+          <YesNoRadio
+            value={boolPart}
+            onValueChange={(v) => setVal(def.id, v === "true" ? `true::${note}` : "false")}
+            idPrefix={def.id}
+          />
+          {boolPart === "true" && (
+            <RichTextarea
+              minRows={2}
+              value={note}
+              onChange={(val) => setVal(def.id, `true::${val}`)}
+              onFocusEditable={onFocusEditable}
+            />
+          )}
+        </div>
       );
+    }
     case "select":
       return (
         <Select value={value} onValueChange={(v) => setValWithNutriTotal(def.id, v)}>
@@ -295,10 +333,18 @@ function FieldValue({
   if (isReadOnly) {
     const raw = values[field.def.id];
     if (field.def.field_type === "boolean") {
+      const sepIdx = raw ? raw.indexOf("::") : -1;
+      const boolPart = sepIdx >= 0 ? raw!.slice(0, sepIdx) : raw;
+      const note = sepIdx >= 0 ? raw!.slice(sepIdx + 2) : "";
       return (
         <div className="text-sm py-1.5">
-          {raw === "true" || raw === "false" ? (
-            <span className="font-medium">{raw === "true" ? "Да" : "Нет"}</span>
+          {boolPart === "true" || boolPart === "false" ? (
+            <div className="space-y-1">
+              <span className="font-medium">{boolPart === "true" ? "Да" : "Нет"}</span>
+              {boolPart === "true" && note && (
+                <div className="text-sm text-muted-foreground">{note}</div>
+              )}
+            </div>
           ) : (
             <span className="italic text-sm text-muted-foreground">Не заполнено</span>
           )}
@@ -368,12 +414,13 @@ function renderFieldBlock(
   onFocusEditable: ((el: HTMLDivElement, onChange: (val: string) => void) => void) | undefined,
   compact: boolean,
 ) {
+  const isWideCompact = compact && WIDE_COMPACT_ATTRIBUTE_CODES.includes(field.def.attribute_code ?? "");
   return (
     <div
       key={field.def.id}
       className={cn(
         "space-y-1.5",
-        compact ? "w-36 shrink-0" : "w-full",
+        compact ? (isWideCompact ? "w-56 shrink-0" : "w-36 shrink-0") : "w-full",
         isReadOnly && !values[field.def.id] && "print-hide-empty"
       )}
     >
