@@ -15,6 +15,7 @@ import CSSRSSection from "./CSSRSSection";
 import DiagnosisTab from "./DiagnosisTab";
 import AllergyTab from "./AllergyTab";
 import AssignmentsSection from "./AssignmentsSection";
+import DocumentOrderingSection from "./DocumentOrderingSection";
 import DischargeMedicationsSection from "./DischargeMedicationsSection";
 import TemplatePanel from "./TemplatePanel";
 import HospRecommendationSection from "./HospRecommendationSection";
@@ -738,12 +739,24 @@ export default function DocumentWorkspaceInner({
                   )}
                 {s.code === "treatment_plan" && (
                   <div className="mt-8 pt-6 border-t border-gray-200">
-                    <AssignmentsSection
-                      mainServices={mainServices}
-                      childServices={childServices}
-                      pendingOrders={pendingOrders}
-                      physicianNameMap={physicianNameMap}
-                    />
+                    {documentType?.code === "primary_physician_exam" ? (
+                      <DocumentOrderingSection
+                        documentId={documentId}
+                        ensureDocumentId={ensureDocument}
+                        hospitalizationId={hospitalizationId}
+                        patientId={patientId}
+                        hospitalId={hospitalId}
+                        userId={user!.id}
+                        isReadOnly={effectiveReadOnly}
+                      />
+                    ) : (
+                      <AssignmentsSection
+                        mainServices={mainServices}
+                        childServices={childServices}
+                        pendingOrders={pendingOrders}
+                        physicianNameMap={physicianNameMap}
+                      />
+                    )}
                     {isConsultation && (
                       <HospRecommendationSection
                         visitId={visitId}

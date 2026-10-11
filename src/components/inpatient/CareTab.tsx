@@ -26,13 +26,19 @@ interface Props {
   hospitalId: string;
   userId: string;
   readOnly?: boolean;
+  // When set, locks the order type (hides the Диета/Режим активности/Уход
+  // picker) and filters the list below to that type only. Used when this
+  // tab is embedded inline inside a document for just one category.
+  lockedType?: "diet" | "activity_mode" | "care";
+  sourceDocumentId?: string | null;
+  onOrderPlaced?: () => void;
 }
 
 export default function CareTab({
-  hospitalizationId, hospitalId, userId, readOnly,
+  hospitalizationId, hospitalId, userId, readOnly, lockedType, sourceDocumentId, onOrderPlaced,
 }: Props) {
   const queryClient = useQueryClient();
-  const [careType, setCareType] = useState<"diet" | "activity_mode" | "care">("care");
+  const [careType, setCareType] = useState<"diet" | "activity_mode" | "care">(lockedType ?? "care");
   const [careText, setCareText] = useState("");
   const [surgicalContext, setSurgicalContext] =
     useState<"none" | "pre_op" | "post_op" | null>(null);
@@ -127,6 +133,7 @@ export default function CareTab({
           order_value: careText.trim(),
           ordered_by: userId,
           surgical_context: surgicalContext,
+          source_document_id: sourceDocumentId ?? null,
         })
         .select()
         .single();
@@ -160,6 +167,7 @@ export default function CareTab({
       refetchOccurrences();
       queryClient.invalidateQueries({ queryKey: ["care-orders"] });
       queryClient.invalidateQueries({ queryKey: ["care-order-occurrences"] });
+      onOrderPlaced?.();
       return;
     }
 
@@ -172,6 +180,7 @@ export default function CareTab({
         order_type: careType,
         order_value: careText.trim(),
         ordered_by: userId,
+        source_document_id: sourceDocumentId ?? null,
       });
     if (error) {
       toast.error(error.message);
@@ -180,6 +189,7 @@ export default function CareTab({
     setCareText("");
     refetchOrders();
     queryClient.invalidateQueries({ queryKey: ["care-orders"] });
+    onOrderPlaced?.();
   };
 
   const handleCancelOrder = async (id: string) => {
@@ -222,16 +232,20 @@ export default function CareTab({
 
       {!readOnly && (
         <div className="border rounded-md p-3 space-y-3 bg-muted/30">
-          <Select value={careType} onValueChange={(v: any) => setCareType(v)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="care">Уход</SelectItem>
-              <SelectItem value="diet">Диета</SelectItem>
-              <SelectItem value="activity_mode">Режим активности</SelectItem>
-            </SelectContent>
-          </Select>
+          {lockedType ? (
+            <div className="text-sm font-medium">{ORDER_TYPE_LABELS[lockedType]}</div>
+          ) : (
+            <Select value={careType} onValueChange={(v: any) => setCareType(v)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="care">Уход</SelectItem>
+                <SelectItem value="diet">Диета</SelectItem>
+                <SelectItem value="activity_mode">Режим активности</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
           <textarea
             value={careText}
             onChange={(e) => setCareText(e.target.value)}
@@ -316,9 +330,9 @@ export default function CareTab({
         </div>
       )}
 
-      {orders.length === 0 ? (
+      {(lockedType ? orders.filter((o: any) => o.order_type === lockedType) : orders).length === 0 ? (
         <p className="text-sm text-muted-foreground">Назначений нет</p>
-      ) : orders.map((o: any) => (
+      ) : (lockedType ? orders.filter((o: any) => o.order_type === lockedType) : orders).map((o: any) => (
         <div key={o.id} className="border rounded p-3 space-y-1 group">
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1">

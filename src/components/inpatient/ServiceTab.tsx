@@ -20,10 +20,17 @@ interface Props {
   typeCode: "laboratory" | "consultation" | "instrumental";
   title: string;
   readOnly?: boolean;
+  // Set when this tab is embedded inline inside a document (e.g. Первичный
+  // осмотр врача -> План лечения) instead of the general ordering tabs.
+  // Tags the order with its origin so the document can show only what it
+  // ordered, while the general tabs keep showing everything regardless.
+  sourceDocumentId?: string | null;
+  onOrderPlaced?: () => void;
 }
 
 export default function ServiceTab({
   hospitalizationId, patientId, hospitalId, userId, typeCode, title, readOnly,
+  sourceDocumentId, onOrderPlaced,
 }: Props) {
   const queryClient = useQueryClient();
   const isOutpatientMode = !hospitalizationId;
@@ -147,6 +154,7 @@ export default function ServiceTab({
           p_hospital_id: hospitalId,
           p_ordered_by: userId,
           p_services: [{ service_id: selectedServiceId, cost_at_time: svc?.cost_with_vat ?? 0 }],
+          p_source_document_id: sourceDocumentId ?? null,
         });
         if (error) {
           toast.error(error.message);
@@ -159,6 +167,7 @@ export default function ServiceTab({
           p_hospital_id: hospitalId,
           p_service_id: selectedServiceId,
           p_ordered_by: userId,
+          p_source_document_id: sourceDocumentId ?? null,
         });
         if (error) {
           toast.error(error.message);
@@ -168,6 +177,7 @@ export default function ServiceTab({
       toast.success("Назначено");
       setSelectedServiceId("");
       queryClient.invalidateQueries({ queryKey: ["inpatient-services", typeCode] });
+      onOrderPlaced?.();
     } finally {
       setSubmitting(false);
     }
@@ -189,6 +199,7 @@ export default function ServiceTab({
           p_hospital_id: hospitalId,
           p_ordered_by: userId,
           p_services: [{ service_id: item.id, cost_at_time: svc?.cost_with_vat ?? 0 }],
+          p_source_document_id: sourceDocumentId ?? null,
         }));
       } else {
         ({ error } = await supabase.rpc("inpatient_order_service", {
@@ -197,6 +208,7 @@ export default function ServiceTab({
           p_hospital_id: hospitalId,
           p_service_id: item.id,
           p_ordered_by: userId,
+          p_source_document_id: sourceDocumentId ?? null,
         }));
       }
       if (error) {
@@ -213,7 +225,9 @@ export default function ServiceTab({
       toast.success(`Назначено: ${succeededIds.length}`);
       queryClient.invalidateQueries({ queryKey: ["inpatient-services", typeCode] });
       queryClient.invalidateQueries({ queryKey: ["physician-service-favorites", userId, typeCode] });
+      onOrderPlaced?.();
     }
+
     if (failures.length > 0) {
       toast.error(`Не удалось назначить: ${failures.length}`);
     }
