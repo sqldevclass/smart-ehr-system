@@ -10,6 +10,7 @@ import { ArrowLeft, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import DailyReportSummaryTab from "@/components/reports/DailyReportSummaryTab";
 import DailyReportByDepartmentTab from "@/components/reports/DailyReportByDepartmentTab";
+import FinanceRevenueReport from "@/components/reports/FinanceRevenueReport";
 
 export default function ReportsPage() {
   const { user, hasAnyRole } = useAuth();
@@ -17,6 +18,7 @@ export default function ReportsPage() {
   const [period, setPeriod] = useState<PeriodState>({ period: "today" });
 
   const canViewDaily = hasAnyRole(["admin", "senior_manager"]);
+  const canViewFinance = hasAnyRole(["finance"]);
   const { from, to } = getDateBounds(period);
 
   const handleLogout = async () => {
@@ -45,37 +47,51 @@ export default function ReportsPage() {
         )}
       </header>
 
-      <main className="flex-1 p-6">
-        {!canViewDaily ? (
+      <main className="flex-1 p-6 space-y-8">
+        {!canViewDaily && !canViewFinance ? (
           <div className="text-sm text-muted-foreground">
             No reports are available for your role yet.
           </div>
         ) : (
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h1 className="text-lg font-semibold text-foreground">Daily Report</h1>
-              <PeriodFilter value={period} onChange={setPeriod} />
-            </div>
+          <>
+            {canViewDaily && (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h1 className="text-lg font-semibold text-foreground">Daily Report</h1>
+                  <PeriodFilter value={period} onChange={setPeriod} />
+                </div>
 
-            <Tabs defaultValue="summary" className="w-full">
-              <TabsList className="flex flex-wrap h-auto">
-                <TabsTrigger value="summary">Summary</TabsTrigger>
-                <TabsTrigger value="department">By Department</TabsTrigger>
-                <TabsTrigger value="operations" disabled>Operations</TabsTrigger>
-                <TabsTrigger value="diagnostics" disabled>Diagnostics &amp; Lab</TabsTrigger>
-                <TabsTrigger value="polyclinic" disabled>Polyclinic</TabsTrigger>
-                <TabsTrigger value="physio" disabled>Physio/SPA</TabsTrigger>
-                <TabsTrigger value="top-services" disabled>Top Services</TabsTrigger>
-                <TabsTrigger value="patient-count" disabled>Patient Count</TabsTrigger>
-              </TabsList>
-              <TabsContent value="summary">
-                <DailyReportSummaryTab from={from} to={to} />
-              </TabsContent>
-              <TabsContent value="department">
-                <DailyReportByDepartmentTab from={from} to={to} />
-              </TabsContent>
-            </Tabs>
-          </div>
+                <Tabs defaultValue="summary" className="w-full">
+                  <TabsList className="flex flex-wrap h-auto">
+                    <TabsTrigger value="summary">Summary</TabsTrigger>
+                    <TabsTrigger value="department">By Department</TabsTrigger>
+                    <TabsTrigger value="operations" disabled>Operations</TabsTrigger>
+                    <TabsTrigger value="diagnostics" disabled>Diagnostics &amp; Lab</TabsTrigger>
+                    <TabsTrigger value="polyclinic" disabled>Polyclinic</TabsTrigger>
+                    <TabsTrigger value="physio" disabled>Physio/SPA</TabsTrigger>
+                    <TabsTrigger value="top-services" disabled>Top Services</TabsTrigger>
+                    <TabsTrigger value="patient-count" disabled>Patient Count</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="summary">
+                    <DailyReportSummaryTab from={from} to={to} />
+                  </TabsContent>
+                  <TabsContent value="department">
+                    <DailyReportByDepartmentTab from={from} to={to} />
+                  </TabsContent>
+                </Tabs>
+              </div>
+            )}
+
+            {canViewFinance && (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h1 className="text-lg font-semibold text-foreground">Revenue Report</h1>
+                  {!canViewDaily && <PeriodFilter value={period} onChange={setPeriod} />}
+                </div>
+                <FinanceRevenueReport from={from} to={to} />
+              </div>
+            )}
+          </>
         )}
       </main>
     </div>
