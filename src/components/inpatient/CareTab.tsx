@@ -32,10 +32,11 @@ interface Props {
   lockedType?: "diet" | "activity_mode" | "care";
   sourceDocumentId?: string | null;
   onOrderPlaced?: () => void;
+  hideOwnList?: boolean;
 }
 
 export default function CareTab({
-  hospitalizationId, hospitalId, userId, readOnly, lockedType, sourceDocumentId, onOrderPlaced,
+  hospitalizationId, hospitalId, userId, readOnly, lockedType, sourceDocumentId, onOrderPlaced, hideOwnList,
 }: Props) {
   const queryClient = useQueryClient();
   const [careType, setCareType] = useState<"diet" | "activity_mode" | "care">(lockedType ?? "care");
@@ -330,7 +331,7 @@ export default function CareTab({
         </div>
       )}
 
-      {(lockedType ? orders.filter((o: any) => o.order_type === lockedType) : orders).length === 0 ? (
+      {!hideOwnList && ((lockedType ? orders.filter((o: any) => o.order_type === lockedType) : orders).length === 0 ? (
         <p className="text-sm text-muted-foreground">Назначений нет</p>
       ) : (lockedType ? orders.filter((o: any) => o.order_type === lockedType) : orders).map((o: any) => (
         <div key={o.id} className="border rounded p-3 space-y-1 group">
@@ -394,7 +395,7 @@ export default function CareTab({
             </div>
           )}
         </div>
-      ))}
+      )))}
     </div>
   );
 }

@@ -138,6 +138,7 @@ export default function DocumentOrderingSection({
                   lockedType="care"
                   sourceDocumentId={effectiveDocId}
                   onOrderPlaced={refreshLists}
+                  hideOwnList
                 />
               ) : (
                 <ServiceTab
@@ -149,6 +150,7 @@ export default function DocumentOrderingSection({
                   title={label}
                   sourceDocumentId={effectiveDocId}
                   onOrderPlaced={refreshLists}
+                  hideOwnList
                 />
               )}
             </div>
