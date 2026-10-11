@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { uniqueServices } from "@/components/shared/LabResultRow";
 import { FlagBadge } from "@/pages/lab/LabResultsPage";
 import { format } from "date-fns";
@@ -64,6 +64,23 @@ function ParamTableRow({
       <span className="text-xs text-muted-foreground">{r.unit || "—"}</span>
       <span className="text-xs text-muted-foreground">{norm}</span>
       <span className="truncate text-xs text-muted-foreground print:hidden">{orderedBy || "—"}</span>
+      <span className="text-xs text-muted-foreground">{dateStr}</span>
+    </div>
+  );
+}
+
+function PendingRow({ vs }: { vs: any }) {
+  const orderedBy = vs.profiles?.full_name || "—";
+  const dateStr = vs.created_at ? format(new Date(vs.created_at), "dd.MM.yyyy HH:mm") : "—";
+  return (
+    <div className="grid grid-cols-[1fr_90px_60px_110px_120px_90px] print:grid-cols-[1fr_90px_60px_110px_90px] items-center gap-1 border-b py-1 text-sm last:border-0">
+      <div className="flex items-center gap-2 min-w-0 pl-6">
+        <span className="truncate text-slate-600">{vs.services?.name}</span>
+      </div>
+      <span className="text-xs text-muted-foreground">—</span>
+      <span className="text-xs text-muted-foreground">—</span>
+      <span className="text-xs text-muted-foreground">—</span>
+      <span className="truncate text-xs text-muted-foreground print:hidden">{orderedBy}</span>
       <span className="text-xs text-muted-foreground">{dateStr}</span>
     </div>
   );
@@ -284,12 +301,52 @@ export default function PhysicianResultsTab({ hospitalizationId, patientId, hosp
     enabled: !!patientId,
   });
 
+  // All physician-ordered lab services regardless of status, so orders
+  // still awaiting a sample/result (preliminary, ready_for_execution,
+  // in_progress) are listed too -- just without result values.
+  const { data: labOrders = [] } = useQuery({
+    queryKey: ["physician-lab-orders", patientId, hospitalId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("visit_services")
+        .select(`
+          id, created_at, hospitalization_id,
+          services!inner(id, name, service_types!inner(code)),
+          service_statuses!inner(code, name_ru),
+          profiles!created_by(full_name)
+        `)
+        .eq("hospital_id", hospitalId)
+        .eq("patient_id", patientId)
+        .eq("source", "physician")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data || []).filter((vs: any) => vs.services?.service_types?.code === "laboratory");
+    },
+    enabled: !!patientId,
+  });
+
   const current = samples.filter((s: any) =>
     (s.lab_sample_services || []).some((l: any) => l.visit_services?.hospitalization_id === hospitalizationId),
   );
   const history = samples.filter(
     (s: any) => !(s.lab_sample_services || []).some((l: any) => l.visit_services?.hospitalization_id === hospitalizationId),
   );
+
+  // Orders already represented above via a sample -- everything else in
+  // labOrders is still waiting on results.
+  const shownVisitServiceIds = useMemo(() => {
+    const ids = new Set<string>();
+    samples.forEach((s: any) => {
+      (s.lab_sample_services || []).forEach((l: any) => {
+        if (l.visit_service_id) ids.add(l.visit_service_id);
+      });
+    });
+    return ids;
+  }, [samples]);
+
+  const pendingOrders = labOrders.filter((vs: any) => !shownVisitServiceIds.has(vs.id));
+  const pendingCurrent = pendingOrders.filter((vs: any) => vs.hospitalization_id === hospitalizationId);
+  const pendingHistory = pendingOrders.filter((vs: any) => vs.hospitalization_id !== hospitalizationId);
 
   const [showHistory, setShowHistory] = useState(false);
 
@@ -303,6 +360,14 @@ export default function PhysicianResultsTab({ hospitalizationId, patientId, hosp
     );
   const currentMatches = matchCount(current);
   const historyMatches = matchCount(history);
+
+  const pendingFilter = (list: any[]) =>
+    list.filter((vs: any) => !q || vs.services?.name?.toLowerCase().includes(q));
+  const pendingCurrentFiltered = pendingFilter(pendingCurrent);
+  const pendingHistoryFiltered = pendingFilter(pendingHistory);
+  const pendingCurrentMatches = pendingCurrentFiltered.length;
+  const pendingHistoryMatches = pendingHistoryFiltered.length;
+
   const allChecked = checkedParams.size === 0;
 
   const visibleParamNames = new Set<string>();
@@ -342,15 +407,18 @@ export default function PhysicianResultsTab({ hospitalizationId, patientId, hosp
       </div>
       <div className="print:hidden" />
 
-      {current.length === 0 && history.length === 0 ? (
+      {current.length === 0 && history.length === 0 && pendingCurrent.length === 0 && pendingHistory.length === 0 ? (
         <p className="text-sm text-muted-foreground">Пока нет результатов.</p>
-      ) : currentMatches === 0 && historyMatches === 0 ? (
+      ) : currentMatches === 0 && historyMatches === 0 && pendingCurrentMatches === 0 && pendingHistoryMatches === 0 ? (
         <p className="text-sm text-muted-foreground">Ничего не найдено.</p>
       ) : (
         <>
-          {currentMatches > 0 && (
+          {(pendingCurrentMatches > 0 || currentMatches > 0) && (
             <div>
               <ParamTableHeader />
+              {pendingCurrentFiltered.map((vs: any) => (
+                <PendingRow key={vs.id} vs={vs} />
+              ))}
               {current.map((s: any) => (
                 <SampleGroup
                   key={s.id}
@@ -364,17 +432,20 @@ export default function PhysicianResultsTab({ hospitalizationId, patientId, hosp
               ))}
             </div>
           )}
-          {history.length > 0 && (
+          {(history.length > 0 || pendingHistory.length > 0) && (
             <div className="pt-1.5">
               <button
                 onClick={() => setShowHistory((v) => !v)}
                 className="text-sm text-blue-600 hover:underline print:hidden"
               >
-                {showHistory ? "Скрыть историю" : `Показать историю (${history.length})`}
+                {showHistory ? "Скрыть историю" : `Показать историю (${history.length + pendingHistory.length})`}
               </button>
-              {showHistory && historyMatches > 0 && (
+              {showHistory && (historyMatches > 0 || pendingHistoryMatches > 0) && (
                 <div className="mt-1.5">
                   <ParamTableHeader />
+                  {pendingHistoryFiltered.map((vs: any) => (
+                    <PendingRow key={vs.id} vs={vs} />
+                  ))}
                   {history.map((s: any) => (
                     <SampleGroup
                       key={s.id}
