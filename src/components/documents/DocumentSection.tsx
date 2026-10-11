@@ -54,17 +54,8 @@ const VITALS_ATTRIBUTE_CODES = [
 ];
 
 // Same vitals heading, but also matches vitals.cvp -- which only exists
-// on daily_note's own vitals grid -- so this set is how we tell "this is
-// daily_note's 3x3 vitals grid" apart from every other document's vitals
-// group further down.
+// on daily_note's own vitals grid.
 const VITALS_GRID_ATTRIBUTE_CODES = [...VITALS_ATTRIBUTE_CODES, "vitals.cvp"];
-
-// vitals.bp is field_type "text", so it's never auto-compact (see
-// isCompactField) -- it renders full-width everywhere by design. On
-// daily_note's own vitals tab only (identified by this section id) we
-// want it folded into the 3x3 grid alongside the rest, so it's forced
-// compact there without affecting any other document's vitals tab.
-const DAILY_NOTE_VITALS_SECTION_ID = "a1000000-0000-0000-0000-000000000021";
 
 // "При госпитализации проверено" admission-check fields -- rendered as a
 // horizontal row of plain checkboxes (checked = yes, unchecked = no)
@@ -91,20 +82,20 @@ const COMPACT_FIELD_TYPES = ["number", "auto", "calculated"];
 function isCompactField(field: SectionField) {
   if (ADMISSION_CHECK_ATTRIBUTE_CODES.includes(field.def.attribute_code ?? "")) return true;
   if (DATETIME_PAIR_ATTRIBUTE_CODES.includes(field.def.attribute_code ?? "")) return true;
+  // vitals.bp is field_type "text", so it's never auto-compact by type --
+  // it always appears alongside the rest of a vitals group, never
+  // standalone, so it's safe to fold it into that group's grid everywhere.
+  if (field.def.attribute_code === "vitals.bp") return true;
   return COMPACT_FIELD_TYPES.includes(field.def.field_type) && field.def.id !== NUTRI_TOTAL_ID;
 }
 
 // Partitions a section's fields into either single full-width fields
 // or runs of consecutive compact fields (rendered together in one row).
-// sectionId lets us force vitals.bp compact on daily_note's own vitals
-// grid only (see DAILY_NOTE_VITALS_SECTION_ID above).
-function groupFields(fields: SectionField[], sectionId: string): (SectionField | SectionField[])[] {
-  const forceCompact = (f: SectionField) =>
-    sectionId === DAILY_NOTE_VITALS_SECTION_ID && f.def.attribute_code === "vitals.bp";
+function groupFields(fields: SectionField[]): (SectionField | SectionField[])[] {
   const groups: (SectionField | SectionField[])[] = [];
   let run: SectionField[] = [];
   for (const f of fields) {
-    if (isCompactField(f) || forceCompact(f)) {
+    if (isCompactField(f)) {
       run.push(f);
     } else {
       if (run.length) {
@@ -450,7 +441,7 @@ function renderFieldBlock(
 }
 
 export default function DocumentSection({ section, values, setVal, isReadOnly, onFocusEditable }: Props) {
-  const groups = groupFields(section.fields, section.id);
+  const groups = groupFields(section.fields);
   return (
     <div className="document-section-page space-y-4">
       <h2 className="font-heading text-lg font-semibold border-b pb-2">
@@ -486,17 +477,10 @@ export default function DocumentSection({ section, values, setVal, isReadOnly, o
             VITALS_GRID_ATTRIBUTE_CODES.includes(f.def.attribute_code ?? "")
           );
           if (isVitalsGroup) {
-            const isDailyNoteVitalsGrid = g.some((f) => f.def.attribute_code === "vitals.cvp");
             return (
               <div key={`row-${i}`} className="space-y-2">
                 <h3 className="font-heading text-base font-semibold">Физикальные показатели</h3>
-                <div
-                  className={
-                    isDailyNoteVitalsGrid
-                      ? "grid gap-4 grid-cols-3"
-                      : "grid gap-4 grid-cols-[repeat(auto-fit,minmax(190px,1fr))]"
-                  }
-                >
+                <div className="grid gap-4 grid-cols-3">
                   {g.map((field) =>
                     renderFieldBlock(field, values, setVal, isReadOnly, onFocusEditable, true)
                   )}
