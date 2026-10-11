@@ -493,7 +493,7 @@ export default function DocumentWorkspaceInner({
   }
 
   const content = (
-    <div className={fullView ? "fixed inset-0 z-[100] bg-background overflow-y-auto flex flex-col" : "flex flex-col h-[calc(100vh-8rem)]"}>
+    <div className={fullView ? "fixed inset-0 z-[100] bg-background overflow-y-auto flex flex-col" : "flex flex-col max-h-[calc(100vh-8rem)]"}>
 
       {fullView && (
         <div className="flex items-center justify-between border-b px-4 py-2 bg-card print:hidden">
