@@ -67,7 +67,7 @@ export default function ServiceTab({
       return (data || []).filter(
         (vs: any) =>
           vs.services?.service_types?.code === typeCode &&
-          ["ready_for_execution", "in_progress", "completed"].includes(
+          ["preliminary", "ready_for_execution", "in_progress", "completed"].includes(
             vs.service_statuses?.code
           )
       );
