@@ -26,11 +26,14 @@ interface Props {
   // ordered, while the general tabs keep showing everything regardless.
   sourceDocumentId?: string | null;
   onOrderPlaced?: () => void;
+  // When true, hides this component's own order-history list (used when
+  // embedded inside a document that renders its own scoped list).
+  hideOwnList?: boolean;
 }
 
 export default function ServiceTab({
   hospitalizationId, patientId, hospitalId, userId, typeCode, title, readOnly,
-  sourceDocumentId, onOrderPlaced,
+  sourceDocumentId, onOrderPlaced, hideOwnList,
 }: Props) {
   const queryClient = useQueryClient();
   const isOutpatientMode = !hospitalizationId;
@@ -371,7 +374,7 @@ export default function ServiceTab({
         </div>
       )}
 
-      {filteredItems.length === 0 ? (
+      {!hideOwnList && (filteredItems.length === 0 ? (
         <p className="text-sm text-muted-foreground">Пока нет назначений.</p>
       ) : (
         <ul className="space-y-2">
@@ -389,7 +392,7 @@ export default function ServiceTab({
             </li>
           ))}
         </ul>
-      )}
+      ))}
       </>}
     </>
 
