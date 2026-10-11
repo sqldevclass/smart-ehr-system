@@ -199,6 +199,7 @@ export default function ServiceTab({
           p_hospital_id: hospitalId,
           p_ordered_by: userId,
           p_services: [{ service_id: item.id, cost_at_time: svc?.cost_with_vat ?? 0 }],
+          p_source_document_id: sourceDocumentId ?? null,
         }));
       } else {
         ({ error } = await supabase.rpc("inpatient_order_service", {
@@ -207,6 +208,7 @@ export default function ServiceTab({
           p_hospital_id: hospitalId,
           p_service_id: item.id,
           p_ordered_by: userId,
+          p_source_document_id: sourceDocumentId ?? null,
         }));
       }
       if (error) {
@@ -226,27 +228,6 @@ export default function ServiceTab({
       onOrderPlaced?.();
     }
 
-Change to (for the RPC calls inside the loop above it):
-Find:
-    for (const item of draft) {
-      let error;
-      if (isOutpatientMode) {
-        const svc = catalog.find((s: any) => s.id === item.id);
-        ({ error } = await supabase.rpc("physician_order_services", {
-          p_patient_id: patientId,
-          p_hospital_id: hospitalId,
-          p_ordered_by: userId,
-          p_services: [{ service_id: item.id, cost_at_time: svc?.cost_with_vat ?? 0 }],
-        }));
-      } else {
-        ({ error } = await supabase.rpc("inpatient_order_service", {
-          p_hospitalization_id: hospitalizationId,
-          p_patient_id: patientId,
-          p_hospital_id: hospitalId,
-          p_service_id: item.id,
-          p_ordered_by: userId,
-        }));
-      }
     if (failures.length > 0) {
       toast.error(`Не удалось назначить: ${failures.length}`);
     }
