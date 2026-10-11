@@ -739,7 +739,7 @@ export default function DocumentWorkspaceInner({
                   )}
                 {s.code === "treatment_plan" && (
                   <div className="mt-8 pt-6 border-t border-gray-200">
-                    {documentType?.code === "primary_physician_exam" ? (
+                    {["primary_physician_exam", "daily_note"].includes(documentType?.code ?? "") ? (
                       <DocumentOrderingSection
                         documentId={documentId}
                         ensureDocumentId={ensureDocument}
