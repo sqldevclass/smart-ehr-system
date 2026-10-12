@@ -479,7 +479,6 @@ export default function DocumentSection({ section, values, setVal, isReadOnly, o
           if (isVitalsGroup) {
             return (
               <div key={`row-${i}`} className="space-y-2">
-                <h3 className="font-heading text-base font-semibold">Физикальные показатели</h3>
                 <div className="grid gap-4 grid-cols-3">
                   {g.map((field) =>
                     renderFieldBlock(field, values, setVal, isReadOnly, onFocusEditable, true)
