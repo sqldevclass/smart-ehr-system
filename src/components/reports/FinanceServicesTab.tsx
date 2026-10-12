@@ -14,6 +14,8 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { Columns3, RotateCcw, Save } from "lucide-react";
 import { toast } from "sonner";
 
+const VIEW_KEY = "finance_services_columns";
+
 
 interface ServiceRow {
   visit_service_id: string;
@@ -256,7 +258,6 @@ export default function FinanceServicesTab({ from, to }: { from: string; to: str
       ) : (
         <Table>
           <TableHeader>
-            <TableRow>
               {visibleColumnList.map((col) => (
                 <TableHead key={col.id} className={cn(col.align === "right" && "text-right")}>
                   <div className={cn("flex items-center", col.align === "right" && "justify-end")}>
