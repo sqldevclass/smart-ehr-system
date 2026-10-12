@@ -496,7 +496,7 @@ export default function DocumentWorkspaceInner({
     <div className={fullView ? "fixed inset-0 z-[100] bg-background overflow-y-auto flex flex-col" : "flex flex-col max-h-[calc(100vh-8rem)]"}>
 
       {fullView && (
-        <div className="flex items-center justify-between border-b px-4 py-2 bg-card print:hidden">
+        <div className="shrink-0 flex items-center justify-between border-b px-4 py-2 bg-card print:hidden">
           <div className="flex items-center gap-3">
             <span
               className="font-heading font-semibold"
@@ -518,14 +518,14 @@ export default function DocumentWorkspaceInner({
       )}
 
       {!fullView && serviceStatusCode === "preliminary" && (
-        <div className="flex items-center gap-2 px-4 py-2 bg-yellow-50 border-b border-yellow-200 text-yellow-800 text-sm">
+        <div className="shrink-0 flex items-center gap-2 px-4 py-2 bg-yellow-50 border-b border-yellow-200 text-yellow-800 text-sm">
           <span>⏳</span>
           <span>Услуга ожидает оплаты. Документ доступен только для просмотра.</span>
         </div>
       )}
       {/* Toolbar */}
       {!fullView && (
-      <div className="document-toolbar flex items-center justify-between border-b px-4 py-2 bg-card">
+      <div className="document-toolbar shrink-0 flex items-center justify-between border-b px-4 py-2 bg-card">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={onClose}>
             <ArrowLeft className="h-4 w-4 mr-1" /> Назад
@@ -596,7 +596,7 @@ export default function DocumentWorkspaceInner({
 
       {/* Tabs */}
       {!fullView && (
-      <div className="document-tabs-bar border-b bg-card px-4 overflow-x-auto">
+      <div className="document-tabs-bar shrink-0 border-b bg-card px-4 overflow-x-auto">
         <div className="flex">
           {sections.map((s, i) => (
             <button
