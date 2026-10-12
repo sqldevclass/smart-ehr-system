@@ -67,7 +67,6 @@ interface ColumnDef {
   align?: "right";
 }
 
-Change to:
 export default function FinanceServicesTab({ from, to }: { from: string; to: string }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -142,7 +141,6 @@ export default function FinanceServicesTab({ from, to }: { from: string; to: str
     { id: "price", label: "Цена", value: (r) => fmt(r.revenue), align: "right" },
     { id: "sum", label: "Сумма", value: (r) => fmt(r.revenue), align: "right" },
     { id: "invoice_number", label: "№ счета", value: (r) => r.invoice_number || "" },
-Change to:
   ], []);
 
   const visibleColumnList = useMemo(
@@ -200,7 +198,6 @@ Change to:
     );
   }, [items, columns, filters]);
 
-Change to:
   return (
     <div className="mt-4 space-y-2">
       <div className="flex items-center gap-2">
