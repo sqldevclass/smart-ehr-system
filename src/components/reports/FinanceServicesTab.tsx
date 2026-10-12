@@ -256,9 +256,9 @@ export default function FinanceServicesTab({ from, to }: { from: string; to: str
       ) : (
         <Table>
           <TableHeader>
-          <TableHeader>
             <TableRow>
               {visibleColumnList.map((col) => (
+                <TableHead key={col.id} className={cn(col.align === "right" && "text-right")}>
                   <div className={cn("flex items-center", col.align === "right" && "justify-end")}>
                     <span>{col.label}</span>
                     <ColumnFilterDropdown
