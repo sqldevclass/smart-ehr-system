@@ -9,10 +9,12 @@ import {
 import ColumnFilterDropdown from "@/components/reports/ColumnFilterDropdown";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Columns3, RotateCcw, Save } from "lucide-react";
 import { toast } from "sonner";
+import { PeriodState, getDateBounds } from "@/components/shared/PeriodFilter";
 
 const VIEW_KEY = "finance_services_columns";
 
@@ -69,9 +71,15 @@ interface ColumnDef {
   align?: "right";
 }
 
-export default function FinanceServicesTab({ from, to }: { from: string; to: string }) {
+interface Props {
+  period: PeriodState;
+  onPeriodChange: (s: PeriodState) => void;
+}
+
+export default function FinanceServicesTab({ period, onPeriodChange }: Props) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { from, to } = getDateBounds(period);
   const [filters, setFilters] = useState<Record<string, Set<string> | null>>({});
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
   const [prefsLoaded, setPrefsLoaded] = useState(false);
@@ -202,6 +210,7 @@ export default function FinanceServicesTab({ from, to }: { from: string; to: str
 
   return (
     <div className="mt-4 space-y-2">
+      <div className="flex items-center justify-between gap-2">
       <div className="flex items-center gap-2">
         <Button
           variant="outline"
@@ -248,6 +257,27 @@ export default function FinanceServicesTab({ from, to }: { from: string; to: str
             </div>
           </PopoverContent>
         </Popover>
+      </div>
+
+        <div className="flex items-center gap-2">
+          <Input
+            type="date"
+            className="h-8 text-xs w-auto"
+            value={period.customFrom ?? ""}
+            onChange={(e) =>
+              onPeriodChange({ period: "custom", customFrom: e.target.value, customTo: period.customTo ?? e.target.value })
+            }
+          />
+          <span className="text-xs text-muted-foreground">—</span>
+          <Input
+            type="date"
+            className="h-8 text-xs w-auto"
+            value={period.customTo ?? ""}
+            onChange={(e) =>
+              onPeriodChange({ period: "custom", customFrom: period.customFrom ?? e.target.value, customTo: e.target.value })
+            }
+          />
+        </div>
       </div>
 
       <div className="rounded-md border bg-card overflow-x-auto">
