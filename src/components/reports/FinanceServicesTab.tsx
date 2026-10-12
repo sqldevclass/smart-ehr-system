@@ -210,8 +210,13 @@ export default function FinanceServicesTab({ period, onPeriodChange }: Props) {
 
   return (
     <div className="mt-4 space-y-2">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
       <div className="flex items-center gap-2">
+        <h1 className="text-lg font-semibold text-foreground">Finance</h1>
+        <span className="text-sm font-medium text-muted-foreground bg-muted px-2 py-1 rounded">Услуги</span>
+      </div>
+
+      <div className="flex items-center gap-2 flex-wrap">
         <Button
           variant="outline"
           size="sm"
@@ -257,7 +262,6 @@ export default function FinanceServicesTab({ period, onPeriodChange }: Props) {
             </div>
           </PopoverContent>
         </Popover>
-      </div>
 
         <div className="flex items-center gap-2">
           <Input
@@ -278,6 +282,7 @@ export default function FinanceServicesTab({ period, onPeriodChange }: Props) {
             }
           />
         </div>
+      </div>
       </div>
 
       <div className="rounded-md border bg-card overflow-x-auto">

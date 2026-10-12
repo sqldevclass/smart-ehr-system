@@ -84,11 +84,6 @@ export default function ReportsPage() {
 
             {canViewFinance && (
               <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <h1 className="text-lg font-semibold text-foreground">Finance</h1>
-                  <span className="text-sm font-medium text-muted-foreground bg-muted px-2 py-1 rounded">Услуги</span>
-                </div>
-
                 <FinanceServicesTab period={period} onPeriodChange={setPeriod} />
               </div>
             )}
