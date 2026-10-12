@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import DailyReportSummaryTab from "@/components/reports/DailyReportSummaryTab";
 import DailyReportByDepartmentTab from "@/components/reports/DailyReportByDepartmentTab";
 import FinanceRevenueReport from "@/components/reports/FinanceRevenueReport";
+import FinanceServicesTab from "@/components/reports/FinanceServicesTab";
 
 export default function ReportsPage() {
   const { user, hasAnyRole } = useAuth();
@@ -85,10 +86,35 @@ export default function ReportsPage() {
             {canViewFinance && (
               <div className="space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h1 className="text-lg font-semibold text-foreground">Revenue Report</h1>
+                  <h1 className="text-lg font-semibold text-foreground">Finance</h1>
                   {!canViewDaily && <PeriodFilter value={period} onChange={setPeriod} />}
                 </div>
-                <FinanceRevenueReport from={from} to={to} />
+
+                <Tabs defaultValue="services" className="w-full">
+                  <TabsList className="flex flex-wrap h-auto">
+                    <TabsTrigger value="visits" disabled>Визиты</TabsTrigger>
+                    <TabsTrigger value="case-histories" disabled>Истории болезней</TabsTrigger>
+                    <TabsTrigger value="protocols" disabled>Протоколы</TabsTrigger>
+                    <TabsTrigger value="summary">Сводный отчет</TabsTrigger>
+                    <TabsTrigger value="payment" disabled>Оплата</TabsTrigger>
+                    <TabsTrigger value="debts" disabled>Долги</TabsTrigger>
+                    <TabsTrigger value="services">Услуги</TabsTrigger>
+                    <TabsTrigger value="services-2" disabled>Услуги 2</TabsTrigger>
+                    <TabsTrigger value="goods-turnover" disabled>Оборот товаров</TabsTrigger>
+                    <TabsTrigger value="material-costs" disabled>Расходы материалов</TabsTrigger>
+                    <TabsTrigger value="inpatient-services" disabled>Услуги стационара</TabsTrigger>
+                    <TabsTrigger value="outpatient-services" disabled>Услуги амбулаторно</TabsTrigger>
+                    <TabsTrigger value="screening" disabled>Screening</TabsTrigger>
+                    <TabsTrigger value="service-costs" disabled>Затраты на услуги</TabsTrigger>
+                    <TabsTrigger value="execution-report" disabled>Отчет по исполнению</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="summary">
+                    <FinanceRevenueReport from={from} to={to} />
+                  </TabsContent>
+                  <TabsContent value="services">
+                    <FinanceServicesTab from={from} to={to} />
+                  </TabsContent>
+                </Tabs>
               </div>
             )}
           </>
