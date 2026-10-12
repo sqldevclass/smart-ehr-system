@@ -17,6 +17,8 @@ interface ServiceRow {
   service_group_name: string | null;
   op_ip: "inpatient" | "outpatient";
   payment_status: "paid" | "in_progress" | "not_paid";
+  service_status_code: string | null;
+  service_status_name: string | null;
   patient_number: string | null;
   patient_full_name: string | null;
   patient_dob: string | null;
@@ -26,15 +28,23 @@ interface ServiceRow {
   rendered_by_name: string | null;
 }
 
-const STATUS_LABELS: Record<string, string> = {
+const PAYMENT_LABELS: Record<string, string> = {
   paid: "Оплачено",
   in_progress: "В процессе",
   not_paid: "Не оплачено",
 };
-const STATUS_DOT: Record<string, string> = {
+const PAYMENT_DOT: Record<string, string> = {
   paid: "bg-green-500",
   in_progress: "bg-orange-400",
   not_paid: "bg-red-500",
+};
+const SERVICE_STATUS_DOT: Record<string, string> = {
+  completed: "bg-green-500",
+  in_progress: "bg-orange-400",
+  ready_for_execution: "bg-blue-500",
+  preliminary: "bg-slate-400",
+  reservation: "bg-purple-400",
+  cancelled: "bg-red-500",
 };
 const OP_IP_LABELS: Record<string, string> = {
   inpatient: "Стационар",
@@ -64,6 +74,7 @@ export default function FinanceServicesTab({ from, to }: { from: string; to: str
         .select(`
           visit_service_id, report_date, revenue,
           service_name, service_group_name, op_ip, payment_status,
+          service_status_code, service_status_name,
           patient_number, patient_full_name, patient_dob,
           hospitalization_number, invoice_number,
           referred_by_name, rendered_by_name
@@ -79,7 +90,8 @@ export default function FinanceServicesTab({ from, to }: { from: string; to: str
   });
 
   const columns: ColumnDef[] = useMemo(() => [
-    { id: "status", label: "Состояние", value: (r) => STATUS_LABELS[r.payment_status] || r.payment_status },
+    { id: "service_status", label: "Состояние", value: (r) => r.service_status_name || r.service_status_code || "" },
+    { id: "payment_status", label: "Оплата", value: (r) => PAYMENT_LABELS[r.payment_status] || r.payment_status },
     { id: "hosp_number", label: "№ истории", value: (r) => r.hospitalization_number || "" },
     { id: "patient_number", label: "ID пациента", value: (r) => r.patient_number || "" },
     { id: "patient_name", label: "Пациент", value: (r) => r.patient_full_name || "" },
@@ -151,10 +163,15 @@ export default function FinanceServicesTab({ from, to }: { from: string; to: str
                 <TableRow key={r.visit_service_id}>
                   {columns.map((col) => (
                     <TableCell key={col.id} className={cn(col.align === "right" && "text-right")}>
-                      {col.id === "status" ? (
+                      {col.id === "service_status" ? (
                         <span
-                          className={cn("inline-block w-2.5 h-2.5 rounded-full", STATUS_DOT[r.payment_status])}
-                          title={STATUS_LABELS[r.payment_status]}
+                          className={cn("inline-block w-2.5 h-2.5 rounded-full", SERVICE_STATUS_DOT[r.service_status_code ?? ""] || "bg-muted-foreground")}
+                          title={r.service_status_name ?? ""}
+                        />
+                      ) : col.id === "payment_status" ? (
+                        <span
+                          className={cn("inline-block w-2.5 h-2.5 rounded-full", PAYMENT_DOT[r.payment_status])}
+                          title={PAYMENT_LABELS[r.payment_status]}
                         />
                       ) : (
                         col.value(r)
