@@ -33,7 +33,7 @@ export default function ColumnFilterDropdown({ options, selected, onChange }: Pr
       <PopoverTrigger asChild>
         <button
           type="button"
-          className={`ml-1 shrink-0 ${isFiltered ? "text-primary" : "text-muted-foreground/50"} hover:text-foreground`}
+          className={`ml-1 shrink-0 rounded p-0.5 ${isFiltered ? "bg-blue-500 text-white" : "text-muted-foreground/50 hover:text-foreground"}`}
           title="Фильтр"
           onClick={(e) => e.stopPropagation()}
         >

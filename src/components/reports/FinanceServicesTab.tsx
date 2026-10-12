@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
@@ -8,6 +8,14 @@ import {
 } from "@/components/ui/table";
 import ColumnFilterDropdown from "@/components/reports/ColumnFilterDropdown";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Columns3, RotateCcw, Save } from "lucide-react";
+import { toast } from "sonner";
+
+const VIEW_KEY = "finance_services_columns";
+
 
 interface ServiceRow {
   visit_service_id: string;
@@ -63,7 +71,37 @@ interface ColumnDef {
 
 export default function FinanceServicesTab({ from, to }: { from: string; to: string }) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [filters, setFilters] = useState<Record<string, Set<string> | null>>({});
+  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
+
+  const { data: savedPrefs } = useQuery({
+    queryKey: ["user-view-preferences", VIEW_KEY, user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from("user_view_preferences")
+        .select("preferences")
+        .eq("user_id", user.id)
+        .eq("view_key", VIEW_KEY)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.preferences as { visible_columns?: string[] } | null;
+    },
+    enabled: !!user,
+  });
+
+  useEffect(() => {
+    if (prefsLoaded) return;
+    if (savedPrefs === undefined) return;
+    if (savedPrefs?.visible_columns) {
+      const visible = new Set(savedPrefs.visible_columns);
+      setHiddenColumns(new Set(columns.map((c) => c.id).filter((id) => !visible.has(id))));
+    }
+    setPrefsLoaded(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedPrefs]);
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ["finance-services-items", user?.hospitalId, from, to],
@@ -107,6 +145,41 @@ export default function FinanceServicesTab({ from, to }: { from: string; to: str
     { id: "invoice_number", label: "№ счета", value: (r) => r.invoice_number || "" },
   ], []);
 
+  const visibleColumnList = useMemo(
+    () => columns.filter((c) => !hiddenColumns.has(c.id)),
+    [columns, hiddenColumns],
+  );
+
+  const hasActiveFilters = Object.values(filters).some((f) => f !== null && f !== undefined);
+
+  const resetFilters = () => setFilters({});
+
+  const toggleColumn = (id: string) => {
+    setHiddenColumns((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const saveAsDefault = async () => {
+    if (!user) return;
+    const visible_columns = columns.map((c) => c.id).filter((id) => !hiddenColumns.has(id));
+    const { error } = await supabase
+      .from("user_view_preferences")
+      .upsert(
+        { user_id: user.id, hospital_id: user.hospitalId, view_key: VIEW_KEY, preferences: { visible_columns } },
+        { onConflict: "user_id,view_key" },
+      );
+    if (error) {
+      toast.error("Не удалось сохранить вид по умолчанию.");
+      return;
+    }
+    toast.success("Сохранено как вид по умолчанию.");
+    queryClient.invalidateQueries({ queryKey: ["user-view-preferences", VIEW_KEY, user.id] });
+  };
+
   const optionsByColumn = useMemo(() => {
     const map: Record<string, string[]> = {};
     columns.forEach((col) => {
@@ -128,7 +201,56 @@ export default function FinanceServicesTab({ from, to }: { from: string; to: str
   }, [items, columns, filters]);
 
   return (
-    <div className="mt-4 rounded-md border bg-card overflow-x-auto">
+    <div className="mt-4 space-y-2">
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 text-xs gap-1.5"
+          disabled={!hasActiveFilters}
+          onClick={resetFilters}
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+          Сбросить фильтры
+        </Button>
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
+              <Columns3 className="h-3.5 w-3.5" />
+              Столбцы
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-64 p-2" align="start">
+            <div className="max-h-72 overflow-y-auto space-y-0.5">
+              {columns.map((col) => (
+                <label
+                  key={col.id}
+                  className="flex items-center gap-2 text-xs cursor-pointer px-1 py-1 rounded hover:bg-muted"
+                >
+                  <Checkbox
+                    checked={!hiddenColumns.has(col.id)}
+                    onCheckedChange={() => toggleColumn(col.id)}
+                  />
+                  <span>{col.label}</span>
+                </label>
+              ))}
+            </div>
+            <div className="border-t mt-2 pt-2">
+              <button
+                type="button"
+                className="flex items-center gap-1.5 text-xs text-blue-600 hover:underline px-1"
+                onClick={saveAsDefault}
+              >
+                <Save className="h-3.5 w-3.5" />
+                Сохранить как вид по умолчанию
+              </button>
+            </div>
+          </PopoverContent>
+        </Popover>
+      </div>
+
+      <div className="rounded-md border bg-card overflow-x-auto">
       {isLoading ? (
         <p className="p-4 text-sm text-muted-foreground">Loading…</p>
       ) : items.length === 0 ? (
@@ -137,7 +259,7 @@ export default function FinanceServicesTab({ from, to }: { from: string; to: str
         <Table>
           <TableHeader>
             <TableRow>
-              {columns.map((col) => (
+              {visibleColumnList.map((col) => (
                 <TableHead key={col.id} className={cn(col.align === "right" && "text-right")}>
                   <div className={cn("flex items-center", col.align === "right" && "justify-end")}>
                     <span>{col.label}</span>
@@ -154,14 +276,14 @@ export default function FinanceServicesTab({ from, to }: { from: string; to: str
           <TableBody>
             {filteredRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={columns.length} className="text-center text-sm text-muted-foreground py-6">
+                <TableCell colSpan={visibleColumnList.length} className="text-center text-sm text-muted-foreground py-6">
                   No rows match the current filters.
                 </TableCell>
               </TableRow>
             ) : (
               filteredRows.map((r) => (
                 <TableRow key={r.visit_service_id}>
-                  {columns.map((col) => (
+                  {visibleColumnList.map((col) => (
                     <TableCell key={col.id} className={cn(col.align === "right" && "text-right")}>
                       {col.id === "service_status" ? (
                         <span
@@ -184,6 +306,7 @@ export default function FinanceServicesTab({ from, to }: { from: string; to: str
           </TableBody>
         </Table>
       )}
+      </div>
     </div>
   );
 }
