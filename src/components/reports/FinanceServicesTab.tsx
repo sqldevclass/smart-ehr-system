@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import ColumnFilterDropdown from "@/components/reports/ColumnFilterDropdown";
 import { cn } from "@/lib/utils";
@@ -30,7 +30,8 @@ interface ServiceRow {
   service_status_code: string | null;
   service_status_name: string | null;
   patient_number: string | null;
-  patient_full_name: string | null;
+  patient_first_name: string | null;
+  patient_last_name: string | null;
   patient_dob: string | null;
   hospitalization_number: string | null;
   invoice_number: string | null;
@@ -121,7 +122,7 @@ export default function FinanceServicesTab({ period, onPeriodChange }: Props) {
           visit_service_id, report_date, revenue,
           service_name, service_group_name, op_ip, payment_status,
           service_status_code, service_status_name,
-          patient_number, patient_full_name, patient_dob,
+          patient_number, patient_first_name, patient_last_name, patient_dob,
           hospitalization_number, invoice_number,
           referred_by_name, rendered_by_name
         `)
@@ -140,7 +141,8 @@ export default function FinanceServicesTab({ period, onPeriodChange }: Props) {
     { id: "payment_status", label: "Оплата", value: (r) => PAYMENT_LABELS[r.payment_status] || r.payment_status },
     { id: "hosp_number", label: "№ истории", value: (r) => r.hospitalization_number || "" },
     { id: "patient_number", label: "ID пациента", value: (r) => r.patient_number || "" },
-    { id: "patient_name", label: "Пациент", value: (r) => r.patient_full_name || "" },
+    { id: "patient_last_name", label: "Фамилия", value: (r) => r.patient_last_name || "" },
+    { id: "patient_first_name", label: "Имя", value: (r) => r.patient_first_name || "" },
     { id: "dob", label: "Дата рождения", value: (r) => (r.patient_dob ? format(new Date(r.patient_dob), "dd.MM.yyyy") : "") },
     { id: "date", label: "Дата", value: (r) => (r.report_date ? format(new Date(r.report_date), "dd.MM.yyyy HH:mm") : "") },
     { id: "group", label: "Группа", value: (r) => r.service_group_name || "" },
@@ -148,7 +150,6 @@ export default function FinanceServicesTab({ period, onPeriodChange }: Props) {
     { id: "referred_by", label: "Направил", value: (r) => r.referred_by_name || "" },
     { id: "rendered_by", label: "Исполнитель", value: (r) => r.rendered_by_name || "" },
     { id: "op_ip", label: "IP/OP", value: (r) => OP_IP_LABELS[r.op_ip] || r.op_ip },
-    { id: "price", label: "Цена", value: (r) => fmt(r.revenue), align: "right" },
     { id: "sum", label: "Сумма", value: (r) => fmt(r.revenue), align: "right" },
     { id: "invoice_number", label: "№ счета", value: (r) => r.invoice_number || "" },
   ], []);
@@ -207,6 +208,11 @@ export default function FinanceServicesTab({ period, onPeriodChange }: Props) {
       }),
     );
   }, [items, columns, filters]);
+
+  const sumTotal = useMemo(
+    () => filteredRows.reduce((acc, r) => acc + Number(r.revenue || 0), 0),
+    [filteredRows],
+  );
 
   return (
     <div className="mt-4 space-y-2">
@@ -285,7 +291,7 @@ export default function FinanceServicesTab({ period, onPeriodChange }: Props) {
       </div>
       </div>
 
-      <div className="rounded-md border bg-card overflow-x-auto">
+      <div className="rounded-md border bg-card overflow-auto max-h-[70vh]">
       {isLoading ? (
         <p className="p-4 text-sm text-muted-foreground">Loading…</p>
       ) : items.length === 0 ? (
@@ -293,7 +299,8 @@ export default function FinanceServicesTab({ period, onPeriodChange }: Props) {
       ) : (
         <Table>
           <TableHeader>
-            <TableRow>
+            <TableRow className="sticky top-0 z-10 bg-card">
+              <TableHead className="w-10">№</TableHead>
               {visibleColumnList.map((col) => (
                 <TableHead key={col.id} className={cn(col.align === "right" && "text-right")}>
                   <div className={cn("flex items-center", col.align === "right" && "justify-end")}>
@@ -311,13 +318,14 @@ export default function FinanceServicesTab({ period, onPeriodChange }: Props) {
           <TableBody>
             {filteredRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={visibleColumnList.length} className="text-center text-sm text-muted-foreground py-6">
+                <TableCell colSpan={visibleColumnList.length + 1} className="text-center text-sm text-muted-foreground py-6">
                   No rows match the current filters.
                 </TableCell>
               </TableRow>
             ) : (
-              filteredRows.map((r) => (
+              filteredRows.map((r, idx) => (
                 <TableRow key={r.visit_service_id}>
+                  <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
                   {visibleColumnList.map((col) => (
                     <TableCell key={col.id} className={cn(col.align === "right" && "text-right")}>
                       {col.id === "service_status" ? (
@@ -339,6 +347,21 @@ export default function FinanceServicesTab({ period, onPeriodChange }: Props) {
               ))
             )}
           </TableBody>
+          {filteredRows.length > 0 && (
+            <TableFooter className="sticky bottom-0 bg-card">
+              <TableRow>
+                <TableCell colSpan={1 + visibleColumnList.findIndex((c) => c.id === "sum")} className="font-semibold">
+                  Итого
+                </TableCell>
+                {visibleColumnList.some((c) => c.id === "sum") && (
+                  <TableCell className="text-right font-semibold">{fmt(sumTotal)}</TableCell>
+                )}
+                {visibleColumnList.slice(visibleColumnList.findIndex((c) => c.id === "sum") + 1).map((c) => (
+                  <TableCell key={c.id} />
+                ))}
+              </TableRow>
+            </TableFooter>
+          )}
         </Table>
       )}
       </div>
