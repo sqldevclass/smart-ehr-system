@@ -137,12 +137,6 @@ export default function FinanceServicesTab({ period, onPeriodChange }: Props) {
       emptyMessage="No services in this period."
       viewKey={VIEW_KEY}
       getRowId={(r) => r.visit_service_id}
-      leftSlot={
-        <>
-          <h1 className="text-lg font-semibold text-foreground">Finance</h1>
-          <span className="text-sm font-medium text-muted-foreground bg-muted px-2 py-1 rounded">Услуги</span>
-        </>
-      }
       rightSlot={
         <div className="flex items-center gap-2">
           <Input

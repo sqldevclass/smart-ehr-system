@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 import {
   type ColumnDef,
   type ColumnFiltersState,
@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { Columns3, RotateCcw, Save } from "lucide-react";
+import { ChevronDown, ChevronRight, Columns3, RotateCcw, Save } from "lucide-react";
 import { toast } from "sonner";
 
 declare module "@tanstack/react-table" {
@@ -53,6 +53,10 @@ interface DataTableProps<TData> {
   leftSlot?: ReactNode;
   rightSlot?: ReactNode;
   renderFooter?: (table: ReactTableInstance<TData>) => ReactNode;
+  /** When provided, rows this returns true for get a chevron toggle and can be expanded. */
+  getRowCanExpand?: (row: TData) => boolean;
+  /** Content rendered in a full-width row under an expanded row. */
+  renderSubRow?: (row: TData) => ReactNode;
 }
 
 export function DataTable<TData>({
@@ -65,12 +69,24 @@ export function DataTable<TData>({
   leftSlot,
   rightSlot,
   renderFooter,
+  getRowCanExpand,
+  renderSubRow,
 }: DataTableProps<TData>) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [prefsLoaded, setPrefsLoaded] = useState(false);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+  const toggleExpand = (id: string) => {
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const { data: savedPrefs } = useQuery({
     queryKey: ["user-view-preferences", viewKey, user?.id],
@@ -121,6 +137,7 @@ export function DataTable<TData>({
   const hasActiveFilters = columnFilters.length > 0;
   const resetFilters = () => setColumnFilters([]);
   const hideableColumns = table.getAllLeafColumns().filter((c) => c.getCanHide());
+  const filterableColumns = table.getAllLeafColumns().filter((c) => c.getCanFilter());
   const visibleLeafColumns = table.getVisibleLeafColumns();
   const rows = table.getRowModel().rows;
 
@@ -149,16 +166,18 @@ export function DataTable<TData>({
       <div className="flex items-center justify-between gap-2 flex-wrap shrink-0 pb-2">
         <div className="flex items-center gap-2">{leftSlot}</div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 text-xs gap-1.5"
-            disabled={!hasActiveFilters}
-            onClick={resetFilters}
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-            Сбросить фильтры
-          </Button>
+          {filterableColumns.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs gap-1.5"
+              disabled={!hasActiveFilters}
+              onClick={resetFilters}
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Сбросить фильтры
+            </Button>
+          )}
 
           {hideableColumns.length > 0 && (
             <Popover>
@@ -239,19 +258,50 @@ export function DataTable<TData>({
                   </TableCell>
                 </TableRow>
               ) : (
-                rows.map((row, idx) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="whitespace-nowrap text-muted-foreground">{idx + 1}</TableCell>
-                    {row.getVisibleCells().map((cell) => {
-                      const align = cell.column.columnDef.meta?.align;
-                      return (
-                        <TableCell key={cell.id} className={cn("whitespace-nowrap", align === "right" && "text-right")}>
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                rows.map((row, idx) => {
+                  const canExpand = getRowCanExpand?.(row.original) ?? false;
+                  const isExpanded = expandedRows.has(row.id);
+                  return (
+                    <Fragment key={row.id}>
+                      <TableRow>
+                        <TableCell className="whitespace-nowrap text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            {getRowCanExpand && (
+                              canExpand ? (
+                                <button
+                                  type="button"
+                                  onClick={() => toggleExpand(row.id)}
+                                  className="shrink-0 rounded hover:bg-muted p-0.5"
+                                  aria-label={isExpanded ? "Collapse" : "Expand"}
+                                >
+                                  {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                                </button>
+                              ) : (
+                                <span className="inline-block w-[18px]" />
+                              )
+                            )}
+                            <span>{idx + 1}</span>
+                          </div>
                         </TableCell>
-                      );
-                    })}
-                  </TableRow>
-                ))
+                        {row.getVisibleCells().map((cell) => {
+                          const align = cell.column.columnDef.meta?.align;
+                          return (
+                            <TableCell key={cell.id} className={cn("whitespace-nowrap", align === "right" && "text-right")}>
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </TableCell>
+                          );
+                        })}
+                      </TableRow>
+                      {isExpanded && renderSubRow && (
+                        <TableRow className="hover:bg-transparent">
+                          <TableCell colSpan={visibleLeafColumns.length + 1} className="p-0 bg-muted/20">
+                            {renderSubRow(row.original)}
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </Fragment>
+                  );
+                })
               )}
             </TableBody>
             {rows.length > 0 && renderFooter && (
