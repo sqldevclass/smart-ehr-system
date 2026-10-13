@@ -215,8 +215,8 @@ export default function FinanceServicesTab({ period, onPeriodChange }: Props) {
   );
 
   return (
-    <div className="mt-4 space-y-2">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
+    <div className="h-full flex flex-col overflow-hidden">
+      <div className="flex items-center justify-between gap-2 flex-wrap shrink-0 pb-2">
       <div className="flex items-center gap-2">
         <h1 className="text-lg font-semibold text-foreground">Finance</h1>
         <span className="text-sm font-medium text-muted-foreground bg-muted px-2 py-1 rounded">Услуги</span>
@@ -291,7 +291,7 @@ export default function FinanceServicesTab({ period, onPeriodChange }: Props) {
       </div>
       </div>
 
-      <div className="rounded-md border bg-card overflow-auto max-h-[70vh]">
+      <div className="rounded-md border bg-card overflow-auto flex-1 min-h-0">
       {isLoading ? (
         <p className="p-4 text-sm text-muted-foreground">Loading…</p>
       ) : items.length === 0 ? (
@@ -299,10 +299,10 @@ export default function FinanceServicesTab({ period, onPeriodChange }: Props) {
       ) : (
         <Table>
           <TableHeader>
-            <TableRow className="sticky top-0 z-10 bg-card">
-              <TableHead className="w-10">№</TableHead>
+            <TableRow>
+              <TableHead className="w-10 whitespace-nowrap sticky top-0 z-10 bg-card">№</TableHead>
               {visibleColumnList.map((col) => (
-                <TableHead key={col.id} className={cn(col.align === "right" && "text-right")}>
+                <TableHead key={col.id} className={cn("whitespace-nowrap sticky top-0 z-10 bg-card", col.align === "right" && "text-right")}>
                   <div className={cn("flex items-center", col.align === "right" && "justify-end")}>
                     <span>{col.label}</span>
                     <ColumnFilterDropdown
@@ -325,9 +325,9 @@ export default function FinanceServicesTab({ period, onPeriodChange }: Props) {
             ) : (
               filteredRows.map((r, idx) => (
                 <TableRow key={r.visit_service_id}>
-                  <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
+                  <TableCell className="whitespace-nowrap text-muted-foreground">{idx + 1}</TableCell>
                   {visibleColumnList.map((col) => (
-                    <TableCell key={col.id} className={cn(col.align === "right" && "text-right")}>
+                    <TableCell key={col.id} className={cn("whitespace-nowrap", col.align === "right" && "text-right")}>
                       {col.id === "service_status" ? (
                         <span
                           className={cn("inline-block w-2.5 h-2.5 rounded-full", SERVICE_STATUS_DOT[r.service_status_code ?? ""] || "bg-muted-foreground")}

@@ -28,7 +28,7 @@ export default function ReportsPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className={canViewDaily ? "min-h-screen flex flex-col bg-background" : "h-screen flex flex-col bg-background"}>
       <header className="h-14 flex items-center justify-between border-b bg-card px-4">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
@@ -47,7 +47,7 @@ export default function ReportsPage() {
         )}
       </header>
 
-      <main className="flex-1 p-6 space-y-8">
+      <main className={canViewDaily ? "flex-1 p-6 space-y-8 overflow-y-auto" : "flex-1 p-6 pt-3 overflow-hidden flex flex-col"}>
         {!canViewDaily && !canViewFinance ? (
           <div className="text-sm text-muted-foreground">
             No reports are available for your role yet.
@@ -83,7 +83,7 @@ export default function ReportsPage() {
             )}
 
             {canViewFinance && (
-              <div className="space-y-4">
+              <div className="flex-1 min-h-0">
                 <FinanceServicesTab period={period} onPeriodChange={setPeriod} />
               </div>
             )}
