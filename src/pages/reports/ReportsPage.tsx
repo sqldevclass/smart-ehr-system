@@ -28,7 +28,7 @@ export default function ReportsPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className={canViewDaily ? "min-h-screen flex flex-col bg-background" : "h-screen flex flex-col bg-background"}>
       <header className="h-14 flex items-center justify-between border-b bg-card px-4">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
