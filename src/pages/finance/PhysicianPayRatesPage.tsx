@@ -41,14 +41,13 @@ export default function PhysicianPayRatesPage() {
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
-  const [addTypeCode, setAddTypeCode] = useState<"own_service" | "referral">("own_service");
+  const [addTypeCode, setAddTypeCode] = useState<"own_service">("own_service");
   const [scopeKind, setScopeKind] = useState<"type" | "service">("type");
   const [scopeValue, setScopeValue] = useState("");
   const [rateValue, setRateValue] = useState("");
   const [saving, setSaving] = useState(false);
 
   const [basePayInput, setBasePayInput] = useState("");
-  const [bucketInput, setBucketInput] = useState("");
 
   const { data: rateTypes = [] } = useQuery({
     queryKey: ["pay-rate-types"],
@@ -147,14 +146,11 @@ export default function PhysicianPayRatesPage() {
   });
 
   const basePay = rates.find((r) => r.type_code === "base_pay");
-  const bucket = rates.find((r) => r.type_code === "department_bucket");
   const ownServiceRates = rates.filter((r) => r.type_code === "own_service");
-  const referralRates = rates.filter((r) => r.type_code === "referral");
 
   const selectPhysician = (p: PhysicianRow) => {
     setSelectedId(p.id);
     setBasePayInput("");
-    setBucketInput("");
   };
 
   const typeIdFor = (code: string) => rateTypes.find((t: any) => t.code === code)?.id;
@@ -183,7 +179,7 @@ export default function PhysicianPayRatesPage() {
     }
   };
 
-  const openAdd = (code: "own_service" | "referral") => {
+  const openAdd = (code: "own_service") => {
     setAddTypeCode(code);
     setScopeKind("type");
     setScopeValue("");
@@ -300,26 +296,6 @@ export default function PhysicianPayRatesPage() {
                     </Button>
                   </div>
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="bucket">Department Bucket (%)</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="bucket"
-                      type="number"
-                      min={0}
-                      placeholder={bucket ? String(bucket.value) : "0"}
-                      value={bucketInput}
-                      onChange={(e) => setBucketInput(e.target.value)}
-                    />
-                    <Button
-                      onClick={() => saveFlatRate("department_bucket", bucketInput || String(bucket?.value ?? ""))}
-                      disabled={saving}
-                    >
-                      Save
-                    </Button>
-                  </div>
-                </div>
               </div>
 
               <div className="space-y-2">
@@ -358,41 +334,6 @@ export default function PhysicianPayRatesPage() {
                 </Table>
               </div>
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-medium text-foreground">Referral Rates (%)</h3>
-                  <Button size="sm" onClick={() => openAdd("referral")} className="gap-1">
-                    <Plus className="h-4 w-4" /> Add
-                  </Button>
-                </div>
-
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Scope</TableHead>
-                      <TableHead>Rate</TableHead>
-                      <TableHead className="w-10"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {referralRates.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-muted-foreground">No rates configured.</TableCell>
-                      </TableRow>
-                    ) : referralRates.map((r) => (
-                      <TableRow key={r.id}>
-                        <TableCell>{r.scope_label}</TableCell>
-                        <TableCell>{r.value}%</TableCell>
-                        <TableCell>
-                          <Button size="icon" variant="ghost" onClick={() => handleDelete(r.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
             </>
           )}
         </div>
@@ -401,7 +342,7 @@ export default function PhysicianPayRatesPage() {
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add {addTypeCode === "own_service" ? "Own-Service" : "Referral"} Rate</DialogTitle>
+            <DialogTitle>Add Own-Service Rate</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
