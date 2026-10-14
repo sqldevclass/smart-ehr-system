@@ -155,7 +155,7 @@ export default function PhysicianPayRatesPage() {
 
   const typeIdFor = (code: string) => rateTypes.find((t: any) => t.code === code)?.id;
 
-  const saveFlatRate = async (code: "base_pay" | "department_bucket", value: string) => {
+  const saveFlatRate = async (code: "base_pay", value: string) => {
     if (!selectedId || !user || value === "") return;
     const numValue = Number(value);
     if (isNaN(numValue) || numValue < 0) {
