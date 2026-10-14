@@ -38,6 +38,16 @@ interface PayItem {
   patient_last_name: string | null;
 }
 
+interface BucketPayItem {
+  staff_role_id: string;
+  bucket_name: string;
+  member_percent: number;
+  completed_at: string;
+  service_name: string;
+  cost_at_time: number;
+  amount: number;
+}
+
 const fmt = (n: number) =>
   Number(n ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -90,6 +100,22 @@ export default function ReportsPayrollTab() {
     enabled: !!user && !!year && !!month,
   });
 
+  const { data: bucketPayItems = [] } = useQuery({
+    queryKey: ["physician-payroll-bucket-items", user?.hospitalId, year, month],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("payroll_bucket_pay_items")
+        .select("staff_role_id, bucket_name, member_percent, completed_at, service_name, cost_at_time, amount")
+        .gte("completed_at", periodStartISO)
+        .lt("completed_at", periodEndISO)
+        .order("completed_at", { ascending: false });
+      if (error) throw error;
+      return (data || []) as BucketPayItem[];
+    },
+    enabled: !!user && !!year && !!month,
+  });
+
   const itemsByPhysician = useMemo(() => {
     const map = new Map<string, PayItem[]>();
     payItems.forEach((item) => {
@@ -99,6 +125,16 @@ export default function ReportsPayrollTab() {
     });
     return map;
   }, [payItems]);
+
+  const bucketItemsByPhysician = useMemo(() => {
+    const map = new Map<string, BucketPayItem[]>();
+    bucketPayItems.forEach((item) => {
+      const list = map.get(item.staff_role_id) ?? [];
+      list.push(item);
+      map.set(item.staff_role_id, list);
+    });
+    return map;
+  }, [bucketPayItems]);
 
   const allConfirmed = rows.length > 0 && rows.every((r) => r.is_confirmed);
   const anyConfirmed = rows.some((r) => r.is_confirmed);
@@ -130,7 +166,7 @@ export default function ReportsPayrollTab() {
     { id: "base_pay_amount", header: "Base Pay", accessorFn: (r) => fmt(r.base_pay_amount), meta: { align: "right" }, enableColumnFilter: false, enableHiding: false },
     { id: "own_service_amount", header: "Own-Service", accessorFn: (r) => fmt(r.own_service_amount), meta: { align: "right" }, enableColumnFilter: false, enableHiding: false },
     { id: "referral_amount", header: "Referral", accessorFn: (r) => fmt(r.referral_amount), meta: { align: "right" }, enableColumnFilter: false, enableHiding: false },
-    { id: "department_bucket_amount", header: "Dept. Bucket", accessorFn: (r) => fmt(r.department_bucket_amount), meta: { align: "right" }, enableColumnFilter: false, enableHiding: false },
+    { id: "department_bucket_amount", header: "Bucket", accessorFn: (r) => fmt(r.department_bucket_amount), meta: { align: "right" }, enableColumnFilter: false, enableHiding: false },
     {
       id: "total_amount",
       header: "Total",
@@ -167,41 +203,76 @@ export default function ReportsPayrollTab() {
         isLoading={isLoading}
         emptyMessage="No physicians found for this period."
         getRowId={(r) => r.staff_role_id}
-        getRowCanExpand={(r) => (itemsByPhysician.get(r.staff_role_id)?.length ?? 0) > 0}
+        getRowCanExpand={(r) =>
+          (itemsByPhysician.get(r.staff_role_id)?.length ?? 0) > 0 ||
+          (bucketItemsByPhysician.get(r.staff_role_id)?.length ?? 0) > 0
+        }
         renderSubRow={(r) => {
           const items = itemsByPhysician.get(r.staff_role_id) ?? [];
+          const bucketItems = bucketItemsByPhysician.get(r.staff_role_id) ?? [];
           return (
-            <div className="px-4 py-3">
-              {items.length === 0 ? (
-                <p className="text-xs text-muted-foreground">No itemized own-service or referral entries this period.</p>
-              ) : (
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="text-muted-foreground border-b">
-                      <th className="text-left font-medium py-1 pr-3">Patient</th>
-                      <th className="text-left font-medium py-1 pr-3">Service</th>
-                      <th className="text-left font-medium py-1 pr-3">Date</th>
-                      <th className="text-left font-medium py-1 pr-3">Category</th>
-                      <th className="text-right font-medium py-1 pr-3">%</th>
-                      <th className="text-right font-medium py-1">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.map((item, i) => (
-                      <tr key={i} className="border-b last:border-0">
-                        <td className="py-1 pr-3 whitespace-nowrap">
-                          {[item.patient_last_name, item.patient_first_name].filter(Boolean).join(" ") || "—"}
-                        </td>
-                        <td className="py-1 pr-3 whitespace-nowrap">{item.service_name}</td>
-                        <td className="py-1 pr-3 whitespace-nowrap">{format(new Date(item.completed_at), "dd.MM.yyyy")}</td>
-                        <td className="py-1 pr-3 whitespace-nowrap">{item.category === "own_service" ? "Own-Service" : "Referral"}</td>
-                        <td className="py-1 pr-3 text-right whitespace-nowrap">{item.rate_percent ?? 0}%</td>
-                        <td className="py-1 text-right whitespace-nowrap">{fmt(item.amount)}</td>
+            <div className="px-4 py-3 space-y-4">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1">Own-Service &amp; Referral</p>
+                {items.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No itemized own-service or referral entries this period.</p>
+                ) : (
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-muted-foreground border-b">
+                        <th className="text-left font-medium py-1 pr-3">Patient</th>
+                        <th className="text-left font-medium py-1 pr-3">Service</th>
+                        <th className="text-left font-medium py-1 pr-3">Date</th>
+                        <th className="text-left font-medium py-1 pr-3">Category</th>
+                        <th className="text-right font-medium py-1 pr-3">%</th>
+                        <th className="text-right font-medium py-1">Amount</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+                    </thead>
+                    <tbody>
+                      {items.map((item, i) => (
+                        <tr key={i} className="border-b last:border-0">
+                          <td className="py-1 pr-3 whitespace-nowrap">
+                            {[item.patient_last_name, item.patient_first_name].filter(Boolean).join(" ") || "—"}
+                          </td>
+                          <td className="py-1 pr-3 whitespace-nowrap">{item.service_name}</td>
+                          <td className="py-1 pr-3 whitespace-nowrap">{format(new Date(item.completed_at), "dd.MM.yyyy")}</td>
+                          <td className="py-1 pr-3 whitespace-nowrap">{item.category === "own_service" ? "Own-Service" : "Referral"}</td>
+                          <td className="py-1 pr-3 text-right whitespace-nowrap">{item.rate_percent ?? 0}%</td>
+                          <td className="py-1 text-right whitespace-nowrap">{fmt(item.amount)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1">Buckets</p>
+                {bucketItems.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No bucket entries this period.</p>
+                ) : (
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-muted-foreground border-b">
+                        <th className="text-left font-medium py-1 pr-3">Bucket</th>
+                        <th className="text-left font-medium py-1 pr-3">Service</th>
+                        <th className="text-left font-medium py-1 pr-3">Date</th>
+                        <th className="text-right font-medium py-1">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bucketItems.map((item, i) => (
+                        <tr key={i} className="border-b last:border-0">
+                          <td className="py-1 pr-3 whitespace-nowrap">{item.bucket_name} ({item.member_percent}%)</td>
+                          <td className="py-1 pr-3 whitespace-nowrap">{item.service_name}</td>
+                          <td className="py-1 pr-3 whitespace-nowrap">{format(new Date(item.completed_at), "dd.MM.yyyy")}</td>
+                          <td className="py-1 text-right whitespace-nowrap">{fmt(item.amount)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
             </div>
           );
         }}
