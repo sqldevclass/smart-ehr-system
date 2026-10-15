@@ -654,8 +654,3 @@ export default function PayrollPage() {
     </div>
   );
 }
-
-NOTES:
-- Bonus/Advance cells show "—" when empty, the amount when set, and are clickable either way to open the add/edit dialog. They become non-interactive once the row is confirmed (locked month), matching the same "locked" rule already enforced server-side.
-- "Patient" header renamed to "Patient/Staff"; Bonus/Advance detail rows show the approving financist's name there instead of a patient.
-- Advance's detail-row amount is shown as negative (so the per-section subtotal and running Grand Total both reflect the subtraction visually), while the main table's Advance column still shows the plain positive amount.
