@@ -386,11 +386,6 @@ export default function PayrollPage() {
                   </tr>
                 </tbody>
               </table>
-
-NOTES:
-- "ID пациента" matches the existing Patient ID column label used elsewhere in the app (FinanceServicesTab.tsx), for consistency.
-- colSpan on the subtotal/grand-total rows bumped from 5 to 6 to account for the new leading column.
-- Base-pay rows have no patient, so patientId stays "—" like patient does.
             </div>
           );
         }}
