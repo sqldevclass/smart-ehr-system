@@ -33,7 +33,7 @@ import PaymentsPage from "./pages/cashier/PaymentsPage.tsx";
 import CashierProfile from "./pages/cashier/CashierProfile.tsx";
 import FinanceLayout from "./components/finance/FinanceLayout.tsx";
 import PhysicianPayRatesPage from "./pages/finance/PhysicianPayRatesPage.tsx";
-import PayrollDashboardPage from "./pages/finance/PayrollDashboardPage.tsx";
+import PayrollPage from "./pages/finance/PayrollPage.tsx";
 import BucketsPage from "./pages/finance/BucketsPage.tsx";
 import ReferralRatesPage from "./pages/finance/ReferralRatesPage.tsx";
 import FinanceProfile from "./pages/finance/FinanceProfile.tsx";
@@ -157,7 +157,7 @@ const App = () => (
           </Route>
           <Route path="/finance" element={<ProtectedRoute allowedRoles={["finance"]}><FinanceLayout /></ProtectedRoute>}>
             <Route index element={<PhysicianPayRatesPage />} />
-            <Route path="payroll" element={<PayrollDashboardPage />} />
+            <Route path="payroll" element={<PayrollPage />} />
             <Route path="buckets" element={<BucketsPage />} />
             <Route path="referral-rates" element={<ReferralRatesPage />} />
             <Route path="profile" element={<FinanceProfile />} />
