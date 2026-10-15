@@ -11,7 +11,6 @@ import { toast } from "sonner";
 import DailyReportSummaryTab from "@/components/reports/DailyReportSummaryTab";
 import DailyReportByDepartmentTab from "@/components/reports/DailyReportByDepartmentTab";
 import FinanceServicesTab from "@/components/reports/FinanceServicesTab";
-import ReportsPayrollTab from "@/components/reports/ReportsPayrollTab";
 
 export default function ReportsPage() {
   const { user, hasAnyRole } = useAuth();
