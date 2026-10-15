@@ -43,6 +43,7 @@ interface PayItem {
   amount: number;
   patient_first_name: string | null;
   patient_last_name: string | null;
+  patient_number: string | null;
 }
 
 interface BucketPayItem {
@@ -55,6 +56,7 @@ interface BucketPayItem {
   amount: number;
   patient_first_name: string | null;
   patient_last_name: string | null;
+  patient_number: string | null;
 }
 
 const fmt = (n: number) =>
@@ -68,9 +70,10 @@ function currentMonthValue() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
-// One row of the unified detail table (matches the Patient | Service |
-// Date | Category | % | Amount layout, sectioned with subtotals).
+// One row of the unified detail table (matches the Patient ID | Patient |
+// Service | Date | Category | % | Amount layout, sectioned with subtotals).
 interface DetailRow {
+  patientId: string;
   patient: string;
   service: string;
   date: string;
@@ -126,7 +129,7 @@ export default function PayrollPage() {
       if (!user) return [];
       const { data, error } = await supabase
         .from("physician_service_pay_items")
-        .select("staff_role_id, category, completed_at, service_name, cost_at_time, rate_percent, amount, patient_first_name, patient_last_name")
+        .select("staff_role_id, category, completed_at, service_name, cost_at_time, rate_percent, amount, patient_first_name, patient_last_name, patient_number")
         .gte("completed_at", periodStartISO)
         .lt("completed_at", periodEndISO)
         .order("completed_at", { ascending: false });
@@ -142,7 +145,7 @@ export default function PayrollPage() {
       if (!user) return [];
       const { data, error } = await supabase
         .from("payroll_bucket_pay_items")
-        .select("staff_role_id, bucket_name, member_percent, completed_at, service_name, cost_at_time, amount, patient_first_name, patient_last_name")
+        .select("staff_role_id, bucket_name, member_percent, completed_at, service_name, cost_at_time, amount, patient_first_name, patient_last_name, patient_number")
         .gte("completed_at", periodStartISO)
         .lt("completed_at", periodEndISO)
         .order("completed_at", { ascending: false });
@@ -276,6 +279,7 @@ export default function PayrollPage() {
           if (basePay.length > 0) {
             sections.push({
               rows: basePay.map((item) => ({
+                patientId: "—",
                 patient: "—",
                 service: item.description || "Base Pay",
                 date: "—",
@@ -290,6 +294,7 @@ export default function PayrollPage() {
           if (referralItems.length > 0) {
             sections.push({
               rows: referralItems.map((item) => ({
+                patientId: item.patient_number || "—",
                 patient: patientName(item.patient_first_name, item.patient_last_name),
                 service: item.service_name,
                 date: format(new Date(item.completed_at), "dd.MM.yyyy"),
@@ -304,6 +309,7 @@ export default function PayrollPage() {
           if (ownServiceItems.length > 0) {
             sections.push({
               rows: ownServiceItems.map((item) => ({
+                patientId: item.patient_number || "—",
                 patient: patientName(item.patient_first_name, item.patient_last_name),
                 service: item.service_name,
                 date: format(new Date(item.completed_at), "dd.MM.yyyy"),
@@ -318,10 +324,11 @@ export default function PayrollPage() {
           byBucket.forEach((bucketRows, bucketName) => {
             sections.push({
               rows: bucketRows.map((item) => ({
+                patientId: item.patient_number || "—",
                 patient: patientName(item.patient_first_name, item.patient_last_name),
                 service: item.service_name,
                 date: format(new Date(item.completed_at), "dd.MM.yyyy"),
-                category: bucketName,
+                category: `${bucketName} bucket`,
                 percent: `${item.member_percent}%`,
                 amount: Number(item.amount),
               })),
@@ -344,6 +351,7 @@ export default function PayrollPage() {
               <table className="w-full text-xs">
                 <thead>
                   <tr className="text-muted-foreground border-b">
+                    <th className="text-left font-medium py-1 pr-3">ID пациента</th>
                     <th className="text-left font-medium py-1 pr-3">Patient</th>
                     <th className="text-left font-medium py-1 pr-3">Service</th>
                     <th className="text-left font-medium py-1 pr-3">Date</th>
@@ -357,6 +365,7 @@ export default function PayrollPage() {
                     <Fragment key={sIdx}>
                       {section.rows.map((row, i) => (
                         <tr key={`${sIdx}-${i}`} className="border-b last:border-0">
+                          <td className="py-1 pr-3 whitespace-nowrap">{row.patientId}</td>
                           <td className="py-1 pr-3 whitespace-nowrap">{row.patient}</td>
                           <td className="py-1 pr-3 whitespace-nowrap">{row.service}</td>
                           <td className="py-1 pr-3 whitespace-nowrap">{row.date}</td>
@@ -366,13 +375,13 @@ export default function PayrollPage() {
                         </tr>
                       ))}
                       <tr key={`${sIdx}-subtotal`} className="border-b font-medium">
-                        <td colSpan={5} className="py-1 pr-3 text-right">Total:</td>
+                        <td colSpan={6} className="py-1 pr-3 text-right">Total:</td>
                         <td className="py-1 text-right whitespace-nowrap">{fmt(section.total)}</td>
                       </tr>
                     </Fragment>
                   ))}
                   <tr className="font-semibold">
-                    <td colSpan={5} className="py-1 pr-3 text-right">Grand Total:</td>
+                    <td colSpan={6} className="py-1 pr-3 text-right">Grand Total:</td>
                     <td className="py-1 text-right whitespace-nowrap">{fmt(grand)}</td>
                   </tr>
                 </tbody>
