@@ -86,18 +86,9 @@ export default function ReportsPage() {
             {canViewFinance && (
               <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
                 <h1 className="text-lg font-semibold text-foreground shrink-0 pb-2">Finance</h1>
-                <Tabs defaultValue="services" className="flex-1 min-h-0 flex flex-col overflow-hidden">
-                  <TabsList className="w-fit shrink-0">
-                    <TabsTrigger value="services">Услуги</TabsTrigger>
-                    <TabsTrigger value="payroll">Payroll</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="services" className="flex-1 min-h-0 mt-2 overflow-hidden">
-                    <FinanceServicesTab period={period} onPeriodChange={setPeriod} />
-                  </TabsContent>
-                  <TabsContent value="payroll" className="flex-1 min-h-0 mt-2 overflow-hidden">
-                    <ReportsPayrollTab />
-                  </TabsContent>
-                </Tabs>
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  <FinanceServicesTab period={period} onPeriodChange={setPeriod} />
+                </div>
               </div>
             )}
           </>
