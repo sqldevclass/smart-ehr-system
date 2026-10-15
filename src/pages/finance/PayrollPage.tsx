@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Lock } from "lucide-react";
 import { toast } from "sonner";
+import FinancePayrollCharts from "@/components/finance/FinancePayrollCharts";
 
 interface PayrollRow {
   staff_role_id: string;
@@ -24,6 +25,12 @@ interface PayrollRow {
   department_bucket_amount: number;
   total_amount: number;
   is_confirmed: boolean;
+}
+
+interface BasePayItem {
+  staff_role_id: string;
+  amount: number;
+  description: string | null;
 }
 
 interface PayItem {
@@ -46,17 +53,33 @@ interface BucketPayItem {
   service_name: string;
   cost_at_time: number;
   amount: number;
+  patient_first_name: string | null;
+  patient_last_name: string | null;
 }
 
 const fmt = (n: number) =>
   Number(n ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const patientName = (first: string | null, last: string | null) =>
+  [last, first].filter(Boolean).join(" ") || "—";
 
 function currentMonthValue() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
-export default function ReportsPayrollTab() {
+// One row of the unified detail table (matches the Patient | Service |
+// Date | Category | % | Amount layout, sectioned with subtotals).
+interface DetailRow {
+  patient: string;
+  service: string;
+  date: string;
+  category: string;
+  percent: string;
+  amount: number;
+}
+
+export default function PayrollPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [monthValue, setMonthValue] = useState(currentMonthValue());
@@ -80,6 +103,19 @@ export default function ReportsPayrollTab() {
       return (data || []) as PayrollRow[];
     },
     enabled: !!user && !!year && !!month,
+  });
+
+  const { data: basePayItems = [] } = useQuery({
+    queryKey: ["physician-payroll-base-pay", user?.hospitalId],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("physician_base_pay_items")
+        .select("staff_role_id, amount, description");
+      if (error) throw error;
+      return (data || []) as BasePayItem[];
+    },
+    enabled: !!user,
   });
 
   // One query for every physician's itemized entries this period,
@@ -106,7 +142,7 @@ export default function ReportsPayrollTab() {
       if (!user) return [];
       const { data, error } = await supabase
         .from("payroll_bucket_pay_items")
-        .select("staff_role_id, bucket_name, member_percent, completed_at, service_name, cost_at_time, amount")
+        .select("staff_role_id, bucket_name, member_percent, completed_at, service_name, cost_at_time, amount, patient_first_name, patient_last_name")
         .gte("completed_at", periodStartISO)
         .lt("completed_at", periodEndISO)
         .order("completed_at", { ascending: false });
@@ -115,6 +151,16 @@ export default function ReportsPayrollTab() {
     },
     enabled: !!user && !!year && !!month,
   });
+
+  const basePayByPhysician = useMemo(() => {
+    const map = new Map<string, BasePayItem[]>();
+    basePayItems.forEach((item) => {
+      const list = map.get(item.staff_role_id) ?? [];
+      list.push(item);
+      map.set(item.staff_role_id, list);
+    });
+    return map;
+  }, [basePayItems]);
 
   const itemsByPhysician = useMemo(() => {
     const map = new Map<string, PayItem[]>();
@@ -204,75 +250,133 @@ export default function ReportsPayrollTab() {
         emptyMessage="No physicians found for this period."
         getRowId={(r) => r.staff_role_id}
         getRowCanExpand={(r) =>
+          (basePayByPhysician.get(r.staff_role_id)?.length ?? 0) > 0 ||
           (itemsByPhysician.get(r.staff_role_id)?.length ?? 0) > 0 ||
           (bucketItemsByPhysician.get(r.staff_role_id)?.length ?? 0) > 0
         }
         renderSubRow={(r) => {
+          const basePay = basePayByPhysician.get(r.staff_role_id) ?? [];
           const items = itemsByPhysician.get(r.staff_role_id) ?? [];
           const bucketItems = bucketItemsByPhysician.get(r.staff_role_id) ?? [];
-          return (
-            <div className="px-4 py-3 space-y-4">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Own-Service &amp; Referral</p>
-                {items.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">No itemized own-service or referral entries this period.</p>
-                ) : (
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="text-muted-foreground border-b">
-                        <th className="text-left font-medium py-1 pr-3">Patient</th>
-                        <th className="text-left font-medium py-1 pr-3">Service</th>
-                        <th className="text-left font-medium py-1 pr-3">Date</th>
-                        <th className="text-left font-medium py-1 pr-3">Category</th>
-                        <th className="text-right font-medium py-1 pr-3">%</th>
-                        <th className="text-right font-medium py-1">Amount</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {items.map((item, i) => (
-                        <tr key={i} className="border-b last:border-0">
-                          <td className="py-1 pr-3 whitespace-nowrap">
-                            {[item.patient_last_name, item.patient_first_name].filter(Boolean).join(" ") || "—"}
-                          </td>
-                          <td className="py-1 pr-3 whitespace-nowrap">{item.service_name}</td>
-                          <td className="py-1 pr-3 whitespace-nowrap">{format(new Date(item.completed_at), "dd.MM.yyyy")}</td>
-                          <td className="py-1 pr-3 whitespace-nowrap">{item.category === "own_service" ? "Own-Service" : "Referral"}</td>
-                          <td className="py-1 pr-3 text-right whitespace-nowrap">{item.rate_percent ?? 0}%</td>
-                          <td className="py-1 text-right whitespace-nowrap">{fmt(item.amount)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
+          const referralItems = items.filter((i) => i.category === "referral");
+          const ownServiceItems = items.filter((i) => i.category === "own_service");
 
-              <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Buckets</p>
-                {bucketItems.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">No bucket entries this period.</p>
-                ) : (
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="text-muted-foreground border-b">
-                        <th className="text-left font-medium py-1 pr-3">Bucket</th>
-                        <th className="text-left font-medium py-1 pr-3">Service</th>
-                        <th className="text-left font-medium py-1 pr-3">Date</th>
-                        <th className="text-right font-medium py-1">Amount</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {bucketItems.map((item, i) => (
-                        <tr key={i} className="border-b last:border-0">
-                          <td className="py-1 pr-3 whitespace-nowrap">{item.bucket_name} ({item.member_percent}%)</td>
-                          <td className="py-1 pr-3 whitespace-nowrap">{item.service_name}</td>
-                          <td className="py-1 pr-3 whitespace-nowrap">{format(new Date(item.completed_at), "dd.MM.yyyy")}</td>
-                          <td className="py-1 text-right whitespace-nowrap">{fmt(item.amount)}</td>
+          // Group bucket rows by bucket, labeling the Category column
+          // with the bucket's own name rather than a generic "Bucket".
+          const byBucket = new Map<string, BucketPayItem[]>();
+          bucketItems.forEach((item) => {
+            const list = byBucket.get(item.bucket_name) ?? [];
+            list.push(item);
+            byBucket.set(item.bucket_name, list);
+          });
+
+          type Section = { rows: DetailRow[]; total: number };
+          const sections: Section[] = [];
+
+          if (basePay.length > 0) {
+            sections.push({
+              rows: basePay.map((item) => ({
+                patient: "—",
+                service: item.description || "Base Pay",
+                date: "—",
+                category: "Base-pay",
+                percent: "—",
+                amount: Number(item.amount),
+              })),
+              total: basePay.reduce((sum, i) => sum + Number(i.amount), 0),
+            });
+          }
+
+          if (referralItems.length > 0) {
+            sections.push({
+              rows: referralItems.map((item) => ({
+                patient: patientName(item.patient_first_name, item.patient_last_name),
+                service: item.service_name,
+                date: format(new Date(item.completed_at), "dd.MM.yyyy"),
+                category: "Referral",
+                percent: `${item.rate_percent ?? 0}%`,
+                amount: Number(item.amount),
+              })),
+              total: referralItems.reduce((sum, i) => sum + Number(i.amount), 0),
+            });
+          }
+
+          if (ownServiceItems.length > 0) {
+            sections.push({
+              rows: ownServiceItems.map((item) => ({
+                patient: patientName(item.patient_first_name, item.patient_last_name),
+                service: item.service_name,
+                date: format(new Date(item.completed_at), "dd.MM.yyyy"),
+                category: "Own-Service",
+                percent: `${item.rate_percent ?? 0}%`,
+                amount: Number(item.amount),
+              })),
+              total: ownServiceItems.reduce((sum, i) => sum + Number(i.amount), 0),
+            });
+          }
+
+          byBucket.forEach((bucketRows, bucketName) => {
+            sections.push({
+              rows: bucketRows.map((item) => ({
+                patient: patientName(item.patient_first_name, item.patient_last_name),
+                service: item.service_name,
+                date: format(new Date(item.completed_at), "dd.MM.yyyy"),
+                category: bucketName,
+                percent: `${item.member_percent}%`,
+                amount: Number(item.amount),
+              })),
+              total: bucketRows.reduce((sum, i) => sum + Number(i.amount), 0),
+            });
+          });
+
+          const grand = sections.reduce((sum, s) => sum + s.total, 0);
+
+          if (sections.length === 0) {
+            return (
+              <div className="px-4 py-3">
+                <p className="text-xs text-muted-foreground">No itemized entries this period.</p>
+              </div>
+            );
+          }
+
+          return (
+            <div className="px-4 py-3">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-muted-foreground border-b">
+                    <th className="text-left font-medium py-1 pr-3">Patient</th>
+                    <th className="text-left font-medium py-1 pr-3">Service</th>
+                    <th className="text-left font-medium py-1 pr-3">Date</th>
+                    <th className="text-left font-medium py-1 pr-3">Category</th>
+                    <th className="text-right font-medium py-1 pr-3">%</th>
+                    <th className="text-right font-medium py-1">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sections.map((section, sIdx) => (
+                    <Fragment key={sIdx}>
+                      {section.rows.map((row, i) => (
+                        <tr key={`${sIdx}-${i}`} className="border-b last:border-0">
+                          <td className="py-1 pr-3 whitespace-nowrap">{row.patient}</td>
+                          <td className="py-1 pr-3 whitespace-nowrap">{row.service}</td>
+                          <td className="py-1 pr-3 whitespace-nowrap">{row.date}</td>
+                          <td className="py-1 pr-3 whitespace-nowrap">{row.category}</td>
+                          <td className="py-1 pr-3 text-right whitespace-nowrap">{row.percent}</td>
+                          <td className="py-1 text-right whitespace-nowrap">{fmt(row.amount)}</td>
                         </tr>
                       ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
+                      <tr key={`${sIdx}-subtotal`} className="border-b font-medium">
+                        <td colSpan={5} className="py-1 pr-3 text-right">Total:</td>
+                        <td className="py-1 text-right whitespace-nowrap">{fmt(section.total)}</td>
+                      </tr>
+                    </Fragment>
+                  ))}
+                  <tr className="font-semibold">
+                    <td colSpan={5} className="py-1 pr-3 text-right">Grand Total:</td>
+                    <td className="py-1 text-right whitespace-nowrap">{fmt(grand)}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           );
         }}
@@ -315,6 +419,8 @@ export default function ReportsPayrollTab() {
         }}
       />
 
+      {rows.length > 0 && <FinancePayrollCharts rows={rows} year={year} month={month} />}
+
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -336,3 +442,4 @@ export default function ReportsPayrollTab() {
     </div>
   );
 }
+
