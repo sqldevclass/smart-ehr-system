@@ -17,7 +17,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Lock } from "lucide-react";
+import { Lock, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import FinancePayrollCharts from "@/components/finance/FinancePayrollCharts";
 
@@ -66,7 +66,10 @@ interface BucketPayItem {
   patient_number: string | null;
 }
 
+// A physician/month can now have several bonus and several advance
+// entries -- each one is permanent once created (insert-only; no edit).
 interface AdjustmentItem {
+  adjustment_id: string;
   staff_role_id: string;
   type: "bonus" | "advance";
   amount: number;
@@ -97,6 +100,7 @@ interface DetailRow {
   category: string;
   percent: string;
   amount: number;
+  adjustmentId?: string;
 }
 
 export default function PayrollPage() {
@@ -112,6 +116,9 @@ export default function PayrollPage() {
   const [adjustmentAmount, setAdjustmentAmount] = useState("");
   const [adjustmentDescription, setAdjustmentDescription] = useState("");
   const [savingAdjustment, setSavingAdjustment] = useState(false);
+
+  const [deleteTarget, setDeleteTarget] = useState<AdjustmentItem | null>(null);
+  const [deletingAdjustment, setDeletingAdjustment] = useState(false);
 
   const [year, month] = monthValue.split("-").map(Number);
   const periodStartISO = new Date(year, (month || 1) - 1, 1).toISOString();
@@ -179,17 +186,19 @@ export default function PayrollPage() {
     enabled: !!user && !!year && !!month,
   });
 
-  // Bonus/advance entries for this period -- also doubles as the
-  // source for the add/edit dialog's prefilled amount+description.
+  // Bonus/advance entries for this period. Several rows per
+  // staff_role_id/type are expected now -- each one is a separate,
+  // permanent entry.
   const { data: adjustmentItems = [] } = useQuery({
     queryKey: ["physician-payroll-adjustments", user?.hospitalId, year, month],
     queryFn: async () => {
       if (!user) return [];
       const { data, error } = await supabase
         .from("payroll_adjustment_items")
-        .select("staff_role_id, type, amount, description, created_at, approved_by_name")
+        .select("adjustment_id, staff_role_id, type, amount, description, created_at, approved_by_name")
         .eq("year", year)
-        .eq("month", month);
+        .eq("month", month)
+        .order("created_at", { ascending: true });
       if (error) throw error;
       return (data || []) as AdjustmentItem[];
     },
@@ -226,12 +235,15 @@ export default function PayrollPage() {
     return map;
   }, [bucketPayItems]);
 
-  // Keyed by `${staff_role_id}-${type}` -- at most one row each, since
-  // set_payroll_adjustment upserts.
-  const adjustmentByKey = useMemo(() => {
-    const map = new Map<string, AdjustmentItem>();
+  // Keyed by `${staff_role_id}-${type}` -- now a LIST, since a
+  // physician can have several bonus/advance entries in one month.
+  const adjustmentsByKey = useMemo(() => {
+    const map = new Map<string, AdjustmentItem[]>();
     adjustmentItems.forEach((item) => {
-      map.set(`${item.staff_role_id}-${item.type}`, item);
+      const key = `${item.staff_role_id}-${item.type}`;
+      const list = map.get(key) ?? [];
+      list.push(item);
+      map.set(key, list);
     });
     return map;
   }, [adjustmentItems]);
@@ -261,12 +273,13 @@ export default function PayrollPage() {
     }
   };
 
+  // Always opens empty -- adding a new entry, never editing an
+  // existing one (entries are immutable once saved).
   const openAdjustmentDialog = (staffRoleId: string, type: "bonus" | "advance") => {
-    const existing = adjustmentByKey.get(`${staffRoleId}-${type}`);
     setAdjustmentStaffRoleId(staffRoleId);
     setAdjustmentType(type);
-    setAdjustmentAmount(existing ? String(existing.amount) : "");
-    setAdjustmentDescription(existing?.description ?? "");
+    setAdjustmentAmount("");
+    setAdjustmentDescription("");
     setAdjustmentDialogOpen(true);
   };
 
@@ -288,7 +301,7 @@ export default function PayrollPage() {
         p_description: adjustmentDescription || null,
       });
       if (error) throw error;
-      toast.success(`${adjustmentType === "bonus" ? "Bonus" : "Advance"} saved.`);
+      toast.success(`${adjustmentType === "bonus" ? "Bonus" : "Advance"} added.`);
       setAdjustmentDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["physician-payroll", user?.hospitalId, year, month] });
       queryClient.invalidateQueries({ queryKey: ["physician-payroll-adjustments", user?.hospitalId, year, month] });
@@ -296,6 +309,28 @@ export default function PayrollPage() {
       toast.error(err.message || "Failed to save.");
     } finally {
       setSavingAdjustment(false);
+    }
+  };
+
+  // Deleting an entry is an admin-only action; the RPC itself enforces
+  // this (finance.delete_payroll_adjustment), so a non-admin simply
+  // gets an error toast if they try.
+  const handleDeleteAdjustment = async () => {
+    if (!deleteTarget) return;
+    setDeletingAdjustment(true);
+    try {
+      const { error } = await supabase.rpc("remove_payroll_adjustment", {
+        p_adjustment_id: deleteTarget.adjustment_id,
+      });
+      if (error) throw error;
+      toast.success("Entry deleted.");
+      setDeleteTarget(null);
+      queryClient.invalidateQueries({ queryKey: ["physician-payroll", user?.hospitalId, year, month] });
+      queryClient.invalidateQueries({ queryKey: ["physician-payroll-adjustments", user?.hospitalId, year, month] });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete entry.");
+    } finally {
+      setDeletingAdjustment(false);
     }
   };
 
@@ -312,19 +347,22 @@ export default function PayrollPage() {
       meta: { align: "right" },
       enableColumnFilter: false,
       enableHiding: false,
-      cell: ({ row }) => (
-        <button
-          type="button"
-          disabled={row.original.is_confirmed}
-          onClick={(e) => {
-            e.stopPropagation();
-            openAdjustmentDialog(row.original.staff_role_id, "bonus");
-          }}
-          className="w-full text-right hover:underline disabled:no-underline disabled:cursor-default disabled:opacity-60"
-        >
-          {row.original.bonus_amount > 0 ? fmt(row.original.bonus_amount) : "—"}
-        </button>
-      ),
+      cell: ({ row }) => {
+        const items = adjustmentsByKey.get(`${row.original.staff_role_id}-bonus`) ?? [];
+        return (
+          <button
+            type="button"
+            disabled={row.original.is_confirmed}
+            onClick={(e) => {
+              e.stopPropagation();
+              openAdjustmentDialog(row.original.staff_role_id, "bonus");
+            }}
+            className="w-full text-right hover:underline disabled:no-underline disabled:cursor-default disabled:opacity-60"
+          >
+            {items.length > 0 ? items.map((i) => fmt(i.amount)).join("; ") : "—"}
+          </button>
+        );
+      },
     },
     {
       id: "advance_amount",
@@ -333,19 +371,22 @@ export default function PayrollPage() {
       meta: { align: "right" },
       enableColumnFilter: false,
       enableHiding: false,
-      cell: ({ row }) => (
-        <button
-          type="button"
-          disabled={row.original.is_confirmed}
-          onClick={(e) => {
-            e.stopPropagation();
-            openAdjustmentDialog(row.original.staff_role_id, "advance");
-          }}
-          className="w-full text-right hover:underline disabled:no-underline disabled:cursor-default disabled:opacity-60"
-        >
-          {row.original.advance_amount > 0 ? fmt(row.original.advance_amount) : "—"}
-        </button>
-      ),
+      cell: ({ row }) => {
+        const items = adjustmentsByKey.get(`${row.original.staff_role_id}-advance`) ?? [];
+        return (
+          <button
+            type="button"
+            disabled={row.original.is_confirmed}
+            onClick={(e) => {
+              e.stopPropagation();
+              openAdjustmentDialog(row.original.staff_role_id, "advance");
+            }}
+            className="w-full text-right hover:underline disabled:no-underline disabled:cursor-default disabled:opacity-60"
+          >
+            {items.length > 0 ? items.map((i) => fmt(i.amount)).join("; ") : "—"}
+          </button>
+        );
+      },
     },
     {
       id: "total_amount",
@@ -373,7 +414,7 @@ export default function PayrollPage() {
           </span>
         ),
     },
-  ], [adjustmentByKey]);
+  ], [adjustmentsByKey]);
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -387,8 +428,8 @@ export default function PayrollPage() {
           (basePayByPhysician.get(r.staff_role_id)?.length ?? 0) > 0 ||
           (itemsByPhysician.get(r.staff_role_id)?.length ?? 0) > 0 ||
           (bucketItemsByPhysician.get(r.staff_role_id)?.length ?? 0) > 0 ||
-          adjustmentByKey.has(`${r.staff_role_id}-bonus`) ||
-          adjustmentByKey.has(`${r.staff_role_id}-advance`)
+          (adjustmentsByKey.get(`${r.staff_role_id}-bonus`)?.length ?? 0) > 0 ||
+          (adjustmentsByKey.get(`${r.staff_role_id}-advance`)?.length ?? 0) > 0
         }
         renderSubRow={(r) => {
           const basePay = basePayByPhysician.get(r.staff_role_id) ?? [];
@@ -396,8 +437,8 @@ export default function PayrollPage() {
           const bucketItems = bucketItemsByPhysician.get(r.staff_role_id) ?? [];
           const referralItems = items.filter((i) => i.category === "referral");
           const ownServiceItems = items.filter((i) => i.category === "own_service");
-          const bonusItem = adjustmentByKey.get(`${r.staff_role_id}-bonus`);
-          const advanceItem = adjustmentByKey.get(`${r.staff_role_id}-advance`);
+          const bonusItems = adjustmentsByKey.get(`${r.staff_role_id}-bonus`) ?? [];
+          const advanceItems = adjustmentsByKey.get(`${r.staff_role_id}-advance`) ?? [];
 
           // Group bucket rows by bucket, labeling the Category column
           // with the bucket's own name rather than a generic "Bucket".
@@ -471,37 +512,42 @@ export default function PayrollPage() {
             });
           });
 
-          if (bonusItem) {
+          if (bonusItems.length > 0) {
             sections.push({
-              rows: [{
+              rows: bonusItems.map((item) => ({
                 patientId: "—",
-                patient: bonusItem.approved_by_name || "—",
-                service: bonusItem.description || "Bonus",
-                date: format(new Date(bonusItem.created_at), "dd.MM.yyyy"),
+                patient: item.approved_by_name || "—",
+                service: item.description || "Bonus",
+                date: format(new Date(item.created_at), "dd.MM.yyyy"),
                 category: "Bonus",
                 percent: "—",
-                amount: Number(bonusItem.amount),
-              }],
-              total: Number(bonusItem.amount),
+                amount: Number(item.amount),
+                adjustmentId: item.adjustment_id,
+              })),
+              total: bonusItems.reduce((sum, i) => sum + Number(i.amount), 0),
             });
           }
 
-          if (advanceItem) {
+          if (advanceItems.length > 0) {
             sections.push({
-              rows: [{
+              rows: advanceItems.map((item) => ({
                 patientId: "—",
-                patient: advanceItem.approved_by_name || "—",
-                service: advanceItem.description || "Advance",
-                date: format(new Date(advanceItem.created_at), "dd.MM.yyyy"),
+                patient: item.approved_by_name || "—",
+                service: item.description || "Advance",
+                date: format(new Date(item.created_at), "dd.MM.yyyy"),
                 category: "Advance",
                 percent: "—",
-                amount: -Number(advanceItem.amount),
-              }],
-              total: -Number(advanceItem.amount),
+                amount: -Number(item.amount),
+                adjustmentId: item.adjustment_id,
+              })),
+              total: -advanceItems.reduce((sum, i) => sum + Number(i.amount), 0),
             });
           }
 
           const grand = sections.reduce((sum, s) => sum + s.total, 0);
+          const adjustmentsById = new Map<string, AdjustmentItem>(
+            [...bonusItems, ...advanceItems].map((item) => [item.adjustment_id, item])
+          );
 
           if (sections.length === 0) {
             return (
@@ -522,7 +568,8 @@ export default function PayrollPage() {
                     <th className="text-left font-medium py-1 pr-3">Date</th>
                     <th className="text-left font-medium py-1 pr-3">Category</th>
                     <th className="text-right font-medium py-1 pr-3">%</th>
-                    <th className="text-right font-medium py-1">Amount</th>
+                    <th className="text-right font-medium py-1 pr-3">Amount</th>
+                    <th className="w-8"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -536,18 +583,35 @@ export default function PayrollPage() {
                           <td className="py-1 pr-3 whitespace-nowrap">{row.date}</td>
                           <td className="py-1 pr-3 whitespace-nowrap">{row.category}</td>
                           <td className="py-1 pr-3 text-right whitespace-nowrap">{row.percent}</td>
-                          <td className="py-1 text-right whitespace-nowrap">{fmt(row.amount)}</td>
+                          <td className="py-1 pr-3 text-right whitespace-nowrap">{fmt(row.amount)}</td>
+                          <td className="py-1 text-right whitespace-nowrap">
+                            {row.adjustmentId && !r.is_confirmed && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const item = adjustmentsById.get(row.adjustmentId!);
+                                  if (item) setDeleteTarget(item);
+                                }}
+                                className="text-muted-foreground hover:text-destructive"
+                                title="Delete entry (admin only)"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </td>
                         </tr>
                       ))}
-                      <tr key={`${sIdx}-subtotal`} className="border-b font-medium">
+                      <tr key={`${sIdx}-subtotal`} className="font-medium border-b">
                         <td colSpan={6} className="py-1 pr-3 text-right">Total:</td>
-                        <td className="py-1 text-right whitespace-nowrap">{fmt(section.total)}</td>
+                        <td className="py-1 pr-3 text-right whitespace-nowrap">{fmt(section.total)}</td>
+                        <td></td>
                       </tr>
                     </Fragment>
                   ))}
                   <tr className="font-semibold">
                     <td colSpan={6} className="py-1 pr-3 text-right">Grand Total:</td>
-                    <td className="py-1 text-right whitespace-nowrap">{fmt(grand)}</td>
+                    <td className="py-1 pr-3 text-right whitespace-nowrap">{fmt(grand)}</td>
+                    <td></td>
                   </tr>
                 </tbody>
               </table>
@@ -617,7 +681,7 @@ export default function PayrollPage() {
       <Dialog open={adjustmentDialogOpen} onOpenChange={setAdjustmentDialogOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>{adjustmentType === "bonus" ? "Bonus" : "Advance"} — {monthLabel}</DialogTitle>
+            <DialogTitle>Add {adjustmentType === "bonus" ? "Bonus" : "Advance"} — {monthLabel}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1">
@@ -646,11 +710,30 @@ export default function PayrollPage() {
               Cancel
             </Button>
             <Button onClick={handleSaveAdjustment} disabled={savingAdjustment}>
-              {savingAdjustment ? "Saving…" : "Save"}
+              {savingAdjustment ? "Saving…" : "Add"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this {deleteTarget?.type} entry?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget && (
+                <>Amount {fmt(deleteTarget.amount)}{deleteTarget.description ? ` — ${deleteTarget.description}` : ""}. This cannot be undone. Only an admin can delete a bonus/advance entry.</>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingAdjustment}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteAdjustment} disabled={deletingAdjustment}>
+              {deletingAdjustment ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
