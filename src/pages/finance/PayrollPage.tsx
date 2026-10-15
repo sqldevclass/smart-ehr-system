@@ -8,6 +8,11 @@ import { DataTable } from "@/components/reports/data-table/DataTable";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -23,6 +28,8 @@ interface PayrollRow {
   own_service_amount: number;
   referral_amount: number;
   department_bucket_amount: number;
+  bonus_amount: number;
+  advance_amount: number;
   total_amount: number;
   is_confirmed: boolean;
 }
@@ -59,6 +66,15 @@ interface BucketPayItem {
   patient_number: string | null;
 }
 
+interface AdjustmentItem {
+  staff_role_id: string;
+  type: "bonus" | "advance";
+  amount: number;
+  description: string | null;
+  created_at: string;
+  approved_by_name: string | null;
+}
+
 const fmt = (n: number) =>
   Number(n ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -70,8 +86,9 @@ function currentMonthValue() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
-// One row of the unified detail table (matches the Patient ID | Patient |
-// Service | Date | Category | % | Amount layout, sectioned with subtotals).
+// One row of the unified detail table (matches the Patient ID |
+// Patient/Staff | Service | Date | Category | % | Amount layout,
+// sectioned with subtotals).
 interface DetailRow {
   patientId: string;
   patient: string;
@@ -88,6 +105,13 @@ export default function PayrollPage() {
   const [monthValue, setMonthValue] = useState(currentMonthValue());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
+
+  const [adjustmentDialogOpen, setAdjustmentDialogOpen] = useState(false);
+  const [adjustmentStaffRoleId, setAdjustmentStaffRoleId] = useState<string | null>(null);
+  const [adjustmentType, setAdjustmentType] = useState<"bonus" | "advance">("bonus");
+  const [adjustmentAmount, setAdjustmentAmount] = useState("");
+  const [adjustmentDescription, setAdjustmentDescription] = useState("");
+  const [savingAdjustment, setSavingAdjustment] = useState(false);
 
   const [year, month] = monthValue.split("-").map(Number);
   const periodStartISO = new Date(year, (month || 1) - 1, 1).toISOString();
@@ -155,6 +179,23 @@ export default function PayrollPage() {
     enabled: !!user && !!year && !!month,
   });
 
+  // Bonus/advance entries for this period -- also doubles as the
+  // source for the add/edit dialog's prefilled amount+description.
+  const { data: adjustmentItems = [] } = useQuery({
+    queryKey: ["physician-payroll-adjustments", user?.hospitalId, year, month],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("payroll_adjustment_items")
+        .select("staff_role_id, type, amount, description, created_at, approved_by_name")
+        .eq("year", year)
+        .eq("month", month);
+      if (error) throw error;
+      return (data || []) as AdjustmentItem[];
+    },
+    enabled: !!user && !!year && !!month,
+  });
+
   const basePayByPhysician = useMemo(() => {
     const map = new Map<string, BasePayItem[]>();
     basePayItems.forEach((item) => {
@@ -185,6 +226,16 @@ export default function PayrollPage() {
     return map;
   }, [bucketPayItems]);
 
+  // Keyed by `${staff_role_id}-${type}` -- at most one row each, since
+  // set_payroll_adjustment upserts.
+  const adjustmentByKey = useMemo(() => {
+    const map = new Map<string, AdjustmentItem>();
+    adjustmentItems.forEach((item) => {
+      map.set(`${item.staff_role_id}-${item.type}`, item);
+    });
+    return map;
+  }, [adjustmentItems]);
+
   const allConfirmed = rows.length > 0 && rows.every((r) => r.is_confirmed);
   const anyConfirmed = rows.some((r) => r.is_confirmed);
   const monthLabel = new Date(year, (month || 1) - 1, 1).toLocaleString(undefined, { month: "long", year: "numeric" });
@@ -210,12 +261,92 @@ export default function PayrollPage() {
     }
   };
 
+  const openAdjustmentDialog = (staffRoleId: string, type: "bonus" | "advance") => {
+    const existing = adjustmentByKey.get(`${staffRoleId}-${type}`);
+    setAdjustmentStaffRoleId(staffRoleId);
+    setAdjustmentType(type);
+    setAdjustmentAmount(existing ? String(existing.amount) : "");
+    setAdjustmentDescription(existing?.description ?? "");
+    setAdjustmentDialogOpen(true);
+  };
+
+  const handleSaveAdjustment = async () => {
+    if (!adjustmentStaffRoleId) return;
+    const amountNum = Number(adjustmentAmount);
+    if (!Number.isFinite(amountNum) || amountNum < 0) {
+      toast.error("Enter a valid, non-negative amount.");
+      return;
+    }
+    setSavingAdjustment(true);
+    try {
+      const { error } = await supabase.rpc("set_payroll_adjustment", {
+        p_staff_role_id: adjustmentStaffRoleId,
+        p_year: year,
+        p_month: month,
+        p_type: adjustmentType,
+        p_amount: amountNum,
+        p_description: adjustmentDescription || null,
+      });
+      if (error) throw error;
+      toast.success(`${adjustmentType === "bonus" ? "Bonus" : "Advance"} saved.`);
+      setAdjustmentDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["physician-payroll", user?.hospitalId, year, month] });
+      queryClient.invalidateQueries({ queryKey: ["physician-payroll-adjustments", user?.hospitalId, year, month] });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save.");
+    } finally {
+      setSavingAdjustment(false);
+    }
+  };
+
   const columns = useMemo<ColumnDef<PayrollRow, any>[]>(() => [
     { id: "full_name", header: "Physician", accessorFn: (r) => r.full_name, enableColumnFilter: false, enableHiding: false },
     { id: "base_pay_amount", header: "Base Pay", accessorFn: (r) => fmt(r.base_pay_amount), meta: { align: "right" }, enableColumnFilter: false, enableHiding: false },
     { id: "own_service_amount", header: "Own-Service", accessorFn: (r) => fmt(r.own_service_amount), meta: { align: "right" }, enableColumnFilter: false, enableHiding: false },
     { id: "referral_amount", header: "Referral", accessorFn: (r) => fmt(r.referral_amount), meta: { align: "right" }, enableColumnFilter: false, enableHiding: false },
     { id: "department_bucket_amount", header: "Bucket", accessorFn: (r) => fmt(r.department_bucket_amount), meta: { align: "right" }, enableColumnFilter: false, enableHiding: false },
+    {
+      id: "bonus_amount",
+      header: "Bonus",
+      accessorFn: (r) => fmt(r.bonus_amount),
+      meta: { align: "right" },
+      enableColumnFilter: false,
+      enableHiding: false,
+      cell: ({ row }) => (
+        <button
+          type="button"
+          disabled={row.original.is_confirmed}
+          onClick={(e) => {
+            e.stopPropagation();
+            openAdjustmentDialog(row.original.staff_role_id, "bonus");
+          }}
+          className="w-full text-right hover:underline disabled:no-underline disabled:cursor-default disabled:opacity-60"
+        >
+          {row.original.bonus_amount > 0 ? fmt(row.original.bonus_amount) : "—"}
+        </button>
+      ),
+    },
+    {
+      id: "advance_amount",
+      header: "Advance",
+      accessorFn: (r) => fmt(r.advance_amount),
+      meta: { align: "right" },
+      enableColumnFilter: false,
+      enableHiding: false,
+      cell: ({ row }) => (
+        <button
+          type="button"
+          disabled={row.original.is_confirmed}
+          onClick={(e) => {
+            e.stopPropagation();
+            openAdjustmentDialog(row.original.staff_role_id, "advance");
+          }}
+          className="w-full text-right hover:underline disabled:no-underline disabled:cursor-default disabled:opacity-60"
+        >
+          {row.original.advance_amount > 0 ? fmt(row.original.advance_amount) : "—"}
+        </button>
+      ),
+    },
     {
       id: "total_amount",
       header: "Total",
@@ -242,7 +373,7 @@ export default function PayrollPage() {
           </span>
         ),
     },
-  ], []);
+  ], [adjustmentByKey]);
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -255,7 +386,9 @@ export default function PayrollPage() {
         getRowCanExpand={(r) =>
           (basePayByPhysician.get(r.staff_role_id)?.length ?? 0) > 0 ||
           (itemsByPhysician.get(r.staff_role_id)?.length ?? 0) > 0 ||
-          (bucketItemsByPhysician.get(r.staff_role_id)?.length ?? 0) > 0
+          (bucketItemsByPhysician.get(r.staff_role_id)?.length ?? 0) > 0 ||
+          adjustmentByKey.has(`${r.staff_role_id}-bonus`) ||
+          adjustmentByKey.has(`${r.staff_role_id}-advance`)
         }
         renderSubRow={(r) => {
           const basePay = basePayByPhysician.get(r.staff_role_id) ?? [];
@@ -263,6 +396,8 @@ export default function PayrollPage() {
           const bucketItems = bucketItemsByPhysician.get(r.staff_role_id) ?? [];
           const referralItems = items.filter((i) => i.category === "referral");
           const ownServiceItems = items.filter((i) => i.category === "own_service");
+          const bonusItem = adjustmentByKey.get(`${r.staff_role_id}-bonus`);
+          const advanceItem = adjustmentByKey.get(`${r.staff_role_id}-advance`);
 
           // Group bucket rows by bucket, labeling the Category column
           // with the bucket's own name rather than a generic "Bucket".
@@ -336,6 +471,36 @@ export default function PayrollPage() {
             });
           });
 
+          if (bonusItem) {
+            sections.push({
+              rows: [{
+                patientId: "—",
+                patient: bonusItem.approved_by_name || "—",
+                service: bonusItem.description || "Bonus",
+                date: format(new Date(bonusItem.created_at), "dd.MM.yyyy"),
+                category: "Bonus",
+                percent: "—",
+                amount: Number(bonusItem.amount),
+              }],
+              total: Number(bonusItem.amount),
+            });
+          }
+
+          if (advanceItem) {
+            sections.push({
+              rows: [{
+                patientId: "—",
+                patient: advanceItem.approved_by_name || "—",
+                service: advanceItem.description || "Advance",
+                date: format(new Date(advanceItem.created_at), "dd.MM.yyyy"),
+                category: "Advance",
+                percent: "—",
+                amount: -Number(advanceItem.amount),
+              }],
+              total: -Number(advanceItem.amount),
+            });
+          }
+
           const grand = sections.reduce((sum, s) => sum + s.total, 0);
 
           if (sections.length === 0) {
@@ -352,7 +517,7 @@ export default function PayrollPage() {
                 <thead>
                   <tr className="text-muted-foreground border-b">
                     <th className="text-left font-medium py-1 pr-3">ID пациента</th>
-                    <th className="text-left font-medium py-1 pr-3">Patient</th>
+                    <th className="text-left font-medium py-1 pr-3">Patient/Staff</th>
                     <th className="text-left font-medium py-1 pr-3">Service</th>
                     <th className="text-left font-medium py-1 pr-3">Date</th>
                     <th className="text-left font-medium py-1 pr-3">Category</th>
@@ -448,7 +613,44 @@ export default function PayrollPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={adjustmentDialogOpen} onOpenChange={setAdjustmentDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{adjustmentType === "bonus" ? "Bonus" : "Advance"} — {monthLabel}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label htmlFor="adjustmentAmount">Amount</Label>
+              <Input
+                id="adjustmentAmount"
+                type="number"
+                min={0}
+                step="0.01"
+                value={adjustmentAmount}
+                onChange={(e) => setAdjustmentAmount(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="adjustmentDescription">Description</Label>
+              <Textarea
+                id="adjustmentDescription"
+                value={adjustmentDescription}
+                onChange={(e) => setAdjustmentDescription(e.target.value)}
+                placeholder={adjustmentType === "bonus" ? "e.g. Performance bonus" : "e.g. Advance against November pay"}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAdjustmentDialogOpen(false)} disabled={savingAdjustment}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveAdjustment} disabled={savingAdjustment}>
+              {savingAdjustment ? "Saving…" : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-
