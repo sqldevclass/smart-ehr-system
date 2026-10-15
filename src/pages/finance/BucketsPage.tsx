@@ -162,20 +162,6 @@ export default function BucketsPage() {
     enabled: !!selectedBucketId,
   });
 
-  const { data: revenueByMonth = [], isLoading: revenueLoading } = useQuery({
-    queryKey: ["bucket-revenue-by-month", selectedBucketId],
-    queryFn: async () => {
-      if (!selectedBucketId) return [];
-      const { data, error } = await supabase.rpc("get_bucket_revenue_by_month", {
-        p_bucket_id: selectedBucketId,
-        p_months: 12,
-      });
-      if (error) throw error;
-      return (data || []) as { month_start: string; revenue: number }[];
-    },
-    enabled: !!selectedBucketId,
-  });
-
   const selectedBucket = buckets.find((b) => b.id === selectedBucketId);
   const membersTotal = members.reduce((sum, m) => sum + Number(m.percent), 0);
 
@@ -183,7 +169,6 @@ export default function BucketsPage() {
   const invalidateBucketDetail = () => {
     queryClient.invalidateQueries({ queryKey: ["bucket-items", selectedBucketId] });
     queryClient.invalidateQueries({ queryKey: ["bucket-members", selectedBucketId] });
-    queryClient.invalidateQueries({ queryKey: ["bucket-revenue-by-month", selectedBucketId] });
   };
 
   const openCreateBucket = () => {
@@ -353,9 +338,6 @@ export default function BucketsPage() {
     }
   };
 
-  const formatMonth = (monthStart: string) =>
-    new Date(monthStart).toLocaleDateString(undefined, { year: "numeric", month: "short" });
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -498,38 +480,6 @@ export default function BucketsPage() {
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-
-              <div className="space-y-2">
-                <h3 className="font-medium text-foreground">Revenue by Month</h3>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Month</TableHead>
-                      <TableHead>Bucket Revenue</TableHead>
-                      {members.map((m) => (
-                        <TableHead key={m.id}>{m.full_name} ({m.percent}%)</TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {revenueLoading ? (
-                      <TableRow><TableCell colSpan={2 + members.length} className="text-muted-foreground">Loading…</TableCell></TableRow>
-                    ) : revenueByMonth.length === 0 ? (
-                      <TableRow><TableCell colSpan={2 + members.length} className="text-muted-foreground">No data.</TableCell></TableRow>
-                    ) : revenueByMonth.map((row) => (
-                      <TableRow key={row.month_start}>
-                        <TableCell>{formatMonth(row.month_start)}</TableCell>
-                        <TableCell>{Number(row.revenue).toFixed(2)}</TableCell>
-                        {members.map((m) => (
-                          <TableCell key={m.id}>
-                            {(Number(row.revenue) * Number(m.percent) / 100).toFixed(2)}
-                          </TableCell>
-                        ))}
                       </TableRow>
                     ))}
                   </TableBody>

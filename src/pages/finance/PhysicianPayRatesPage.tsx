@@ -14,7 +14,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 interface PhysicianRow {
@@ -33,7 +33,28 @@ interface RateRow {
   scope_label: string;
 }
 
+interface BasePayItem {
+  id: string;
+  amount: number;
+  description: string | null;
+}
+
+interface BucketMembership {
+  bucket_id: string;
+  bucket_name: string;
+  bucket_percent: number;
+  member_percent: number;
+  amount: number;
+}
+
 const SCOPED_TYPES = ["own_service", "referral"];
+
+function currentMonthBounds() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  return { startISO: start.toISOString(), endISO: end.toISOString() };
+}
 
 export default function PhysicianPayRatesPage() {
   const { user } = useAuth();
@@ -47,7 +68,10 @@ export default function PhysicianPayRatesPage() {
   const [rateValue, setRateValue] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const [basePayInput, setBasePayInput] = useState("");
+  const [basePayDialogOpen, setBasePayDialogOpen] = useState(false);
+  const [basePayEditingId, setBasePayEditingId] = useState<string | null>(null);
+  const [basePayAmount, setBasePayAmount] = useState("");
+  const [basePayDescription, setBasePayDescription] = useState("");
 
   const { data: rateTypes = [] } = useQuery({
     queryKey: ["pay-rate-types"],
@@ -145,39 +169,63 @@ export default function PhysicianPayRatesPage() {
     enabled: !!selectedId,
   });
 
-  const basePay = rates.find((r) => r.type_code === "base_pay");
+  const { data: basePayItems = [] } = useQuery({
+    queryKey: ["physician-base-pay-items", selectedId],
+    queryFn: async () => {
+      if (!selectedId) return [];
+      const { data, error } = await supabase
+        .from("physician_base_pay_items")
+        .select("id, amount, description")
+        .eq("staff_role_id", selectedId)
+        .order("created_at");
+      if (error) throw error;
+      return (data || []) as BasePayItem[];
+    },
+    enabled: !!selectedId,
+  });
+
+  const { data: bucketMemberships = [] } = useQuery({
+    queryKey: ["physician-bucket-memberships", selectedId],
+    queryFn: async () => {
+      if (!selectedId) return [];
+      const { data, error } = await supabase
+        .from("payroll_bucket_members")
+        .select("bucket_id, percent, payroll_buckets!inner(name, percent, is_active)")
+        .eq("staff_role_id", selectedId)
+        .eq("payroll_buckets.is_active", true);
+      if (error) throw error;
+
+      const { startISO, endISO } = currentMonthBounds();
+      const withRevenue = await Promise.all(
+        (data || []).map(async (row: any) => {
+          const { data: revenue, error: revError } = await supabase.rpc("get_payroll_bucket_revenue", {
+            p_bucket_id: row.bucket_id,
+            p_period_start: startISO,
+            p_period_end: endISO,
+          });
+          if (revError) throw revError;
+          return {
+            bucket_id: row.bucket_id,
+            bucket_name: row.payroll_buckets?.name ?? "Unknown",
+            bucket_percent: row.payroll_buckets?.percent ?? 0,
+            member_percent: row.percent,
+            amount: (Number(revenue) || 0) * Number(row.percent) / 100,
+          };
+        })
+      );
+      return withRevenue as BucketMembership[];
+    },
+    enabled: !!selectedId,
+  });
+
+  const totalBasePay = basePayItems.reduce((sum, item) => sum + Number(item.amount), 0);
   const ownServiceRates = rates.filter((r) => r.type_code === "own_service");
 
   const selectPhysician = (p: PhysicianRow) => {
     setSelectedId(p.id);
-    setBasePayInput("");
   };
 
   const typeIdFor = (code: string) => rateTypes.find((t: any) => t.code === code)?.id;
-
-  const saveFlatRate = async (code: "base_pay", value: string) => {
-    if (!selectedId || !user || value === "") return;
-    const numValue = Number(value);
-    if (isNaN(numValue) || numValue < 0) {
-      toast.error("Enter a valid non-negative number.");
-      return;
-    }
-    setSaving(true);
-    try {
-      const { error } = await supabase.rpc("set_physician_pay_rate", {
-        p_staff_role_id: selectedId,
-        p_pay_rate_type_id: typeIdFor(code),
-        p_value: numValue,
-      });
-      if (error) throw error;
-      toast.success("Saved. This rate applies going forward from now.");
-      queryClient.invalidateQueries({ queryKey: ["physician-pay-rates", selectedId] });
-    } catch (err: any) {
-      toast.error(err.message || "Failed to save.");
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const openAdd = (code: "own_service") => {
     setAddTypeCode(code);
@@ -231,6 +279,70 @@ export default function PhysicianPayRatesPage() {
     }
   };
 
+  const openAddBasePayItem = () => {
+    setBasePayEditingId(null);
+    setBasePayAmount("");
+    setBasePayDescription("");
+    setBasePayDialogOpen(true);
+  };
+
+  const openEditBasePayItem = (item: BasePayItem) => {
+    setBasePayEditingId(item.id);
+    setBasePayAmount(String(item.amount));
+    setBasePayDescription(item.description ?? "");
+    setBasePayDialogOpen(true);
+  };
+
+  const handleSaveBasePayItem = async () => {
+    if (!selectedId || basePayAmount === "") {
+      toast.error("Enter an amount.");
+      return;
+    }
+    const numAmount = Number(basePayAmount);
+    if (isNaN(numAmount) || numAmount < 0) {
+      toast.error("Enter a valid non-negative number.");
+      return;
+    }
+    setSaving(true);
+    try {
+      if (basePayEditingId) {
+        const { error } = await supabase.rpc("update_base_pay_item", {
+          p_item_id: basePayEditingId,
+          p_amount: numAmount,
+          p_description: basePayDescription || null,
+        });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.rpc("add_base_pay_item", {
+          p_staff_role_id: selectedId,
+          p_amount: numAmount,
+          p_description: basePayDescription || null,
+        });
+        if (error) throw error;
+      }
+      toast.success("Base pay item saved.");
+      setBasePayDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["physician-base-pay-items", selectedId] });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save base pay item.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRemoveBasePayItem = async (id: string) => {
+    setSaving(true);
+    try {
+      const { error } = await supabase.rpc("remove_base_pay_item", { p_item_id: id });
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["physician-base-pay-items", selectedId] });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to remove item.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const selectedPhysician = physicians.find((p) => p.id === selectedId);
 
   return (
@@ -276,26 +388,46 @@ export default function PhysicianPayRatesPage() {
                 {selectedPhysician?.full_name}
               </h2>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="basePay">Base Pay (flat amount)</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="basePay"
-                      type="number"
-                      min={0}
-                      placeholder={basePay ? String(basePay.value) : "0"}
-                      value={basePayInput}
-                      onChange={(e) => setBasePayInput(e.target.value)}
-                    />
-                    <Button
-                      onClick={() => saveFlatRate("base_pay", basePayInput || String(basePay?.value ?? ""))}
-                      disabled={saving}
-                    >
-                      Save
-                    </Button>
-                  </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium text-foreground">Base Pay</h3>
+                  <Button size="sm" onClick={openAddBasePayItem} className="gap-1">
+                    <Plus className="h-4 w-4" /> Add
+                  </Button>
                 </div>
+
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead className="w-20"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {basePayItems.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-muted-foreground">No base pay items configured.</TableCell>
+                      </TableRow>
+                    ) : basePayItems.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell>{item.description || "—"}</TableCell>
+                        <TableCell>{item.amount}</TableCell>
+                        <TableCell className="flex gap-1">
+                          <Button size="icon" variant="ghost" onClick={() => openEditBasePayItem(item)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" onClick={() => handleRemoveBasePayItem(item.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                <p className="text-sm text-muted-foreground">
+                  Total Base Pay: <span className="font-semibold text-foreground">{totalBasePay}</span>
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -328,6 +460,37 @@ export default function PhysicianPayRatesPage() {
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="font-medium text-foreground">Buckets</h3>
+                <p className="text-xs text-muted-foreground">
+                  Current month. Manage membership on Finance → Buckets.
+                </p>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Bucket</TableHead>
+                      <TableHead>Bucket %</TableHead>
+                      <TableHead>Physician %</TableHead>
+                      <TableHead>Amount (This Month)</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {bucketMemberships.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-muted-foreground">Not a member of any bucket.</TableCell>
+                      </TableRow>
+                    ) : bucketMemberships.map((b) => (
+                      <TableRow key={b.bucket_id}>
+                        <TableCell>{b.bucket_name}</TableCell>
+                        <TableCell>{b.bucket_percent}%</TableCell>
+                        <TableCell>{b.member_percent}%</TableCell>
+                        <TableCell>{b.amount.toFixed(2)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -381,6 +544,30 @@ export default function PhysicianPayRatesPage() {
             <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
             <Button onClick={handleAddScopedRate} disabled={saving}>
               {saving ? "Saving…" : "Add Rate"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={basePayDialogOpen} onOpenChange={setBasePayDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{basePayEditingId ? "Edit Base Pay Item" : "Add Base Pay Item"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="basePayAmount">Amount</Label>
+              <Input id="basePayAmount" type="number" min={0} value={basePayAmount} onChange={(e) => setBasePayAmount(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="basePayDescription">Description</Label>
+              <Input id="basePayDescription" value={basePayDescription} onChange={(e) => setBasePayDescription(e.target.value)} placeholder="e.g. On-call stipend" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBasePayDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveBasePayItem} disabled={saving}>
+              {saving ? "Saving…" : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>
