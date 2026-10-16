@@ -15,6 +15,7 @@ const TABS: { value: string; label: string; table: string }[] = [
   { value: "specializations", label: "Специализации", table: "specializations" },
   { value: "job_titles", label: "Должности", table: "job_titles" },
   { value: "staff_types", label: "Типы персонала", table: "staff_types" },
+  { value: "employment_types", label: "Вид трудоустройства", table: "employment_types" },
   { value: "degrees", label: "Учёные степени", table: "degrees" },
   { value: "qualifications", label: "Квалификации", table: "qualifications" },
 ];

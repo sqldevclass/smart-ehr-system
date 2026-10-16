@@ -47,6 +47,7 @@ export default function EmployeeDetail({ personId, onClose }: Props) {
           departments!department_id(id, name),
           job_titles!job_title_id(id, name),
           staff_types!staff_type_id(id, name),
+          employment_types!employment_type_id(id, name),
           degrees!degree_id(id, name),
           qualifications!qualification_id(id, name)
         `)
@@ -175,6 +176,7 @@ function EmployeeForm({
       department_id: employment.department_id || "",
       job_title_id: employment.job_title_id || "",
       staff_type_id: employment.staff_type_id || "",
+      employment_type_id: employment.employment_type_id || "",
       degree_id: employment.degree_id || "",
       qualification_id: employment.qualification_id || "",
     });
@@ -213,6 +215,14 @@ function EmployeeForm({
     queryKey: ["staff_types", user?.hospitalId],
     queryFn: async () => {
       const { data } = await supabase.from("staff_types").select("id, name")
+        .eq("hospital_id", user!.hospitalId).eq("is_active", true).order("name");
+      return data || [];
+    },
+  });
+  const { data: employmentTypes = [] } = useQuery({
+    queryKey: ["employment_types", user?.hospitalId],
+    queryFn: async () => {
+      const { data } = await supabase.from("employment_types").select("id, name")
         .eq("hospital_id", user!.hospitalId).eq("is_active", true).order("name");
       return data || [];
     },
@@ -266,6 +276,7 @@ function EmployeeForm({
         department_id: form.department_id || null,
         job_title_id: form.job_title_id || null,
         staff_type_id: form.staff_type_id || null,
+        employment_type_id: form.employment_type_id || null,
         degree_id: form.degree_id || null,
         qualification_id: form.qualification_id || null,
       };
@@ -412,6 +423,7 @@ function EmployeeForm({
           {sel("Отделение", form.department_id, (v) => setField("department_id", v), departments)}
           {sel("Должность", form.job_title_id, (v) => setField("job_title_id", v), jobTitles)}
           {sel("Тип персонала", form.staff_type_id, (v) => setField("staff_type_id", v), staffTypes)}
+          {sel("Вид трудоустройства", form.employment_type_id, (v) => setField("employment_type_id", v), employmentTypes)}
           {sel("Учёная степень", form.degree_id, (v) => setField("degree_id", v), degrees)}
           {sel("Квалификация", form.qualification_id, (v) => setField("qualification_id", v), qualifications)}
         </div>
