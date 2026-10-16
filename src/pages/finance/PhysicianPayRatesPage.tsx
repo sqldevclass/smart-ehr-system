@@ -97,7 +97,6 @@ export default function PhysicianPayRatesPage() {
         .from("staff_roles")
         .select("id, persons!inner(id, first_name, last_name), departments!department_id(name)")
         .eq("hospital_id", user.hospitalId)
-        .eq("role_type", "physician")
         .eq("is_active", true);
       if (error) throw error;
 
@@ -382,8 +381,6 @@ export default function PhysicianPayRatesPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="font-heading text-2xl font-bold text-foreground">Physician Pay Rates</h1>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1">
           <Tabs value={selectedTab} onValueChange={setSelectedTab} className="mb-3">
