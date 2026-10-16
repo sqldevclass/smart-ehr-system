@@ -14,6 +14,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
@@ -21,6 +22,7 @@ interface PhysicianRow {
   id: string;
   full_name: string;
   department_name: string | null;
+  staff_type_id: string | null;
 }
 
 interface RateRow {
@@ -61,6 +63,7 @@ export default function PhysicianPayRatesPage() {
   const queryClient = useQueryClient();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedTab, setSelectedTab] = useState<string>("all");
   const [addOpen, setAddOpen] = useState(false);
   const [addTypeCode, setAddTypeCode] = useState<"own_service">("own_service");
   const [scopeKind, setScopeKind] = useState<"type" | "service">("type");
@@ -92,19 +95,51 @@ export default function PhysicianPayRatesPage() {
       if (!user) return [];
       const { data, error } = await supabase
         .from("staff_roles")
-        .select("id, persons!inner(first_name, last_name), departments!department_id(name)")
+        .select("id, persons!inner(id, first_name, last_name), departments!department_id(name)")
         .eq("hospital_id", user.hospitalId)
         .eq("role_type", "physician")
         .eq("is_active", true);
       if (error) throw error;
+
+      // Тип персонала lives on employments (per person), not on staff_roles --
+      // fetch it separately and merge, to drive the tab filter below.
+      const personIds = (data || []).map((p: any) => p.persons?.id).filter(Boolean);
+      const { data: employments } = await supabase
+        .from("employments")
+        .select("person_id, staff_type_id")
+        .in("person_id", personIds.length > 0 ? personIds : [""]);
+      const staffTypeByPerson = new Map((employments || []).map((e: any) => [e.person_id, e.staff_type_id]));
+
       return (data || []).map((p: any) => ({
         id: p.id,
         full_name: `${p.persons?.last_name ?? ""} ${p.persons?.first_name ?? ""}`.trim() || "Unknown",
         department_name: p.departments?.name ?? null,
+        staff_type_id: staffTypeByPerson.get(p.persons?.id) ?? null,
       })) as PhysicianRow[];
     },
     enabled: !!user,
   });
+
+  // Tabs: "All" plus one per active Тип персонала.
+  const { data: staffTypesForTabs = [] } = useQuery({
+    queryKey: ["staff-types-tabs", user?.hospitalId],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("staff_types")
+        .select("id, name")
+        .eq("hospital_id", user.hospitalId)
+        .eq("is_active", true)
+        .order("name");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
+  const filteredPhysicians = selectedTab === "all"
+    ? physicians
+    : physicians.filter((p) => p.staff_type_id === selectedTab);
 
   const { data: serviceTypes = [] } = useQuery({
     queryKey: ["service_types_all", user?.hospitalId],
@@ -351,6 +386,14 @@ export default function PhysicianPayRatesPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1">
+          <Tabs value={selectedTab} onValueChange={setSelectedTab} className="mb-3">
+            <TabsList className="flex-wrap h-auto">
+              <TabsTrigger value="all">All</TabsTrigger>
+              {staffTypesForTabs.map((t: any) => (
+                <TabsTrigger key={t.id} value={t.id}>{t.name}</TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
           {isLoading ? (
             <p className="text-muted-foreground">Loading…</p>
           ) : (
@@ -362,7 +405,11 @@ export default function PhysicianPayRatesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {physicians.map((p) => (
+                {filteredPhysicians.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={2} className="text-center text-muted-foreground py-6">No physicians in this group.</TableCell>
+                  </TableRow>
+                ) : filteredPhysicians.map((p) => (
                   <TableRow
                     key={p.id}
                     className={selectedId === p.id ? "bg-muted cursor-pointer" : "cursor-pointer"}
