@@ -17,6 +17,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Lock, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import FinancePayrollCharts from "@/components/finance/FinancePayrollCharts";
@@ -119,6 +120,7 @@ export default function PayrollPage() {
 
   const [deleteTarget, setDeleteTarget] = useState<AdjustmentItem | null>(null);
   const [deletingAdjustment, setDeletingAdjustment] = useState(false);
+  const [selectedTab, setSelectedTab] = useState<string>("all");
 
   const [year, month] = monthValue.split("-").map(Number);
   const periodStartISO = new Date(year, (month || 1) - 1, 1).toISOString();
@@ -248,10 +250,66 @@ export default function PayrollPage() {
     return map;
   }, [adjustmentItems]);
 
+  // Тип персонала per staff_role_id, to drive the tab filter below --
+  // get_physician_payroll doesn't return it, so it's fetched separately.
+  const { data: staffTypeRows = [] } = useQuery({
+    queryKey: ["physician-staff-types", user?.hospitalId],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data: staffRoles, error } = await supabase
+        .from("staff_roles")
+        .select("id, person_id")
+        .eq("hospital_id", user.hospitalId)
+        .eq("role_type", "physician");
+      if (error) throw error;
+      const personIds = (staffRoles || []).map((r: any) => r.person_id).filter(Boolean);
+      const { data: employments } = await supabase
+        .from("employments")
+        .select("person_id, staff_type_id")
+        .in("person_id", personIds.length > 0 ? personIds : [""]);
+      const staffTypeByPerson = new Map((employments || []).map((e: any) => [e.person_id, e.staff_type_id]));
+      return (staffRoles || []).map((r: any) => ({
+        staff_role_id: r.id,
+        staff_type_id: staffTypeByPerson.get(r.person_id) ?? null,
+      }));
+    },
+    enabled: !!user,
+  });
+
+  const staffTypeByStaffRole = useMemo(() => {
+    const map = new Map<string, string | null>();
+    staffTypeRows.forEach((r: any) => map.set(r.staff_role_id, r.staff_type_id));
+    return map;
+  }, [staffTypeRows]);
+
+  // Tabs: "All" plus one per active Тип персонала.
+  const { data: staffTypesForTabs = [] } = useQuery({
+    queryKey: ["staff-types-tabs", user?.hospitalId],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("staff_types")
+        .select("id, name")
+        .eq("hospital_id", user.hospitalId)
+        .eq("is_active", true)
+        .order("name");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
+  const filteredRows = selectedTab === "all"
+    ? rows
+    : rows.filter((r) => staffTypeByStaffRole.get(r.staff_role_id) === selectedTab);
+
+  // Confirmation state and the Confirm Payroll action always apply to
+  // every physician for the month, regardless of which tab is selected --
+  // only the displayed total below follows the current tab.
   const allConfirmed = rows.length > 0 && rows.every((r) => r.is_confirmed);
   const anyConfirmed = rows.some((r) => r.is_confirmed);
   const monthLabel = new Date(year, (month || 1) - 1, 1).toLocaleString(undefined, { month: "long", year: "numeric" });
-  const grandTotal = rows.reduce((sum, r) => sum + Number(r.total_amount || 0), 0);
+  const grandTotal = filteredRows.reduce((sum, r) => sum + Number(r.total_amount || 0), 0);
 
   const handleConfirm = async () => {
     if (!user) return;
@@ -418,11 +476,19 @@ export default function PayrollPage() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
+      <Tabs value={selectedTab} onValueChange={setSelectedTab} className="mb-3">
+        <TabsList className="flex-wrap h-auto">
+          <TabsTrigger value="all">All</TabsTrigger>
+          {staffTypesForTabs.map((t: any) => (
+            <TabsTrigger key={t.id} value={t.id}>{t.name}</TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
       <DataTable
         columns={columns}
-        data={rows}
+        data={filteredRows}
         isLoading={isLoading}
-        emptyMessage="No physicians found for this period."
+        emptyMessage="No physicians in this group for this period."
         getRowId={(r) => r.staff_role_id}
         getRowCanExpand={(r) =>
           (basePayByPhysician.get(r.staff_role_id)?.length ?? 0) > 0 ||
@@ -657,7 +723,7 @@ export default function PayrollPage() {
         }}
       />
 
-      {rows.length > 0 && <FinancePayrollCharts rows={rows} year={year} month={month} />}
+      {filteredRows.length > 0 && <FinancePayrollCharts rows={filteredRows} year={year} month={month} />}
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
