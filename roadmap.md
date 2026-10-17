@@ -1,4 +1,5 @@
-- [ ] Add Cash Inflow, Top Services, and How They Heard reports from the uploaded specification.
-- [ ] Update Summary categories and new-patient count; preserve individual revenue plans.
-- [ ] Capture optional acquisition source in registrar quick bookings.
-- [ ] Test report rules and check available validation signals.
+- [x] Add Cash Inflow, Top Services, and How They Heard reports from the uploaded specification.
+- [x] Update Summary categories and new-patient count; preserve individual revenue plans.
+- [x] Capture optional acquisition source in registrar quick bookings.
+- [x] Test report rules and check available validation signals (five tests passed; latest build OK).
+- [ ] Verify live signed-in reports and booking readback — blocked by unavailable external account session; Cash Inflow also requires the user-provided view migration.
