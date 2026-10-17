@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { localDayBoundsUTC, toLocal } from "@/lib/timezone";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 import type { BookingResult, ServiceResult, SlotRow } from "./types";
 interface PhysCol {
@@ -29,6 +31,15 @@ interface RoomCol {
 }
 
 type Col = PhysCol | RoomCol;
+
+const REG_SOURCES = [
+  { value: "facebook", label: "Facebook" },
+  { value: "instagram", label: "Instagram" },
+  { value: "google_search", label: "Google Search" },
+  { value: "friend_recommendation", label: "Friend Recommendation" },
+  { value: "doctor_referral", label: "Doctor Referral" },
+  { value: "other", label: "Other" },
+];
 
 interface MultiCalendarProps {
   service: ServiceResult;
@@ -68,6 +79,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
   const [date, setDate] = useState<Date>(todayInTz);
   const [selected, setSelected] = useState<{ slot: SlotRow; col: Col } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [registrationSource, setRegistrationSource] = useState<string>("");
 
   const dateStr = format(date, "yyyy-MM-dd");
   const isPastDate = dateStr < todayStr;
@@ -291,7 +303,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
           p_service_id: service.id,
           p_assigned_staff_role_id: isRoom ? null : (selected.col as PhysCol).id,
           p_cost_at_time: service.costWithVat,
-          p_registration_source: null,
+          p_registration_source: registrationSource || null,
           ...(officeRoomId ? { p_assigned_room_id: officeRoomId } : {}),
         } as any);
         if (error) throw error;
@@ -595,7 +607,21 @@ export function MultiCalendar(props: MultiCalendarProps) {
         )}
 
         {selected && (
-          <div className="flex items-center justify-between gap-2 rounded-md border bg-muted/40 p-3">
+          <div className="flex flex-col gap-3 rounded-md border bg-muted/40 p-3">
+            {mode === "registrar" && !existingVisitServiceId && (
+              <div className="space-y-1.5">
+                <Label htmlFor="quick-booking-registration-source" className="text-xs">How did the patient hear about us?</Label>
+                <Select value={registrationSource} onValueChange={setRegistrationSource}>
+                  <SelectTrigger id="quick-booking-registration-source" className="h-8 text-xs"><SelectValue placeholder="Select (optional)" /></SelectTrigger>
+                  <SelectContent>
+                    {REG_SOURCES.map(source => (
+                      <SelectItem key={source.value} value={source.value}>{source.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-sm">
               <span className="text-muted-foreground">Selected:</span>{" "}
               <span className="font-medium">
@@ -609,6 +635,7 @@ export function MultiCalendar(props: MultiCalendarProps) {
               <Button size="sm" disabled={submitting} onClick={handleConfirm}>
                 {submitting ? "Booking…" : "Confirm Booking"}
               </Button>
+            </div>
             </div>
           </div>
         )}

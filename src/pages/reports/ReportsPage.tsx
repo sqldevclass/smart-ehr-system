@@ -11,6 +11,9 @@ import { toast } from "sonner";
 import DailyReportSummaryTab from "@/components/reports/DailyReportSummaryTab";
 import DailyReportByDepartmentTab from "@/components/reports/DailyReportByDepartmentTab";
 import FinanceServicesTab from "@/components/reports/FinanceServicesTab";
+import CashInflowTab from "@/components/reports/CashInflowTab";
+import TopServicesTab from "@/components/reports/TopServicesTab";
+import RegistrationSourceTab from "@/components/reports/RegistrationSourceTab";
 
 export default function ReportsPage() {
   const { user, hasAnyRole } = useAuth();
@@ -65,18 +68,29 @@ export default function ReportsPage() {
                   <TabsList className="flex flex-wrap h-auto">
                     <TabsTrigger value="summary">Summary</TabsTrigger>
                     <TabsTrigger value="department">By Department</TabsTrigger>
+                    <TabsTrigger value="cash-inflow">Cash Inflow</TabsTrigger>
                     <TabsTrigger value="operations" disabled>Operations</TabsTrigger>
                     <TabsTrigger value="diagnostics" disabled>Diagnostics &amp; Lab</TabsTrigger>
                     <TabsTrigger value="polyclinic" disabled>Polyclinic</TabsTrigger>
                     <TabsTrigger value="physio" disabled>Physio/SPA</TabsTrigger>
-                    <TabsTrigger value="top-services" disabled>Top Services</TabsTrigger>
+                    <TabsTrigger value="top-services">Top Services</TabsTrigger>
                     <TabsTrigger value="patient-count" disabled>Patient Count</TabsTrigger>
+                    <TabsTrigger value="acquisition">How They Heard</TabsTrigger>
                   </TabsList>
                   <TabsContent value="summary">
                     <DailyReportSummaryTab from={from} to={to} />
                   </TabsContent>
                   <TabsContent value="department">
                     <DailyReportByDepartmentTab from={from} to={to} />
+                  </TabsContent>
+                  <TabsContent value="cash-inflow">
+                    <CashInflowTab from={from} to={to} />
+                  </TabsContent>
+                  <TabsContent value="top-services">
+                    <TopServicesTab from={from} to={to} />
+                  </TabsContent>
+                  <TabsContent value="acquisition">
+                    <RegistrationSourceTab from={from} to={to} />
                   </TabsContent>
                 </Tabs>
               </div>
