@@ -7,7 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 
 // Same palette as FinancePayrollCharts.tsx - grounded in this app's
 // own --primary/--accent tokens, not arbitrary colors.
-const TEAL_MID = "#3E8793";
+const TEAL_MID = "hsl(var(--accent))";
 
 const chartConfig = {
   Revenue: { label: "Revenue", color: TEAL_MID },
@@ -23,8 +23,10 @@ const axisProps = {
 
 export default function DailyReportSummaryChart({
   data,
+  title = "Revenue by Service Category",
 }: {
   data: { name: string; revenue: number }[];
+  title?: string;
 }) {
   const chartData = [...data]
     .sort((a, b) => b.revenue - a.revenue)
@@ -36,7 +38,7 @@ export default function DailyReportSummaryChart({
   return (
     <div className="mb-6 rounded-md border bg-card p-4">
       <h3 className="mb-4 font-heading text-sm font-semibold text-foreground">
-        Revenue by Service Category
+        {title}
       </h3>
       <ChartContainer config={chartConfig} className="aspect-video">
         <BarChart data={chartData} margin={{ top: 8, right: 8, bottom: 8, left: 0 }}>

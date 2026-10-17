@@ -10,6 +10,7 @@ import DailyReportSummaryChart from "@/components/reports/DailyReportSummaryChar
 import DailyReportBulletChart from "@/components/reports/DailyReportBulletChart";
 import DailyReportYoyChart from "@/components/reports/DailyReportYoyChart";
 import DailyReportPlanDialog from "@/components/reports/DailyReportPlanDialog";
+import { aggregateSummary } from "./reportAggregation";
 
 interface ServiceItem {
   service_type_id: string | null;
@@ -113,30 +114,29 @@ export default function DailyReportSummaryTab({ from, to }: { from: string; to: 
     enabled: !!user,
   });
 
+  const { data: newPatientsCount = 0 } = useQuery({
+    queryKey: ["new-patients-count", user?.hospitalId, from, to],
+    queryFn: async () => {
+      if (!user) return 0;
+      const { count, error } = await supabase
+        .from("patients")
+        .select("id", { count: "exact", head: true })
+        .eq("hospital_id", user.hospitalId)
+        .gte("created_at", from)
+        .lte("created_at", to);
+      if (error) throw error;
+      return count || 0;
+    },
+    enabled: !!user,
+  });
+
   const planByType: Record<string, number> = {};
   (plans as any[]).forEach((p: any) => {
     planByType[p.service_type_id] =
       (planByType[p.service_type_id] || 0) + Number(p.planned_revenue || 0);
   });
 
-  const rows = serviceTypes
-    .filter((t: any) => t.code !== "test")
-    .map((t: any) => {
-      const matching = items.filter((i) => i.service_type_id === t.id);
-      const priorMatching = priorYearItems.filter((i) => i.service_type_id === t.id);
-      const patients = new Set(matching.map((i) => i.patient_id));
-      return {
-        id: t.id as string,
-        name: t.name_ru as string,
-        serviceCount: matching.length,
-        visitorCount: patients.size,
-        revenue: matching.reduce((sum, i) => sum + Number(i.cost_at_time || 0), 0),
-        priorYearRevenue: priorMatching.reduce((sum, i) => sum + Number(i.cost_at_time || 0), 0),
-        target: planByType[t.id] || 0,
-      };
-    })
-    .filter((r) => r.serviceCount > 0 || r.target > 0)
-    .sort((a, b) => b.revenue - a.revenue);
+  const rows = aggregateSummary(serviceTypes, items, priorYearItems, planByType);
 
   const totals = rows.reduce(
     (acc, r) => ({
@@ -148,13 +148,16 @@ export default function DailyReportSummaryTab({ from, to }: { from: string; to: 
 
   return (
     <div className="mt-4 space-y-6">
-      {canManagePlans && (
-        <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="text-sm text-muted-foreground">
+          New patients this period: <span className="font-semibold text-foreground">{newPatientsCount}</span>
+        </div>
+        {canManagePlans && (
           <Button variant="outline" size="sm" onClick={() => setPlanDialogOpen(true)}>
             Set Revenue Plan
           </Button>
-        </div>
-      )}
+        )}
+      </div>
 
       {rows.length > 0 && (
         <>
