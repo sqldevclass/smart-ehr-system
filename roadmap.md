@@ -1,0 +1,4 @@
+- [ ] Add Cash Inflow, Top Services, and How They Heard reports from the uploaded specification.
+- [ ] Update Summary categories and new-patient count; preserve individual revenue plans.
+- [ ] Capture optional acquisition source in registrar quick bookings.
+- [ ] Test report rules and check available validation signals.
