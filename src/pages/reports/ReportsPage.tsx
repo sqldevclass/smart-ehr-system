@@ -20,7 +20,7 @@ export default function ReportsPage() {
   const navigate = useNavigate();
   const [period, setPeriod] = useState<PeriodState>({ period: "today" });
 
-  const canViewDaily = hasAnyRole(["admin", "senior_manager"]);
+  const canViewDaily = hasAnyRole(["admin", "senior_manager", "finance"]);
   const canViewFinance = hasAnyRole(["finance"]);
   const { from, to } = getDateBounds(period);
 
