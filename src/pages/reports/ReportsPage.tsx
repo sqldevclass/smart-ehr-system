@@ -14,6 +14,10 @@ import FinanceServicesTab from "@/components/reports/FinanceServicesTab";
 import CashInflowTab from "@/components/reports/CashInflowTab";
 import TopServicesTab from "@/components/reports/TopServicesTab";
 import RegistrationSourceTab from "@/components/reports/RegistrationSourceTab";
+import MortalityTab from "@/components/reports/MortalityTab";
+import ReadmissionTab from "@/components/reports/ReadmissionTab";
+import VteTab from "@/components/reports/VteTab";
+import AlosTab from "@/components/reports/AlosTab";
 
 export default function ReportsPage() {
   const { user, hasAnyRole } = useAuth();
@@ -76,6 +80,10 @@ export default function ReportsPage() {
                     <TabsTrigger value="top-services">Top Services</TabsTrigger>
                     <TabsTrigger value="patient-count" disabled>Patient Count</TabsTrigger>
                     <TabsTrigger value="acquisition">How They Heard</TabsTrigger>
+                    <TabsTrigger value="mortality">Mortality</TabsTrigger>
+                    <TabsTrigger value="readmissions">Readmissions</TabsTrigger>
+                    <TabsTrigger value="vte">VTE</TabsTrigger>
+                    <TabsTrigger value="alos">Avg. Length of Stay</TabsTrigger>
                   </TabsList>
                   <TabsContent value="summary">
                     <DailyReportSummaryTab from={from} to={to} />
@@ -91,6 +99,18 @@ export default function ReportsPage() {
                   </TabsContent>
                   <TabsContent value="acquisition">
                     <RegistrationSourceTab from={from} to={to} />
+                  </TabsContent>
+                  <TabsContent value="mortality">
+                    <MortalityTab from={from} to={to} />
+                  </TabsContent>
+                  <TabsContent value="readmissions">
+                    <ReadmissionTab from={from} to={to} />
+                  </TabsContent>
+                  <TabsContent value="vte">
+                    <VteTab from={from} to={to} />
+                  </TabsContent>
+                  <TabsContent value="alos">
+                    <AlosTab from={from} to={to} />
                   </TabsContent>
                 </Tabs>
               </div>
