@@ -57,56 +57,49 @@ export default function ReportsPage() {
       </header>
 
       <main className={canViewDaily ? "flex-1 p-6 space-y-8 overflow-y-auto" : "flex-1 p-6 pt-3 overflow-hidden flex flex-col"}>
-        {!canViewDaily && !canViewFinance ? (
+        {!canViewDaily ? (
           <div className="text-sm text-muted-foreground">
             No reports are available for your role yet.
           </div>
         ) : (
-          <>
-            {canViewDaily && (
-              <div className="space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h1 className="text-lg font-semibold text-foreground">Daily Report</h1>
-                  <PeriodFilter value={period} onChange={setPeriod} />
-                </div>
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h1 className="text-lg font-semibold text-foreground">Daily Report</h1>
+              <PeriodFilter value={period} onChange={setPeriod} />
+            </div>
 
-                <Tabs defaultValue="summary" className="w-full">
-                  <TabsList className="flex flex-wrap h-auto">
-                    <TabsTrigger value="summary">Summary</TabsTrigger>
-                    <TabsTrigger value="department">By Department</TabsTrigger>
-                    <TabsTrigger value="cash-inflow">Cash Inflow</TabsTrigger>
-                    <TabsTrigger value="operations" disabled>Operations</TabsTrigger>
-                    <TabsTrigger value="diagnostics" disabled>Diagnostics &amp; Lab</TabsTrigger>
-                    <TabsTrigger value="polyclinic" disabled>Polyclinic</TabsTrigger>
-                    <TabsTrigger value="physio" disabled>Physio/SPA</TabsTrigger>
-                    <TabsTrigger value="top-services">Top Services</TabsTrigger>
-                    <TabsTrigger value="patient-count" disabled>Patient Count</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="summary">
-                    <DailyReportSummaryTab from={from} to={to} />
-                  </TabsContent>
-                  <TabsContent value="department">
-                    <DailyReportByDepartmentTab from={from} to={to} />
-                  </TabsContent>
-                  <TabsContent value="cash-inflow">
-                    <CashInflowTab from={from} to={to} />
-                  </TabsContent>
-                  <TabsContent value="top-services">
-                    <TopServicesTab from={from} to={to} />
-                  </TabsContent>
-                </Tabs>
-              </div>
-            )}
-
-            {canViewFinance && (
-              <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-                <h1 className="text-lg font-semibold text-foreground shrink-0 pb-2">Finance</h1>
-                <div className="flex-1 min-h-0 overflow-hidden">
+            <Tabs defaultValue="summary" className="w-full">
+              <TabsList className="flex flex-wrap h-auto">
+                <TabsTrigger value="summary">Summary</TabsTrigger>
+                <TabsTrigger value="department">By Department</TabsTrigger>
+                <TabsTrigger value="cash-inflow">Cash Inflow</TabsTrigger>
+                <TabsTrigger value="operations" disabled>Operations</TabsTrigger>
+                <TabsTrigger value="diagnostics" disabled>Diagnostics &amp; Lab</TabsTrigger>
+                <TabsTrigger value="polyclinic" disabled>Polyclinic</TabsTrigger>
+                <TabsTrigger value="physio" disabled>Physio/SPA</TabsTrigger>
+                <TabsTrigger value="top-services">Top Services</TabsTrigger>
+                <TabsTrigger value="patient-count" disabled>Patient Count</TabsTrigger>
+                {canViewFinance && <TabsTrigger value="services">Услуги</TabsTrigger>}
+              </TabsList>
+              <TabsContent value="summary">
+                <DailyReportSummaryTab from={from} to={to} />
+              </TabsContent>
+              <TabsContent value="department">
+                <DailyReportByDepartmentTab from={from} to={to} />
+              </TabsContent>
+              <TabsContent value="cash-inflow">
+                <CashInflowTab from={from} to={to} />
+              </TabsContent>
+              <TabsContent value="top-services">
+                <TopServicesTab from={from} to={to} />
+              </TabsContent>
+              {canViewFinance && (
+                <TabsContent value="services" className="h-[70vh] min-h-0">
                   <FinanceServicesTab period={period} onPeriodChange={setPeriod} />
-                </div>
-              </div>
-            )}
-          </>
+                </TabsContent>
+              )}
+            </Tabs>
+          </div>
         )}
       </main>
     </div>
