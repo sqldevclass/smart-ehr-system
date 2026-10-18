@@ -7,7 +7,6 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { DataTable } from "@/components/reports/data-table/DataTable";
 import { cn } from "@/lib/utils";
-import { Input } from "@/components/ui/input";
 import { PeriodState, getDateBounds } from "@/components/shared/PeriodFilter";
 
 const VIEW_KEY = "finance_services_columns";
