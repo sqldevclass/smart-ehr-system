@@ -8,23 +8,23 @@ import { PeriodFilter, PeriodState, getDateBounds } from "@/components/shared/Pe
 import RoleSwitcher from "@/components/shared/RoleSwitcher";
 import { ArrowLeft, LogOut } from "lucide-react";
 import { toast } from "sonner";
+import { startOfMonth, format } from "date-fns";
 import DailyReportSummaryTab from "@/components/reports/DailyReportSummaryTab";
 import DailyReportByDepartmentTab from "@/components/reports/DailyReportByDepartmentTab";
 import FinanceServicesTab from "@/components/reports/FinanceServicesTab";
 import CashInflowTab from "@/components/reports/CashInflowTab";
 import TopServicesTab from "@/components/reports/TopServicesTab";
-import RegistrationSourceTab from "@/components/reports/RegistrationSourceTab";
-import MortalityTab from "@/components/reports/MortalityTab";
-import ReadmissionTab from "@/components/reports/ReadmissionTab";
-import VteTab from "@/components/reports/VteTab";
-import AlosTab from "@/components/reports/AlosTab";
-import AntibioticTimeoutTab from "@/components/reports/AntibioticTimeoutTab";
-import CriticalLabValuesTab from "@/components/reports/CriticalLabValuesTab";
+
+const defaultPeriod = (): PeriodState => ({
+  period: "custom",
+  customFrom: format(startOfMonth(new Date()), "yyyy-MM-dd"),
+  customTo: format(new Date(), "yyyy-MM-dd"),
+});
 
 export default function ReportsPage() {
   const { user, hasAnyRole } = useAuth();
   const navigate = useNavigate();
-  const [period, setPeriod] = useState<PeriodState>({ period: "today" });
+  const [period, setPeriod] = useState<PeriodState>(defaultPeriod);
 
   const canViewDaily = hasAnyRole(["admin", "senior_manager", "finance"]);
   const canViewFinance = hasAnyRole(["finance"]);
@@ -81,13 +81,6 @@ export default function ReportsPage() {
                     <TabsTrigger value="physio" disabled>Physio/SPA</TabsTrigger>
                     <TabsTrigger value="top-services">Top Services</TabsTrigger>
                     <TabsTrigger value="patient-count" disabled>Patient Count</TabsTrigger>
-                    <TabsTrigger value="acquisition">How They Heard</TabsTrigger>
-                    <TabsTrigger value="mortality">Mortality</TabsTrigger>
-                    <TabsTrigger value="readmissions">Readmissions</TabsTrigger>
-                    <TabsTrigger value="vte">VTE</TabsTrigger>
-                    <TabsTrigger value="alos">Avg. Length of Stay</TabsTrigger>
-                    <TabsTrigger value="antibiotic-timeout">Antibiotic Prophylaxis Timing</TabsTrigger>
-                    <TabsTrigger value="critical-lab">Critical Lab Values</TabsTrigger>
                   </TabsList>
                   <TabsContent value="summary">
                     <DailyReportSummaryTab from={from} to={to} />
@@ -100,27 +93,6 @@ export default function ReportsPage() {
                   </TabsContent>
                   <TabsContent value="top-services">
                     <TopServicesTab from={from} to={to} />
-                  </TabsContent>
-                  <TabsContent value="acquisition">
-                    <RegistrationSourceTab from={from} to={to} />
-                  </TabsContent>
-                  <TabsContent value="mortality">
-                    <MortalityTab from={from} to={to} />
-                  </TabsContent>
-                  <TabsContent value="readmissions">
-                    <ReadmissionTab from={from} to={to} />
-                  </TabsContent>
-                  <TabsContent value="vte">
-                    <VteTab from={from} to={to} />
-                  </TabsContent>
-                  <TabsContent value="alos">
-                    <AlosTab from={from} to={to} />
-                  </TabsContent>
-                  <TabsContent value="antibiotic-timeout">
-                    <AntibioticTimeoutTab from={from} to={to} />
-                  </TabsContent>
-                  <TabsContent value="critical-lab">
-                    <CriticalLabValuesTab from={from} to={to} />
                   </TabsContent>
                 </Tabs>
               </div>
