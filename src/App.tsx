@@ -211,6 +211,14 @@ const App = () => (
             }
           />
           <Route
+            path="/reports/quality"
+            element={
+              <ProtectedRoute allowedRoles={["admin", "senior_manager", "finance"]}>
+                <QualityReportsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/documents/:documentId/view"
             element={
               <ProtectedRoute allowedRoles={["physician", "inpatient_nurse", "head_nurse"]}>
