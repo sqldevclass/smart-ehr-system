@@ -48,46 +48,50 @@ interface Props {
 }
 
 export function PeriodFilter({ value, onChange }: Props) {
-  const [open, setOpen] = useState(false);
+  const [openFrom, setOpenFrom] = useState(false);
+  const [openTo, setOpenTo] = useState(false);
 
-  const selectedRange = {
-    from: value.customFrom ? new Date(value.customFrom) : new Date(),
-    to: value.customTo ? new Date(value.customTo) : new Date(),
+  const fromDate = value.customFrom ? new Date(value.customFrom) : undefined;
+  const toDate = value.customTo ? new Date(value.customTo) : undefined;
+
+  const handleFromSelect = (date: Date | undefined) => {
+    if (!date) return;
+    onChange({ period: "custom", customFrom: format(date, "yyyy-MM-dd"), customTo: value.customTo });
+    setOpenFrom(false);
   };
 
-  const label = value.customFrom && value.customTo
-    ? value.customFrom === value.customTo
-      ? format(selectedRange.from, "dd.MM.yyyy")
-      : `${format(selectedRange.from, "dd.MM.yyyy")} – ${format(selectedRange.to, "dd.MM.yyyy")}`
-    : "Сегодня";
+  const handleToSelect = (date: Date | undefined) => {
+    if (!date) return;
+    onChange({ period: "custom", customFrom: value.customFrom, customTo: format(date, "yyyy-MM-dd") });
+    setOpenTo(false);
+  };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="h-8 gap-2">
-          <CalendarIcon className="h-4 w-4" />
-          {label}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        <Calendar
-          mode="range"
-          selected={
-            value.customFrom
-              ? { from: new Date(value.customFrom), to: value.customTo ? new Date(value.customTo) : undefined }
-              : { from: new Date(), to: new Date() }
-          }
-          onSelect={(range: any) => {
-            if (!range?.from) return;
-            const from = format(range.from, "yyyy-MM-dd");
-            const to = format(range.to || range.from, "yyyy-MM-dd");
-            onChange({ period: "custom", customFrom: from, customTo: to });
-            if (range.to) setOpen(false);
-          }}
-          initialFocus
-        />
-      </PopoverContent>
-    </Popover>
+    <div className="flex items-center gap-2">
+      <Popover open={openFrom} onOpenChange={setOpenFrom}>
+        <PopoverTrigger asChild>
+          <Button variant="outline" size="sm" className="h-8 gap-2">
+            <CalendarIcon className="h-4 w-4" />
+            {fromDate ? format(fromDate, "dd.MM.yyyy") : "From"}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar mode="single" selected={fromDate} onSelect={handleFromSelect} initialFocus />
+        </PopoverContent>
+      </Popover>
+      <span className="text-xs text-muted-foreground">—</span>
+      <Popover open={openTo} onOpenChange={setOpenTo}>
+        <PopoverTrigger asChild>
+          <Button variant="outline" size="sm" className="h-8 gap-2">
+            <CalendarIcon className="h-4 w-4" />
+            {toDate ? format(toDate, "dd.MM.yyyy") : "To"}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar mode="single" selected={toDate} onSelect={handleToSelect} initialFocus />
+        </PopoverContent>
+      </Popover>
+    </div>
   );
 }
 
