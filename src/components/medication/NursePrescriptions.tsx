@@ -70,13 +70,15 @@ export default function NursePrescriptions({ hospitalizationId, patientId, hospi
     slotId: string,
     doseGiven: string,
     notes: string,
+    administeredAt?: string,
   ) => {
+    if (!user) return;
     const { error } = await supabase
       .from("drug_administration_slots")
       .update({
         status: "done",
-        administered_at: new Date().toISOString(),
-        administered_by: user!.id,
+        administered_at: administeredAt || new Date().toISOString(),
+        administered_by: user.id,
         dose_given: doseGiven || null,
         notes: notes || null,
       })

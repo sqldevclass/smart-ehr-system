@@ -25,7 +25,7 @@ interface Props {
   hospitalizationId: string;
   onExtend: (prescriptionId: string, date: Date) => void;
   onCancelDay: (prescriptionId: string, date: Date) => void;
-  onAdministerSlot: (slotId: string, doseGiven: string, notes: string) => void;
+  onAdministerSlot: (slotId: string, doseGiven: string, notes: string, administeredAt?: string) => void;
   onSkipSlot: (slotId: string) => void;
 }
 
@@ -109,6 +109,8 @@ export default function PrescriptionGrid({
     slotId: string;
     doseGiven: string;
     notes: string;
+    isAntibioticProphylaxis: boolean;
+    administeredAt: string;
   } | null>(null);
 
   const { data: reminderMinutes = 10 } = useQuery({
@@ -553,6 +555,8 @@ export default function PrescriptionGrid({
                                             slot.override_dose ??
                                             `${p.dose}${p.dose_unit ?? ""}`,
                                           notes: "",
+                                          isAntibioticProphylaxis: p.prescription_type === "antibiotic_prophylaxis",
+                                          administeredAt: "",
                                         })
                                       }
                                     >
@@ -746,15 +750,34 @@ export default function PrescriptionGrid({
                 className="h-8 text-sm mt-1"
               />
             </div>
+            {adminSlot.isAntibioticProphylaxis && (
+              <div>
+                <Label className="text-xs">Дата/время введения</Label>
+                <Input
+                  type="datetime-local"
+                  value={adminSlot.administeredAt}
+                  onChange={(e) =>
+                    setAdminSlot((prev) =>
+                      prev ? { ...prev, administeredAt: e.target.value } : null,
+                    )
+                  }
+                  className="h-8 text-sm mt-1"
+                />
+              </div>
+            )}
             <div className="flex gap-2">
               <Button
                 size="sm"
+                disabled={adminSlot.isAntibioticProphylaxis && !adminSlot.administeredAt}
                 onClick={() => {
                   if (!adminSlot) return;
                   onAdministerSlot(
                     adminSlot.slotId,
                     adminSlot.doseGiven,
                     adminSlot.notes,
+                    adminSlot.isAntibioticProphylaxis
+                      ? new Date(adminSlot.administeredAt).toISOString()
+                      : undefined,
                   );
                   setAdminSlot(null);
                 }}
