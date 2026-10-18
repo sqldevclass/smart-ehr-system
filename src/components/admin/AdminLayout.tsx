@@ -1,5 +1,5 @@
 import { Outlet, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, Building2, Wrench, Stethoscope, FileText, UserCircle, LogOut, DoorOpen, ShieldCheck, Warehouse, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Users, Building2, Wrench, Stethoscope, FileText, UserCircle, LogOut, DoorOpen, ShieldCheck, Warehouse, BarChart3, Activity } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -21,6 +21,7 @@ const navItems = [
   { title: "Physician Privileges", url: "/admin/physician-privileges", icon: ShieldCheck },
   { title: "Audit Log", url: "/admin/audit", icon: FileText },
   { title: "Reports", url: "/reports", icon: BarChart3 },
+  { title: "Quality Reports", url: "/reports/quality", icon: Activity },
   { title: "Profile", url: "/admin/profile", icon: UserCircle },
 ];
 

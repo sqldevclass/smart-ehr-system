@@ -7,7 +7,6 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { DataTable } from "@/components/reports/data-table/DataTable";
 import { cn } from "@/lib/utils";
-import { Input } from "@/components/ui/input";
 import { PeriodState, getDateBounds } from "@/components/shared/PeriodFilter";
 
 const VIEW_KEY = "finance_services_columns";
@@ -137,27 +136,6 @@ export default function FinanceServicesTab({ period, onPeriodChange }: Props) {
       emptyMessage="No services in this period."
       viewKey={VIEW_KEY}
       getRowId={(r) => r.visit_service_id}
-      rightSlot={
-        <div className="flex items-center gap-2">
-          <Input
-            type="date"
-            className="h-8 text-xs w-auto"
-            value={period.customFrom ?? ""}
-            onChange={(e) =>
-              onPeriodChange({ period: "custom", customFrom: e.target.value, customTo: period.customTo ?? e.target.value })
-            }
-          />
-          <span className="text-xs text-muted-foreground">—</span>
-          <Input
-            type="date"
-            className="h-8 text-xs w-auto"
-            value={period.customTo ?? ""}
-            onChange={(e) =>
-              onPeriodChange({ period: "custom", customFrom: period.customFrom ?? e.target.value, customTo: e.target.value })
-            }
-          />
-        </div>
-      }
       renderFooter={(table) => {
         const visibleIds = table.getVisibleLeafColumns().map((c) => c.id);
         const sumIndex = visibleIds.indexOf("sum");
