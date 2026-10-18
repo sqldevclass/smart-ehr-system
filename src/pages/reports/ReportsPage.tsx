@@ -18,6 +18,7 @@ import MortalityTab from "@/components/reports/MortalityTab";
 import ReadmissionTab from "@/components/reports/ReadmissionTab";
 import VteTab from "@/components/reports/VteTab";
 import AlosTab from "@/components/reports/AlosTab";
+import AntibioticTimeoutTab from "@/components/reports/AntibioticTimeoutTab";
 import CriticalLabValuesTab from "@/components/reports/CriticalLabValuesTab";
 
 export default function ReportsPage() {
@@ -85,6 +86,7 @@ export default function ReportsPage() {
                     <TabsTrigger value="readmissions">Readmissions</TabsTrigger>
                     <TabsTrigger value="vte">VTE</TabsTrigger>
                     <TabsTrigger value="alos">Avg. Length of Stay</TabsTrigger>
+                    <TabsTrigger value="antibiotic-timeout">Antibiotic Prophylaxis Timing</TabsTrigger>
                     <TabsTrigger value="critical-lab">Critical Lab Values</TabsTrigger>
                   </TabsList>
                   <TabsContent value="summary">
@@ -113,6 +115,9 @@ export default function ReportsPage() {
                   </TabsContent>
                   <TabsContent value="alos">
                     <AlosTab from={from} to={to} />
+                  </TabsContent>
+                  <TabsContent value="antibiotic-timeout">
+                    <AntibioticTimeoutTab from={from} to={to} />
                   </TabsContent>
                   <TabsContent value="critical-lab">
                     <CriticalLabValuesTab from={from} to={to} />
