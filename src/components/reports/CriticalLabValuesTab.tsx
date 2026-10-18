@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
+import { ArrowUp, ArrowDown } from "lucide-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -78,9 +79,15 @@ export default function CriticalLabValuesTab({ from, to }: { from: string; to: s
                 <TableCell>{r.patients?.patient_number || ""}</TableCell>
                 <TableCell>{r.patients ? `${r.patients.last_name} ${r.patients.first_name}` : ""}</TableCell>
                 <TableCell>{r.parameter_name}</TableCell>
-                <TableCell className="text-right">{r.value} {r.unit || ""}</TableCell>
+                <TableCell className="text-right">
+                  <span className="inline-flex items-center justify-end gap-1 text-destructive">
+                    {r.flag === "critical_high" && <ArrowUp className="h-3.5 w-3.5" />}
+                    {r.flag === "critical_low" && <ArrowDown className="h-3.5 w-3.5" />}
+                    {r.value} {r.unit || ""}
+                  </span>
+                </TableCell>
                 <TableCell className="text-right">{r.critical_min}–{r.critical_max} {r.unit || ""}</TableCell>
-                <TableCell>{FLAG_LABELS[r.flag || ""] || r.flag}</TableCell>
+                <TableCell className="text-destructive font-medium">{FLAG_LABELS[r.flag || ""] || r.flag}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -89,3 +96,4 @@ export default function CriticalLabValuesTab({ from, to }: { from: string; to: s
     </div>
   );
 }
+
