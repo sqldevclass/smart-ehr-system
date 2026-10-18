@@ -18,6 +18,7 @@ import MortalityTab from "@/components/reports/MortalityTab";
 import ReadmissionTab from "@/components/reports/ReadmissionTab";
 import VteTab from "@/components/reports/VteTab";
 import AlosTab from "@/components/reports/AlosTab";
+import CriticalLabValuesTab from "@/components/reports/CriticalLabValuesTab";
 
 export default function ReportsPage() {
   const { user, hasAnyRole } = useAuth();
@@ -84,6 +85,7 @@ export default function ReportsPage() {
                     <TabsTrigger value="readmissions">Readmissions</TabsTrigger>
                     <TabsTrigger value="vte">VTE</TabsTrigger>
                     <TabsTrigger value="alos">Avg. Length of Stay</TabsTrigger>
+                    <TabsTrigger value="critical-lab">Critical Lab Values</TabsTrigger>
                   </TabsList>
                   <TabsContent value="summary">
                     <DailyReportSummaryTab from={from} to={to} />
@@ -111,6 +113,9 @@ export default function ReportsPage() {
                   </TabsContent>
                   <TabsContent value="alos">
                     <AlosTab from={from} to={to} />
+                  </TabsContent>
+                  <TabsContent value="critical-lab">
+                    <CriticalLabValuesTab from={from} to={to} />
                   </TabsContent>
                 </Tabs>
               </div>
