@@ -44,7 +44,7 @@ interface OperationDoc {
   id: string;
   created_at: string;
   hospitalization_id: string | null;
-  hospitalizations: { hospitalization_number: string | null } | null;
+  hospitalizations: { hospitalization_number: string | null; departments: { name: string } | null } | null;
   patients: { first_name: string; last_name: string; patient_number: string; date_of_birth: string | null } | null;
   profiles: { full_name: string } | null;
 }
@@ -65,6 +65,7 @@ interface OperationRow {
   dob: string | null;
   opIp: "inpatient" | "outpatient";
   doctor: string;
+  department: string;
   urgency: string | null;
   isRepeat: boolean;
   complications: boolean;
@@ -84,7 +85,7 @@ export default function SurgicalVolumeTab({ from, to }: { from: string; to: stri
         .from("patient_documents")
         .select(`
           id, created_at, hospitalization_id,
-          hospitalizations(hospitalization_number),
+          hospitalizations(hospitalization_number, departments(name)),
           patients(first_name, last_name, patient_number, date_of_birth),
           profiles!created_by(full_name)
         `)
@@ -138,6 +139,7 @@ export default function SurgicalVolumeTab({ from, to }: { from: string; to: stri
         dob: d.patients?.date_of_birth || null,
         opIp: d.hospitalization_id ? "inpatient" : "outpatient",
         doctor: d.profiles?.full_name || "",
+        department: d.hospitalizations?.departments?.name || "Не указано",
         urgency: vals[SURG_URGENCY_FIELD_ID] || null,
         isRepeat: vals[SURG_IS_REPEAT_FIELD_ID] === "true",
         complications: vals[SURG_COMPLICATIONS_FIELD_ID] === "true",
@@ -165,6 +167,7 @@ export default function SurgicalVolumeTab({ from, to }: { from: string; to: stri
     { id: "dob", header: "Дата рождения", accessorFn: (r) => (r.dob ? format(new Date(r.dob), "dd.MM.yyyy") : "") },
     { id: "op_ip", header: "IP/OP", accessorFn: (r) => (r.opIp === "inpatient" ? "Стационар" : "Амбулаторно") },
     { id: "doctor", header: "Врач", accessorFn: (r) => r.doctor },
+    { id: "department", header: "Отделение", accessorFn: (r) => r.department },
     { id: "urgency", header: "Тип операции", accessorFn: (r) => (r.urgency ? URGENCY_LABELS[r.urgency] || r.urgency : "") },
     { id: "is_repeat", header: "Повторная", accessorFn: (r) => (r.isRepeat ? "Да" : "Нет") },
     { id: "complications", header: "Осложнения", accessorFn: (r) => (r.complications ? "Да" : "Нет") },
