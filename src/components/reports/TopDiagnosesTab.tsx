@@ -86,7 +86,7 @@ export default function TopDiagnosesTab({ from, to }: { from: string; to: string
     { id: "icd10", header: "ICD-10", accessorFn: (r) => r.icd10_code },
     { id: "diagnosis", header: "Диагноз", accessorFn: (r) => r.icd10_name || "" },
     { id: "op_ip", header: "IP/OP", accessorFn: (r) => (r.op_ip === "inpatient" ? "Стационар" : "Амбулаторно") },
-    { id: "recorded_by", header: "Кто поставил", accessorFn: (r) => r.recorded_by_name || "" },
+    { id: "recorded_by", header: "Doctor", accessorFn: (r) => r.recorded_by_name || "" },
   ], []);
 
   return (
