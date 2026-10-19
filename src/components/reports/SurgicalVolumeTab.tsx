@@ -90,6 +90,7 @@ export default function SurgicalVolumeTab({ from, to }: { from: string; to: stri
         `)
         .eq("hospital_id", user.hospitalId)
         .eq("document_type_id", OPERATION_PROTOCOL_DOC_TYPE_ID)
+        .eq("status", "completed")
         .gte("created_at", from)
         .lte("created_at", to);
       if (error) throw error;
@@ -163,7 +164,7 @@ export default function SurgicalVolumeTab({ from, to }: { from: string; to: stri
     { id: "first_name", header: "Имя", accessorFn: (r) => r.firstName },
     { id: "dob", header: "Дата рождения", accessorFn: (r) => (r.dob ? format(new Date(r.dob), "dd.MM.yyyy") : "") },
     { id: "op_ip", header: "IP/OP", accessorFn: (r) => (r.opIp === "inpatient" ? "Стационар" : "Амбулаторно") },
-    { id: "doctor", header: "Doctor", accessorFn: (r) => r.doctor },
+    { id: "doctor", header: "Врач", accessorFn: (r) => r.doctor },
     { id: "urgency", header: "Тип операции", accessorFn: (r) => (r.urgency ? URGENCY_LABELS[r.urgency] || r.urgency : "") },
     { id: "is_repeat", header: "Повторная", accessorFn: (r) => (r.isRepeat ? "Да" : "Нет") },
     { id: "complications", header: "Осложнения", accessorFn: (r) => (r.complications ? "Да" : "Нет") },
@@ -179,10 +180,10 @@ export default function SurgicalVolumeTab({ from, to }: { from: string; to: stri
   return (
     <div className="mt-4 space-y-4">
       <SummaryCard>
-        <MetricTile label="Total Operations" value={stats.total} />
-        <MetricTile label="Planned" value={stats.planned} />
-        <MetricTile label="Emergency" value={stats.emergency} />
-        <MetricTile label="Repeat" value={stats.repeat} />
+        <MetricTile label="Всего операций" value={stats.total} />
+        <MetricTile label="Плановые" value={stats.planned} />
+        <MetricTile label="Экстренные" value={stats.emergency} />
+        <MetricTile label="Повторные" value={stats.repeat} />
       </SummaryCard>
 
       <div className="h-[65vh] min-h-0">
@@ -190,7 +191,7 @@ export default function SurgicalVolumeTab({ from, to }: { from: string; to: stri
           columns={columns}
           data={rows}
           isLoading={isLoading}
-          emptyMessage="No operations recorded in this period."
+          emptyMessage="За этот период операций не зарегистрировано."
           viewKey={VIEW_KEY}
           getRowId={(r) => r.id}
         />

@@ -86,7 +86,7 @@ export default function TopDiagnosesTab({ from, to }: { from: string; to: string
     { id: "icd10", header: "ICD-10", accessorFn: (r) => r.icd10_code },
     { id: "diagnosis", header: "Диагноз", accessorFn: (r) => r.icd10_name || "" },
     { id: "op_ip", header: "IP/OP", accessorFn: (r) => (r.op_ip === "inpatient" ? "Стационар" : "Амбулаторно") },
-    { id: "recorded_by", header: "Doctor", accessorFn: (r) => r.recorded_by_name || "" },
+    { id: "recorded_by", header: "Врач", accessorFn: (r) => r.recorded_by_name || "" },
   ], []);
 
   return (
@@ -95,7 +95,7 @@ export default function TopDiagnosesTab({ from, to }: { from: string; to: string
         columns={columns}
         data={rows}
         isLoading={isLoading}
-        emptyMessage="No diagnoses recorded in this period."
+        emptyMessage="За этот период диагнозы не зарегистрированы."
         viewKey={VIEW_KEY}
         getRowId={(r) => r.id}
       />

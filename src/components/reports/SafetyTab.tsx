@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/reports/data-table/DataTable";
+import { MetricTile, SummaryCard } from "@/components/shared/PeriodFilter";
 
 const VIEW_KEY = "safety_sedation_columns";
 const ANESTHESIA_PROTOCOL_DOC_TYPE_ID = "c1000000-0000-0000-0000-000000000010";
@@ -37,6 +38,7 @@ export default function SafetyTab({ from, to }: { from: string; to: string }) {
         `)
         .eq("hospital_id", user.hospitalId)
         .eq("document_type_id", ANESTHESIA_PROTOCOL_DOC_TYPE_ID)
+        .eq("status", "completed")
         .gte("created_at", from)
         .lte("created_at", to);
       if (error) throw error;
@@ -78,19 +80,25 @@ export default function SafetyTab({ from, to }: { from: string; to: string }) {
     { id: "dob", header: "Дата рождения", accessorFn: (d) => (d.patients?.date_of_birth ? format(new Date(d.patients.date_of_birth), "dd.MM.yyyy") : "") },
     { id: "side_effects", header: "Побочные эффекты анестезии", accessorFn: () => "Да" },
     { id: "op_ip", header: "IP/OP", accessorFn: (d) => (d.hospitalization_id ? "Стационар" : "Амбулаторно") },
-    { id: "doctor", header: "Doctor", accessorFn: (d) => d.profiles?.full_name || "" },
+    { id: "doctor", header: "Врач", accessorFn: (d) => d.profiles?.full_name || "" },
   ];
 
   return (
-    <div className="mt-4 h-[70vh] min-h-0">
-      <DataTable
-        columns={columns}
-        data={sedationComplications}
-        emptyMessage="No sedation complications recorded in this period."
-        viewKey={VIEW_KEY}
-        getRowId={(d) => d.id}
-      />
+    <div className="mt-4 space-y-4">
+      <SummaryCard>
+        <MetricTile label="Всего анестезий" value={anesthesiaDocs.length} />
+        <MetricTile label="Побочные эффекты анестезии" value={sedationComplications.length} highlight={sedationComplications.length > 0} />
+      </SummaryCard>
+
+      <div className="h-[65vh] min-h-0">
+        <DataTable
+          columns={columns}
+          data={sedationComplications}
+          emptyMessage="Побочные эффекты анестезии за этот период не зарегистрированы."
+          viewKey={VIEW_KEY}
+          getRowId={(d) => d.id}
+        />
+      </div>
     </div>
   );
 }
-

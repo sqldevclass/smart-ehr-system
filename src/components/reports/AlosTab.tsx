@@ -73,7 +73,7 @@ export default function AlosTab({ from, to }: { from: string; to: string }) {
     const byDept = new Map<string, { name: string; count: number; totalDays: number }>();
     items.forEach((i) => {
       const key = i.department_id || "none";
-      const row = byDept.get(key) || { name: i.departments?.name || "Unassigned", count: 0, totalDays: 0 };
+      const row = byDept.get(key) || { name: i.departments?.name || "Не указано", count: 0, totalDays: 0 };
       row.count += 1;
       row.totalDays += losDaysById.get(i.id) || 0;
       byDept.set(key, row);
@@ -94,7 +94,7 @@ export default function AlosTab({ from, to }: { from: string; to: string }) {
     items.forEach((i) => {
       const dx = diagnosisByHospId.get(i.id);
       const key = dx ? dx.code : "none";
-      const row = byDx.get(key) || { code: key, name: dx?.name || "No main diagnosis recorded", count: 0, totalDays: 0 };
+      const row = byDx.get(key) || { code: key, name: dx?.name || "Основной диагноз не указан", count: 0, totalDays: 0 };
       row.count += 1;
       row.totalDays += losDaysById.get(i.id) || 0;
       byDx.set(key, row);
@@ -112,24 +112,24 @@ export default function AlosTab({ from, to }: { from: string; to: string }) {
   return (
     <div className="mt-4 space-y-6">
       <div className="text-sm text-muted-foreground">
-        Overall average length of stay: <span className="font-semibold text-foreground">{fmtDays(overallAvg)} days</span>
-        {" "}({items.length} discharges)
+        Средняя продолжительность госпитализации: <span className="font-semibold text-foreground">{fmtDays(overallAvg)} дней</span>
+        {" "}({items.length} выписок)
       </div>
 
       <div>
-        <h3 className="mb-2 text-sm font-semibold text-foreground">By Department</h3>
+        <h3 className="mb-2 text-sm font-semibold text-foreground">По отделениям</h3>
         <div className="rounded-md border bg-card">
           {isLoading ? (
-            <p className="p-4 text-sm text-muted-foreground">Loading…</p>
+            <p className="p-4 text-sm text-muted-foreground">Загрузка…</p>
           ) : byDepartment.length === 0 ? (
-            <p className="p-4 text-sm text-muted-foreground">No discharges in this period.</p>
+            <p className="p-4 text-sm text-muted-foreground">За этот период выписок нет.</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Department</TableHead>
-                  <TableHead className="text-right">Discharges</TableHead>
-                  <TableHead className="text-right">Avg. LOS (days)</TableHead>
+                  <TableHead>Отделение</TableHead>
+                  <TableHead className="text-right">Выписки</TableHead>
+                  <TableHead className="text-right">Средний срок (дней)</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -147,18 +147,18 @@ export default function AlosTab({ from, to }: { from: string; to: string }) {
       </div>
 
       <div>
-        <h3 className="mb-2 text-sm font-semibold text-foreground">By Main Diagnosis (Top 20)</h3>
+        <h3 className="mb-2 text-sm font-semibold text-foreground">По основному диагнозу (топ 20)</h3>
         <div className="rounded-md border bg-card">
           {byDiagnosis.length === 0 ? (
-            <p className="p-4 text-sm text-muted-foreground">No discharges in this period.</p>
+            <p className="p-4 text-sm text-muted-foreground">За этот период выписок нет.</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>ICD-10</TableHead>
                   <TableHead>Diagnosis</TableHead>
-                  <TableHead className="text-right">Discharges</TableHead>
-                  <TableHead className="text-right">Avg. LOS (days)</TableHead>
+                  <TableHead className="text-right">Выписки</TableHead>
+                  <TableHead className="text-right">Средний срок (дней)</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

@@ -91,7 +91,7 @@ export default function ReadmissionTab({ from, to }: { from: string; to: string 
       });
 
       const key = h.department_id || "none";
-      const row = byDept.get(key) || { name: h.departments?.name || "Unassigned", eligible: 0, readmitted: 0 };
+      const row = byDept.get(key) || { name: h.departments?.name || "Не указано", eligible: 0, readmitted: 0 };
       row.eligible += 1;
       if (wasReadmitted) row.readmitted += 1;
       byDept.set(key, row);
@@ -143,7 +143,7 @@ export default function ReadmissionTab({ from, to }: { from: string; to: string 
     <div className="mt-4 space-y-3">
       <SummaryCard>
         <MetricTile
-          label={`Readmission, same Dx, ≤${SAME_DX_WINDOW_DAYS}d`}
+          label={`Повторная госпитализация, тот же диагноз, ≤${SAME_DX_WINDOW_DAYS} дн`}
           value={
             sameDxStats.eligible > 0
               ? `${sameDxStats.readmittedSameDx} / ${sameDxStats.eligible} (${((sameDxStats.readmittedSameDx / sameDxStats.eligible) * 100).toFixed(1)}%)`
@@ -153,21 +153,21 @@ export default function ReadmissionTab({ from, to }: { from: string; to: string 
         />
       </SummaryCard>
       <p className="text-xs text-muted-foreground">
-        Readmission (any cause) = same patient admitted again within {READMISSION_WINDOW_DAYS} days of a discharge in this period. Same-diagnosis stat above compares each discharge's main diagnosis to the readmission's main diagnosis within {SAME_DX_WINDOW_DAYS} days; discharges with no main diagnosis recorded are excluded from that denominator. Deceased discharges are excluded from both.
+        Повторная госпитализация (любая причина) = тот же пациент повторно поступил в течение {READMISSION_WINDOW_DAYS} дней после выписки в этом периоде. Показатель по тому же диагнозу сравнивает основной диагноз при выписке с основным диагнозом при повторной госпитализации в течение {SAME_DX_WINDOW_DAYS} дней; выписки без указанного основного диагноза исключены из этого знаменателя. Умершие при выписке исключены из обоих показателей.
       </p>
       <div className="rounded-md border bg-card">
         {isLoading ? (
-          <p className="p-4 text-sm text-muted-foreground">Loading…</p>
+          <p className="p-4 text-sm text-muted-foreground">Загрузка…</p>
         ) : rows.length === 0 ? (
-          <p className="p-4 text-sm text-muted-foreground">No eligible discharges in this period.</p>
+          <p className="p-4 text-sm text-muted-foreground">За этот период подходящих выписок нет.</p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Department</TableHead>
-                <TableHead className="text-right">Discharges</TableHead>
-                <TableHead className="text-right">Readmitted (≤{READMISSION_WINDOW_DAYS}d)</TableHead>
-                <TableHead className="text-right">Readmission Rate</TableHead>
+                <TableHead>Отделение</TableHead>
+                <TableHead className="text-right">Выписки</TableHead>
+                <TableHead className="text-right">Повторно госпитализированы (≤{READMISSION_WINDOW_DAYS} дн)</TableHead>
+                <TableHead className="text-right">Частота повторных госпитализаций</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -184,7 +184,7 @@ export default function ReadmissionTab({ from, to }: { from: string; to: string 
             </TableBody>
             <TableFooter>
               <TableRow>
-                <TableCell className="font-semibold">Total</TableCell>
+                <TableCell className="font-semibold">Итого</TableCell>
                 <TableCell className="text-right font-semibold">{totalEligible}</TableCell>
                 <TableCell className="text-right font-semibold">{totalReadmitted}</TableCell>
                 <TableCell className="text-right font-semibold">

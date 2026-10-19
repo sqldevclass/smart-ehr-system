@@ -46,7 +46,7 @@ export default function PhysicianMonthlyTab({ from, to }: { from: string; to: st
   const rows = useMemo<Row[]>(() => {
     const byKey = new Map<string, Row>();
     items.forEach((i) => {
-      const physician = i.rendered_by_name || "Unassigned";
+      const physician = i.rendered_by_name || "Не указан";
       const month = format(new Date(i.report_date), "yyyy-MM");
       const key = `${physician}__${month}`;
       const row = byKey.get(key) || { physician, month, count: 0, revenue: 0 };
@@ -58,10 +58,10 @@ export default function PhysicianMonthlyTab({ from, to }: { from: string; to: st
   }, [items]);
 
   const columns: ColumnDef<Row, any>[] = [
-    { id: "physician", header: "Physician", accessorFn: (r) => r.physician },
-    { id: "month", header: "Month", accessorFn: (r) => r.month },
-    { id: "count", header: "Services", accessorFn: (r) => r.count, meta: { align: "right" } },
-    { id: "revenue", header: "Revenue", accessorFn: (r) => fmt(r.revenue), meta: { align: "right" } },
+    { id: "physician", header: "Врач", accessorFn: (r) => r.physician },
+    { id: "month", header: "Месяц", accessorFn: (r) => r.month },
+    { id: "count", header: "Услуги", accessorFn: (r) => r.count, meta: { align: "right" } },
+    { id: "revenue", header: "Доход", accessorFn: (r) => fmt(r.revenue), meta: { align: "right" } },
   ];
 
   return (
@@ -70,7 +70,7 @@ export default function PhysicianMonthlyTab({ from, to }: { from: string; to: st
         columns={columns}
         data={rows}
         isLoading={isLoading}
-        emptyMessage="No services in this period."
+        emptyMessage="За этот период услуг нет."
         viewKey={VIEW_KEY}
         getRowId={(r) => `${r.physician}-${r.month}`}
       />

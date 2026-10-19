@@ -59,7 +59,7 @@ export default function DailyReportByDepartmentTab({ from, to }: { from: string;
       const inpatient = sumFor("inpatient");
       const operatingRoom = sumFor("operating_room");
       return {
-        name: deptId === "none" ? "Unassigned" : deptNames.get(deptId) ?? "Unknown",
+        name: deptId === "none" ? "Не указано" : deptNames.get(deptId) ?? "Неизвестно",
         outpatient,
         inpatient,
         operatingRoom,
@@ -85,18 +85,18 @@ export default function DailyReportByDepartmentTab({ from, to }: { from: string;
       {rows.length > 0 && <DailyReportDepartmentChart data={rows} />}
       <div className="mt-4 rounded-md border bg-card">
         {isLoading ? (
-          <p className="p-4 text-sm text-muted-foreground">Loading…</p>
+          <p className="p-4 text-sm text-muted-foreground">Загрузка…</p>
         ) : rows.length === 0 ? (
-          <p className="p-4 text-sm text-muted-foreground">No completed services in this period.</p>
+          <p className="p-4 text-sm text-muted-foreground">За этот период завершённых услуг нет.</p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Department</TableHead>
-                <TableHead className="text-right">Outpatient</TableHead>
-                <TableHead className="text-right">Inpatient</TableHead>
-                <TableHead className="text-right">Operating Room</TableHead>
-                <TableHead className="text-right">Total</TableHead>
+                <TableHead>Отделение</TableHead>
+                <TableHead className="text-right">Амбулаторно</TableHead>
+                <TableHead className="text-right">Стационар</TableHead>
+                <TableHead className="text-right">Операционная</TableHead>
+                <TableHead className="text-right">Итого</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -112,7 +112,7 @@ export default function DailyReportByDepartmentTab({ from, to }: { from: string;
             </TableBody>
             <TableFooter>
               <TableRow>
-                <TableCell className="font-semibold">Total</TableCell>
+                <TableCell className="font-semibold">Итого</TableCell>
                 <TableCell className="text-right font-semibold">{fmt(grandTotal.outpatient)}</TableCell>
                 <TableCell className="text-right font-semibold">{fmt(grandTotal.inpatient)}</TableCell>
                 <TableCell className="text-right font-semibold">{fmt(grandTotal.operatingRoom)}</TableCell>
