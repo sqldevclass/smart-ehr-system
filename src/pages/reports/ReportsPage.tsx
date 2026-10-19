@@ -14,6 +14,7 @@ import DailyReportByDepartmentTab from "@/components/reports/DailyReportByDepart
 import FinanceServicesTab from "@/components/reports/FinanceServicesTab";
 import CashInflowTab from "@/components/reports/CashInflowTab";
 import TopServicesTab from "@/components/reports/TopServicesTab";
+import PhysicianMonthlyTab from "@/components/reports/PhysicianMonthlyTab";
 
 const defaultPeriod = (): PeriodState => ({
   period: "custom",
@@ -79,6 +80,7 @@ export default function ReportsPage() {
                 <TabsTrigger value="physio" disabled>Physio/SPA</TabsTrigger>
                 <TabsTrigger value="top-services">Top Services</TabsTrigger>
                 <TabsTrigger value="patient-count" disabled>Patient Count</TabsTrigger>
+                <TabsTrigger value="by-physician">By Physician</TabsTrigger>
                 {canViewFinance && <TabsTrigger value="services">Услуги</TabsTrigger>}
               </TabsList>
               <TabsContent value="summary">
@@ -92,6 +94,9 @@ export default function ReportsPage() {
               </TabsContent>
               <TabsContent value="top-services">
                 <TopServicesTab from={from} to={to} />
+              </TabsContent>
+              <TabsContent value="by-physician">
+                <PhysicianMonthlyTab from={from} to={to} />
               </TabsContent>
               {canViewFinance && (
                 <TabsContent value="services" className="h-[70vh] min-h-0">

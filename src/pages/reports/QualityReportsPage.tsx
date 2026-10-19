@@ -14,6 +14,10 @@ import MortalityTab from "@/components/reports/MortalityTab";
 import ReadmissionTab from "@/components/reports/ReadmissionTab";
 import VteTab from "@/components/reports/VteTab";
 import AlosTab from "@/components/reports/AlosTab";
+import CensusTab from "@/components/reports/CensusTab";
+import SurgicalVolumeTab from "@/components/reports/SurgicalVolumeTab";
+import TopDiagnosesTab from "@/components/reports/TopDiagnosesTab";
+import SafetyTab from "@/components/reports/SafetyTab";
 import AntibioticTimeoutTab from "@/components/reports/AntibioticTimeoutTab";
 import CriticalLabValuesTab from "@/components/reports/CriticalLabValuesTab";
 
@@ -69,16 +73,23 @@ export default function QualityReportsPage() {
               <PeriodFilter value={period} onChange={setPeriod} />
             </div>
 
-            <Tabs defaultValue="acquisition" className="w-full">
+            <Tabs defaultValue="census" className="w-full">
               <TabsList className="flex flex-wrap h-auto">
+                <TabsTrigger value="census">Census</TabsTrigger>
                 <TabsTrigger value="acquisition">How They Heard</TabsTrigger>
                 <TabsTrigger value="mortality">Mortality</TabsTrigger>
                 <TabsTrigger value="readmissions">Readmissions</TabsTrigger>
                 <TabsTrigger value="vte">VTE</TabsTrigger>
                 <TabsTrigger value="alos">Avg. Length of Stay</TabsTrigger>
+                <TabsTrigger value="surgical-volume">Surgical Volume</TabsTrigger>
+                <TabsTrigger value="diagnoses">Diagnoses</TabsTrigger>
+                <TabsTrigger value="safety">Safety</TabsTrigger>
                 <TabsTrigger value="antibiotic-timeout">Antibiotic Prophylaxis Timing</TabsTrigger>
                 <TabsTrigger value="critical-lab">Critical Lab Values</TabsTrigger>
               </TabsList>
+              <TabsContent value="census">
+                <CensusTab from={from} to={to} />
+              </TabsContent>
               <TabsContent value="acquisition">
                 <RegistrationSourceTab from={from} to={to} />
               </TabsContent>
@@ -93,6 +104,15 @@ export default function QualityReportsPage() {
               </TabsContent>
               <TabsContent value="alos">
                 <AlosTab from={from} to={to} />
+              </TabsContent>
+              <TabsContent value="surgical-volume">
+                <SurgicalVolumeTab from={from} to={to} />
+              </TabsContent>
+              <TabsContent value="diagnoses">
+                <TopDiagnosesTab from={from} to={to} />
+              </TabsContent>
+              <TabsContent value="safety">
+                <SafetyTab from={from} to={to} />
               </TabsContent>
               <TabsContent value="antibiotic-timeout">
                 <AntibioticTimeoutTab from={from} to={to} />
