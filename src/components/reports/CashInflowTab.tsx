@@ -2,16 +2,25 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import {
-  Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+import type { ColumnDef } from "@tanstack/react-table";
+import { TableCell, TableRow } from "@/components/ui/table";
+import { DataTable } from "@/components/reports/data-table/DataTable";
 import DailyReportSummaryChart from "@/components/reports/DailyReportSummaryChart";
+
+const VIEW_KEY = "cash_inflow_columns";
 
 interface PaymentItem {
   payment_method_code: string;
   payment_method_name: string;
   amount: number;
   is_refunded: boolean;
+}
+
+interface Row {
+  name: string;
+  amount: number;
+  count: number;
+  priorAmount: number;
 }
 
 const fmt = (n: number) =>
@@ -60,8 +69,8 @@ export default function CashInflowTab({ from, to }: { from: string; to: string }
     enabled: !!user,
   });
 
-  const rows = useMemo(() => {
-    const byCode = new Map<string, { name: string; amount: number; count: number; priorAmount: number }>();
+  const rows = useMemo<Row[]>(() => {
+    const byCode = new Map<string, Row>();
     items.forEach((i) => {
       const row = byCode.get(i.payment_method_code) || {
         name: i.payment_method_name, amount: 0, count: 0, priorAmount: 0,
@@ -77,8 +86,12 @@ export default function CashInflowTab({ from, to }: { from: string; to: string }
     return Array.from(byCode.values()).sort((a, b) => b.amount - a.amount);
   }, [items, priorYearItems]);
 
-  const total = rows.reduce((sum, r) => sum + r.amount, 0);
-  const priorTotal = rows.reduce((sum, r) => sum + r.priorAmount, 0);
+  const columns: ColumnDef<Row, any>[] = [
+    { id: "name", header: "Payment Method", accessorFn: (r) => r.name },
+    { id: "count", header: "Count", accessorFn: (r) => r.count, meta: { align: "right" } },
+    { id: "amount", header: "Amount", accessorFn: (r) => fmt(r.amount), meta: { align: "right" } },
+    { id: "prior", header: "Same Period Last Year", accessorFn: (r) => fmt(r.priorAmount), meta: { align: "right" } },
+  ];
 
   return (
     <div className="mt-4 space-y-6">
@@ -89,43 +102,33 @@ export default function CashInflowTab({ from, to }: { from: string; to: string }
         />
       )}
 
-      <div className="rounded-md border bg-card">
-        {isLoading ? (
-          <p className="p-4 text-sm text-muted-foreground">Loading…</p>
-        ) : rows.length === 0 ? (
-          <p className="p-4 text-sm text-muted-foreground">No payments in this period.</p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Payment Method</TableHead>
-                <TableHead className="text-right">Count</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead className="text-right">Same Period Last Year</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((r) => (
-                <TableRow key={r.name}>
-                  <TableCell>{r.name}</TableCell>
-                  <TableCell className="text-right">{r.count}</TableCell>
-                  <TableCell className="text-right">{fmt(r.amount)}</TableCell>
-                  <TableCell className="text-right text-muted-foreground">{fmt(r.priorAmount)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-            <TableFooter>
+      <div className="h-[55vh] min-h-0">
+        <DataTable
+          columns={columns}
+          data={rows}
+          isLoading={isLoading}
+          emptyMessage="No payments in this period."
+          viewKey={VIEW_KEY}
+          getRowId={(r) => r.name}
+          renderFooter={(table) => {
+            const filteredRows = table.getRowModel().rows;
+            const totals: Record<string, string | number> = {
+              count: filteredRows.reduce((s, r) => s + r.original.count, 0),
+              amount: fmt(filteredRows.reduce((s, r) => s + r.original.amount, 0)),
+              prior: fmt(filteredRows.reduce((s, r) => s + r.original.priorAmount, 0)),
+            };
+            return (
               <TableRow>
                 <TableCell className="font-semibold">Total</TableCell>
-                <TableCell className="text-right font-semibold">
-                  {rows.reduce((s, r) => s + r.count, 0)}
-                </TableCell>
-                <TableCell className="text-right font-semibold">{fmt(total)}</TableCell>
-                <TableCell className="text-right font-semibold text-muted-foreground">{fmt(priorTotal)}</TableCell>
+                {table.getVisibleLeafColumns().map((column) => (
+                  <TableCell key={column.id} className="text-right font-semibold">
+                    {totals[column.id] ?? ""}
+                  </TableCell>
+                ))}
               </TableRow>
-            </TableFooter>
-          </Table>
-        )}
+            );
+          }}
+        />
       </div>
     </div>
   );
