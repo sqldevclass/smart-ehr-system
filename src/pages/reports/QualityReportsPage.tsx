@@ -18,6 +18,8 @@ import CensusTab from "@/components/reports/CensusTab";
 import SurgicalVolumeTab from "@/components/reports/SurgicalVolumeTab";
 import TopDiagnosesTab from "@/components/reports/TopDiagnosesTab";
 import SafetyTab from "@/components/reports/SafetyTab";
+import AntibioticTimeoutTab from "@/components/reports/AntibioticTimeoutTab";
+import CriticalLabValuesTab from "@/components/reports/CriticalLabValuesTab";
 
 const defaultPeriod = (): PeriodState => ({
   period: "custom",
@@ -82,6 +84,8 @@ export default function QualityReportsPage() {
                 <TabsTrigger value="surgical-volume">Surgical Volume</TabsTrigger>
                 <TabsTrigger value="diagnoses">Diagnoses</TabsTrigger>
                 <TabsTrigger value="safety">Safety</TabsTrigger>
+                <TabsTrigger value="antibiotic-timeout">Antibiotic Prophylaxis Timing</TabsTrigger>
+                <TabsTrigger value="critical-lab">Critical Lab Values</TabsTrigger>
               </TabsList>
               <TabsContent value="census">
                 <CensusTab from={from} to={to} />
@@ -109,6 +113,12 @@ export default function QualityReportsPage() {
               </TabsContent>
               <TabsContent value="safety">
                 <SafetyTab from={from} to={to} />
+              </TabsContent>
+              <TabsContent value="antibiotic-timeout">
+                <AntibioticTimeoutTab from={from} to={to} />
+              </TabsContent>
+              <TabsContent value="critical-lab">
+                <CriticalLabValuesTab from={from} to={to} />
               </TabsContent>
             </Tabs>
           </div>
