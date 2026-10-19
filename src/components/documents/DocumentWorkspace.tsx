@@ -14,7 +14,6 @@ import DocumentWorkspaceInner from "./DocumentWorkspaceInner";
 interface Props {
   visitServiceId: string;
   patientId: string;
-  visitId: string;
   hospitalId: string;
   documentTypeId: string;
   serviceStatusCode: string;
@@ -29,7 +28,14 @@ interface Props {
 
 export default function DocumentWorkspace(props: Props) {
   const { user } = useAuth();
-  const { visitServiceId, patientId, visitId, hospitalId, documentTypeId, hospitalizationId, existingDocumentId } = props;
+  const {
+    visitServiceId: visitServiceIdHint,
+    patientId,
+    hospitalId,
+    documentTypeId,
+    hospitalizationId: hospitalizationIdHint,
+    existingDocumentId,
+  } = props;
 
   const { data: sectionsData } = useQuery({
     queryKey: ["doc-ws-sections", documentTypeId],
@@ -90,6 +96,53 @@ export default function DocumentWorkspace(props: Props) {
   });
 
   const isConsultation = (documentType as any)?.code === "consultation";
+
+  // A document's own saved links (hospitalization_id / visit_service_id) are the
+  // single source of truth for its scope once it exists in the DB — the same
+  // pattern DocumentViewPage already uses for its read-only view. Only a
+  // brand-new document (no existingDocumentId yet) falls back to whatever the
+  // caller passed in, because there's nothing in the DB to read yet.
+  const { data: docScope } = useQuery({
+    queryKey: ["doc-ws-scope", existingDocumentId],
+    ...queryDefaults,
+    enabled: !!existingDocumentId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("patient_documents")
+        .select("hospitalization_id, visit_service_id")
+        .eq("id", existingDocumentId)
+        .single();
+      return data;
+    },
+  });
+  const scopeLoaded = !existingDocumentId || docScope !== undefined;
+
+  const hospitalizationId = existingDocumentId
+    ? (docScope?.hospitalization_id || undefined)
+    : hospitalizationIdHint;
+  const visitServiceId = existingDocumentId
+    ? (docScope?.visit_service_id || undefined)
+    : visitServiceIdHint;
+
+  // visit_id is never stored directly on patient_documents — it only exists via
+  // visit_services.visit_id for a visit-scoped (outpatient) service order. Derive
+  // it from the resolved visit_service_id instead of trusting a separately
+  // threaded prop, so it can't drift out of sync with the actual link.
+  const { data: visitServiceRow } = useQuery({
+    queryKey: ["doc-ws-visit-service", visitServiceId],
+    ...queryDefaults,
+    enabled: !!visitServiceId && !hospitalizationId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("visit_services")
+        .select("visit_id")
+        .eq("id", visitServiceId)
+        .single();
+      return data;
+    },
+  });
+  const visitReady = !visitServiceId || !!hospitalizationId || visitServiceRow !== undefined;
+  const visitId = hospitalizationId ? "" : (visitServiceRow?.visit_id || "");
 
   const { data: visitData, refetch: refetchVisit } = useQuery({
     queryKey: ["visit-hosp-rec", visitId],
@@ -244,7 +297,8 @@ export default function DocumentWorkspace(props: Props) {
     },
   });
 
-  const isReady = !!sectionsData && !!fieldsData && !!patient && !!documentType;
+  const isReady =
+    !!sectionsData && !!fieldsData && !!patient && !!documentType && scopeLoaded && visitReady;
 
   if (!isReady) {
     return (
@@ -259,7 +313,7 @@ export default function DocumentWorkspace(props: Props) {
   return (
     <DocumentWorkspaceInner
       key={existingDocumentId ?? visitServiceId ?? "new"}
-      visitServiceId={visitServiceId}
+      visitServiceId={visitServiceId ?? ""}
       patientId={patientId}
       visitId={visitId}
       hospitalId={hospitalId}
