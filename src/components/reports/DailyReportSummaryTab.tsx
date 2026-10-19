@@ -150,11 +150,11 @@ export default function DailyReportSummaryTab({ from, to }: { from: string; to: 
     <div className="mt-4 space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="text-sm text-muted-foreground">
-          New patients this period: <span className="font-semibold text-foreground">{newPatientsCount}</span>
+          Новые пациенты за период: <span className="font-semibold text-foreground">{newPatientsCount}</span>
         </div>
         {canManagePlans && (
           <Button variant="outline" size="sm" onClick={() => setPlanDialogOpen(true)}>
-            Set Revenue Plan
+            Задать план по доходу
           </Button>
         )}
       </div>
@@ -181,17 +181,17 @@ export default function DailyReportSummaryTab({ from, to }: { from: string; to: 
 
       <div className="rounded-md border bg-card">
         {isLoading ? (
-          <p className="p-4 text-sm text-muted-foreground">Loading…</p>
+          <p className="p-4 text-sm text-muted-foreground">Загрузка…</p>
         ) : rows.length === 0 ? (
-          <p className="p-4 text-sm text-muted-foreground">No completed services in this period.</p>
+          <p className="p-4 text-sm text-muted-foreground">За этот период завершённых услуг нет.</p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Service Category</TableHead>
-                <TableHead className="text-right">Services</TableHead>
-                <TableHead className="text-right">Visitors</TableHead>
-                <TableHead className="text-right">Revenue</TableHead>
+                <TableHead>Категория услуг</TableHead>
+                <TableHead className="text-right">Услуги</TableHead>
+                <TableHead className="text-right">Посетители</TableHead>
+                <TableHead className="text-right">Доход</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -206,7 +206,7 @@ export default function DailyReportSummaryTab({ from, to }: { from: string; to: 
             </TableBody>
             <TableFooter>
               <TableRow>
-                <TableCell className="font-semibold">Total</TableCell>
+                <TableCell className="font-semibold">Итого</TableCell>
                 <TableCell className="text-right font-semibold">{totals.serviceCount}</TableCell>
                 <TableCell />
                 <TableCell className="text-right font-semibold">{fmt(totals.revenue)}</TableCell>

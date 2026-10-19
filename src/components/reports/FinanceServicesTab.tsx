@@ -133,7 +133,7 @@ export default function FinanceServicesTab({ period, onPeriodChange }: Props) {
       columns={columns}
       data={items}
       isLoading={isLoading}
-      emptyMessage="No services in this period."
+      emptyMessage="За этот период услуг нет."
       viewKey={VIEW_KEY}
       getRowId={(r) => r.visit_service_id}
       renderFooter={(table) => {

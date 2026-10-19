@@ -72,7 +72,7 @@ export function PeriodFilter({ value, onChange }: Props) {
         <PopoverTrigger asChild>
           <Button variant="outline" size="sm" className="h-8 gap-2">
             <CalendarIcon className="h-4 w-4" />
-            {fromDate ? format(fromDate, "dd.MM.yyyy") : "From"}
+            {fromDate ? format(fromDate, "dd.MM.yyyy") : "От"}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
@@ -84,7 +84,7 @@ export function PeriodFilter({ value, onChange }: Props) {
         <PopoverTrigger asChild>
           <Button variant="outline" size="sm" className="h-8 gap-2">
             <CalendarIcon className="h-4 w-4" />
-            {toDate ? format(toDate, "dd.MM.yyyy") : "To"}
+            {toDate ? format(toDate, "dd.MM.yyyy") : "До"}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">

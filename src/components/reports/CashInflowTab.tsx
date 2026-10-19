@@ -87,10 +87,10 @@ export default function CashInflowTab({ from, to }: { from: string; to: string }
   }, [items, priorYearItems]);
 
   const columns: ColumnDef<Row, any>[] = [
-    { id: "name", header: "Payment Method", accessorFn: (r) => r.name },
-    { id: "count", header: "Count", accessorFn: (r) => r.count, meta: { align: "right" } },
-    { id: "amount", header: "Amount", accessorFn: (r) => fmt(r.amount), meta: { align: "right" } },
-    { id: "prior", header: "Same Period Last Year", accessorFn: (r) => fmt(r.priorAmount), meta: { align: "right" } },
+    { id: "name", header: "Способ оплаты", accessorFn: (r) => r.name },
+    { id: "count", header: "Количество", accessorFn: (r) => r.count, meta: { align: "right" } },
+    { id: "amount", header: "Сумма", accessorFn: (r) => fmt(r.amount), meta: { align: "right" } },
+    { id: "prior", header: "Тот же период в прошлом году", accessorFn: (r) => fmt(r.priorAmount), meta: { align: "right" } },
   ];
 
   return (
@@ -98,7 +98,7 @@ export default function CashInflowTab({ from, to }: { from: string; to: string }
       {rows.length > 0 && (
         <DailyReportSummaryChart
           data={rows.map((r) => ({ name: r.name, revenue: r.amount }))}
-          title="Cash Inflow by Payment Method"
+          title="Поступления по способу оплаты"
         />
       )}
 
@@ -107,7 +107,7 @@ export default function CashInflowTab({ from, to }: { from: string; to: string }
           columns={columns}
           data={rows}
           isLoading={isLoading}
-          emptyMessage="No payments in this period."
+          emptyMessage="За этот период платежей нет."
           viewKey={VIEW_KEY}
           getRowId={(r) => r.name}
           renderFooter={(table) => {
@@ -119,7 +119,7 @@ export default function CashInflowTab({ from, to }: { from: string; to: string }
             };
             return (
               <TableRow>
-                <TableCell className="font-semibold">Total</TableCell>
+                <TableCell className="font-semibold">Итого</TableCell>
                 {table.getVisibleLeafColumns().map((column) => (
                   <TableCell key={column.id} className="text-right font-semibold">
                     {totals[column.id] ?? ""}

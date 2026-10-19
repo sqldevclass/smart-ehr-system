@@ -77,6 +77,7 @@ export default function AntibioticTimeoutTab({ from, to }: { from: string; to: s
         .select("id, hospitalization_id")
         .eq("hospital_id", user.hospitalId)
         .eq("document_type_id", OPERATION_PROTOCOL_DOC_TYPE_ID)
+        .eq("status", "completed")
         .in("hospitalization_id", hospIds);
       if (error) throw error;
       return (data || []) as { id: string; hospitalization_id: string }[];
@@ -165,14 +166,14 @@ export default function AntibioticTimeoutTab({ from, to }: { from: string; to: s
   }, [slots, protocolDocs, fieldValues]);
 
   const columns: ColumnDef<ReportRow, any>[] = [
-    { id: "patient_number", header: "Patient ID", accessorFn: (r) => r.patientNumber },
-    { id: "patient", header: "Patient", accessorFn: (r) => r.patientLabel },
-    { id: "operation", header: "Operation", accessorFn: (r) => r.operationName || "No operation protocol found" },
-    { id: "administered_at", header: "Administered At", accessorFn: (r) => format(r.administeredAt, "dd.MM.yyyy HH:mm") },
-    { id: "surgery_start", header: "Surgery Start", accessorFn: (r) => (r.startDatetime ? format(r.startDatetime, "dd.MM.yyyy HH:mm") : "—") },
+    { id: "patient_number", header: "ID пациента", accessorFn: (r) => r.patientNumber },
+    { id: "patient", header: "Пациент", accessorFn: (r) => r.patientLabel },
+    { id: "operation", header: "Операция", accessorFn: (r) => r.operationName || "Протокол операции не найден" },
+    { id: "administered_at", header: "Введено", accessorFn: (r) => format(r.administeredAt, "dd.MM.yyyy HH:mm") },
+    { id: "surgery_start", header: "Начало операции", accessorFn: (r) => (r.startDatetime ? format(r.startDatetime, "dd.MM.yyyy HH:mm") : "—") },
     {
       id: "diff",
-      header: "Diff (min)",
+      header: "Разница (мин)",
       accessorFn: (r) => (r.diffMinutes !== null ? r.diffMinutes : ""),
       meta: { align: "right" },
       cell: ({ row }) => {
@@ -186,14 +187,14 @@ export default function AntibioticTimeoutTab({ from, to }: { from: string; to: s
   return (
     <div className="mt-4 space-y-3">
       <p className="text-xs text-muted-foreground">
-        Time between antibiotic prophylaxis administration and the matched surgery's start time. Rows ≥{HIGHLIGHT_THRESHOLD_MIN} min off target have the Diff column highlighted.
+        Время между введением антибиотикопрофилактики и началом подобранной операции. Строки с разницей ≥{HIGHLIGHT_THRESHOLD_MIN} мин от целевого значения выделены в столбце «Разница».
       </p>
       <div className="h-[65vh] min-h-0">
         <DataTable
           columns={columns}
           data={rows}
           isLoading={isLoading}
-          emptyMessage="No antibiotic prophylaxis administrations in this period."
+          emptyMessage="За этот период введений антибиотикопрофилактики не зарегистрировано."
           viewKey={VIEW_KEY}
           getRowId={(r) => r.id}
         />

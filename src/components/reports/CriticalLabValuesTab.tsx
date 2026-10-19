@@ -21,8 +21,8 @@ interface CriticalLabItem {
 }
 
 const FLAG_LABELS: Record<string, string> = {
-  critical_high: "Critical High",
-  critical_low: "Critical Low",
+  critical_high: "Критически высокий",
+  critical_low: "Критически низкий",
 };
 
 export default function CriticalLabValuesTab({ from, to }: { from: string; to: string }) {
@@ -55,13 +55,13 @@ export default function CriticalLabValuesTab({ from, to }: { from: string; to: s
   });
 
   const columns: ColumnDef<CriticalLabItem, any>[] = [
-    { id: "date", header: "Date", accessorFn: (r) => (r.completed_at ? format(new Date(r.completed_at), "dd.MM.yyyy HH:mm") : "") },
-    { id: "patient_number", header: "Patient ID", accessorFn: (r) => r.patients?.patient_number || "" },
-    { id: "patient", header: "Patient", accessorFn: (r) => (r.patients ? `${r.patients.last_name} ${r.patients.first_name}` : "") },
-    { id: "parameter", header: "Parameter", accessorFn: (r) => r.parameter_name || "" },
+    { id: "date", header: "Дата", accessorFn: (r) => (r.completed_at ? format(new Date(r.completed_at), "dd.MM.yyyy HH:mm") : "") },
+    { id: "patient_number", header: "ID пациента", accessorFn: (r) => r.patients?.patient_number || "" },
+    { id: "patient", header: "Пациент", accessorFn: (r) => (r.patients ? `${r.patients.last_name} ${r.patients.first_name}` : "") },
+    { id: "parameter", header: "Показатель", accessorFn: (r) => r.parameter_name || "" },
     {
       id: "value",
-      header: "Value",
+      header: "Значение",
       accessorFn: (r) => `${r.value ?? ""} ${r.unit ?? ""}`.trim(),
       meta: { align: "right" },
       cell: ({ row }) => {
@@ -77,13 +77,13 @@ export default function CriticalLabValuesTab({ from, to }: { from: string; to: s
     },
     {
       id: "critical_range",
-      header: "Critical Range",
+      header: "Критический диапазон",
       accessorFn: (r) => `${r.critical_min ?? ""}–${r.critical_max ?? ""} ${r.unit ?? ""}`.trim(),
       meta: { align: "right" },
     },
     {
       id: "flag",
-      header: "Flag",
+      header: "Статус",
       accessorFn: (r) => FLAG_LABELS[r.flag || ""] || r.flag || "",
       cell: ({ row }) => (
         <span className="text-destructive font-medium">{FLAG_LABELS[row.original.flag || ""] || row.original.flag}</span>
@@ -97,7 +97,7 @@ export default function CriticalLabValuesTab({ from, to }: { from: string; to: s
         columns={columns}
         data={items}
         isLoading={isLoading}
-        emptyMessage="No critical lab results in this period."
+        emptyMessage="За этот период критических лабораторных показателей нет."
         viewKey={VIEW_KEY}
         getRowId={(r) => r.id}
       />

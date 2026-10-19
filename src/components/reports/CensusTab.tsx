@@ -96,7 +96,7 @@ export default function CensusTab({ from, to }: { from: string; to: string }) {
     rooms.forEach((r) => {
       const key = r.department_id || "none";
       deptByRoom.set(r.id, key);
-      const entry = bedsByDept.get(key) || { name: r.departments?.name || "Unassigned", beds: 0 };
+      const entry = bedsByDept.get(key) || { name: r.departments?.name || "Не указано", beds: 0 };
       entry.beds += r.capacity || 0;
       bedsByDept.set(key, entry);
     });
@@ -126,22 +126,22 @@ export default function CensusTab({ from, to }: { from: string; to: string }) {
   return (
     <div className="mt-4 space-y-4">
       <SummaryCard>
-        <MetricTile label="Admissions" value={admissionCount} />
-        <MetricTile label="Outpatient Patients" value={opPatientCount} />
+        <MetricTile label="Поступления" value={admissionCount} />
+        <MetricTile label="Амбулаторные пациенты" value={opPatientCount} />
       </SummaryCard>
 
       <div>
-        <h3 className="mb-2 text-sm font-semibold text-foreground">Bed Occupancy by Department</h3>
+        <h3 className="mb-2 text-sm font-semibold text-foreground">Занятость коек по отделениям</h3>
         <div className="rounded-md border bg-card">
           {occupancyRows.length === 0 ? (
-            <p className="p-4 text-sm text-muted-foreground">No active rooms configured.</p>
+            <p className="p-4 text-sm text-muted-foreground">Активные палаты не настроены.</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Department</TableHead>
-                  <TableHead className="text-right">Beds</TableHead>
-                  <TableHead className="text-right">Occupancy</TableHead>
+                  <TableHead>Отделение</TableHead>
+                  <TableHead className="text-right">Койки</TableHead>
+                  <TableHead className="text-right">Занятость</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

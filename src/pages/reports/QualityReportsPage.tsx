@@ -37,7 +37,7 @@ export default function QualityReportsPage() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    toast.success("Logged out.");
+    toast.success("Вы вышли из системы.");
     navigate("/login");
   };
 
@@ -48,13 +48,13 @@ export default function QualityReportsPage() {
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <span className="text-sm font-semibold text-foreground">Quality Reports</span>
+          <span className="text-sm font-semibold text-foreground">Отчёты по качеству</span>
         </div>
         {user && (
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
             <span>{user.fullName}</span>
             <RoleSwitcher roles={user.roleDetails} />
-            <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="Logout">
+            <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="Выйти">
               <LogOut className="h-4 w-4" />
             </Button>
           </div>
@@ -64,28 +64,28 @@ export default function QualityReportsPage() {
       <main className="flex-1 p-6 space-y-8 overflow-y-auto">
         {!canView ? (
           <div className="text-sm text-muted-foreground">
-            No reports are available for your role yet.
+            Отчёты для вашей роли недоступны.
           </div>
         ) : (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h1 className="text-lg font-semibold text-foreground">Quality Reports</h1>
+              <h1 className="text-lg font-semibold text-foreground">Отчёты по качеству</h1>
               <PeriodFilter value={period} onChange={setPeriod} />
             </div>
 
             <Tabs defaultValue="census" className="w-full">
               <TabsList className="flex flex-wrap h-auto">
-                <TabsTrigger value="census">Census</TabsTrigger>
-                <TabsTrigger value="acquisition">How They Heard</TabsTrigger>
-                <TabsTrigger value="mortality">Mortality</TabsTrigger>
-                <TabsTrigger value="readmissions">Readmissions</TabsTrigger>
-                <TabsTrigger value="vte">VTE</TabsTrigger>
-                <TabsTrigger value="alos">Avg. Length of Stay</TabsTrigger>
-                <TabsTrigger value="surgical-volume">Surgical Volume</TabsTrigger>
-                <TabsTrigger value="diagnoses">Diagnoses</TabsTrigger>
+                <TabsTrigger value="census">Госпитализация</TabsTrigger>
+                <TabsTrigger value="acquisition">Источник привлечения</TabsTrigger>
+                <TabsTrigger value="mortality">Летальность</TabsTrigger>
+                <TabsTrigger value="readmissions">Повторные госпитализации</TabsTrigger>
+                <TabsTrigger value="vte">ВТЭО</TabsTrigger>
+                <TabsTrigger value="alos">Средний срок госпитализации</TabsTrigger>
+                <TabsTrigger value="surgical-volume">Объём операций</TabsTrigger>
+                <TabsTrigger value="diagnoses">Диагнозы</TabsTrigger>
                 <TabsTrigger value="safety">Побочные эффекты анестезии</TabsTrigger>
-                <TabsTrigger value="antibiotic-timeout">Antibiotic Prophylaxis Timing</TabsTrigger>
-                <TabsTrigger value="critical-lab">Critical Lab Values</TabsTrigger>
+                <TabsTrigger value="antibiotic-timeout">Антибиотикопрофилактика</TabsTrigger>
+                <TabsTrigger value="critical-lab">Критические лабораторные показатели</TabsTrigger>
               </TabsList>
               <TabsContent value="census">
                 <CensusTab from={from} to={to} />

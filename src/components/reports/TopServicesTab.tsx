@@ -57,9 +57,9 @@ export default function TopServicesTab({ from, to }: { from: string; to: string 
   }, [items]);
 
   const columns: ColumnDef<Row, any>[] = [
-    { id: "name", header: "Service", accessorFn: (r) => r.name },
-    { id: "count", header: "Count", accessorFn: (r) => r.count, meta: { align: "right" } },
-    { id: "revenue", header: "Revenue", accessorFn: (r) => fmt(r.revenue), meta: { align: "right" } },
+    { id: "name", header: "Услуга", accessorFn: (r) => r.name },
+    { id: "count", header: "Количество", accessorFn: (r) => r.count, meta: { align: "right" } },
+    { id: "revenue", header: "Доход", accessorFn: (r) => fmt(r.revenue), meta: { align: "right" } },
   ];
 
   return (
@@ -68,7 +68,7 @@ export default function TopServicesTab({ from, to }: { from: string; to: string 
         columns={columns}
         data={rows}
         isLoading={isLoading}
-        emptyMessage="No completed services in this period."
+        emptyMessage="За этот период завершённых услуг нет."
         viewKey={VIEW_KEY}
         getRowId={(r) => r.name}
       />

@@ -10,10 +10,10 @@ import DailyReportSummaryChart from "@/components/reports/DailyReportSummaryChar
 const SOURCE_LABELS: Record<string, string> = {
   facebook: "Facebook",
   instagram: "Instagram",
-  google_search: "Google Search",
-  friend_recommendation: "Friend Recommendation",
-  doctor_referral: "Doctor Referral",
-  other: "Other",
+  google_search: "Поиск Google",
+  friend_recommendation: "Рекомендация друга",
+  doctor_referral: "Направление врача",
+  other: "Другое",
 };
 
 export default function RegistrationSourceTab({ from, to }: { from: string; to: string }) {
@@ -45,7 +45,7 @@ export default function RegistrationSourceTab({ from, to }: { from: string; to: 
     return Array.from(byKey.entries())
       .map(([key, count]) => ({
         key,
-        name: key === "not_specified" ? "Not Specified" : (SOURCE_LABELS[key] || key),
+        name: key === "not_specified" ? "Не указано" : (SOURCE_LABELS[key] || key),
         count,
         pct: (count / total) * 100,
       }))
@@ -59,22 +59,22 @@ export default function RegistrationSourceTab({ from, to }: { from: string; to: 
       {rows.length > 0 && (
         <DailyReportSummaryChart
           data={rows.map((r) => ({ name: r.name, revenue: r.count }))}
-          title="Visits by Acquisition Source"
+          title="Визиты по источнику привлечения"
         />
       )}
 
       <div className="rounded-md border bg-card">
         {isLoading ? (
-          <p className="p-4 text-sm text-muted-foreground">Loading…</p>
+          <p className="p-4 text-sm text-muted-foreground">Загрузка…</p>
         ) : rows.length === 0 ? (
-          <p className="p-4 text-sm text-muted-foreground">No visits registered in this period.</p>
+          <p className="p-4 text-sm text-muted-foreground">За этот период визитов не зарегистрировано.</p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Source</TableHead>
-                <TableHead className="text-right">Visits</TableHead>
-                <TableHead className="text-right">% of Total</TableHead>
+                <TableHead>Источник</TableHead>
+                <TableHead className="text-right">Визиты</TableHead>
+                <TableHead className="text-right">% от общего</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -88,7 +88,7 @@ export default function RegistrationSourceTab({ from, to }: { from: string; to: 
             </TableBody>
             <TableFooter>
               <TableRow>
-                <TableCell className="font-semibold">Total</TableCell>
+                <TableCell className="font-semibold">Итого</TableCell>
                 <TableCell className="text-right font-semibold">{total}</TableCell>
                 <TableCell className="text-right font-semibold">100%</TableCell>
               </TableRow>

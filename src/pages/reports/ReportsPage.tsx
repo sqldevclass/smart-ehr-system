@@ -33,7 +33,7 @@ export default function ReportsPage() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    toast.success("Logged out.");
+    toast.success("Вы вышли из системы.");
     navigate("/login");
   };
 
@@ -44,13 +44,13 @@ export default function ReportsPage() {
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <span className="text-sm font-semibold text-foreground">Reports</span>
+          <span className="text-sm font-semibold text-foreground">Отчёты</span>
         </div>
         {user && (
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
             <span>{user.fullName}</span>
             <RoleSwitcher roles={user.roleDetails} />
-            <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="Logout">
+            <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="Выйти">
               <LogOut className="h-4 w-4" />
             </Button>
           </div>
@@ -60,27 +60,27 @@ export default function ReportsPage() {
       <main className={canViewDaily ? "flex-1 p-6 space-y-8 overflow-y-auto" : "flex-1 p-6 pt-3 overflow-hidden flex flex-col"}>
         {!canViewDaily ? (
           <div className="text-sm text-muted-foreground">
-            No reports are available for your role yet.
+            Отчёты для вашей роли недоступны.
           </div>
         ) : (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h1 className="text-lg font-semibold text-foreground">Daily Report</h1>
+              <h1 className="text-lg font-semibold text-foreground">Дневной отчёт</h1>
               <PeriodFilter value={period} onChange={setPeriod} />
             </div>
 
             <Tabs defaultValue="summary" className="w-full">
               <TabsList className="flex flex-wrap h-auto">
-                <TabsTrigger value="summary">Summary</TabsTrigger>
-                <TabsTrigger value="department">By Department</TabsTrigger>
-                <TabsTrigger value="cash-inflow">Cash Inflow</TabsTrigger>
-                <TabsTrigger value="operations" disabled>Operations</TabsTrigger>
-                <TabsTrigger value="diagnostics" disabled>Diagnostics &amp; Lab</TabsTrigger>
-                <TabsTrigger value="polyclinic" disabled>Polyclinic</TabsTrigger>
-                <TabsTrigger value="physio" disabled>Physio/SPA</TabsTrigger>
-                <TabsTrigger value="top-services">Top Services</TabsTrigger>
-                <TabsTrigger value="patient-count" disabled>Patient Count</TabsTrigger>
-                <TabsTrigger value="by-physician">By Physician</TabsTrigger>
+                <TabsTrigger value="summary">Сводка</TabsTrigger>
+                <TabsTrigger value="department">По отделениям</TabsTrigger>
+                <TabsTrigger value="cash-inflow">Поступления денежных средств</TabsTrigger>
+                <TabsTrigger value="operations" disabled>Операции</TabsTrigger>
+                <TabsTrigger value="diagnostics" disabled>Диагностика и лаборатория</TabsTrigger>
+                <TabsTrigger value="polyclinic" disabled>Поликлиника</TabsTrigger>
+                <TabsTrigger value="physio" disabled>Физио/СПА</TabsTrigger>
+                <TabsTrigger value="top-services">Топ услуг</TabsTrigger>
+                <TabsTrigger value="patient-count" disabled>Количество пациентов</TabsTrigger>
+                <TabsTrigger value="by-physician">По врачам</TabsTrigger>
                 {canViewFinance && <TabsTrigger value="services">Услуги</TabsTrigger>}
               </TabsList>
               <TabsContent value="summary">

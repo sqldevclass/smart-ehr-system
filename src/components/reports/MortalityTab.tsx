@@ -52,6 +52,7 @@ export default function MortalityTab({ from, to }: { from: string; to: string })
         .select("hospitalization_id")
         .eq("hospital_id", user.hospitalId)
         .eq("document_type_id", OPERATION_PROTOCOL_DOC_TYPE_ID)
+        .eq("status", "completed")
         .in("hospitalization_id", deceasedIds);
       if (error) throw error;
       return (data || []) as { hospitalization_id: string }[];
@@ -63,7 +64,7 @@ export default function MortalityTab({ from, to }: { from: string; to: string })
     const byDept = new Map<string, { name: string; discharged: number; deceased: number }>();
     items.forEach((i) => {
       const key = i.department_id || "none";
-      const row = byDept.get(key) || { name: i.departments?.name || "Unassigned", discharged: 0, deceased: 0 };
+      const row = byDept.get(key) || { name: i.departments?.name || "Не указано", discharged: 0, deceased: 0 };
       row.discharged += 1;
       if (i.discharge_type === "deceased") row.deceased += 1;
       byDept.set(key, row);
@@ -90,30 +91,30 @@ export default function MortalityTab({ from, to }: { from: string; to: string })
   return (
     <div className="mt-4 space-y-4">
       <SummaryCard>
-        <MetricTile label="Total Deceased" value={totalDeceased} />
-        <MetricTile label="Deaths ≤24h of Admission" value={within24h} highlight={within24h > 0} />
-        <MetricTile label="Post-Operative Deaths" value={postOpDeaths} highlight={postOpDeaths > 0} />
+        <MetricTile label="Всего умерших" value={totalDeceased} />
+        <MetricTile label="Смерти в течение 24ч после поступления" value={within24h} highlight={within24h > 0} />
+        <MetricTile label="Послеоперационные смерти" value={postOpDeaths} highlight={postOpDeaths > 0} />
         <MetricTile
-          label="Overall Mortality Rate"
+          label="Общая летальность"
           value={totalDischarged > 0 ? `${((totalDeceased / totalDischarged) * 100).toFixed(1)}%` : "0.0%"}
         />
       </SummaryCard>
       <p className="text-xs text-muted-foreground">
-        "Post-operative" = deceased during a hospitalization that included an operation protocol, any timing.
+        «Послеоперационная» = смерть во время госпитализации, в ходе которой был подтверждённый протокол операции, независимо от времени.
       </p>
       <div className="rounded-md border bg-card">
         {isLoading ? (
-          <p className="p-4 text-sm text-muted-foreground">Loading…</p>
+          <p className="p-4 text-sm text-muted-foreground">Загрузка…</p>
         ) : rows.length === 0 ? (
-          <p className="p-4 text-sm text-muted-foreground">No discharges in this period.</p>
+          <p className="p-4 text-sm text-muted-foreground">За этот период выписок нет.</p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Department</TableHead>
-                <TableHead className="text-right">Discharged</TableHead>
-                <TableHead className="text-right">Deceased</TableHead>
-                <TableHead className="text-right">Mortality Rate</TableHead>
+                <TableHead>Отделение</TableHead>
+                <TableHead className="text-right">Выписано</TableHead>
+                <TableHead className="text-right">Умерло</TableHead>
+                <TableHead className="text-right">Летальность</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -130,7 +131,7 @@ export default function MortalityTab({ from, to }: { from: string; to: string })
             </TableBody>
             <TableFooter>
               <TableRow>
-                <TableCell className="font-semibold">Total</TableCell>
+                <TableCell className="font-semibold">Итого</TableCell>
                 <TableCell className="text-right font-semibold">{totalDischarged}</TableCell>
                 <TableCell className="text-right font-semibold">{totalDeceased}</TableCell>
                 <TableCell className="text-right font-semibold">

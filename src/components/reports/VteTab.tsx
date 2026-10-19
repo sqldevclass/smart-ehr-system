@@ -58,7 +58,7 @@ export default function VteTab({ from, to }: { from: string; to: string }) {
     const byKey = new Map<string, { scale: string; level: string; count: number }>();
     riskItems.forEach((r) => {
       const scale = r.clinical_scales?.name_ru || "—";
-      const level = r.risk_level || "Not scored";
+      const level = r.risk_level || "Не оценено";
       const key = `${scale}__${level}`;
       const row = byKey.get(key) || { scale, level, count: 0 };
       row.count += 1;
@@ -80,19 +80,19 @@ export default function VteTab({ from, to }: { from: string; to: string }) {
   return (
     <div className="mt-4 space-y-6">
       <div>
-        <h3 className="mb-2 text-sm font-semibold text-foreground">VTE Risk Assessments (Wells DVT / Wells PE)</h3>
+        <h3 className="mb-2 text-sm font-semibold text-foreground">Оценка риска ВТЭО (Wells DVT / Wells PE)</h3>
         <div className="rounded-md border bg-card">
           {loadingRisk ? (
-            <p className="p-4 text-sm text-muted-foreground">Loading…</p>
+            <p className="p-4 text-sm text-muted-foreground">Загрузка…</p>
           ) : riskRows.length === 0 ? (
-            <p className="p-4 text-sm text-muted-foreground">No Wells scale assessments in this period.</p>
+            <p className="p-4 text-sm text-muted-foreground">За этот период оценок по шкале Wells нет.</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Scale</TableHead>
-                  <TableHead>Risk Level</TableHead>
-                  <TableHead className="text-right">Count</TableHead>
+                  <TableHead>Шкала</TableHead>
+                  <TableHead>Уровень риска</TableHead>
+                  <TableHead className="text-right">Количество</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -110,19 +110,19 @@ export default function VteTab({ from, to }: { from: string; to: string }) {
       </div>
 
       <div>
-        <h3 className="mb-2 text-sm font-semibold text-foreground">Confirmed VTE Diagnoses (ICD-10 I26, I80–I82)</h3>
+        <h3 className="mb-2 text-sm font-semibold text-foreground">Подтверждённые диагнозы ВТЭО (ICD-10 I26, I80–I82)</h3>
         <div className="rounded-md border bg-card">
           {loadingDx ? (
-            <p className="p-4 text-sm text-muted-foreground">Loading…</p>
+            <p className="p-4 text-sm text-muted-foreground">Загрузка…</p>
           ) : diagnosisRows.length === 0 ? (
-            <p className="p-4 text-sm text-muted-foreground">No VTE diagnoses recorded in this period.</p>
+            <p className="p-4 text-sm text-muted-foreground">За этот период диагнозов ВТЭО нет.</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>ICD-10</TableHead>
                   <TableHead>Diagnosis</TableHead>
-                  <TableHead className="text-right">Count</TableHead>
+                  <TableHead className="text-right">Количество</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
