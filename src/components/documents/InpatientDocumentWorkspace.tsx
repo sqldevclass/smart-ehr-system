@@ -19,7 +19,6 @@ export default function InpatientDocumentWorkspace(props: Props) {
   const extra: any = {
     visitServiceId: props.visitServiceId,
     patientId: props.patientId,
-    visitId: "",
     hospitalId: props.hospitalId,
     documentTypeId: props.documentTypeId,
     hospitalizationId: props.hospitalizationId,
