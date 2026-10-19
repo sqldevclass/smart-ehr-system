@@ -93,10 +93,10 @@ export default function VteTab({ from, to }: { from: string; to: string }) {
                   <TableHead>Шкала</TableHead>
                   <TableHead>Уровень риска</TableHead>
                   <TableHead className="text-right">Количество</TableHead>
-                  bleRow>
-                  eHeader>
-                  Body>
-                  kRows.map((r) => (
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {riskRows.map((r) => (
                   <TableRow key={`${r.scale}-${r.level}`}>
                     <TableCell>{r.scale}</TableCell>
                     <TableCell>{r.level}</TableCell>
