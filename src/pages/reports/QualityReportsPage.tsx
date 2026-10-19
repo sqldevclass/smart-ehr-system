@@ -83,7 +83,7 @@ export default function QualityReportsPage() {
                 <TabsTrigger value="alos">Avg. Length of Stay</TabsTrigger>
                 <TabsTrigger value="surgical-volume">Surgical Volume</TabsTrigger>
                 <TabsTrigger value="diagnoses">Diagnoses</TabsTrigger>
-                <TabsTrigger value="safety">Safety</TabsTrigger>
+                <TabsTrigger value="safety">Побочные эффекты анестезии</TabsTrigger>
                 <TabsTrigger value="antibiotic-timeout">Antibiotic Prophylaxis Timing</TabsTrigger>
                 <TabsTrigger value="critical-lab">Critical Lab Values</TabsTrigger>
               </TabsList>
