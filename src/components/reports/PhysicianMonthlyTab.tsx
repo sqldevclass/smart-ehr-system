@@ -3,13 +3,21 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+import type { ColumnDef } from "@tanstack/react-table";
+import { DataTable } from "@/components/reports/data-table/DataTable";
+
+const VIEW_KEY = "physician_monthly_columns";
 
 interface ServiceItem {
   rendered_by_name: string | null;
   report_date: string;
+  revenue: number;
+}
+
+interface Row {
+  physician: string;
+  month: string;
+  count: number;
   revenue: number;
 }
 
@@ -35,8 +43,8 @@ export default function PhysicianMonthlyTab({ from, to }: { from: string; to: st
     enabled: !!user,
   });
 
-  const rows = useMemo(() => {
-    const byKey = new Map<string, { physician: string; month: string; count: number; revenue: number }>();
+  const rows = useMemo<Row[]>(() => {
+    const byKey = new Map<string, Row>();
     items.forEach((i) => {
       const physician = i.rendered_by_name || "Unassigned";
       const month = format(new Date(i.report_date), "yyyy-MM");
@@ -49,34 +57,23 @@ export default function PhysicianMonthlyTab({ from, to }: { from: string; to: st
     return Array.from(byKey.values()).sort((a, b) => a.physician.localeCompare(b.physician) || a.month.localeCompare(b.month));
   }, [items]);
 
+  const columns: ColumnDef<Row, any>[] = [
+    { id: "physician", header: "Physician", accessorFn: (r) => r.physician },
+    { id: "month", header: "Month", accessorFn: (r) => r.month },
+    { id: "count", header: "Services", accessorFn: (r) => r.count, meta: { align: "right" } },
+    { id: "revenue", header: "Revenue", accessorFn: (r) => fmt(r.revenue), meta: { align: "right" } },
+  ];
+
   return (
-    <div className="mt-4 rounded-md border bg-card">
-      {isLoading ? (
-        <p className="p-4 text-sm text-muted-foreground">Loading…</p>
-      ) : rows.length === 0 ? (
-        <p className="p-4 text-sm text-muted-foreground">No services in this period.</p>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Physician</TableHead>
-              <TableHead>Month</TableHead>
-              <TableHead className="text-right">Services</TableHead>
-              <TableHead className="text-right">Revenue</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((r) => (
-              <TableRow key={`${r.physician}-${r.month}`}>
-                <TableCell>{r.physician}</TableCell>
-                <TableCell>{r.month}</TableCell>
-                <TableCell className="text-right">{r.count}</TableCell>
-                <TableCell className="text-right">{fmt(r.revenue)}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
+    <div className="mt-4 h-[70vh] min-h-0">
+      <DataTable
+        columns={columns}
+        data={rows}
+        isLoading={isLoading}
+        emptyMessage="No services in this period."
+        viewKey={VIEW_KEY}
+        getRowId={(r) => `${r.physician}-${r.month}`}
+      />
     </div>
   );
 }

@@ -3,11 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+import type { ColumnDef } from "@tanstack/react-table";
+import { DataTable } from "@/components/reports/data-table/DataTable";
 import { cn } from "@/lib/utils";
 
+const VIEW_KEY = "antibiotic_timeout_columns";
 const OPERATION_PROTOCOL_DOC_TYPE_ID = "c1000000-0000-0000-0000-000000000011";
 const SURG_START_FIELD_ID = "b1000000-0000-0000-0000-000000000124";
 const SURG_NAME_FIELD_ID = "b1000000-0000-0000-0000-000000000126";
@@ -104,7 +104,7 @@ export default function AntibioticTimeoutTab({ from, to }: { from: string; to: s
 
   const isLoading = loadingSlots;
 
-  const rows = useMemo(() => {
+  const rows = useMemo<ReportRow[]>(() => {
     const valuesByDoc = new Map<string, { start: string | null; name: string | null }>();
     fieldValues.forEach((fv) => {
       const entry = valuesByDoc.get(fv.patient_document_id) || { start: null, name: null };
@@ -164,47 +164,39 @@ export default function AntibioticTimeoutTab({ from, to }: { from: string; to: s
       .sort((a, b) => b.administeredAt.getTime() - a.administeredAt.getTime());
   }, [slots, protocolDocs, fieldValues]);
 
+  const columns: ColumnDef<ReportRow, any>[] = [
+    { id: "patient_number", header: "Patient ID", accessorFn: (r) => r.patientNumber },
+    { id: "patient", header: "Patient", accessorFn: (r) => r.patientLabel },
+    { id: "operation", header: "Operation", accessorFn: (r) => r.operationName || "No operation protocol found" },
+    { id: "administered_at", header: "Administered At", accessorFn: (r) => format(r.administeredAt, "dd.MM.yyyy HH:mm") },
+    { id: "surgery_start", header: "Surgery Start", accessorFn: (r) => (r.startDatetime ? format(r.startDatetime, "dd.MM.yyyy HH:mm") : "—") },
+    {
+      id: "diff",
+      header: "Diff (min)",
+      accessorFn: (r) => (r.diffMinutes !== null ? r.diffMinutes : ""),
+      meta: { align: "right" },
+      cell: ({ row }) => {
+        const r = row.original;
+        const flagged = r.diffMinutes !== null && Math.abs(r.diffMinutes) >= HIGHLIGHT_THRESHOLD_MIN;
+        return <span className={cn(flagged && "font-semibold text-destructive")}>{r.diffMinutes !== null ? r.diffMinutes : "—"}</span>;
+      },
+    },
+  ];
+
   return (
     <div className="mt-4 space-y-3">
       <p className="text-xs text-muted-foreground">
-        Time between antibiotic prophylaxis administration and the matched surgery's start time (Протокол операции → Проведённые вмешательства). Rows ≥{HIGHLIGHT_THRESHOLD_MIN} min off target are highlighted.
+        Time between antibiotic prophylaxis administration and the matched surgery's start time. Rows ≥{HIGHLIGHT_THRESHOLD_MIN} min off target have the Diff column highlighted.
       </p>
-      <div className="rounded-md border bg-card">
-        {isLoading ? (
-          <p className="p-4 text-sm text-muted-foreground">Loading…</p>
-        ) : rows.length === 0 ? (
-          <p className="p-4 text-sm text-muted-foreground">No antibiotic prophylaxis administrations in this period.</p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Patient ID</TableHead>
-                <TableHead>Patient</TableHead>
-                <TableHead>Operation</TableHead>
-                <TableHead>Administered At</TableHead>
-                <TableHead>Surgery Start</TableHead>
-                <TableHead className="text-right">Diff (min)</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((r) => {
-                const flagged = r.diffMinutes !== null && Math.abs(r.diffMinutes) >= HIGHLIGHT_THRESHOLD_MIN;
-                return (
-                  <TableRow key={r.id} className={cn(flagged && "bg-destructive/10")}>
-                    <TableCell>{r.patientNumber}</TableCell>
-                    <TableCell>{r.patientLabel}</TableCell>
-                    <TableCell>{r.operationName || "No operation protocol found"}</TableCell>
-                    <TableCell>{format(r.administeredAt, "dd.MM.yyyy HH:mm")}</TableCell>
-                    <TableCell>{r.startDatetime ? format(r.startDatetime, "dd.MM.yyyy HH:mm") : "—"}</TableCell>
-                    <TableCell className={cn("text-right", flagged && "font-semibold text-destructive")}>
-                      {r.diffMinutes !== null ? r.diffMinutes : "—"}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        )}
+      <div className="h-[65vh] min-h-0">
+        <DataTable
+          columns={columns}
+          data={rows}
+          isLoading={isLoading}
+          emptyMessage="No antibiotic prophylaxis administrations in this period."
+          viewKey={VIEW_KEY}
+          getRowId={(r) => r.id}
+        />
       </div>
     </div>
   );

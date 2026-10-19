@@ -3,9 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 import { ArrowUp, ArrowDown } from "lucide-react";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+import type { ColumnDef } from "@tanstack/react-table";
+import { DataTable } from "@/components/reports/data-table/DataTable";
+
+const VIEW_KEY = "critical_lab_values_columns";
 
 interface CriticalLabItem {
   id: string;
@@ -53,47 +54,53 @@ export default function CriticalLabValuesTab({ from, to }: { from: string; to: s
     enabled: !!user,
   });
 
+  const columns: ColumnDef<CriticalLabItem, any>[] = [
+    { id: "date", header: "Date", accessorFn: (r) => (r.completed_at ? format(new Date(r.completed_at), "dd.MM.yyyy HH:mm") : "") },
+    { id: "patient_number", header: "Patient ID", accessorFn: (r) => r.patients?.patient_number || "" },
+    { id: "patient", header: "Patient", accessorFn: (r) => (r.patients ? `${r.patients.last_name} ${r.patients.first_name}` : "") },
+    { id: "parameter", header: "Parameter", accessorFn: (r) => r.parameter_name || "" },
+    {
+      id: "value",
+      header: "Value",
+      accessorFn: (r) => `${r.value ?? ""} ${r.unit ?? ""}`.trim(),
+      meta: { align: "right" },
+      cell: ({ row }) => {
+        const r = row.original;
+        return (
+          <span className="inline-flex items-center justify-end gap-1 text-destructive">
+            {r.flag === "critical_high" && <ArrowUp className="h-3.5 w-3.5" />}
+            {r.flag === "critical_low" && <ArrowDown className="h-3.5 w-3.5" />}
+            {r.value} {r.unit || ""}
+          </span>
+        );
+      },
+    },
+    {
+      id: "critical_range",
+      header: "Critical Range",
+      accessorFn: (r) => `${r.critical_min ?? ""}–${r.critical_max ?? ""} ${r.unit ?? ""}`.trim(),
+      meta: { align: "right" },
+    },
+    {
+      id: "flag",
+      header: "Flag",
+      accessorFn: (r) => FLAG_LABELS[r.flag || ""] || r.flag || "",
+      cell: ({ row }) => (
+        <span className="text-destructive font-medium">{FLAG_LABELS[row.original.flag || ""] || row.original.flag}</span>
+      ),
+    },
+  ];
+
   return (
-    <div className="mt-4 rounded-md border bg-card">
-      {isLoading ? (
-        <p className="p-4 text-sm text-muted-foreground">Loading…</p>
-      ) : items.length === 0 ? (
-        <p className="p-4 text-sm text-muted-foreground">No critical lab results in this period.</p>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Patient ID</TableHead>
-              <TableHead>Patient</TableHead>
-              <TableHead>Parameter</TableHead>
-              <TableHead className="text-right">Value</TableHead>
-              <TableHead className="text-right">Critical Range</TableHead>
-              <TableHead>Flag</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {items.map((r) => (
-              <TableRow key={r.id}>
-                <TableCell>{r.completed_at ? format(new Date(r.completed_at), "dd.MM.yyyy HH:mm") : ""}</TableCell>
-                <TableCell>{r.patients?.patient_number || ""}</TableCell>
-                <TableCell>{r.patients ? `${r.patients.last_name} ${r.patients.first_name}` : ""}</TableCell>
-                <TableCell>{r.parameter_name}</TableCell>
-                <TableCell className="text-right">
-                  <span className="inline-flex items-center justify-end gap-1 text-destructive">
-                    {r.flag === "critical_high" && <ArrowUp className="h-3.5 w-3.5" />}
-                    {r.flag === "critical_low" && <ArrowDown className="h-3.5 w-3.5" />}
-                    {r.value} {r.unit || ""}
-                  </span>
-                </TableCell>
-                <TableCell className="text-right">{r.critical_min}–{r.critical_max} {r.unit || ""}</TableCell>
-                <TableCell className="text-destructive font-medium">{FLAG_LABELS[r.flag || ""] || r.flag}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
+    <div className="mt-4 h-[70vh] min-h-0">
+      <DataTable
+        columns={columns}
+        data={items}
+        isLoading={isLoading}
+        emptyMessage="No critical lab results in this period."
+        viewKey={VIEW_KEY}
+        getRowId={(r) => r.id}
+      />
     </div>
   );
 }
-

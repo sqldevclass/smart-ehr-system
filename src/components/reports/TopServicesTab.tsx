@@ -2,12 +2,19 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+import type { ColumnDef } from "@tanstack/react-table";
+import { DataTable } from "@/components/reports/data-table/DataTable";
+
+const VIEW_KEY = "top_services_columns";
 
 interface ServiceItem {
   service_name: string | null;
+  revenue: number;
+}
+
+interface Row {
+  name: string;
+  count: number;
   revenue: number;
 }
 
@@ -34,7 +41,7 @@ export default function TopServicesTab({ from, to }: { from: string; to: string 
     enabled: !!user,
   });
 
-  const rows = useMemo(() => {
+  const rows = useMemo<Row[]>(() => {
     const byName = new Map<string, { count: number; revenue: number }>();
     items.forEach((i) => {
       const name = i.service_name || "—";
@@ -49,34 +56,22 @@ export default function TopServicesTab({ from, to }: { from: string; to: string 
       .slice(0, 100);
   }, [items]);
 
+  const columns: ColumnDef<Row, any>[] = [
+    { id: "name", header: "Service", accessorFn: (r) => r.name },
+    { id: "count", header: "Count", accessorFn: (r) => r.count, meta: { align: "right" } },
+    { id: "revenue", header: "Revenue", accessorFn: (r) => fmt(r.revenue), meta: { align: "right" } },
+  ];
+
   return (
-    <div className="mt-4 rounded-md border bg-card">
-      {isLoading ? (
-        <p className="p-4 text-sm text-muted-foreground">Loading…</p>
-      ) : rows.length === 0 ? (
-        <p className="p-4 text-sm text-muted-foreground">No completed services in this period.</p>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-12">#</TableHead>
-              <TableHead>Service</TableHead>
-              <TableHead className="text-right">Count</TableHead>
-              <TableHead className="text-right">Revenue</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((r, idx) => (
-              <TableRow key={r.name}>
-                <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
-                <TableCell>{r.name}</TableCell>
-                <TableCell className="text-right">{r.count}</TableCell>
-                <TableCell className="text-right">{fmt(r.revenue)}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
+    <div className="mt-4 h-[70vh] min-h-0">
+      <DataTable
+        columns={columns}
+        data={rows}
+        isLoading={isLoading}
+        emptyMessage="No completed services in this period."
+        viewKey={VIEW_KEY}
+        getRowId={(r) => r.name}
+      />
     </div>
   );
 }

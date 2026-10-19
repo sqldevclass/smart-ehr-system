@@ -3,11 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+import type { ColumnDef } from "@tanstack/react-table";
+import { DataTable } from "@/components/reports/data-table/DataTable";
 import { MetricTile, SummaryCard } from "@/components/shared/PeriodFilter";
 
+const VIEW_KEY = "safety_sedation_columns";
 const ANESTHESIA_PROTOCOL_DOC_TYPE_ID = "c1000000-0000-0000-0000-000000000010";
 const ANEST_SIDE_EFFECTS_FIELD_ID = "b1000000-0000-0000-0000-000000000163";
 const DAILY_NOTE_DOC_TYPE_ID = "c1000000-0000-0000-0000-000000000002";
@@ -80,6 +80,19 @@ export default function SafetyTab({ from, to }: { from: string; to: string }) {
     return anesthesiaDocs.filter((d) => flaggedIds.has(d.id));
   }, [anesthesiaDocs, sideEffectValues]);
 
+  const columns: ColumnDef<AnesthesiaDoc, any>[] = [
+    { id: "date", header: "Date", accessorFn: (d) => format(new Date(d.created_at), "dd.MM.yyyy HH:mm") },
+    { id: "patient_number", header: "Patient ID", accessorFn: (d) => d.hospitalizations?.patients?.patient_number || "" },
+    {
+      id: "patient",
+      header: "Patient",
+      accessorFn: (d) => {
+        const p = d.hospitalizations?.patients;
+        return p ? `${p.last_name} ${p.first_name}` : "";
+      },
+    },
+  ];
+
   return (
     <div className="mt-4 space-y-4">
       <SummaryCard>
@@ -89,32 +102,14 @@ export default function SafetyTab({ from, to }: { from: string; to: string }) {
 
       <div>
         <h3 className="mb-2 text-sm font-semibold text-foreground">Sedation Complications (Побочные эффекты анестезии)</h3>
-        <div className="rounded-md border bg-card">
-          {sedationComplications.length === 0 ? (
-            <p className="p-4 text-sm text-muted-foreground">No sedation complications recorded in this period.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Patient ID</TableHead>
-                  <TableHead>Patient</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sedationComplications.map((d) => {
-                  const patient = d.hospitalizations?.patients;
-                  return (
-                    <TableRow key={d.id}>
-                      <TableCell>{format(new Date(d.created_at), "dd.MM.yyyy HH:mm")}</TableCell>
-                      <TableCell>{patient?.patient_number || ""}</TableCell>
-                      <TableCell>{patient ? `${patient.last_name} ${patient.first_name}` : ""}</TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
+        <div className="h-[55vh] min-h-0">
+          <DataTable
+            columns={columns}
+            data={sedationComplications}
+            emptyMessage="No sedation complications recorded in this period."
+            viewKey={VIEW_KEY}
+            getRowId={(d) => d.id}
+          />
         </div>
       </div>
     </div>
