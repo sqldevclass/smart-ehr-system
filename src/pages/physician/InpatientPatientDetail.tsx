@@ -17,7 +17,7 @@ import { format, differenceInYears } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import InpatientDocumentWorkspace from "@/components/documents/InpatientDocumentWorkspace";
-import { Eye } from "lucide-react";
+import DocumentTile from "@/components/documents/DocumentTile";
 import DocumentHistory from "@/components/documents/DocumentHistory";
 import EWSSection from "@/components/ews/EWSSection";
 import MedicationTab from "@/components/medication/MedicationTab";
@@ -61,7 +61,14 @@ export default function InpatientPatientDetail() {
   const { physicianId } = usePhysicianId();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { setPatientContext } = usePhysicianLayoutContext();
+  const { setPatientContext, setCompactGutter } = usePhysicianLayoutContext();
+
+  // This page uses a tight left gutter next to the nav bar; restore on leave.
+  useEffect(() => {
+    setCompactGutter(true);
+    return () => setCompactGutter(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const location = useLocation();
 
@@ -275,7 +282,8 @@ export default function InpatientPatientDetail() {
         .from("patient_documents")
         .select(`
           id, status, created_at, completed_at, created_by,
-          document_types!inner(id, name_ru, color)
+          document_types!inner(id, name_ru, color),
+          author:profiles!patient_documents_created_by_fkey(full_name)
         `)
         .eq("hospital_id", user!.hospitalId);
 
@@ -369,6 +377,7 @@ export default function InpatientPatientDetail() {
         .select(`
           id, status, created_at, completed_at, created_by,
           document_types!inner(id, name_ru, color),
+          author:profiles!patient_documents_created_by_fkey(full_name),
           visit_services!patient_documents_visit_service_id_fkey!inner(visit_id)
         `)
         .eq("hospital_id", user.hospitalId)
@@ -599,69 +608,26 @@ export default function InpatientPatientDetail() {
     setActiveView({ type: "tab", tab });
   };
 
-  // Shared row renderer for both the current hospitalization's documents and
-  // the merged-in read-only OP documents -- same look, different behavior.
-  const renderDocItem = (doc: any, opts: { readOnly: boolean; isOp: boolean }) => {
+  const renderDocTile = (doc: any, opts: { readOnly: boolean; isOp: boolean }) => {
     const isCompleted = doc.status === "completed";
     const isOwn = doc.created_by === user?.id;
     const clickable = opts.readOnly || isCompleted || isOwn;
-    const isActive =
-      activeView?.type === "document" && activeView.documentId === doc.id;
     return (
-      <div
+      <DocumentTile
         key={doc.id}
-        onClick={
-          clickable
-            ? () =>
-                setActiveView({
-                  type: "document",
-                  documentId: doc.id,
-                  documentTypeId: doc.document_types?.id,
-                  ...(opts.readOnly ? { forceReadOnly: true } : {}),
-                } as any)
-            : undefined
+        doc={doc}
+        isOp={opts.isOp}
+        disabled={!clickable}
+        isActive={activeView?.type === "document" && activeView.documentId === doc.id}
+        onSelect={() =>
+          setActiveView({
+            type: "document",
+            documentId: doc.id,
+            documentTypeId: doc.document_types?.id,
+            ...(opts.readOnly ? { forceReadOnly: true } : {}),
+          } as any)
         }
-        className={cn(
-          "flex items-center gap-2 p-2 mb-1 rounded text-xs",
-          clickable ? "cursor-pointer hover:bg-muted" : "cursor-default opacity-50",
-          isActive && "bg-muted"
-        )}
-      >
-        <span
-          className="w-2.5 h-2.5 rounded-full shrink-0"
-          style={{ backgroundColor: doc.document_types?.color || "#888" }}
-        />
-        {opts.isOp && (
-          <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-blue-100 text-blue-800 shrink-0">
-            OP
-          </span>
-        )}
-        <span className="flex-1 truncate">
-          {format(new Date(doc.created_at), "dd.MM HH:mm")}{" "}
-          {doc.document_types?.name_ru}
-        </span>
-        <span
-          className={cn(
-            "text-[10px] px-1.5 py-0.5 rounded",
-            isCompleted ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
-          )}
-        >
-          {isCompleted ? "✓" : "●"}
-        </span>
-        {clickable && (
-          <span
-            role="button"
-            title="Просмотреть документ целиком"
-            onClick={(e) => {
-              e.stopPropagation();
-              window.open(`/documents/${doc.id}/view`, "_blank");
-            }}
-            className="shrink-0 p-1 rounded-md border border-border cursor-pointer transition-all hover:bg-muted hover:shadow-md group"
-          >
-            <Eye className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-foreground" />
-          </span>
-        )}
-      </div>
+      />
     );
   };
 
@@ -741,17 +707,17 @@ export default function InpatientPatientDetail() {
 
           <div className="p-3 flex-1 overflow-y-auto space-y-2">
             {thisDocs.length > 0 && (
-              <div className="rounded-[5px] bg-blue-50 p-2">
+              <div className="space-y-2">
                 {thisDocs.map((doc: any) =>
-                  renderDocItem(doc, { readOnly: false, isOp: false })
+                  renderDocTile(doc, { readOnly: false, isOp: false })
                 )}
               </div>
             )}
 
             {!isOutpatientMode && opDocs.length > 0 && (
-              <div className="rounded-[5px] bg-blue-50 p-2">
+              <div className="space-y-2">
                 {opDocs.map((doc: any) =>
-                  renderDocItem(doc, { readOnly: true, isOp: true })
+                  renderDocTile(doc, { readOnly: true, isOp: true })
                 )}
               </div>
             )}

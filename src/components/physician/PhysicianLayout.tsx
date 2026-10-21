@@ -70,6 +70,7 @@ function ModeSwitcher({ mode, switchMode }: { mode: Mode; switchMode: (m: Mode) 
 
 interface PhysicianOutletContext {
   setPatientContext: (node: React.ReactNode | null) => void;
+  setCompactGutter: (compact: boolean) => void;
 }
 
 export function usePhysicianLayoutContext() {
@@ -81,6 +82,9 @@ export default function PhysicianLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [patientContext, setPatientContext] = useState<React.ReactNode | null>(null);
+  // Pages that need maximum horizontal room (e.g. document editor) opt in to
+  // a tight left gutter next to the nav bar. Default keeps p-6 everywhere.
+  const [compactGutter, setCompactGutter] = useState(false);
 
   const [mode, setMode] = useState<Mode>(() => {
     const stored = typeof window !== "undefined" ? localStorage.getItem("physician_mode") : null;
@@ -227,8 +231,8 @@ export default function PhysicianLayout() {
               </div>
             )}
           </header>
-          <main className="flex-1 p-6">
-            <Outlet context={{ setPatientContext } satisfies PhysicianOutletContext} />
+          <main className={cn("flex-1", compactGutter ? "py-6 pr-6 pl-[5px]" : "p-6")}>
+            <Outlet context={{ setPatientContext, setCompactGutter } satisfies PhysicianOutletContext} />
           </main>
 
         </div>
