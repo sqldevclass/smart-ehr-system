@@ -90,7 +90,7 @@ import WarehouseProfile from "./pages/warehouse/WarehouseProfile.tsx";
 import InventoryLayout from "./components/inventory/InventoryLayout.tsx";
 import EquipmentPage from "./pages/inventory/EquipmentPage.tsx";
 import InventoryProfile from "./pages/inventory/InventoryProfile.tsx";
-import DocumentViewPage from "./pages/documents/DocumentViewPage.tsx";
+import { DocumentViewerProvider } from "@/components/documents/DocumentViewerProvider";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -109,6 +109,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+        <DocumentViewerProvider>
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/signup" element={<Signup />} />
@@ -218,19 +219,12 @@ const App = () => (
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/documents/:documentId/view"
-            element={
-              <ProtectedRoute allowedRoles={["physician", "inpatient_nurse", "head_nurse"]}>
-                <DocumentViewPage />
-              </ProtectedRoute>
-            }
-          />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/auth/set-password" element={<SetPassword />} />
           <Route path="/auth/callback-error" element={<CallbackError />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </DocumentViewerProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

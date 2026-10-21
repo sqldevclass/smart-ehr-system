@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import DocumentTile from "@/components/documents/DocumentTile";
+import DocumentTile, { DOCUMENT_TILE_FIELDS } from "@/components/documents/DocumentTile";
 import { Button } from "@/components/ui/button";
 
 interface Props {
@@ -87,9 +87,7 @@ export default function DocumentHistory({
       const { data: visitDocs, error: docsError } = await supabase
         .from("patient_documents")
         .select(`
-          id, status, created_at,
-          document_types!inner(id, name_ru, color),
-          author:profiles!patient_documents_created_by_fkey(full_name),
+          ${DOCUMENT_TILE_FIELDS},
           visit_services!patient_documents_visit_service_id_fkey!inner(visit_id)
         `)
         .eq("hospital_id", hospitalId)
@@ -131,11 +129,7 @@ export default function DocumentHistory({
     if (historicDocs[hospId]) return;
     const { data, error } = await supabase
       .from("patient_documents")
-      .select(`
-        id, status, created_at,
-        document_types!inner(id, name_ru, color),
-        author:profiles!patient_documents_created_by_fkey(full_name)
-      `)
+      .select(DOCUMENT_TILE_FIELDS)
       .eq("hospitalization_id", hospId)
       .eq("hospital_id", hospitalId)
       .eq("status", "completed")

@@ -66,6 +66,8 @@ interface InnerProps {
   existingDocumentId?: string;
   onDocumentCreated?: (documentId: string) => void;
   startInFullView?: boolean;
+  // Read-only full view inside a parent modal; close calls onClose.
+  embedded?: boolean;
 }
 
 export default function DocumentWorkspaceInner({
@@ -74,7 +76,7 @@ export default function DocumentWorkspaceInner({
   documentType, mainServices, childServices, pendingOrders, physicianNameMap,
   visitDate, hospitalName, physicianId,
   isConsultation, visitData, refetchVisit, hospitalizationId, existingDocumentId,
-  onDocumentCreated, startInFullView,
+  onDocumentCreated, startInFullView, embedded,
 }: InnerProps) {
 
 
@@ -95,7 +97,7 @@ export default function DocumentWorkspaceInner({
   const hasEditedRef = useRef(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [activeTab, setActiveTab] = useState("0");
-  const [fullView, setFullView] = useState(startInFullView ?? false);
+  const [fullView, setFullView] = useState(embedded || (startInFullView ?? false));
   const [hasDiagnosis, setHasDiagnosis] = useState(false);
   const [dischargeOpen, setDischargeOpen] = useState(false);
   const [activeEditable, setActiveEditable] = useState<{
@@ -232,6 +234,7 @@ export default function DocumentWorkspaceInner({
   }, [recheckDiagnosis, documentId]);
 
   const isReadOnly = (() => {
+    if (embedded) return true;
     if (docStatus === "completed") return true;
     if (docStatus === "preliminary" && docCreatedBy !== user?.id) return true;
     if (!hospitalizationId &&
@@ -494,7 +497,7 @@ export default function DocumentWorkspaceInner({
   }
 
   const content = (
-    <div className={fullView ? "fixed inset-0 z-[100] bg-background overflow-y-auto flex flex-col" : "flex flex-col max-h-[calc(100vh-8rem)]"}>
+    <div className={embedded ? "h-full bg-background overflow-y-auto flex flex-col" : fullView ? "fixed inset-0 z-[100] bg-background overflow-y-auto flex flex-col" : "flex flex-col max-h-[calc(100vh-8rem)]"}>
 
       {fullView && (
         <div className="shrink-0 flex items-center justify-between border-b px-4 py-2 bg-card print:hidden">
@@ -511,7 +514,7 @@ export default function DocumentWorkspaceInner({
             <Button variant="outline" size="sm" onClick={() => window.print()}>
               <Printer className="h-4 w-4 mr-1" /> Печать
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setFullView(false)}>
+            <Button variant="outline" size="sm" onClick={embedded ? onClose : () => setFullView(false)}>
               ✕ Закрыть
             </Button>
           </div>
@@ -877,7 +880,7 @@ export default function DocumentWorkspaceInner({
 
   return (
     <>
-      {fullView ? createPortal(content, document.body) : content}
+      {fullView && !embedded ? createPortal(content, document.body) : content}
       {hospitalizationId && (
         <DischargeDialog
           open={dischargeOpen}
