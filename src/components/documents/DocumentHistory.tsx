@@ -211,24 +211,15 @@ export default function DocumentHistory({
           )}
           {episodes.map((episode) => {
             if (episode.kind === "visit") {
+              // No group header -- each OP document is listed on its own,
+              // never summarized or merged just because they share a date.
+              if (episode.docs.length === 0) return null;
               return (
-                <div key={`visit:${episode.id}`} className="rounded-[5px] bg-primary/5 p-1.5">
-                  <div className="flex items-center gap-1.5 text-xs px-1 py-1.5">
-                    <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-primary/15 text-primary shrink-0">
-                      OP
-                    </span>
-                    <span className="flex-1 text-left font-medium text-muted-foreground">
-                      {episode.label}
-                    </span>
-                    <span className="text-muted-foreground/60">{episode.docs.length}</span>
-                  </div>
-                  {episode.docs.length === 0 ? (
-                    <p className="text-xs text-muted-foreground px-1 py-1 ml-4">Документов нет</p>
-                  ) : (
-                    <div className="ml-4 space-y-0.5">
-                      {episode.docs.map((doc: any) => renderDocRow(doc, true))}
-                    </div>
-                  )}
+                <div
+                  key={`visit:${episode.id}`}
+                  className="rounded-[5px] bg-primary/5 p-1.5 space-y-0.5"
+                >
+                  {episode.docs.map((doc: any) => renderDocRow(doc, true))}
                 </div>
               );
             }
