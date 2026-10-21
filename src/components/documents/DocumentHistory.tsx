@@ -155,7 +155,7 @@ export default function DocumentHistory({
           "w-full text-left px-2 py-1.5 rounded h-auto flex-col items-stretch",
           "text-xs text-muted-foreground",
           isOp
-            ? cn("rounded-[5px] bg-primary/5 hover:bg-primary/10", isActive && "bg-primary/10")
+            ? cn("rounded-[5px] bg-blue-50 hover:bg-blue-100", isActive && "bg-blue-100")
             : cn("hover:bg-background/60", isActive && "bg-background")
         )}
       >
@@ -165,7 +165,7 @@ export default function DocumentHistory({
             style={{ backgroundColor: doc.document_types?.color || "#888" }}
           />
           {isOp && (
-            <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-primary/15 text-primary shrink-0">
+            <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-blue-100 text-blue-800 shrink-0">
               OP
             </span>
           )}
@@ -225,7 +225,7 @@ export default function DocumentHistory({
             const isExpanded = expandedHospitalization === episode.id;
             const docs = historicDocs[episode.id];
             return (
-              <div key={`hosp:${episode.id}`} className="rounded-[5px] bg-primary/5 p-1.5">
+              <div key={`hosp:${episode.id}`} className="rounded-[5px] bg-blue-50 p-1.5">
                 <Button
                   variant="ghost"
                   onClick={() => handleExpandHospitalization(episode.id)}
