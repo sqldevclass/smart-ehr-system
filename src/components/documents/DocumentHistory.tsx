@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
-import { cn } from "@/lib/utils";
+import DocumentTile from "@/components/documents/DocumentTile";
 import { Button } from "@/components/ui/button";
 
 interface Props {
@@ -90,6 +89,7 @@ export default function DocumentHistory({
         .select(`
           id, status, created_at,
           document_types!inner(id, name_ru, color),
+          author:profiles!patient_documents_created_by_fkey(full_name),
           visit_services!patient_documents_visit_service_id_fkey!inner(visit_id)
         `)
         .eq("hospital_id", hospitalId)
@@ -133,7 +133,8 @@ export default function DocumentHistory({
       .from("patient_documents")
       .select(`
         id, status, created_at,
-        document_types!inner(id, name_ru, color)
+        document_types!inner(id, name_ru, color),
+        author:profiles!patient_documents_created_by_fkey(full_name)
       `)
       .eq("hospitalization_id", hospId)
       .eq("hospital_id", hospitalId)
@@ -143,50 +144,15 @@ export default function DocumentHistory({
     setHistoricDocs((prev) => ({ ...prev, [hospId]: data || [] }));
   };
 
-  const renderDocRow = (doc: any, isOp: boolean) => {
-    const isActive = activeDocumentId === doc.id;
-    const isCompleted = doc.status === "completed";
-    return (
-      <Button
-        variant="ghost"
-        key={doc.id}
-        onClick={() => onSelectDocument(doc.id, doc.document_types?.id)}
-        className={cn(
-          "w-full text-left px-2 py-1.5 rounded h-auto flex-col items-stretch",
-          "text-xs text-muted-foreground",
-          isOp
-            ? cn("rounded-[5px] bg-blue-50 hover:bg-blue-100", isActive && "bg-blue-100")
-            : cn("hover:bg-background/60", isActive && "bg-background")
-        )}
-      >
-        <div className="flex items-center gap-1.5">
-          <span
-            className="w-2 h-2 rounded-full shrink-0 opacity-60"
-            style={{ backgroundColor: doc.document_types?.color || "#888" }}
-          />
-          {isOp && (
-            <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-blue-100 text-blue-800 shrink-0">
-              OP
-            </span>
-          )}
-          <span className="truncate flex-1">{doc.document_types?.name_ru}</span>
-          {isOp && (
-            <span
-              className={cn(
-                "text-[9px] px-1 py-0.5 rounded shrink-0",
-                isCompleted ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
-              )}
-            >
-              {isCompleted ? "✓" : "●"}
-            </span>
-          )}
-        </div>
-        <div className="text-muted-foreground/60 mt-0.5 pl-3.5">
-          {format(new Date(doc.created_at), "dd.MM.yyyy")}
-        </div>
-      </Button>
-    );
-  };
+  const renderDocTile = (doc: any, isOp: boolean) => (
+    <DocumentTile
+      key={doc.id}
+      doc={doc}
+      isOp={isOp}
+      isActive={activeDocumentId === doc.id}
+      onSelect={() => onSelectDocument(doc.id, doc.document_types?.id)}
+    />
+  );
 
   return (
     <div className="pt-3 mt-2 border-t">
@@ -217,7 +183,7 @@ export default function DocumentHistory({
               if (episode.docs.length === 0) return null;
               return (
                 <div key={`visit:${episode.id}`} className="space-y-2">
-                  {episode.docs.map((doc: any) => renderDocRow(doc, true))}
+                  {episode.docs.map((doc: any) => renderDocTile(doc, true))}
                 </div>
               );
             }
@@ -240,7 +206,7 @@ export default function DocumentHistory({
                   {docs && <span className="text-muted-foreground/60">{docs.length}</span>}
                 </Button>
                 {isExpanded && (
-                  <div className="ml-4 space-y-0.5">
+                  <div className="ml-4 space-y-2">
                     {!docs && (
                       <p className="text-xs text-muted-foreground px-1 py-1">Загрузка...</p>
                     )}
@@ -249,7 +215,7 @@ export default function DocumentHistory({
                         Нет подтверждённых документов
                       </p>
                     )}
-                    {docs && docs.map((doc: any) => renderDocRow(doc, false))}
+                    {docs && docs.map((doc: any) => renderDocTile(doc, false))}
                   </div>
                 )}
               </div>
