@@ -369,7 +369,7 @@ export default function InpatientPatientDetail() {
         .select(`
           id, status, created_at, completed_at, created_by,
           document_types!inner(id, name_ru, color),
-          visit_services!patient_documents_visit_service_id_fkey(visit_id)
+          visit_services!patient_documents_visit_service_id_fkey!inner(visit_id)
         `)
         .eq("hospital_id", user.hospitalId)
         .eq("visit_services.visit_id", currentOpVisitId)
