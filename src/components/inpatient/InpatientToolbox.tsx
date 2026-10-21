@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
 import { useInpatientContext } from "@/contexts/InpatientContext";
+import { applyPatientSearch, PATIENT_SEARCH_PLACEHOLDER } from "@/lib/patientSearch";
 
 interface Props {
   physicianId: string;
@@ -34,22 +35,18 @@ function SearchResultsDropdown({ search, hospitalId, selectedDeptIds, onSelect }
     queryKey: ["inpatient-search", hospitalId, selectedDeptIds, search],
     queryFn: async () => {
       if (!selectedDeptIds.length) return [];
-      const { data } = await supabase
+      const base = supabase
         .from("hospitalizations")
         .select(`id, patients!inner(first_name, last_name, patient_number)`)
         .eq("hospital_id", hospitalId)
         .is("discharged_at", null)
-        .in("department_id", selectedDeptIds)
-        .limit(20);
-      const q = search.toLowerCase();
-      return (data || []).filter((h: any) => {
-        const p = h.patients;
-        if (!p) return false;
-        return (
-          `${p.last_name} ${p.first_name}`.toLowerCase().includes(q) ||
-          (p.patient_number || "").toLowerCase().includes(q)
-        );
-      });
+        .in("department_id", selectedDeptIds);
+      const { data, error } = await applyPatientSearch(base, search, { referencedTable: "patients" }).limit(20);
+      if (error) {
+        console.error("InpatientToolbox search error:", error);
+        return [];
+      }
+      return data || [];
     },
     enabled: search.length >= 2 && selectedDeptIds.length > 0,
   });
@@ -257,13 +254,13 @@ export default function InpatientToolbox({
 
       <div className="relative">
         <Input
-          placeholder="Поиск по ФИО или ID..."
+          placeholder={PATIENT_SEARCH_PLACEHOLDER.ru}
           value={nameSearch}
           onChange={(e) => {
             setNameSearch(e.target.value);
             setShowSearchResults(e.target.value.length >= 2);
           }}
-          className="w-52 h-8 text-sm"
+          className="w-80 h-8 text-sm"
         />
         {showSearchResults && nameSearch.length >= 2 && (
           <SearchResultsDropdown

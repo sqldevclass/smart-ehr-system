@@ -29,6 +29,7 @@ import { format, differenceInDays } from "date-fns";
 import { useInpatientContext } from "@/contexts/InpatientContext";
 
 import { cn } from "@/lib/utils";
+import { matchesPatientSearch } from "@/lib/patientSearch";
 
 export default function InpatientPatientsList() {
   const { user } = useAuth();
@@ -183,12 +184,7 @@ export default function InpatientPatientsList() {
 
   const filtered = hospitalizations.filter((h: any) => {
     if (!showAllDischarged && h.discharged_at) return false;
-    const p = h.patients;
-    const name = `${p.last_name} ${p.first_name}`.toLowerCase();
-    const q = nameSearch.toLowerCase();
-    const matchName = !nameSearch || name.includes(q);
-    const matchId = !nameSearch || (p.patient_number?.toLowerCase().includes(q));
-    return matchName || matchId;
+    return matchesPatientSearch(h.patients, nameSearch);
   });
 
 
