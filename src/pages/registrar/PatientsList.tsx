@@ -24,7 +24,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { PeriodFilter, PeriodState, getDateBounds, getTodayBounds, SummaryCard, MetricTile } from "@/components/shared/PeriodFilter";
 import PatientSearchInput from "@/components/shared/PatientSearchInput";
-import { applyPatientSearch } from "@/lib/patientSearch";
+import { applyPatientSearch, hasPatientSearch } from "@/lib/patientSearch";
 
 interface Patient {
   id: string;
@@ -49,18 +49,23 @@ export default function PatientsList() {
   const [periodState, setPeriodState] = useState<PeriodState>({ period: "today" });
 
   const bounds = getDateBounds(periodState);
+  // Searching looks across ALL patients: a returning patient was registered long
+  // before the selected period. The period filter only applies to plain browsing.
+  const isSearching = hasPatientSearch(search);
 
   const { data: patients = [], isLoading } = useQuery({
-    queryKey: ["patients", user?.hospitalId, search, bounds.from, bounds.to],
+    queryKey: ["patients", user?.hospitalId, search, isSearching ? null : bounds.from, isSearching ? null : bounds.to],
     queryFn: async () => {
       if (!user) return [];
       let q = supabase
         .from("patients")
         .select("id, patient_number, first_name, last_name, middle_name, date_of_birth, gender, phone, registration_status")
         .eq("hospital_id", user.hospitalId)
-        .gte("created_at", bounds.from)
-        .lte("created_at", bounds.to)
         .order("created_at", { ascending: false });
+
+      if (!isSearching) {
+        q = q.gte("created_at", bounds.from).lte("created_at", bounds.to);
+      }
 
       q = applyPatientSearch(q, search);
 
@@ -143,6 +148,11 @@ export default function PatientsList() {
       </div>
 
       <PatientSearchInput value={search} onChange={setSearch} showFaceId className="max-w-lg" />
+      {isSearching && (
+        <p className="text-xs text-muted-foreground -mt-2">
+          Searching all patients — period filter ignored.
+        </p>
+      )}
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading patients…</p>

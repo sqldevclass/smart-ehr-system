@@ -6,12 +6,15 @@
 //  - Input is split on whitespace; EVERY word must match (AND), e.g. "Babajanov 19.03".
 //  - A word shaped like a date start (19 / 19.03 / 19.03.19 / 19.03.1988) matches
 //    the START of the DOB as dd.mm.yyyy. "/" and "-" are read as ".".
+//  - A 4-digit number (e.g. 1988) also matches the birth YEAR, and still matches
+//    text fields (phone / patient number may contain it).
 //  - A word containing "." or "/" is date-only. Plain digits (and "-") also match
 //    text fields, since "19" may be a day or part of a phone / patient number.
 //  - Characters that could break the PostgREST filter syntax are stripped.
 
 const TEXT_FIELDS = ["last_name", "first_name", "middle_name", "phone", "patient_number"] as const;
 const DOB_SHAPE = /^\d{1,2}(?:[./-]\d{0,2}(?:[./-]\d{0,4})?)?$/;
+const YEAR_SHAPE = /^\d{4}$/;
 const UNSAFE_CHARS = /[^\p{L}\p{N}\s.\-/+']/gu;
 
 export const PATIENT_SEARCH_PLACEHOLDER = {
@@ -22,6 +25,7 @@ export const PATIENT_SEARCH_PLACEHOLDER = {
 export interface PatientSearchToken {
   text: string;
   dobPrefix: string | null;
+  dobYear: string | null;
   dobOnly: boolean;
 }
 
@@ -32,9 +36,15 @@ export function parsePatientSearch(term: string): PatientSearchToken[] {
     .split(/\s+/)
     .filter(Boolean)
     .map((text) => {
-      if (!DOB_SHAPE.test(text)) return { text, dobPrefix: null, dobOnly: false };
-      return { text, dobPrefix: text.replace(/[/-]/g, "."), dobOnly: /[./]/.test(text) };
+      const dobYear = YEAR_SHAPE.test(text) ? text : null;
+      if (!DOB_SHAPE.test(text)) return { text, dobPrefix: null, dobYear, dobOnly: false };
+      return { text, dobPrefix: text.replace(/[/-]/g, "."), dobYear, dobOnly: /[./]/.test(text) };
     });
+}
+
+// True when the term contains anything searchable (used to bypass list filters while searching).
+export function hasPatientSearch(term: string): boolean {
+  return parsePatientSearch(term).length > 0;
 }
 
 // ---- DB-backed search (PostgREST) ----
@@ -47,6 +57,9 @@ function tokenFilter(token: PatientSearchToken): string {
   if (token.dobPrefix) {
     // patients.dob_search is a generated dd.mm.yyyy text column.
     parts.push(`dob_search.like."${token.dobPrefix}%"`);
+  }
+  if (token.dobYear) {
+    parts.push(`dob_search.like."%.${token.dobYear}"`);
   }
   return parts.join(",");
 }
@@ -91,7 +104,8 @@ export function matchesPatientSearch(patient: PatientSearchFields | null | undef
   return tokens.every(
     (t) =>
       (!t.dobOnly && haystack.includes(t.text.toLowerCase())) ||
-      (!!t.dobPrefix && dob.startsWith(t.dobPrefix))
+      (!!t.dobPrefix && dob.startsWith(t.dobPrefix)) ||
+      (!!t.dobYear && dob.endsWith(`.${t.dobYear}`))
   );
 }
 
