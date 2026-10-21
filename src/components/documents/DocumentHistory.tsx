@@ -153,9 +153,10 @@ export default function DocumentHistory({
         onClick={() => onSelectDocument(doc.id, doc.document_types?.id)}
         className={cn(
           "w-full text-left px-2 py-1.5 rounded h-auto flex-col items-stretch",
-          "text-xs hover:bg-background/60",
-          "text-muted-foreground",
-          isActive ? "bg-background" : ""
+          "text-xs text-muted-foreground",
+          isOp
+            ? cn("rounded-[5px] bg-primary/5 hover:bg-primary/10", isActive && "bg-primary/10")
+            : cn("hover:bg-background/60", isActive && "bg-background")
         )}
       >
         <div className="flex items-center gap-1.5">
@@ -211,14 +212,11 @@ export default function DocumentHistory({
           )}
           {episodes.map((episode) => {
             if (episode.kind === "visit") {
-              // No group header -- each OP document is listed on its own,
-              // never summarized or merged just because they share a date.
+              // Each OP document is its own box -- never merged, grouped by
+              // date, or sharing a single background with other documents.
               if (episode.docs.length === 0) return null;
               return (
-                <div
-                  key={`visit:${episode.id}`}
-                  className="rounded-[5px] bg-primary/5 p-1.5 space-y-0.5"
-                >
+                <div key={`visit:${episode.id}`} className="space-y-2">
                   {episode.docs.map((doc: any) => renderDocRow(doc, true))}
                 </div>
               );
