@@ -632,7 +632,7 @@ export default function InpatientPatientDetail() {
           style={{ backgroundColor: doc.document_types?.color || "#888" }}
         />
         {opts.isOp && (
-          <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-primary/15 text-primary shrink-0">
+          <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-blue-100 text-blue-800 shrink-0">
             OP
           </span>
         )}
@@ -741,7 +741,7 @@ export default function InpatientPatientDetail() {
 
           <div className="p-3 flex-1 overflow-y-auto space-y-2">
             {thisDocs.length > 0 && (
-              <div className="rounded-[5px] bg-primary/5 p-2">
+              <div className="rounded-[5px] bg-blue-50 p-2">
                 {thisDocs.map((doc: any) =>
                   renderDocItem(doc, { readOnly: false, isOp: false })
                 )}
@@ -749,7 +749,7 @@ export default function InpatientPatientDetail() {
             )}
 
             {!isOutpatientMode && opDocs.length > 0 && (
-              <div className="rounded-[5px] bg-primary/5 p-2">
+              <div className="rounded-[5px] bg-blue-50 p-2">
                 {opDocs.map((doc: any) =>
                   renderDocItem(doc, { readOnly: true, isOp: true })
                 )}
