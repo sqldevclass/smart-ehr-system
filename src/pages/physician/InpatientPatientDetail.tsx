@@ -337,6 +337,48 @@ export default function InpatientPatientDetail() {
     },
   });
 
+  // Once the patient is an inpatient, their most recent OP (outpatient) visit
+  // shows alongside this hospitalization's documents, read-only, so continuity
+  // of care is visible. Any older OP visits are left to DocumentHistory.
+  const { data: currentOpVisit } = useQuery({
+    queryKey: ["current-op-visit", patientId, user?.hospitalId],
+    enabled: !isOutpatientMode && !!patientId && !!user?.hospitalId,
+    queryFn: async () => {
+      if (!patientId || !user?.hospitalId) return null;
+      const { data, error } = await supabase
+        .from("visits")
+        .select("id, visit_date")
+        .eq("patient_id", patientId)
+        .eq("hospital_id", user.hospitalId)
+        .order("visit_date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+  const currentOpVisitId = (currentOpVisit as any)?.id;
+
+  const { data: opDocs = [] } = useQuery({
+    queryKey: ["inpatient-op-docs", currentOpVisitId, user?.hospitalId],
+    enabled: !isOutpatientMode && !!currentOpVisitId && !!user?.hospitalId,
+    queryFn: async () => {
+      if (!currentOpVisitId || !user?.hospitalId) return [];
+      const { data, error } = await supabase
+        .from("patient_documents")
+        .select(`
+          id, status, created_at, completed_at, created_by,
+          document_types!inner(id, name_ru, color),
+          visit_services!inner(visit_id)
+        `)
+        .eq("hospital_id", user.hospitalId)
+        .eq("visit_services.visit_id", currentOpVisitId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   const allowedDocTypeIds = new Set(
     docPrivileges.map((p: any) => p.document_type_id)
   );
@@ -557,6 +599,72 @@ export default function InpatientPatientDetail() {
     setActiveView({ type: "tab", tab });
   };
 
+  // Shared row renderer for both the current hospitalization's documents and
+  // the merged-in read-only OP documents -- same look, different behavior.
+  const renderDocItem = (doc: any, opts: { readOnly: boolean; isOp: boolean }) => {
+    const isCompleted = doc.status === "completed";
+    const isOwn = doc.created_by === user?.id;
+    const clickable = opts.readOnly || isCompleted || isOwn;
+    const isActive =
+      activeView?.type === "document" && activeView.documentId === doc.id;
+    return (
+      <div
+        key={doc.id}
+        onClick={
+          clickable
+            ? () =>
+                setActiveView({
+                  type: "document",
+                  documentId: doc.id,
+                  documentTypeId: doc.document_types?.id,
+                  ...(opts.readOnly ? { forceReadOnly: true } : {}),
+                } as any)
+            : undefined
+        }
+        className={cn(
+          "flex items-center gap-2 p-2 mb-1 rounded text-xs",
+          clickable ? "cursor-pointer hover:bg-muted" : "cursor-default opacity-50",
+          isActive && "bg-muted"
+        )}
+      >
+        <span
+          className="w-2.5 h-2.5 rounded-full shrink-0"
+          style={{ backgroundColor: doc.document_types?.color || "#888" }}
+        />
+        {opts.isOp && (
+          <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-primary/15 text-primary shrink-0">
+            OP
+          </span>
+        )}
+        <span className="flex-1 truncate">
+          {format(new Date(doc.created_at), "dd.MM HH:mm")}{" "}
+          {doc.document_types?.name_ru}
+        </span>
+        <span
+          className={cn(
+            "text-[10px] px-1.5 py-0.5 rounded",
+            isCompleted ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
+          )}
+        >
+          {isCompleted ? "✓" : "●"}
+        </span>
+        {clickable && (
+          <span
+            role="button"
+            title="Просмотреть документ целиком"
+            onClick={(e) => {
+              e.stopPropagation();
+              window.open(`/documents/${doc.id}/view`, "_blank");
+            }}
+            className="shrink-0 p-1 rounded-md border border-border cursor-pointer transition-all hover:bg-muted hover:shadow-md group"
+          >
+            <Eye className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-foreground" />
+          </span>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div>
       <div className="flex gap-4 border rounded-lg overflow-hidden bg-card min-h-[calc(100vh-8rem)]">
@@ -631,73 +739,28 @@ export default function InpatientPatientDetail() {
             )}
           </div>
 
-          <div className="p-3 flex-1 overflow-y-auto">
-            {thisDocs.map((doc: any) => {
-              const isCompleted = doc.status === "completed";
-              const isOwn = doc.created_by === user?.id;
-              const clickable = isCompleted || isOwn;
-              const isActive =
-                activeView?.type === "document" && activeView.documentId === doc.id;
-              return (
-                <div
-                  key={doc.id}
-                  onClick={
-                    clickable
-                      ? () =>
-                          setActiveView({
-                            type: "document",
-                            documentId: doc.id,
-                            documentTypeId: doc.document_types?.id,
-                          })
-                      : undefined
-                  }
-                  className={cn(
-                    "flex items-center gap-2 p-2 mb-1 rounded text-xs",
-                    clickable
-                      ? "cursor-pointer hover:bg-muted"
-                      : "cursor-default opacity-50",
-                    isActive && "bg-muted"
-                  )}
-                >
-                  <span
-                    className="w-2.5 h-2.5 rounded-full shrink-0"
-                    style={{ backgroundColor: doc.document_types?.color || "#888" }}
-                  />
-                  <span className="flex-1 truncate">
-                    {format(new Date(doc.created_at), "dd.MM HH:mm")}{" "}
-                    {doc.document_types?.name_ru}
-                  </span>
-                  <span
-                    className={cn(
-                      "text-[10px] px-1.5 py-0.5 rounded",
-                      isCompleted
-                        ? "bg-green-100 text-green-700"
-                        : "bg-yellow-100 text-yellow-700"
-                    )}
-                  >
-                    {isCompleted ? "✓" : "●"}
-                  </span>
-                  {clickable && (
-                    <span
-                      role="button"
-                      title="Просмотреть документ целиком"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        window.open(`/documents/${doc.id}/view`, "_blank");
-                      }}
-                      className="shrink-0 p-1 rounded-md border border-border cursor-pointer transition-all hover:bg-muted hover:shadow-md group"
-                    >
-                      <Eye className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-foreground" />
-                    </span>
-                  )}
-                </div>
-              );
-            })}
+          <div className="p-3 flex-1 overflow-y-auto space-y-2">
+            {thisDocs.length > 0 && (
+              <div className="rounded-[5px] bg-primary/5 p-2">
+                {thisDocs.map((doc: any) =>
+                  renderDocItem(doc, { readOnly: false, isOp: false })
+                )}
+              </div>
+            )}
+
+            {!isOutpatientMode && opDocs.length > 0 && (
+              <div className="rounded-[5px] bg-primary/5 p-2">
+                {opDocs.map((doc: any) =>
+                  renderDocItem(doc, { readOnly: true, isOp: true })
+                )}
+              </div>
+            )}
 
             <DocumentHistory
               hospitalizationId={hospitalizationId}
               patientId={patientId}
               hospitalId={user!.hospitalId}
+              excludeVisitId={currentOpVisitId}
               activeDocumentId={
                 activeView?.type === "document"
                   ? activeView.documentId

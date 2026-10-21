@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ArrowLeft, BedDouble } from "lucide-react";
-import DischargeDialog from "@/components/inpatient/DischargeDialog";
 import { cn } from "@/lib/utils";
 
 export default function HospitalizationPage() {
@@ -29,7 +28,6 @@ export default function HospitalizationPage() {
   const [roomDialogOpen, setRoomDialogOpen] = useState(false);
   const [selected, setSelected] = useState<{ roomId: string; bed: number } | null>(null);
   const [roomSubmitting, setRoomSubmitting] = useState(false);
-  const [dischargeOpen, setDischargeOpen] = useState(false);
 
   const { data: hosp, isLoading } = useQuery({
     queryKey: ["hospitalization", hospId],
@@ -138,15 +136,7 @@ export default function HospitalizationPage() {
                 #{patient?.patient_number}
               </span>
             </span>
-            {!hosp.discharged_at ? (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => setDischargeOpen(true)}
-              >
-                Выписать
-              </Button>
-            ) : (
+            {hosp.discharged_at && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <span
                   className={cn(
@@ -169,6 +159,7 @@ export default function HospitalizationPage() {
                 </span>
               </div>
             )}
+            {!hosp.discharged_at && null}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -314,16 +305,6 @@ export default function HospitalizationPage() {
         </DialogContent>
       </Dialog>
 
-      <DischargeDialog
-        open={dischargeOpen}
-        onOpenChange={setDischargeOpen}
-        hospitalizationId={hosp.id}
-        patientName={`${patient?.last_name ?? ""} ${patient?.first_name ?? ""}`}
-        onSuccess={() => {
-          queryClient.invalidateQueries({ queryKey: ["hospitalization", hosp.id] });
-          navigate("/inpatient");
-        }}
-      />
     </div>
   );
 }
