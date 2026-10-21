@@ -18,11 +18,13 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Search, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { PeriodFilter, PeriodState, getDateBounds, getTodayBounds, SummaryCard, MetricTile } from "@/components/shared/PeriodFilter";
+import PatientSearchInput from "@/components/shared/PatientSearchInput";
+import { applyPatientSearch } from "@/lib/patientSearch";
 
 interface Patient {
   id: string;
@@ -60,10 +62,7 @@ export default function PatientsList() {
         .lte("created_at", bounds.to)
         .order("created_at", { ascending: false });
 
-      if (search.trim()) {
-        const s = `%${search.trim()}%`;
-        q = q.or(`last_name.ilike.${s},first_name.ilike.${s},phone.ilike.${s}`);
-      }
+      q = applyPatientSearch(q, search);
 
       const { data, error } = await q;
       if (error) throw error;
@@ -143,15 +142,7 @@ export default function PatientsList() {
         </Button>
       </div>
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Search by name or phone…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-10"
-        />
-      </div>
+      <PatientSearchInput value={search} onChange={setSearch} showFaceId className="max-w-lg" />
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading patients…</p>

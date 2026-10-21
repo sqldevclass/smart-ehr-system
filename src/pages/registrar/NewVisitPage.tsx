@@ -14,9 +14,11 @@ import {
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Plus, X, ArrowLeft } from "lucide-react";
+import { Plus, X, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import PatientSearchInput from "@/components/shared/PatientSearchInput";
+import { applyPatientSearch } from "@/lib/patientSearch";
 
 interface Patient {
   id: string;
@@ -80,12 +82,7 @@ export default function NewVisitPage() {
         .eq("hospital_id", user.hospitalId)
         .order("created_at", { ascending: false })
         .limit(20);
-      if (search.trim()) {
-        const s = `%${search.trim()}%`;
-        q = q.or(
-          `last_name.ilike.${s},first_name.ilike.${s},phone.ilike.${s},patient_number.ilike.${s}`
-        );
-      }
+      q = applyPatientSearch(q, search);
       const { data, error } = await q;
       if (error) throw error;
       return (data || []) as Patient[];
@@ -263,15 +260,7 @@ export default function NewVisitPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search by name, phone, or patient number…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-10"
-            />
-          </div>
+          <PatientSearchInput value={search} onChange={setSearch} showFaceId className="flex-1" />
           <Button variant="outline" onClick={() => navigate("/registrar")}>
             Register New Patient
           </Button>

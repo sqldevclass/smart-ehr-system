@@ -28,6 +28,7 @@ import {
 import { toLocal } from "@/lib/timezone";
 import { PeriodFilter, PeriodState, getDateBounds, getTodayBounds, SummaryCard, MetricTile } from "@/components/shared/PeriodFilter";
 import EWSStatusDot from "@/components/ews/EWSStatusDot";
+import { applyPatientSearch, PATIENT_SEARCH_PLACEHOLDER } from "@/lib/patientSearch";
 
 interface Visit {
   id: string;
@@ -173,13 +174,13 @@ export default function PaymentsPage() {
     queryKey: ["cashier-patient-search", user?.hospitalId, patientSearch],
     enabled: !!user && patientSearch.trim().length > 1,
     queryFn: async () => {
-      const s = `%${patientSearch.trim()}%`;
-      const { data, error } = await supabase
-        .from("patients")
-        .select("id, patient_number, first_name, last_name, date_of_birth")
-        .eq("hospital_id", user!.hospitalId)
-        .or(`last_name.ilike.${s},first_name.ilike.${s},patient_number.ilike.${s}`)
-        .limit(10);
+      const { data, error } = await applyPatientSearch(
+        supabase
+          .from("patients")
+          .select("id, patient_number, first_name, last_name, date_of_birth")
+          .eq("hospital_id", user!.hospitalId),
+        patientSearch
+      ).limit(10);
       if (error) throw error;
       return data || [];
     },
@@ -235,7 +236,7 @@ export default function PaymentsPage() {
         <CardContent className="space-y-3">
           <div className="relative">
             <Input
-              placeholder="Поиск пациента (ФИО или П#)…"
+              placeholder={PATIENT_SEARCH_PLACEHOLDER.ru}
               value={patientSearch}
               onChange={(e) => setPatientSearch(e.target.value)}
             />

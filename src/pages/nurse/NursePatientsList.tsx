@@ -31,6 +31,7 @@ import { useNow } from "@/hooks/useNow";
 
 import { cn } from "@/lib/utils";
 import NurseInventoryModal from "@/components/medication/NurseInventoryModal";
+import { matchesPatientSearch } from "@/lib/patientSearch";
 
 function formatDoctorInitials(persons: any): string {
   if (!persons) return "—";
@@ -258,12 +259,7 @@ export default function NursePatientsList() {
         {(() => {
           const filtered = hospitalizations.filter((h: any) => {
             if (!showAllDischarged && h.discharged_at) return false;
-            const p = h.patients;
-            const name = `${p?.last_name} ${p?.first_name}`.toLowerCase();
-            const q = nameSearch.toLowerCase();
-            const matchName = !nameSearch || name.includes(q);
-            const matchId = !nameSearch || (p?.patient_number?.toLowerCase().includes(q) ?? false);
-            return matchName || matchId;
+            return matchesPatientSearch(h.patients, nameSearch);
           });
 
           if (isLoading) {
