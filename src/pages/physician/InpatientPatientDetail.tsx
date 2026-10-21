@@ -79,6 +79,13 @@ export default function InpatientPatientDetail() {
     }
     return { type: "tab", tab: "lab" };
   });
+  // Captured once at mount (not read off activeView), so it survives the
+  // physician switching to a tab like "Диагнозы" and back — the outpatient
+  // equivalent of hospitalizationId for scoping this session's document list.
+  const [opVisitServiceId] = useState<string>(() => {
+    const navState = location.state as any;
+    return navState?.openVisitServiceId || "";
+  });
   const [showMedicationModal, setShowMedicationModal] = useState(false);
   const [showIxModal, setShowIxModal] = useState(false);
   const [ixAutoDismissed, setIxAutoDismissed] = useState(false);
@@ -262,20 +269,24 @@ export default function InpatientPatientDetail() {
   }, [physicianId, patientId, user?.hospitalId, hospitalizationId]);
 
   const { data: thisDocs = [], refetch: refetchDocs } = useQuery({
-    queryKey: ["inpatient-docs", hospitalizationId],
+    queryKey: ["inpatient-docs", hospitalizationId, opVisitServiceId],
     queryFn: async () => {
-      const { data } = await supabase
+      let q = supabase
         .from("patient_documents")
         .select(`
           id, status, created_at, completed_at, created_by,
           document_types!inner(id, name_ru, color)
         `)
-        .eq("hospitalization_id", hospitalizationId)
-        .eq("hospital_id", user!.hospitalId)
-        .order("created_at", { ascending: false });
+        .eq("hospital_id", user!.hospitalId);
+
+      q = hospitalizationId
+        ? q.eq("hospitalization_id", hospitalizationId)
+        : q.eq("visit_service_id", opVisitServiceId);
+
+      const { data } = await q.order("created_at", { ascending: false });
       return data || [];
     },
-    enabled: !!hospitalizationId && !!user?.hospitalId,
+    enabled: !!user?.hospitalId && (!!hospitalizationId || !!opVisitServiceId),
   });
 
 
