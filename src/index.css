@@ -47,6 +47,19 @@
     --sidebar-accent-foreground: 218 17% 18%;
     --sidebar-border: 216 8% 87%;
 
+    --modal-overlay: 0 0% 0%;
+    --modal-shadow: 0 25px 50px -12px hsl(0 0% 0% / 0.25);
+    --document-background: 214 100% 97%;
+    --document-border: 214 95% 93%;
+    --document-selected: 214 95% 93%;
+    --document-ring: 212 96% 78%;
+    --document-op-foreground: 226 71% 40%;
+    --document-type-fallback: 0 0% 53%;
+    --document-completed-background: 141 84% 93%;
+    --document-completed-foreground: 142 72% 29%;
+    --document-draft-background: 55 97% 88%;
+    --document-draft-foreground: 35 92% 33%;
+
     --shadow-card: 0 1px 2px 0 hsl(214 18% 16% / 0.04), 0 8px 24px -6px hsl(214 18% 16% / 0.06);
     --shadow-elevated: 0 4px 12px -2px hsl(214 18% 16% / 0.10), 0 16px 40px -8px hsl(214 18% 16% / 0.14);
 
@@ -169,5 +182,11 @@
   .print-patient-compact {
     display: block !important;
     visibility: visible !important;
+  }
+
+  /* Print the open modal document, not documents behind it. */
+  #root[aria-hidden="true"] .document-a4-card,
+  #root[aria-hidden="true"] .document-a4-card * {
+    visibility: hidden !important;
   }
 }

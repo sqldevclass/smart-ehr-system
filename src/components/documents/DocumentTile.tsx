@@ -1,13 +1,27 @@
+import { Button } from "@/components/ui/button";
 import { Eye } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { formatStaffShortName, type StaffNameSource } from "@/lib/staffName";
+import { useDocumentViewer } from "@/components/documents/DocumentViewerProvider";
+
+// Shared select fragment for every query that feeds DocumentTile.
+// Callers append their own extra columns/embeds after it.
+export const DOCUMENT_TILE_FIELDS = `
+  id, status, created_at, created_by,
+  document_types!inner(id, name_ru, color),
+  author:profiles!patient_documents_created_by_fkey(
+    full_name,
+    person:persons!profiles_person_id_fkey(first_name, last_name)
+  )
+`;
 
 export interface DocumentTileData {
   id: string;
   status: string;
   created_at: string;
   document_types?: { id: string; name_ru: string; color: string | null } | null;
-  author?: { full_name: string | null } | null;
+  author?: StaffNameSource | null;
 }
 
 interface DocumentTileProps {
@@ -19,12 +33,14 @@ interface DocumentTileProps {
   onSelect?: () => void;
 }
 
-// Single source of truth for how a document is listed anywhere in the
-// physician document panel (current IP docs, current OP docs, History).
-// Document TYPE is encoded by the right-hand box background color.
+// Single source of truth for how a document is listed anywhere (physician panel,
+// nurse panel, History). Document TYPE is encoded by the right-hand box color;
+// clicking that box opens the read-only pop-up viewer.
 export default function DocumentTile({ doc, isOp = false, isActive = false, disabled = false, onSelect }: DocumentTileProps) {
+  const { openDocument } = useDocumentViewer();
   const isCompleted = doc.status === "completed";
-  const typeColor = doc.document_types?.color || "#888888";
+  const typeColor = doc.document_types?.color || "hsl(var(--document-type-fallback))";
+  const authorName = formatStaffShortName(doc.author);
 
   return (
     <div
@@ -32,15 +48,15 @@ export default function DocumentTile({ doc, isOp = false, isActive = false, disa
       tabIndex={disabled ? -1 : 0}
       onClick={disabled ? undefined : onSelect}
       onKeyDown={(e) => {
-        if (!disabled && (e.key === "Enter" || e.key === " ")) {
+        if (!disabled && e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
           e.preventDefault();
           onSelect?.();
         }
       }}
       className={cn(
-        "flex items-stretch rounded-[5px] border border-blue-100 bg-blue-50 overflow-hidden text-xs transition-colors",
-        disabled ? "cursor-default opacity-50" : "cursor-pointer hover:bg-blue-100",
-        isActive && "bg-blue-100 ring-1 ring-blue-300"
+        "flex items-stretch rounded-[5px] border border-[hsl(var(--document-border))] bg-[hsl(var(--document-background))] overflow-hidden text-xs transition-colors",
+        disabled ? "cursor-default opacity-50" : "cursor-pointer hover:bg-[hsl(var(--document-selected))]",
+        isActive && "bg-[hsl(var(--document-selected))] ring-1 ring-[hsl(var(--document-ring))]"
       )}
     >
       <div className="flex-1 min-w-0 px-2 py-1.5">
@@ -49,45 +65,47 @@ export default function DocumentTile({ doc, isOp = false, isActive = false, disa
         </div>
         <div className="mt-0.5 flex items-center gap-1.5 text-muted-foreground min-w-0">
           {isOp && (
-            <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-blue-100 text-blue-800 shrink-0">
+            <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-[hsl(var(--document-selected))] text-[hsl(var(--document-op-foreground))] shrink-0">
               OP
             </span>
           )}
           <span className="shrink-0">
             {format(new Date(doc.created_at), "dd.MM.yyyy HH:mm")}
           </span>
-          {doc.author?.full_name && (
-            <span className="truncate">· {doc.author.full_name}</span>
-          )}
+          {authorName && <span className="truncate">· {authorName}</span>}
         </div>
       </div>
 
-      <div
-        className="shrink-0 flex flex-col items-center justify-center gap-1 px-1.5 py-1.5"
+      <Button
+        variant="ghost"
+        type="button"
+        disabled={disabled}
+        title="Просмотреть документ целиком"
+        aria-label="Просмотреть документ целиком"
+        onClick={(e) => {
+          e.stopPropagation();
+          openDocument(doc.id);
+        }}
+        className={cn(
+          "group h-auto rounded-none border-0 whitespace-normal shrink-0 flex flex-col items-center justify-center gap-1 px-1.5 py-1.5 transition-[filter]",
+          disabled ? "cursor-default" : "cursor-pointer hover:brightness-95"
+        )}
         style={{ backgroundColor: typeColor }}
       >
         <span
           className={cn(
             "text-[10px] leading-none px-1.5 py-1 rounded",
-            isCompleted ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
+            isCompleted ? "bg-[hsl(var(--document-completed-background))] text-[hsl(var(--document-completed-foreground))]" : "bg-[hsl(var(--document-draft-background))] text-[hsl(var(--document-draft-foreground))]"
           )}
         >
           {isCompleted ? "✓" : "●"}
         </span>
         {!disabled && (
-          <span
-            role="button"
-            title="Просмотреть документ целиком"
-            onClick={(e) => {
-              e.stopPropagation();
-              window.open(`/documents/${doc.id}/view`, "_blank");
-            }}
-            className="p-1 rounded-md bg-white/90 border border-border cursor-pointer transition-all hover:bg-white hover:shadow-md group"
-          >
+          <span className="p-1 rounded-md bg-card/90 border border-border transition-all group-hover:bg-card group-hover:shadow-md">
             <Eye className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-foreground" />
           </span>
         )}
-      </div>
+      </Button>
     </div>
   );
 }

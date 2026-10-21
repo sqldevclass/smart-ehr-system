@@ -17,7 +17,8 @@ import { format, differenceInYears } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import InpatientDocumentWorkspace from "@/components/documents/InpatientDocumentWorkspace";
-import DocumentTile from "@/components/documents/DocumentTile";
+import LargeModal from "@/components/shared/LargeModal";
+import DocumentTile, { DOCUMENT_TILE_FIELDS } from "@/components/documents/DocumentTile";
 import DocumentHistory from "@/components/documents/DocumentHistory";
 import EWSSection from "@/components/ews/EWSSection";
 import MedicationTab from "@/components/medication/MedicationTab";
@@ -280,11 +281,7 @@ export default function InpatientPatientDetail() {
     queryFn: async () => {
       let q = supabase
         .from("patient_documents")
-        .select(`
-          id, status, created_at, completed_at, created_by,
-          document_types!inner(id, name_ru, color),
-          author:profiles!patient_documents_created_by_fkey(full_name)
-        `)
+        .select(`${DOCUMENT_TILE_FIELDS}, completed_at`)
         .eq("hospital_id", user!.hospitalId);
 
       q = hospitalizationId
@@ -375,9 +372,7 @@ export default function InpatientPatientDetail() {
       const { data, error } = await supabase
         .from("patient_documents")
         .select(`
-          id, status, created_at, completed_at, created_by,
-          document_types!inner(id, name_ru, color),
-          author:profiles!patient_documents_created_by_fkey(full_name),
+          ${DOCUMENT_TILE_FIELDS}, completed_at,
           visit_services!patient_documents_visit_service_id_fkey!inner(visit_id)
         `)
         .eq("hospital_id", user.hospitalId)
@@ -827,15 +822,9 @@ export default function InpatientPatientDetail() {
         </div>
       </div>
 
-      {showMedicationModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div
-            className="bg-white rounded-xl shadow-2xl flex flex-col"
-            style={{
-              width: "calc(100vw - 80px)",
-              height: "calc(100vh - 40px)",
-            }}
-          >
+      <LargeModal open={showMedicationModal} onOpenChange={setShowMedicationModal} title="Лист назначения">
+        {showMedicationModal && patient && (
+          <>
             <div className="flex items-center gap-4 px-4 py-3 border-b shrink-0">
               <h2 className="font-semibold text-base shrink-0">Лист назначения</h2>
               <Button size="sm" variant="outline" className="shrink-0" onClick={handlePrintMedications}>
@@ -919,9 +908,9 @@ export default function InpatientPatientDetail() {
                 />
               )}
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </LargeModal>
 
       <Dialog open={showIxModal} onOpenChange={(o) => !o && handleDismissIx()}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">

@@ -1,9 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
-import { Eye } from "lucide-react";
+import DocumentTile, { DOCUMENT_TILE_FIELDS } from "@/components/documents/DocumentTile";
 import { supabase } from "@/integrations/supabase/client";
-import { cn } from "@/lib/utils";
 import InpatientDocumentWorkspace from "@/components/documents/InpatientDocumentWorkspace";
 import DocumentHistory from "@/components/documents/DocumentHistory";
 
@@ -48,10 +46,7 @@ export default function PatientDocumentSidebar({
     queryFn: async () => {
       const { data } = await supabase
         .from("patient_documents")
-        .select(`
-          id, status, created_at, completed_at, created_by,
-          document_types!inner(id, name_ru, color)
-        `)
+        .select(`${DOCUMENT_TILE_FIELDS}, completed_at`)
         .eq("hospitalization_id", hospitalizationId)
         .eq("hospital_id", hospitalId)
         .order("created_at", { ascending: false });
@@ -156,48 +151,23 @@ export default function PatientDocumentSidebar({
               Нет документов
             </div>
           )}
-          {thisDocs.map((doc: any) => {
-            const isActive = activeDoc?.documentId === doc.id;
-            return (
-              <button
-                key={doc.id}
-                onClick={() =>
-                  setActiveDoc({
-                    documentId: doc.id,
-                    documentTypeId: doc.document_types?.id,
-                  })
-                }
-                className={cn(
-                  "w-full text-left px-2 py-2 rounded text-sm hover:bg-muted/50 mb-1",
-                  isActive ? "bg-muted" : ""
-                )}
-              >
-                <div className="flex items-center gap-2">
-                  <span
-                    className="w-2.5 h-2.5 rounded-full shrink-0"
-                    style={{ backgroundColor: doc.document_types?.color || "#888" }}
-                  />
-                  <span className="flex-1 truncate">
-                    {doc.document_types?.name_ru}
-                  </span>
-                  <span
-                    role="button"
-                    title="Просмотреть документ целиком"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      window.open(`/documents/${doc.id}/view`, "_blank");
-                    }}
-                    className="shrink-0 p-1 rounded-md border border-border cursor-pointer transition-all hover:bg-muted hover:shadow-md group"
-                  >
-                    <Eye className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-foreground" />
-                  </span>
-                </div>
-                <div className="text-xs text-muted-foreground mt-0.5 pl-4">
-                  {format(new Date(doc.created_at), "dd.MM.yyyy HH:mm")}
-                </div>
-              </button>
-            );
-          })}
+          {thisDocs.length > 0 && (
+            <div className="space-y-2">
+              {thisDocs.map((doc: any) => (
+                <DocumentTile
+                  key={doc.id}
+                  doc={doc}
+                  isActive={activeDoc?.documentId === doc.id}
+                  onSelect={() =>
+                    setActiveDoc({
+                      documentId: doc.id,
+                      documentTypeId: doc.document_types?.id,
+                    })
+                  }
+                />
+              ))}
+            </div>
+          )}
 
           <DocumentHistory
             hospitalizationId={hospitalizationId}

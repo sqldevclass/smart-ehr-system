@@ -24,6 +24,7 @@ interface Props {
   onDocumentCreated?: (documentId: string) => void;
   fullView?: boolean;
   startInFullView?: boolean;
+  embedded?: boolean;
 }
 
 export default function DocumentWorkspace(props: Props) {
@@ -339,6 +340,7 @@ export default function DocumentWorkspace(props: Props) {
       existingDocumentId={existingDocumentId}
       onDocumentCreated={props.onDocumentCreated}
       startInFullView={props.startInFullView}
+      embedded={props.embedded}
     />
   );
 }
