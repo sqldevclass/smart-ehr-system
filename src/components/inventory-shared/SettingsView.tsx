@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -32,6 +32,10 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Pencil } from "lucide-react";
+import SearchInput from "@/components/shared/SearchInput";
+import HighlightMatch from "@/components/shared/HighlightMatch";
+import { applySearch } from "@/lib/search";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
 interface Supplier {
   id?: string;
@@ -101,14 +105,9 @@ function ProductsSection() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<Product>(emptyProduct);
   const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search, 300);
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [activeOnly, setActiveOnly] = useState(true);
-
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search), 300);
-    return () => clearTimeout(t);
-  }, [search]);
 
   const { data: productTypes = [] } = useQuery({
     queryKey: ["product_types"],
@@ -181,7 +180,7 @@ function ProductsSection() {
         )
         .eq("hospital_id", user!.hospitalId)
         .order("name");
-      if (debouncedSearch.trim()) q = q.ilike("name", `%${debouncedSearch.trim()}%`);
+      q = applySearch(q, debouncedSearch);
       if (typeFilter !== "all") q = q.eq("product_type_id", typeFilter);
       if (activeOnly) q = q.eq("is_active", true);
       const { data } = await q;
@@ -250,10 +249,10 @@ function ProductsSection() {
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-1.5">
             <Label>Search</Label>
-            <Input
-              placeholder="Search by name"
+            <SearchInput
+              placeholder="Search by name, INN or barcode"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={setSearch}
               className="w-64"
             />
           </div>
@@ -294,7 +293,7 @@ function ProductsSection() {
           <tbody>
             {products.map((p: any) => (
               <tr key={p.id} className="border-t">
-                <td className="p-3">{p.name}</td>
+                <td className="p-3"><HighlightMatch text={p.name} term={debouncedSearch} /></td>
                 <td className="p-3">{p.product_types?.name || "—"}</td>
                 <td className="p-3">{p.units_of_measurement?.name || "—"}</td>
                 <td className="p-3">{p.release_forms?.name || "—"}</td>

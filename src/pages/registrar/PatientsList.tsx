@@ -24,8 +24,9 @@ import { toast } from "sonner";
 import { PeriodFilter, PeriodState, getDateBounds, getTodayBounds, SummaryCard, MetricTile } from "@/components/shared/PeriodFilter";
 import HighlightMatch from "@/components/shared/HighlightMatch";
 import PatientDobCell from "@/components/shared/PatientDobCell";
-import PatientSearchInput from "@/components/shared/PatientSearchInput";
-import { applyPatientSearch, hasPatientSearch } from "@/lib/patientSearch";
+import SearchInput from "@/components/shared/SearchInput";
+import FaceIdButton from "@/components/shared/FaceIdButton";
+import { applyPatientSearch, hasPatientSearch, PATIENT_SEARCH_PLACEHOLDER } from "@/lib/patientSearch";
 
 interface Patient {
   id: string;
@@ -150,7 +151,13 @@ export default function PatientsList() {
         </Button>
       </div>
 
-      <PatientSearchInput value={search} onChange={setSearch} showFaceId className="max-w-lg" />
+      <SearchInput
+        value={search}
+        onChange={setSearch}
+        placeholder={PATIENT_SEARCH_PLACEHOLDER.en}
+        trailing={<FaceIdButton />}
+        className="max-w-lg"
+      />
       {isSearching && (
         <p className="text-xs text-muted-foreground -mt-2">
           Searching all patients — period filter ignored.

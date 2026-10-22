@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from "@/components/ui/select";
@@ -13,6 +12,10 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import SearchInput from "@/components/shared/SearchInput";
+import HighlightMatch from "@/components/shared/HighlightMatch";
+import { useIcd10Search } from "@/hooks/useIcd10Search";
+import { hasSearch } from "@/lib/search";
 
 interface Props {
   hospitalizationId?: string;
@@ -99,20 +102,7 @@ export default function DiagnosisTab({
     },
   });
 
-  const { data: icd10Results = [] } = useQuery({
-    queryKey: ["icd10-diag-add", addSearch],
-    enabled: addSearch.trim().length >= 1 && !addSelected,
-    queryFn: async () => {
-      const term = addSearch.trim();
-      const { data } = await supabase
-        .from("icd10_codes")
-        .select("id, code, name_ru")
-        .eq("is_leaf", true)
-        .or(`name_ru.ilike.%${term}%,code.ilike.%${term}%`)
-        .limit(20);
-      return data || [];
-    },
-  });
+  const { data: icd10Results = [] } = useIcd10Search(addSearch, !addSelected);
 
   const { data: assessments = [], refetch: refetchAssessments } = useQuery({
     queryKey: ["scale-assessments", scopeKey, documentId ?? ""],
@@ -251,11 +241,11 @@ export default function DiagnosisTab({
                 </SelectContent>
               </Select>
               <div className="relative">
-                <Input
-                  placeholder="Поиск по МКБ-10..."
+                <SearchInput
+                  placeholder="Поиск по МКБ-10 (код или название)"
                   value={addSearch}
-                  onChange={(e) => {
-                    setAddSearch(e.target.value);
+                  onChange={(v) => {
+                    setAddSearch(v);
                     setAddSelected(null);
                     setPendingSelection(null);
                   }}
@@ -265,12 +255,9 @@ export default function DiagnosisTab({
                       handleAddDiagnosis();
                     }
                   }}
-                  className={cn(
-                    "text-sm",
-                    pendingSelection ? "bg-yellow-50 border-yellow-300" : ""
-                  )}
+                  inputClassName={cn("text-sm", pendingSelection ? "bg-yellow-50 border-yellow-300" : "")}
                 />
-                {addSearch.length >= 1 &&
+                {hasSearch(addSearch) &&
                   !addSelected &&
                   icd10Results.length > 0 && (
                     <div className="absolute z-50 w-full bg-white border rounded-md shadow-lg max-h-40 overflow-y-auto mt-1">
@@ -285,9 +272,9 @@ export default function DiagnosisTab({
                             setAddSelected({ code: r.code, name_ru: r.name_ru });
                           }}
                         >
-                          <span className="font-medium">{r.code}</span>
+                          <span className="font-medium"><HighlightMatch text={r.code} term={addSearch} /></span>
                           {" — "}
-                          {r.name_ru}
+                          <HighlightMatch text={r.name_ru} term={addSearch} />
                         </div>
                       ))}
                     </div>

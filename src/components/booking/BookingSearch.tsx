@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import SearchInput from "@/components/shared/SearchInput";
+import HighlightMatch from "@/components/shared/HighlightMatch";
+import { applySearch, hasSearch } from "@/lib/search";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import type { OfficeRoomResult, PhysicianResult, ServiceResult } from "./types";
 
 interface Props {
@@ -13,15 +15,6 @@ interface Props {
   onOfficeRoomSelect?: (room: OfficeRoomResult) => void;
   disabled?: boolean;
   restrictServiceId?: string;
-}
-
-function useDebounced<T>(value: T, delay = 300): T {
-  const [v, setV] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setV(value), delay);
-    return () => clearTimeout(t);
-  }, [value, delay]);
-  return v;
 }
 
 function deriveScheduleType(rows: any[] | null | undefined): "slots" | "queue" | null {
@@ -40,7 +33,7 @@ function deriveScheduleType(rows: any[] | null | undefined): "slots" | "queue" |
 export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, onOfficeRoomSelect, disabled, restrictServiceId }: Props) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
-  const debounced = useDebounced(query, 300);
+  const debounced = useDebouncedValue(query, 300);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -51,7 +44,7 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
-  const enabled = debounced.trim().length >= 1;
+  const enabled = hasSearch(debounced);
 
   const { data: allowedPhysicianIds } = useQuery({
     queryKey: ["booking-search-allowed-physicians", hospitalId, restrictServiceId],
@@ -70,14 +63,16 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
   const { data: physicians = [] } = useQuery({
     queryKey: ["booking-search-physicians", hospitalId, debounced],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("staff_roles")
-        .select("id, role_type, persons!inner(first_name, last_name), specializations!specialization_id(name), physician_schedules!staff_role_id(schedule_type, valid_from, valid_to, days_of_week)")
-        .eq("hospital_id", hospitalId)
-        .eq("role_type", "physician")
-        .eq("is_active", true)
-        .ilike("persons.last_name", `%${debounced}%`)
-        .limit(8);
+      const { data, error } = await applySearch(
+        supabase
+          .from("staff_roles")
+          .select("id, role_type, persons!inner(first_name, last_name), specializations!specialization_id(name), physician_schedules!staff_role_id(schedule_type, valid_from, valid_to, days_of_week)")
+          .eq("hospital_id", hospitalId)
+          .eq("role_type", "physician")
+          .eq("is_active", true),
+        debounced,
+        { referencedTable: "persons" }
+      ).limit(8);
       if (error) throw error;
       return (data || []).map((sr: any): PhysicianResult => ({
         id: sr.id,
@@ -93,13 +88,14 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
   const { data: services = [] } = useQuery({
     queryKey: ["booking-search-services", hospitalId, debounced],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("services")
-        .select("id, name, cost_with_vat, service_types(name_en)")
-        .eq("hospital_id", hospitalId)
-        .eq("is_active", true)
-        .ilike("name", `%${debounced}%`)
-        .limit(8);
+      const { data, error } = await applySearch(
+        supabase
+          .from("services")
+          .select("id, name, cost_with_vat, service_types(name_en)")
+          .eq("hospital_id", hospitalId)
+          .eq("is_active", true),
+        debounced
+      ).limit(8);
       if (error) throw error;
       return (data || []).map((s: any): ServiceResult => ({
         id: s.id,
@@ -114,14 +110,16 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
   const { data: servicePhysicians = [] } = useQuery({
     queryKey: ["booking-search-service-physicians", hospitalId, debounced],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("physician_service_privileges")
-        .select(
-          "staff_role_id, services!inner(id, name, cost_with_vat, service_types(name_en)), staff_roles!inner(id, is_active, persons!inner(first_name, last_name), specializations!specialization_id(name), physician_schedules!staff_role_id(schedule_type, valid_from, valid_to, days_of_week))"
-        )
-        .eq("hospital_id", hospitalId)
-        .ilike("services.name", `%${debounced}%`)
-        .limit(12);
+      const { data, error } = await applySearch(
+        supabase
+          .from("physician_service_privileges")
+          .select(
+            "staff_role_id, services!inner(id, name, cost_with_vat, service_types(name_en)), staff_roles!inner(id, is_active, persons!inner(first_name, last_name), specializations!specialization_id(name), physician_schedules!staff_role_id(schedule_type, valid_from, valid_to, days_of_week))"
+          )
+          .eq("hospital_id", hospitalId),
+        debounced,
+        { referencedTable: "services" }
+      ).limit(12);
       if (error) throw error;
       return (data || [])
         .filter((r: any) => r.staff_roles?.is_active !== false)
@@ -147,14 +145,16 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
   const { data: officeRooms = [] } = useQuery({
     queryKey: ["booking-search-office-rooms", hospitalId, debounced],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("office_room_services")
-        .select(
-          "room_id, services!inner(id, name, cost_with_vat, service_types(name_en)), rooms!inner(id, name)"
-        )
-        .eq("hospital_id", hospitalId)
-        .ilike("services.name", `%${debounced}%`)
-        .limit(8);
+      const { data, error } = await applySearch(
+        supabase
+          .from("office_room_services")
+          .select(
+            "room_id, services!inner(id, name, cost_with_vat, service_types(name_en)), rooms!inner(id, name)"
+          )
+          .eq("hospital_id", hospitalId),
+        debounced,
+        { referencedTable: "services" }
+      ).limit(8);
       if (error) throw error;
       return (data || []).map((r: any): OfficeRoomResult => ({
         id: r.rooms?.id,
@@ -184,17 +184,13 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
 
   return (
     <div className="relative" ref={ref}>
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          disabled={disabled}
-          placeholder="Search physician, service, or office room…"
-          value={query}
-          onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
-          onFocus={() => setOpen(true)}
-          className="pl-9"
-        />
-      </div>
+      <SearchInput
+        disabled={disabled}
+        placeholder="Search physician, service, or office room…"
+        value={query}
+        onChange={(v) => { setQuery(v); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+      />
       {open && enabled && hasResults && (
         <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-96 overflow-y-auto rounded-md border bg-popover shadow-lg">
           {visiblePhysicians.length > 0 && (
@@ -209,7 +205,7 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="font-medium truncate">{p.fullName}</div>
+                      <div className="font-medium truncate"><HighlightMatch text={p.fullName} term={debounced} /></div>
                       <div className="text-xs text-muted-foreground truncate">{(p as any).specializations?.name || "—"}</div>
                     </div>
                     {p.scheduleType && (
@@ -233,7 +229,7 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
                   className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-muted"
                 >
                   <div className="min-w-0">
-                    <div className="font-medium truncate">{s.name}</div>
+                    <div className="font-medium truncate"><HighlightMatch text={s.name} term={debounced} /></div>
                     <div className="text-xs text-muted-foreground truncate">{s.serviceTypeName || "—"}</div>
                   </div>
                   <div className="shrink-0 text-xs text-muted-foreground">{s.costWithVat.toFixed(2)}</div>
@@ -255,9 +251,9 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="font-medium truncate">{r.physician.fullName}</div>
+                      <div className="font-medium truncate"><HighlightMatch text={r.physician.fullName} term={debounced} /></div>
                       <div className="text-xs text-muted-foreground truncate">
-                        {r.service.name} · {(r.physician as any).specializations?.name || "—"}
+                        <HighlightMatch text={r.service.name} term={debounced} /> · {(r.physician as any).specializations?.name || "—"}
                       </div>
                     </div>
                     {r.physician.scheduleType && (
@@ -282,7 +278,7 @@ export function BookingSearch({ hospitalId, onPhysicianSelect, onServiceSelect, 
                 >
                   <div className="min-w-0">
                     <div className="font-medium truncate">{r.name}</div>
-                    <div className="text-xs text-muted-foreground truncate">{r.service.name}</div>
+                    <div className="text-xs text-muted-foreground truncate"><HighlightMatch text={r.service.name} term={debounced} /></div>
                   </div>
                   <div className="shrink-0 text-xs text-muted-foreground">{r.service.costWithVat.toFixed(2)}</div>
                 </button>

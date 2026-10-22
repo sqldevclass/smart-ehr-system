@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import { getHighlightRanges } from "@/lib/patientSearch";
+import { getHighlightRanges } from "@/lib/search";
 
 interface HighlightMatchProps {
   text?: string | null;

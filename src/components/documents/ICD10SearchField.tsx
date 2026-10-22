@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Input } from "@/components/ui/input";
+import SearchInput from "@/components/shared/SearchInput";
+import HighlightMatch from "@/components/shared/HighlightMatch";
+import { useIcd10Search } from "@/hooks/useIcd10Search";
 
 interface Props {
   fieldId: string;
@@ -16,21 +16,7 @@ export default function ICD10SearchField({ fieldId, value, onChange, onBlur, isR
   const [searchTerm, setSearchTerm] = useState<string>(() => value || "");
   const [isOpen, setIsOpen] = useState(false);
 
-  const { data: results = [] } = useQuery({
-    queryKey: ["icd10-field", fieldId, searchTerm],
-    queryFn: async () => {
-      const term = searchTerm.trim();
-      if (term.length < 1) return [];
-      const { data } = await supabase
-        .from("icd10_codes")
-        .select("id, code, name_ru")
-        .eq("is_leaf", true)
-        .or(`name_ru.ilike.%${term}%,code.ilike.%${term}%`)
-        .limit(20);
-      return data || [];
-    },
-    enabled: searchTerm.trim().length >= 1,
-  });
+  const { data: results = [] } = useIcd10Search(searchTerm);
 
   if (isReadOnly) {
     return (
@@ -42,16 +28,16 @@ export default function ICD10SearchField({ fieldId, value, onChange, onBlur, isR
 
   return (
     <div className="relative">
-      <Input
+      <SearchInput
         value={searchTerm}
-        onChange={(e) => {
-          setSearchTerm(e.target.value);
+        onChange={(v) => {
+          setSearchTerm(v);
           setIsOpen(true);
-          if (!e.target.value) onChange("");
+          if (!v) onChange("");
         }}
         onFocus={() => setIsOpen(true)}
         onBlur={() => { setTimeout(() => setIsOpen(false), 200); onBlur?.(); }}
-        placeholder="Поиск по МКБ-10..."
+        placeholder="Поиск по МКБ-10 (код или название)"
       />
       {isOpen && results.length > 0 && (
         <div className="absolute z-50 w-full bg-white border rounded-md shadow-lg max-h-48 overflow-y-auto mt-1">
@@ -67,9 +53,9 @@ export default function ICD10SearchField({ fieldId, value, onChange, onBlur, isR
                 setIsOpen(false);
               }}
             >
-              <span className="font-medium">{r.code}</span>
+              <span className="font-medium"><HighlightMatch text={r.code} term={searchTerm} /></span>
               {" — "}
-              {r.name_ru}
+              <HighlightMatch text={r.name_ru} term={searchTerm} />
             </div>
           ))}
         </div>
