@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
     }
 
     const roleCodes: string[] = invitation.role_codes || [];
-    let newUserId: string;
+    let newUserId = "";
     let isReactivation = false;
 
     // Detect re-activation: person has an existing inactive profile
