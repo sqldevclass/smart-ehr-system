@@ -155,7 +155,8 @@ export default function SurgicalVolumeTab({ from, to }: { from: string; to: stri
     const planned = rows.filter((r) => r.urgency === "planned").length;
     const emergency = rows.filter((r) => r.urgency === "emergency").length;
     const repeat = rows.filter((r) => r.isRepeat).length;
-    return { total, planned, emergency, repeat };
+    const complications = rows.filter((r) => r.complications).length;
+    return { total, planned, emergency, repeat, complications };
   }, [rows]);
 
   const columns: ColumnDef<OperationRow, any>[] = [
@@ -187,6 +188,7 @@ export default function SurgicalVolumeTab({ from, to }: { from: string; to: stri
         <MetricTile label="Плановые" value={stats.planned} />
         <MetricTile label="Экстренные" value={stats.emergency} />
         <MetricTile label="Повторные" value={stats.repeat} />
+        <MetricTile label="С осложнениями" value={stats.complications} />
       </SummaryCard>
 
       <div className="h-[65vh] min-h-0">
