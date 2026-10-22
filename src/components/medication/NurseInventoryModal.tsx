@@ -12,6 +12,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { format } from "date-fns";
+import SearchInput from "@/components/shared/SearchInput";
+import HighlightMatch from "@/components/shared/HighlightMatch";
+import { matchesSearch } from "@/lib/search";
+import { matchesPatientSearch, PATIENT_SEARCH_PLACEHOLDER } from "@/lib/patientSearch";
 
 interface Props {
   departmentId: string;
@@ -31,27 +35,21 @@ function FilterBar({
   return (
     <div className="flex flex-wrap gap-2">
       {fields.includes("drug") && (
-        <Input
-          placeholder="Препарат"
+        <SearchInput
+          placeholder="Препарат или МНН"
           value={filters.drug ?? ""}
-          onChange={(e) => onChange("drug", e.target.value)}
-          className="w-40 h-8 text-sm"
+          onChange={(v) => onChange("drug", v)}
+          className="w-56"
+          inputClassName="h-8 text-sm"
         />
       )}
       {fields.includes("patient") && (
-        <Input
-          placeholder="Пациент"
+        <SearchInput
+          placeholder={PATIENT_SEARCH_PLACEHOLDER.ru}
           value={filters.patient ?? ""}
-          onChange={(e) => onChange("patient", e.target.value)}
-          className="w-40 h-8 text-sm"
-        />
-      )}
-      {fields.includes("patientId") && (
-        <Input
-          placeholder="ID пациента"
-          value={filters.patientId ?? ""}
-          onChange={(e) => onChange("patientId", e.target.value)}
-          className="w-36 h-8 text-sm"
+          onChange={(v) => onChange("patient", v)}
+          className="w-80"
+          inputClassName="h-8 text-sm"
         />
       )}
       {fields.includes("presDate") && (
@@ -128,7 +126,7 @@ export default function NurseInventoryModal({
           ),
           hospitalizations!inner(
             id, department_id,
-            patients!inner(id, first_name, last_name, patient_number)
+            patients!inner(id, first_name, last_name, middle_name, patient_number, date_of_birth, phone)
           )
         `)
         .eq("hospital_id", hospitalId)
@@ -154,7 +152,7 @@ export default function NurseInventoryModal({
           from_warehouse:warehouses!from_warehouse_id(id, name),
           transfer_record_items(
             id, quantity_units, drug_formulary_id, product_id,
-            drug_formulary(trade_name),
+            drug_formulary(trade_name, inn),
             products(name)
           )
         `)
@@ -226,33 +224,27 @@ export default function NurseInventoryModal({
 
   // Filtered data
   const filteredPres = useMemo(() => (pendingSlots as any[]).filter((s) => {
-    const pres = s.drug_prescriptions;
-    const drug = pres?.drug_formulary?.trade_name?.toLowerCase() ?? "";
-    const patient = `${s.hospitalizations?.patients?.last_name ?? ""} ${s.hospitalizations?.patients?.first_name ?? ""}`.toLowerCase();
-    const patientNum = s.hospitalizations?.patients?.patient_number?.toLowerCase() ?? "";
-    const date = pres?.created_at?.slice(0, 10) ?? "";
-    if (filters.drug && !drug.includes(filters.drug.toLowerCase())) return false;
-    if (filters.patient && !patient.includes(filters.patient.toLowerCase())) return false;
-    if (filters.patientId && !patientNum.includes(filters.patientId.toLowerCase())) return false;
+    const drug = s.drug_prescriptions?.drug_formulary;
+    const date = s.drug_prescriptions?.created_at?.slice(0, 10) ?? "";
+    if (!matchesSearch([drug?.trade_name, drug?.inn], filters.drug ?? "")) return false;
+    if (!matchesPatientSearch(s.hospitalizations?.patients, filters.patient ?? "")) return false;
     if (filters.presDate && date !== filters.presDate) return false;
     return true;
   }), [pendingSlots, filters]);
 
   const filteredTrans = useMemo(() => (transfers as any[]).filter((t) => {
-    const drug = (t.transfer_record_items || [])
-      .map((i: any) => i.drug_formulary?.trade_name ?? i.products?.name ?? "")
-      .join(" ").toLowerCase();
+    const names = (t.transfer_record_items || []).flatMap((i: any) => [
+      i.drug_formulary?.trade_name, i.drug_formulary?.inn, i.products?.name,
+    ]);
     const date = t.sent_at?.slice(0, 10) ?? "";
-    if (filters.drug && !drug.includes(filters.drug.toLowerCase())) return false;
+    if (!matchesSearch(names, filters.drug ?? "")) return false;
     if (filters.transferDate && date !== filters.transferDate) return false;
     return true;
   }), [transfers, filters]);
 
-  const filteredStock = useMemo(() => (deptStock as any[]).filter((b) => {
-    const name = (b.drug_formulary?.trade_name ?? b.products?.name ?? "").toLowerCase();
-    if (filters.drug && !name.includes(filters.drug.toLowerCase())) return false;
-    return true;
-  }), [deptStock, filters]);
+  const filteredStock = useMemo(() => (deptStock as any[]).filter((b) =>
+    matchesSearch([b.drug_formulary?.trade_name, b.drug_formulary?.inn, b.products?.name], filters.drug ?? "")
+  ), [deptStock, filters]);
 
   // Actions
   const acceptSlot = async (slotId: string) => {
@@ -470,7 +462,7 @@ export default function NurseInventoryModal({
               <FilterBar
                 filters={filters}
                 onChange={setFilter}
-                fields={["drug", "patient", "patientId", "presDate"]}
+                fields={["drug", "patient", "presDate"]}
               />
               {presLoading ? (
                 <div className="flex items-center justify-center h-32">
@@ -510,10 +502,10 @@ export default function NurseInventoryModal({
                           const drug = pres?.drug_formulary;
                           return (
                             <tr key={s.id} className="border-t">
-                              <td className={td}>{drug?.trade_name || "—"}</td>
-                              <td className={td}>{drug?.inn || "—"}</td>
-                              <td className={td}>{patient ? `${patient.last_name} ${patient.first_name}` : "—"}</td>
-                              <td className={td}>{patient?.patient_number || "—"}</td>
+                              <td className={td}><HighlightMatch text={drug?.trade_name} term={filters.drug ?? ""} fallback="—" /></td>
+                              <td className={td}><HighlightMatch text={drug?.inn} term={filters.drug ?? ""} fallback="—" /></td>
+                              <td className={td}><HighlightMatch text={patient ? `${patient.last_name} ${patient.first_name}` : ""} term={filters.patient ?? ""} fallback="—" /></td>
+                              <td className={td}><HighlightMatch text={patient?.patient_number} term={filters.patient ?? ""} fallback="—" /></td>
                               <td className={td}>{pres?.created_at ? format(new Date(pres.created_at), "dd.MM.yyyy") : "—"}</td>
                               <td className={td}>{s.scheduled_at ? format(new Date(s.scheduled_at), "dd.MM HH:mm") : "—"}</td>
                               <td className={td}>{pres?.dose} {pres?.dose_unit}</td>
@@ -581,7 +573,7 @@ export default function NurseInventoryModal({
                               <td className={td}>{t.sent_at ? format(new Date(t.sent_at), "dd.MM.yyyy") : "—"}</td>
                               <td className={td}>
                                 {(t.transfer_record_items || []).map((i: any) => (
-                                  <div key={i.id}>{i.drug_formulary?.trade_name || i.products?.name || "—"}</div>
+                                  <div key={i.id}><HighlightMatch text={i.drug_formulary?.trade_name || i.products?.name} term={filters.drug ?? ""} fallback="—" /></div>
                                 ))}
                               </td>
                               <td className={td}>
@@ -714,7 +706,7 @@ export default function NurseInventoryModal({
                         <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">Нет запасов</td></tr>
                       ) : filteredStock.map((b: any) => (
                         <tr key={b.id} className="border-t">
-                          <td className={td}>{b.drug_formulary?.trade_name || b.products?.name || "—"}</td>
+                          <td className={td}><HighlightMatch text={b.drug_formulary?.trade_name || b.products?.name} term={filters.drug ?? ""} fallback="—" /></td>
                           <td className={td}>{b.series_number || "—"}</td>
                           <td className={td}>{b.expiry_date || "—"}</td>
                           <td className={td}>{b.quantity_units}</td>
@@ -756,8 +748,8 @@ export default function NurseInventoryModal({
                         <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">Склад пуст</td></tr>
                       ) : filteredStock.map((b: any) => (
                         <tr key={b.id} className="border-t">
-                          <td className={td}>{b.drug_formulary?.trade_name || b.products?.name || "—"}</td>
-                          <td className={td}>{b.drug_formulary?.inn || "—"}</td>
+                          <td className={td}><HighlightMatch text={b.drug_formulary?.trade_name || b.products?.name} term={filters.drug ?? ""} fallback="—" /></td>
+                          <td className={td}><HighlightMatch text={b.drug_formulary?.inn} term={filters.drug ?? ""} fallback="—" /></td>
                           <td className={td}>{b.series_number || "—"}</td>
                           <td className={td}>{b.expiry_date || "—"}</td>
                           <td className={td}>{b.quantity_units}</td>

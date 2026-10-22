@@ -1,11 +1,13 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Input } from "@/components/ui/input";
+import SearchInput from "@/components/shared/SearchInput";
+import HighlightMatch from "@/components/shared/HighlightMatch";
+import { matchesSearch } from "@/lib/search";
 import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { UserPlus, Search } from "lucide-react";
+import { UserPlus } from "lucide-react";
 import InviteStaffSheet from "@/components/admin/InviteStaffSheet";
 import ChangeRoleDialog from "@/components/admin/ChangeRoleDialog";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
@@ -130,9 +132,8 @@ export default function UserManagement() {
 
   useEffect(() => { fetchStaff(); }, [fetchStaff]);
 
-  const filteredProfiles = profiles.filter((p) =>
-    p.full_name?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredProfiles = profiles.filter((p) => matchesSearch([p.full_name, p.employee_number], search));
+  const filteredInvitations = invitations.filter((inv) => matchesSearch([inv.full_name, inv.email], search));
 
   const handleRemove = async () => {
     if (!removeTarget) return;
@@ -186,10 +187,12 @@ export default function UserManagement() {
         </Button>
       </div>
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Search by name…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
-      </div>
+      <SearchInput
+        placeholder="Search by name, employee # or email…"
+        value={search}
+        onChange={setSearch}
+        className="max-w-sm"
+      />
 
       {loading ? (
         <p className="text-muted-foreground py-10 text-center">Loading…</p>
@@ -214,8 +217,8 @@ export default function UserManagement() {
                     <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-10">No active staff found.</TableCell></TableRow>
                   ) : filteredProfiles.map((p) => (
                     <TableRow key={p.id}>
-                      <TableCell className="text-muted-foreground">{p.employee_number || "—"}</TableCell>
-                      <TableCell className="font-medium">{p.full_name || "—"}</TableCell>
+                      <TableCell className="text-muted-foreground"><HighlightMatch text={p.employee_number} term={search} fallback="—" /></TableCell>
+                      <TableCell className="font-medium"><HighlightMatch text={p.full_name} term={search} fallback="—" /></TableCell>
                       <TableCell><RoleBadges codes={p.roles} /></TableCell>
                       <TableCell className="text-muted-foreground">
                         {p.created_at ? format(new Date(p.created_at), "MMM d, yyyy") : "—"}
@@ -246,12 +249,12 @@ export default function UserManagement() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {invitations.length === 0 ? (
+                  {filteredInvitations.length === 0 ? (
                     <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-10">No pending invitations.</TableCell></TableRow>
-                  ) : invitations.map((inv) => (
+                  ) : filteredInvitations.map((inv) => (
                     <TableRow key={inv.id}>
-                      <TableCell className="font-medium">{inv.full_name || "—"}</TableCell>
-                      <TableCell className="text-muted-foreground">{inv.email}</TableCell>
+                      <TableCell className="font-medium"><HighlightMatch text={inv.full_name} term={search} fallback="—" /></TableCell>
+                      <TableCell className="text-muted-foreground"><HighlightMatch text={inv.email} term={search} /></TableCell>
                       <TableCell><RoleBadges codes={inv.role_codes ?? []} /></TableCell>
                       <TableCell className="text-muted-foreground">
                         {inv.invited_at ? format(new Date(inv.invited_at), "MMM d, yyyy") : "—"}

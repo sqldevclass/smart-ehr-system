@@ -2,7 +2,9 @@ import { useState, useMemo, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import SearchInput from "@/components/shared/SearchInput";
+import HighlightMatch from "@/components/shared/HighlightMatch";
+import { hasSearch, matchesSearch } from "@/lib/search";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
@@ -110,13 +112,8 @@ export default function ServiceTab({
 
   const filteredCatalog = useMemo(() => {
     if (typeCode !== "laboratory") return catalog;
-    if (searchText.trim()) {
-      const q = searchText.toLowerCase();
-      return catalog.filter(
-        (s: any) =>
-          s.name.toLowerCase().includes(q) ||
-          (s.code && s.code.toLowerCase().includes(q)),
-      );
+    if (hasSearch(searchText)) {
+      return catalog.filter((s: any) => matchesSearch([s.name, s.code], searchText));
     }
     return catalog.filter((s: any) => s.service_group_id === activeGroupId);
   }, [typeCode, catalog, searchText, activeGroupId]);
@@ -285,11 +282,11 @@ export default function ServiceTab({
       {!readOnly && (
         <div className="border rounded p-3 space-y-3 bg-muted/30">
           {typeCode === "laboratory" && (
-            <Input
-              placeholder="Поиск услуги..."
+            <SearchInput
+              placeholder="Поиск услуги (название или код)"
               value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              className="h-8 text-sm"
+              onChange={setSearchText}
+              inputClassName="h-8 text-sm"
             />
           )}
           {typeCode === "laboratory" ? (
@@ -309,9 +306,9 @@ export default function ServiceTab({
                           checked={checked}
                           onCheckedChange={() => toggleDraft({ id: s.id, name: s.name })}
                         />
-                        <span className="flex-1 truncate">{s.name}</span>
+                        <span className="flex-1 truncate"><HighlightMatch text={s.name} term={searchText} /></span>
                         {s.code && (
-                          <span className="text-xs text-muted-foreground shrink-0">{s.code}</span>
+                          <span className="text-xs text-muted-foreground shrink-0"><HighlightMatch text={s.code} term={searchText} /></span>
                         )}
                       </label>
                     );

@@ -4,7 +4,9 @@ import { useState, useMemo } from "react";
 import { uniqueServices } from "@/components/shared/LabResultRow";
 import { FlagBadge } from "@/pages/lab/LabResultsPage";
 import { format } from "date-fns";
-import { Input } from "@/components/ui/input";
+import SearchInput from "@/components/shared/SearchInput";
+import HighlightMatch from "@/components/shared/HighlightMatch";
+import { matchesSearch } from "@/lib/search";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Printer, LineChart as LineChartIcon } from "lucide-react";
@@ -33,10 +35,10 @@ function ParamTableHeader() {
 }
 
 function ParamTableRow({
-  r, dateStr, orderedBy, checked, onToggle, printEligible,
+  r, dateStr, orderedBy, checked, onToggle, printEligible, search,
 }: {
   r: any; dateStr: string; orderedBy: string;
-  checked: boolean; onToggle: () => void; printEligible: boolean;
+  checked: boolean; onToggle: () => void; printEligible: boolean; search: string;
 }) {
   const norm = r.ref_min != null || r.ref_max != null
     ? `${r.ref_min ?? ""}${r.ref_min != null && r.ref_max != null ? "–" : ""}${r.ref_max ?? ""}`
@@ -55,7 +57,7 @@ function ParamTableRow({
           className="print:hidden"
           aria-label={`Выбрать ${r.parameter_name}`}
         />
-        <span className="truncate text-slate-600">{r.parameter_name}</span>
+        <span className="truncate text-slate-600"><HighlightMatch text={r.parameter_name} term={search} /></span>
       </div>
       <div className="flex items-center gap-1">
         <span className="font-mono">{r.value}</span>
@@ -69,13 +71,13 @@ function ParamTableRow({
   );
 }
 
-function PendingRow({ vs }: { vs: any }) {
+function PendingRow({ vs, search }: { vs: any; search: string }) {
   const orderedBy = vs.profiles?.full_name || "—";
   const dateStr = vs.created_at ? format(new Date(vs.created_at), "dd.MM.yyyy HH:mm") : "—";
   return (
     <div className="grid grid-cols-[1fr_90px_60px_110px_120px_90px] print:grid-cols-[1fr_90px_60px_110px_90px] items-center gap-1 border-b py-1 text-sm last:border-0">
       <div className="flex items-center gap-2 min-w-0 pl-6">
-        <span className="truncate text-slate-600">{vs.services?.name}</span>
+        <span className="truncate text-slate-600"><HighlightMatch text={vs.services?.name} term={search} /></span>
       </div>
       <span className="text-xs text-muted-foreground">—</span>
       <span className="text-xs text-muted-foreground">—</span>
@@ -101,9 +103,8 @@ function SampleGroup({
   checkedParams: Set<string>; toggleParam: (name: string) => void;
   toggleGroup: (names: string[], currentlyAllChecked: boolean) => void; allChecked: boolean;
 }) {
-  const q = search.trim().toLowerCase();
   const allResults = sample?.lab_results || [];
-  const results = q ? allResults.filter((r: any) => r.parameter_name?.toLowerCase().includes(q)) : allResults;
+  const results = allResults.filter((r: any) => matchesSearch([r.parameter_name], search));
   if (results.length === 0) return null;
 
   const dateStr = sample?.completed_at ? format(new Date(sample.completed_at), "dd.MM.yyyy HH:mm") : "";
@@ -143,6 +144,7 @@ function SampleGroup({
           <ParamTableRow
             key={r.id}
             r={r}
+            search={search}
             dateStr={dateStr}
             orderedBy={resolveOrderedBy(sample, r)}
             checked={checked}
@@ -350,11 +352,10 @@ export default function PhysicianResultsTab({ hospitalizationId, patientId, hosp
 
   const [showHistory, setShowHistory] = useState(false);
 
-  const q = search.trim().toLowerCase();
   const matchCount = (list: any[]) =>
     list.reduce(
       (sum, s) => sum + (s.lab_results || []).filter(
-        (r: any) => !q || r.parameter_name?.toLowerCase().includes(q),
+        (r: any) => matchesSearch([r.parameter_name], search),
       ).length,
       0,
     );
@@ -362,7 +363,7 @@ export default function PhysicianResultsTab({ hospitalizationId, patientId, hosp
   const historyMatches = matchCount(history);
 
   const pendingFilter = (list: any[]) =>
-    list.filter((vs: any) => !q || vs.services?.name?.toLowerCase().includes(q));
+    list.filter((vs: any) => matchesSearch([vs.services?.name], search));
   const pendingCurrentFiltered = pendingFilter(pendingCurrent);
   const pendingHistoryFiltered = pendingFilter(pendingHistory);
   const pendingCurrentMatches = pendingCurrentFiltered.length;
@@ -373,7 +374,7 @@ export default function PhysicianResultsTab({ hospitalizationId, patientId, hosp
   const visibleParamNames = new Set<string>();
   [...current, ...history].forEach((s: any) => {
     (s.lab_results || []).forEach((r: any) => {
-      if (!q || r.parameter_name?.toLowerCase().includes(q)) visibleParamNames.add(r.parameter_name);
+      if (matchesSearch([r.parameter_name], search)) visibleParamNames.add(r.parameter_name);
     });
   });
   const allVisibleSelected = visibleParamNames.size > 0 &&
@@ -388,11 +389,12 @@ export default function PhysicianResultsTab({ hospitalizationId, patientId, hosp
           <Checkbox checked={allVisibleSelected} onCheckedChange={toggleSelectAll} />
           Выбрать все
         </label>
-        <Input
+        <SearchInput
           placeholder="Поиск по названию показателя..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="h-8 text-sm"
+          onChange={setSearch}
+          className="flex-1"
+          inputClassName="h-8 text-sm"
         />
         {checkedParams.size > 0 && (
           <Button variant="outline" size="sm" onClick={() => setDynamicsOpen(true)} className="shrink-0">
@@ -417,7 +419,7 @@ export default function PhysicianResultsTab({ hospitalizationId, patientId, hosp
             <div>
               <ParamTableHeader />
               {pendingCurrentFiltered.map((vs: any) => (
-                <PendingRow key={vs.id} vs={vs} />
+                <PendingRow key={vs.id} vs={vs} search={search} />
               ))}
               {current.map((s: any) => (
                 <SampleGroup
@@ -444,7 +446,7 @@ export default function PhysicianResultsTab({ hospitalizationId, patientId, hosp
                 <div className="mt-1.5">
                   <ParamTableHeader />
                   {pendingHistoryFiltered.map((vs: any) => (
-                    <PendingRow key={vs.id} vs={vs} />
+                    <PendingRow key={vs.id} vs={vs} search={search} />
                   ))}
                   {history.map((s: any) => (
                     <SampleGroup
