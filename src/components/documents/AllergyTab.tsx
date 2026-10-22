@@ -10,6 +10,10 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import SearchInput from "@/components/shared/SearchInput";
+import HighlightMatch from "@/components/shared/HighlightMatch";
+import { applySearch, hasSearch } from "@/lib/search";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
 interface Props {
   patientId: string;
@@ -56,6 +60,7 @@ export default function AllergyTab({ patientId, hospitalId, isReadOnly, currentU
   const [allergyType, setAllergyType] = useState("drug");
   const [description, setDescription] = useState("");
   const [drugSearch, setDrugSearch] = useState("");
+  const debouncedDrugSearch = useDebouncedValue(drugSearch);
   const [selectedDrug, setSelectedDrug] = useState<{ id: string; trade_name: string } | null>(null);
   const [severity, setSeverity] = useState("");
   const [reaction, setReaction] = useState("");
@@ -77,18 +82,16 @@ export default function AllergyTab({ patientId, hospitalId, isReadOnly, currentU
   });
 
   const { data: drugResults = [] } = useQuery({
-    queryKey: ["allergy-drug-search", drugSearch],
+    queryKey: ["allergy-drug-search", debouncedDrugSearch],
     queryFn: async () => {
-      if (!drugSearch.trim()) return [];
-      const { data, error } = await supabase
-        .from("drug_formulary")
-        .select("id, trade_name")
-        .ilike("trade_name", `%${drugSearch}%`)
-        .limit(8);
+      const { data, error } = await applySearch(
+        supabase.from("drug_formulary").select("id, trade_name, inn"),
+        debouncedDrugSearch
+      ).limit(8);
       if (error) throw error;
       return data || [];
     },
-    enabled: allergyType === "drug" && drugSearch.trim().length > 0,
+    enabled: allergyType === "drug" && hasSearch(debouncedDrugSearch),
   });
 
   const resetForm = () => {
@@ -219,10 +222,10 @@ export default function AllergyTab({ patientId, hospitalId, isReadOnly, currentU
                   </div>
                 ) : (
                   <>
-                    <Input
+                    <SearchInput
                       value={drugSearch}
-                      onChange={(e) => setDrugSearch(e.target.value)}
-                      placeholder="Поиск препарата..."
+                      onChange={setDrugSearch}
+                      placeholder="Поиск препарата (название или МНН)"
                     />
                     {drugResults.length > 0 && (
                       <div className="rounded-md border divide-y max-h-40 overflow-y-auto">
@@ -232,7 +235,12 @@ export default function AllergyTab({ patientId, hospitalId, isReadOnly, currentU
                             className="w-full text-left px-3 py-1.5 text-sm hover:bg-muted"
                             onClick={() => { setSelectedDrug(d); setDrugSearch(""); }}
                           >
-                            {d.trade_name}
+                            <HighlightMatch text={d.trade_name} term={drugSearch} />
+                            {d.inn && (
+                              <span className="ml-2 text-xs text-muted-foreground">
+                                <HighlightMatch text={d.inn} term={drugSearch} />
+                              </span>
+                            )}
                           </button>
                         ))}
                       </div>

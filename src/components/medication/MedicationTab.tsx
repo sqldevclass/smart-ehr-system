@@ -18,6 +18,9 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import PrescriptionGrid from "@/components/medication/PrescriptionGrid";
 import PrnPrescriptionList from "@/components/medication/PrnPrescriptionList";
+import SearchInput from "@/components/shared/SearchInput";
+import HighlightMatch from "@/components/shared/HighlightMatch";
+import { applySearch, hasSearch } from "@/lib/search";
 
 import { useAuth } from "@/hooks/useAuth";
 
@@ -217,7 +220,7 @@ export default function MedicationTab({
 
   // Debounced search
   useEffect(() => {
-    if (searchQuery.length < 2) {
+    if (!hasSearch(searchQuery)) {
       setSearchResults([]);
       setStockMap({});
       setAlternativesMap({});
@@ -225,18 +228,19 @@ export default function MedicationTab({
     }
     setSearching(true);
     const t = setTimeout(async () => {
-      const { data: drugs } = await supabase
-        .from("drug_formulary")
-        .select(`
-          id, trade_name, inn, dose, unit_id,
-          release_form_id, subgroup_id,
-          units_of_measurement!unit_id(abbreviation),
-          release_forms!release_form_id(name_ru)
-        `)
-        .eq("hospital_id", hospitalId)
-        .eq("is_active", true)
-        .or(`trade_name.ilike.%${searchQuery}%,inn.ilike.%${searchQuery}%`)
-        .limit(10);
+      const { data: drugs } = await applySearch(
+        supabase
+          .from("drug_formulary")
+          .select(`
+            id, trade_name, inn, dose, unit_id,
+            release_form_id, subgroup_id,
+            units_of_measurement!unit_id(abbreviation),
+            release_forms!release_form_id(name_ru)
+          `)
+          .eq("hospital_id", hospitalId)
+          .eq("is_active", true),
+        searchQuery
+      ).limit(10);
 
       if (!drugs || drugs.length === 0) {
         setSearchResults([]);
@@ -1222,11 +1226,11 @@ export default function MedicationTab({
         ) : (
           <>
             <div className="space-y-2">
-              <Input
+              <SearchInput
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Поиск препарата..."
-                className="h-8 text-sm"
+                onChange={setSearchQuery}
+                placeholder="Поиск препарата (название или МНН)"
+                inputClassName="h-8 text-sm"
               />
               {searching && <p className="text-xs text-muted-foreground">Поиск...</p>}
               {searchResults.map((drug: any) => {
@@ -1247,7 +1251,7 @@ export default function MedicationTab({
                       }`}
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-medium">{drug.trade_name}</p>
+                        <p className="text-sm font-medium"><HighlightMatch text={drug.trade_name} term={searchQuery} /></p>
                         {isOutOfStock && (
                           <span className="text-xs text-destructive font-medium shrink-0">
                             Нет в наличии
@@ -1255,7 +1259,7 @@ export default function MedicationTab({
                         )}
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {drug.inn} · {drug.dose}
+                        <HighlightMatch text={drug.inn} term={searchQuery} /> · {drug.dose}
                         {drug.units_of_measurement?.abbreviation
                           ? ` ${drug.units_of_measurement.abbreviation}`
                           : ""}
