@@ -15,10 +15,11 @@ import {
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, X, ArrowLeft } from "lucide-react";
-import { format } from "date-fns";
 import { toast } from "sonner";
 import PatientSearchInput from "@/components/shared/PatientSearchInput";
-import { applyPatientSearch } from "@/lib/patientSearch";
+import { applyPatientSearch, formatDob } from "@/lib/patientSearch";
+import HighlightMatch from "@/components/shared/HighlightMatch";
+import PatientDobCell from "@/components/shared/PatientDobCell";
 
 interface Patient {
   id: string;
@@ -290,10 +291,10 @@ export default function NewVisitPage() {
                     className="cursor-pointer"
                     onClick={() => setSelectedPatient(p)}
                   >
-                    <TableCell className="font-mono text-xs">{p.patient_number || "—"}</TableCell>
-                    <TableCell className="font-medium">{formatPatientName(p)}</TableCell>
-                    <TableCell>{p.date_of_birth ? format(new Date(p.date_of_birth), "MMM d, yyyy") : "—"}</TableCell>
-                    <TableCell>{p.phone || "—"}</TableCell>
+                    <TableCell className="font-mono text-xs"><HighlightMatch text={p.patient_number} term={search} fallback="—" /></TableCell>
+                    <TableCell className="font-medium"><HighlightMatch text={formatPatientName(p)} term={search} /></TableCell>
+                    <TableCell><PatientDobCell dob={p.date_of_birth} term={search} /></TableCell>
+                    <TableCell><HighlightMatch text={p.phone} term={search} fallback="—" /></TableCell>
                   </TableRow>
                 ))
               )}
@@ -315,7 +316,7 @@ export default function NewVisitPage() {
           </div>
           <div className="font-semibold text-lg">{formatPatientName(selectedPatient)}</div>
           <div className="text-sm text-muted-foreground">
-            DOB: {selectedPatient.date_of_birth ? format(new Date(selectedPatient.date_of_birth), "MMM d, yyyy") : "—"}
+            DOB: {formatDob(selectedPatient.date_of_birth) || "—"}
             {selectedPatient.phone ? ` · ${selectedPatient.phone}` : ""}
           </div>
         </div>
