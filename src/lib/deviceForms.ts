@@ -91,3 +91,10 @@ export const DEVICE_FORMS: Record<string, FormDef> = {
     ],
   },
 };
+
+/** Infection signs for postoperative wounds: critical criteria except fever. */
+export const WOUND_FEVER_CODE = "wound_1";
+export const WOUND_CULTURE_CODE = "wound_culture";
+export const WOUND_INFECTION_SIGNS = DEVICE_FORMS.postop_wound.criteria.filter(
+  (c) => c.critical && c.code !== WOUND_FEVER_CODE
+);

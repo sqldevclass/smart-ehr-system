@@ -21,6 +21,7 @@ import SafetyTab from "@/components/reports/SafetyTab";
 import AntibioticTimeoutTab from "@/components/reports/AntibioticTimeoutTab";
 import CriticalLabValuesTab from "@/components/reports/CriticalLabValuesTab";
 import DailyNotesTab from "@/components/reports/DailyNotesTab";
+import WoundInfectionTab from "@/components/reports/WoundInfectionTab";
 
 const defaultPeriod = (): PeriodState => ({
   period: "custom",
@@ -87,6 +88,7 @@ export default function QualityReportsPage() {
                 <TabsTrigger value="daily-notes">Дневниковые записи</TabsTrigger>
                 <TabsTrigger value="safety">Побочные эффекты анестезии</TabsTrigger>
                 <TabsTrigger value="antibiotic-timeout">Антибиотикопрофилактика</TabsTrigger>
+                <TabsTrigger value="wound-infection">Частота инфекции</TabsTrigger>
                 <TabsTrigger value="critical-lab">Критические лабораторные показатели</TabsTrigger>
               </TabsList>
               <TabsContent value="census">
@@ -121,6 +123,9 @@ export default function QualityReportsPage() {
               </TabsContent>
               <TabsContent value="antibiotic-timeout">
                 <AntibioticTimeoutTab from={from} to={to} />
+              </TabsContent>
+              <TabsContent value="wound-infection">
+                <WoundInfectionTab from={from} to={to} />
               </TabsContent>
               <TabsContent value="critical-lab">
                 <CriticalLabValuesTab from={from} to={to} />
