@@ -19,10 +19,11 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Plus } from "lucide-react";
-import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { PeriodFilter, PeriodState, getDateBounds, getTodayBounds, SummaryCard, MetricTile } from "@/components/shared/PeriodFilter";
+import HighlightMatch from "@/components/shared/HighlightMatch";
+import PatientDobCell from "@/components/shared/PatientDobCell";
 import PatientSearchInput from "@/components/shared/PatientSearchInput";
 import { applyPatientSearch, hasPatientSearch } from "@/lib/patientSearch";
 
@@ -68,6 +69,8 @@ export default function PatientsList() {
       }
 
       q = applyPatientSearch(q, search);
+      // A search ignores the period, so cap it (one character would match most patients).
+      if (isSearching) q = q.limit(50);
 
       const { data, error } = await q;
       if (error) throw error;
@@ -179,10 +182,10 @@ export default function PatientsList() {
                   onClick={() => navigate(`/registrar/patients/${p.id}`)}
                 >
                   <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
-                  <TableCell className="font-mono text-xs">{p.patient_number || "—"}</TableCell>
+                  <TableCell className="font-mono text-xs"><HighlightMatch text={p.patient_number} term={search} fallback="—" /></TableCell>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
-                      <span>{formatName(p)}</span>
+                      <span><HighlightMatch text={formatName(p)} term={search} /></span>
                       {pendingOrderPatientIds.has(p.id) && (
                         <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
                           Pending order
@@ -190,8 +193,8 @@ export default function PatientsList() {
                       )}
                     </div>
                   </TableCell>
-                  <TableCell>{p.date_of_birth ? format(new Date(p.date_of_birth), "MMM d, yyyy") : "—"}</TableCell>
-                  <TableCell>{p.phone || "—"}</TableCell>
+                  <TableCell><PatientDobCell dob={p.date_of_birth} term={search} /></TableCell>
+                  <TableCell><HighlightMatch text={p.phone} term={search} fallback="—" /></TableCell>
                   <TableCell>
                     <span className={`rounded px-2 py-0.5 text-xs font-medium capitalize ${p.registration_status === "full" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
                       {p.registration_status || "—"}

@@ -28,7 +28,8 @@ import {
 import { toLocal } from "@/lib/timezone";
 import { PeriodFilter, PeriodState, getDateBounds, getTodayBounds, SummaryCard, MetricTile } from "@/components/shared/PeriodFilter";
 import EWSStatusDot from "@/components/ews/EWSStatusDot";
-import { applyPatientSearch, PATIENT_SEARCH_PLACEHOLDER } from "@/lib/patientSearch";
+import { applyPatientSearch, hasPatientSearch, PATIENT_SEARCH_PLACEHOLDER } from "@/lib/patientSearch";
+import PatientMatchSummary from "@/components/shared/PatientMatchSummary";
 
 interface Visit {
   id: string;
@@ -172,12 +173,12 @@ export default function PaymentsPage() {
 
   const { data: patientResults = [] } = useQuery({
     queryKey: ["cashier-patient-search", user?.hospitalId, patientSearch],
-    enabled: !!user && patientSearch.trim().length > 1,
+    enabled: !!user && hasPatientSearch(patientSearch),
     queryFn: async () => {
       const { data, error } = await applyPatientSearch(
         supabase
           .from("patients")
-          .select("id, patient_number, first_name, last_name, date_of_birth")
+          .select("id, patient_number, first_name, last_name, middle_name, date_of_birth, phone")
           .eq("hospital_id", user!.hospitalId),
         patientSearch
       ).limit(10);
@@ -240,7 +241,7 @@ export default function PaymentsPage() {
               value={patientSearch}
               onChange={(e) => setPatientSearch(e.target.value)}
             />
-            {patientSearch.trim().length > 1 && patientResults.length > 0 && (
+            {hasPatientSearch(patientSearch) && patientResults.length > 0 && (
               <div className="absolute z-10 mt-1 w-full rounded border bg-popover shadow">
                 {patientResults.map((p: any) => (
                   <button
@@ -252,8 +253,7 @@ export default function PaymentsPage() {
                       setPatientSearch("");
                     }}
                   >
-                    <span className="font-medium">{p.last_name} {p.first_name}</span>
-                    <span className="ml-2 text-muted-foreground">П# {p.patient_number}</span>
+                    <PatientMatchSummary patient={p} term={patientSearch} />
                   </button>
                 ))}
               </div>
