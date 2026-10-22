@@ -16,8 +16,9 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, X, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import PatientSearchInput from "@/components/shared/PatientSearchInput";
-import { applyPatientSearch, formatDob } from "@/lib/patientSearch";
+import SearchInput from "@/components/shared/SearchInput";
+import FaceIdButton from "@/components/shared/FaceIdButton";
+import { applyPatientSearch, formatDob, PATIENT_SEARCH_PLACEHOLDER } from "@/lib/patientSearch";
 import HighlightMatch from "@/components/shared/HighlightMatch";
 import PatientDobCell from "@/components/shared/PatientDobCell";
 
@@ -261,7 +262,13 @@ export default function NewVisitPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <PatientSearchInput value={search} onChange={setSearch} showFaceId className="flex-1" />
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder={PATIENT_SEARCH_PLACEHOLDER.en}
+            trailing={<FaceIdButton />}
+            className="flex-1"
+          />
           <Button variant="outline" onClick={() => navigate("/registrar")}>
             Register New Patient
           </Button>
