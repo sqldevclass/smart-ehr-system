@@ -13,6 +13,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Plus, Minus, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import ScheduleSection from "./ScheduleSection";
+import SearchInput from "@/components/shared/SearchInput";
+import HighlightMatch from "@/components/shared/HighlightMatch";
+import { matchesSearch } from "@/lib/search";
 
 interface Props {
   roomId: string;
@@ -320,7 +323,7 @@ function RoomServicesPanel({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("services")
-        .select("id, name")
+        .select("id, name, code")
         .eq("hospital_id", hospitalId)
         .eq("is_active", true)
         .order("name");
@@ -330,9 +333,8 @@ function RoomServicesPanel({
   });
 
   const assignedServiceIds = new Set(assigned.map((a: any) => a.service_id));
-  const filteredServices = (allServices || []).filter((s: any) =>
-    s.name.toLowerCase().includes(serviceSearch.toLowerCase()) &&
-    !assignedServiceIds.has(s.id)
+  const filteredServices = (allServices || []).filter(
+    (s: any) => !assignedServiceIds.has(s.id) && matchesSearch([s.name, s.code], serviceSearch)
   );
 
   const invalidate = () =>
@@ -381,10 +383,10 @@ function RoomServicesPanel({
 
       <div className="rounded-lg border bg-card p-5 space-y-3">
         <h3 className="font-semibold">Доступные услуги</h3>
-        <Input
-          placeholder="Поиск услуг..."
+        <SearchInput
+          placeholder="Поиск услуг (название или код)"
           value={serviceSearch}
-          onChange={(e) => setServiceSearch(e.target.value)}
+          onChange={setServiceSearch}
           className="mb-2"
         />
         {filteredServices.length === 0 ? (
@@ -393,7 +395,7 @@ function RoomServicesPanel({
           <ul className="space-y-1">
             {filteredServices.map((s: any) => (
               <li key={s.id} className="flex items-center justify-between rounded-md border p-2">
-                <span className="text-sm">{s.name}</span>
+                <span className="text-sm"><HighlightMatch text={s.name} term={serviceSearch} /></span>
                 <Button size="sm" variant="outline" className="gap-1" onClick={() => add(s.id)}>
                   <Plus className="h-3 w-3" />
                 </Button>
