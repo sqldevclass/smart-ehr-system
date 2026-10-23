@@ -24,10 +24,10 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
-
-const DIAGNOSIS_PICK_FIELDS: Record<string, string> = { preop_diagnosis: "diag.preop", postop_diagnosis: "diag.postop" };
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from "@/components/ui/select";
+
+const DIAGNOSIS_PICK_FIELDS: Record<string, string> = { preop_diagnosis: "diag.preop", postop_diagnosis: "diag.postop" };
 
 // Document types that carry the C-SSRS suicide-risk screen inside
 // their Объективная оценка tab (same 6 that had the old psych.*
