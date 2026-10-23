@@ -27,6 +27,8 @@ import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from "@/components/ui/select";
 
+const DIAGNOSIS_PICK_FIELDS: Record<string, string> = { preop_diagnosis: "diag.preop", postop_diagnosis: "diag.postop" };
+
 // Document types that carry the C-SSRS suicide-risk screen inside
 // their Объективная оценка tab (same 6 that had the old psych.*
 // fields it replaces).
@@ -270,6 +272,11 @@ export default function DocumentWorkspaceInner({
   }, [sectionsData, fieldsData]);
 
   const isOnDiagnosisTab = sections[parseInt(activeTab)]?.code === "diagnosis";
+  const activeSection = sections[parseInt(activeTab)];
+  const pickAttribute = activeSection ? DIAGNOSIS_PICK_FIELDS[activeSection.code] : undefined;
+  const pickFieldId = pickAttribute
+    ? activeSection.fields.find((f: any) => f.def.attribute_code === pickAttribute)?.def.id
+    : undefined;
 
   const allMandatoryFilled = useMemo(() => {
     for (const s of sections) {
@@ -834,14 +841,17 @@ export default function DocumentWorkspaceInner({
         </div>
         {!fullView && (!isReadOnly || (physicianId !== null)) && (
           <div className="w-56 shrink-0 print:hidden">
-            {isOnDiagnosisTab ? (
+            {isOnDiagnosisTab || pickFieldId ? (
               <DiagnosisHistoryPanel
                 patientId={patientId}
                 hospitalizationId={hospitalizationId ?? ""}
                 visitId={visitId}
                 hospitalId={hospitalId}
                 isReadOnly={isReadOnly}
-                onCopy={async (d, diagnosisType) => {
+                onPick={pickFieldId && !isOnDiagnosisTab
+                  ? (d) => setVal(pickFieldId, `${d.icd10_codes?.code ?? d.icd10_code} — ${d.icd10_codes?.name_ru ?? ""}`)
+                  : undefined}
+                onCopy={isOnDiagnosisTab ? async (d, diagnosisType) => {
                   await supabase.from("patient_diagnoses").insert({
                     patient_id: patientId,
                     hospital_id: hospitalId,
@@ -852,7 +862,7 @@ export default function DocumentWorkspaceInner({
                     notes: d.notes || null,
                     recorded_by: user!.id,
                   });
-                }}
+                } : undefined}
               />
             ) : !isReadOnly ? (
               <TemplatePanel
@@ -896,15 +906,17 @@ export default function DocumentWorkspaceInner({
 }
 
 function DiagnosisHistoryPanel({
-  patientId, hospitalizationId, visitId, hospitalId, isReadOnly, onCopy,
+  patientId, hospitalizationId, visitId, hospitalId, isReadOnly, onCopy, onPick,
 }: {
   patientId: string;
   hospitalizationId: string;
   visitId: string;
   hospitalId: string;
   isReadOnly: boolean;
-  onCopy: (d: any, diagnosisType: string) => Promise<void>;
+  onCopy?: (d: any, diagnosisType: string) => Promise<void>;
+  onPick?: (d: any) => void;
 }) {
+  const pickMode = !!onPick;
   const qc = useQueryClient();
   const [copying, setCopying] = useState<string | null>(null);
   const [pendingCopy, setPendingCopy] = useState<any | null>(null);
@@ -934,12 +946,10 @@ function DiagnosisHistoryPanel({
   });
 
   const { data: otherPhysicianDiags = [] } = useQuery({
-    queryKey: ["doc-diag-other-physicians", hospitalizationId],
+    queryKey: ["doc-diag-other-physicians", hospitalizationId, pickMode],
     enabled: !!hospitalizationId,
     queryFn: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return [];
-      const { data } = await supabase
+      let q = supabase
         .from("patient_diagnoses")
         .select(`
           id, icd10_code, diagnosis_type, notes, recorded_at,
@@ -947,9 +957,13 @@ function DiagnosisHistoryPanel({
           profiles!recorded_by(full_name)
         `)
         .eq("hospital_id", hospitalId)
-        .eq("hospitalization_id", hospitalizationId)
-        .neq("recorded_by", session.user.id)
-        .order("recorded_at", { ascending: false });
+        .eq("hospitalization_id", hospitalizationId);
+      if (!pickMode) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return [];
+        q = q.neq("recorded_by", session.user.id);
+      }
+      const { data } = await q.order("recorded_at", { ascending: false });
       return data || [];
     },
   });
@@ -989,7 +1003,7 @@ function DiagnosisHistoryPanel({
         }
       }
       setCopying(pendingCopy.id);
-      await onCopy(pendingCopy, copyType);
+      await onCopy?.(pendingCopy, copyType);
       qc.invalidateQueries({ queryKey: ["doc-diagnoses"] });
       setPendingCopy(null);
     } finally {
@@ -1014,11 +1028,11 @@ function DiagnosisHistoryPanel({
       </div>
       {!isReadOnly && (
         <button
-          onClick={() => openCopyDialog(d)}
+          onClick={() => (pickMode ? onPick!(d) : openCopyDialog(d))}
           disabled={copying === d.id}
           className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 text-primary text-[10px] border rounded px-1.5 py-0.5 bg-white hover:bg-primary hover:text-white transition-all disabled:opacity-50"
         >
-          {copying === d.id ? "..." : "+ Добавить"}
+          {pickMode ? "Использовать" : copying === d.id ? "..." : "+ Добавить"}
         </button>
       )}
     </div>
