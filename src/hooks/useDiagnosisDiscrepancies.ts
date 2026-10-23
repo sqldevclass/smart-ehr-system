@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { OPERATION_PROTOCOL_DOC_TYPE_ID } from "@/lib/documentTypeIds";
 import {
   buildDiagnosisDiscrepancies, OPERATION_NAME_FIELD_ID, SURGEON_FIELD_ID,
-  type DiagnosisRef, type ProtocolDiagnosisInput,
+  type DepartmentStay, type DiagnosisRef, type ProtocolDiagnosisInput,
 } from "@/lib/diagnosisDiscrepancy";
 
 const textOrNull = (v: unknown): string | null => {
