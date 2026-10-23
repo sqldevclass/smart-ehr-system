@@ -55,3 +55,18 @@ export function formatDayRanges(keys: string[]): string {
   return parts.join(", ");
 }
 
+
+// Hospital-local calendar days of the stay, inclusive (admission day through
+// discharge day, or today while admitted), clipped to [fromKey, toKey].
+export function stayDayCount(
+  stay: StayWindow,
+  opts: { now: Date; tz: string; fromKey: string; toKey: string }
+): number {
+  const first = localDayKey(stay.admittedAt, opts.tz);
+  const last = localDayKey(stay.dischargedAt ?? opts.now, opts.tz);
+  const start = first > opts.fromKey ? first : opts.fromKey;
+  const end = last < opts.toKey ? last : opts.toKey;
+  let n = 0;
+  for (let k = start; k <= end; k = addDaysToKey(k, 1)) n++;
+  return n;
+}
