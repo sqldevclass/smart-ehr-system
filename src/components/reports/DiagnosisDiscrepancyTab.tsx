@@ -14,6 +14,7 @@ export default function DiagnosisDiscrepancyTab({ from, to }: { from: string; to
     { id: "patient", header: "Пациент", accessorFn: (r) => r.patientName },
     { id: "patient_number", header: "ID пациента", accessorFn: (r) => r.patientNumber ?? "" },
     { id: "hospitalization_number", header: "№ истории", accessorFn: (r) => r.hospitalizationNumber ?? "" },
+    { id: "department", header: "Отделение", accessorFn: (r) => r.department ?? "—" },
     { id: "completed_at", header: "Дата протокола", accessorFn: (r) => toLocal(r.completedAt, tz, "dd.MM.yyyy HH:mm") },
     { id: "operation", header: "Операция", accessorFn: (r) => r.operationName ?? "" },
     { id: "surgeon", header: "Хирург", accessorFn: (r) => r.surgeon ?? "—" },
