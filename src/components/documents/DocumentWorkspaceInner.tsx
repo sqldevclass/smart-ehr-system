@@ -27,7 +27,9 @@ import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from "@/components/ui/select";
 
-const DIAGNOSIS_PICK_FIELDS: Record<string, string> = { preop_diagnosis: "diag.preop", postop_diagnosis: "diag.postop" };
+import {
+  DIAGNOSIS_PHASE_BY_SECTION, addDocumentDiagnosis, DOCUMENT_DIAGNOSIS_ERRORS, type DiagnosisPhase,
+} from "@/lib/documentDiagnoses";
 
 // Document types that carry the C-SSRS suicide-risk screen inside
 // their Объективная оценка tab (same 6 that had the old psych.*
@@ -220,7 +222,21 @@ export default function DocumentWorkspaceInner({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const [phaseHasMain, setPhaseHasMain] = useState<Record<DiagnosisPhase, boolean>>({ preop: false, postop: false });
+
   const recheckDiagnosis = useCallback(async () => {
+    const currentDocId = documentIdRef.current;
+    if (currentDocId) {
+      const { data: mains } = await supabase
+        .from("document_diagnoses" as any)
+        .select("phase")
+        .eq("document_id", currentDocId)
+        .eq("diagnosis_type", "main");
+      const phases = new Set(((mains as any[]) || []).map((m: any) => m.phase));
+      setPhaseHasMain({ preop: phases.has("preop"), postop: phases.has("postop") });
+    } else {
+      setPhaseHasMain({ preop: false, postop: false });
+    }
     if (!hospitalizationId && !visitId) return;
     const column = hospitalizationId ? "hospitalization_id" : "visit_id";
     const value = hospitalizationId || visitId;
@@ -268,18 +284,20 @@ export default function DocumentWorkspaceInner({
             def: f.field_definitions,
           })),
       }))
-      .filter((s) => s.fields.length > 0 || s.code === "allergy_assessment_nursing");
+      .filter((s) => s.fields.length > 0 || s.code === "allergy_assessment_nursing" || !!DIAGNOSIS_PHASE_BY_SECTION[s.code]);
   }, [sectionsData, fieldsData]);
 
   const isOnDiagnosisTab = sections[parseInt(activeTab)]?.code === "diagnosis";
   const activeSection = sections[parseInt(activeTab)];
-  const pickAttribute = activeSection ? DIAGNOSIS_PICK_FIELDS[activeSection.code] : undefined;
-  const pickFieldId = pickAttribute
-    ? activeSection.fields.find((f: any) => f.def.attribute_code === pickAttribute)?.def.id
-    : undefined;
+  const activePhase = activeSection ? DIAGNOSIS_PHASE_BY_SECTION[activeSection.code] : undefined;
 
   const allMandatoryFilled = useMemo(() => {
     for (const s of sections) {
+      const phase = DIAGNOSIS_PHASE_BY_SECTION[s.code];
+      if (phase) {
+        if (!phaseHasMain[phase]) return false;
+        continue;
+      }
       for (const f of s.fields) {
         if (!f.is_mandatory) continue;
         if (s.code === "diagnosis") {
@@ -293,7 +311,7 @@ export default function DocumentWorkspaceInner({
       }
     }
     return true;
-  }, [sections, values, hasDiagnosis]);
+  }, [sections, values, hasDiagnosis, phaseHasMain]);
 
   const setVal = (id: string, val: string) => {
     setValues((p) => ({ ...p, [id]: val }));
@@ -699,7 +717,7 @@ export default function DocumentWorkspaceInner({
                       : "—"}
                   </div>
                 )}
-                {s.code === "diagnosis" ? (
+                {s.code === "diagnosis" || DIAGNOSIS_PHASE_BY_SECTION[s.code] ? (
                   <DiagnosisTab
                     hospitalizationId={hospitalizationId}
                     visitId={visitId}
@@ -710,6 +728,8 @@ export default function DocumentWorkspaceInner({
                     isReadOnly={effectiveReadOnly}
                     currentUserId={user!.id}
                     onDiagnosisChange={recheckDiagnosis}
+                    phase={DIAGNOSIS_PHASE_BY_SECTION[s.code]}
+                    ensureDocumentId={DIAGNOSIS_PHASE_BY_SECTION[s.code] ? ensureDocument : undefined}
                   />
                 ) : s.code === "allergy_assessment_nursing" ? (
                   <AllergyTab
@@ -841,15 +861,31 @@ export default function DocumentWorkspaceInner({
         </div>
         {!fullView && (!isReadOnly || (physicianId !== null)) && (
           <div className="w-56 shrink-0 print:hidden">
-            {isOnDiagnosisTab || pickFieldId ? (
+            {isOnDiagnosisTab || activePhase ? (
               <DiagnosisHistoryPanel
                 patientId={patientId}
                 hospitalizationId={hospitalizationId ?? ""}
                 visitId={visitId}
                 hospitalId={hospitalId}
                 isReadOnly={isReadOnly}
-                onPick={pickFieldId && !isOnDiagnosisTab
-                  ? (d) => setVal(pickFieldId, `${d.icd10_codes?.code ?? d.icd10_code} — ${d.icd10_codes?.name_ru ?? ""}`)
+                onPick={activePhase && !isOnDiagnosisTab
+                  ? async (d) => {
+                      const docId = await ensureDocument();
+                      if (!docId) return;
+                      const res = await addDocumentDiagnosis({
+                        documentId: docId,
+                        hospitalId,
+                        phase: activePhase,
+                        icd10Code: d.icd10_code,
+                        diagnosisType: d.diagnosis_type,
+                        notes: d.notes,
+                        userId: user!.id,
+                        downgradeMainIfTaken: true,
+                      });
+                      if (!res.ok) toast.error(DOCUMENT_DIAGNOSIS_ERRORS[res.reason]);
+                      queryClient.invalidateQueries({ queryKey: ["doc-diagnoses"] });
+                      recheckDiagnosis();
+                    }
                   : undefined}
                 onCopy={isOnDiagnosisTab ? async (d, diagnosisType) => {
                   await supabase.from("patient_diagnoses").insert({
