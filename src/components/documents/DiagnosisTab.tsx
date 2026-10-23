@@ -16,6 +16,10 @@ import SearchInput from "@/components/shared/SearchInput";
 import HighlightMatch from "@/components/shared/HighlightMatch";
 import { useIcd10Search } from "@/hooks/useIcd10Search";
 import { hasSearch } from "@/lib/search";
+import { toast } from "sonner";
+import {
+  addDocumentDiagnosis, DOCUMENT_DIAGNOSIS_ERRORS, type DiagnosisPhase,
+} from "@/lib/documentDiagnoses";
 
 interface Props {
   hospitalizationId?: string;
@@ -27,6 +31,8 @@ interface Props {
   isReadOnly: boolean;
   currentUserId: string;
   onDiagnosisChange?: () => void;
+  phase?: DiagnosisPhase;
+  ensureDocumentId?: () => Promise<string | null>;
 }
 
 const diagTypes = [
@@ -54,6 +60,8 @@ export default function DiagnosisTab({
   isReadOnly,
   currentUserId,
   onDiagnosisChange,
+  phase,
+  ensureDocumentId,
 }: Props) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [addSearch, setAddSearch] = useState("");
@@ -83,22 +91,28 @@ export default function DiagnosisTab({
   const scopeKey = hospitalizationId || visitId || "";
   const scopeColumn = hospitalizationId ? "hospitalization_id" : "visit_id";
 
+  const table = phase ? "document_diagnoses" : "patient_diagnoses";
+
   const { data: diagnoses = [], refetch: refetchDiagnoses } = useQuery({
-    queryKey: ["doc-diagnoses", scopeColumn, scopeKey],
-    enabled: !!scopeKey && !!hospitalId,
+    queryKey: phase
+      ? ["doc-diagnoses", "phase", documentId ?? "", phase]
+      : ["doc-diagnoses", scopeColumn, scopeKey],
+    enabled: phase ? !!documentId && !!hospitalId : !!scopeKey && !!hospitalId,
     queryFn: async () => {
-      const { data } = await supabase
-        .from("patient_diagnoses")
+      const base = supabase
+        .from(table as any)
         .select(`
           id, icd10_code, diagnosis_type, notes,
           recorded_by, recorded_at,
           icd10_codes!icd10_code(code, name_ru),
           profiles!recorded_by(full_name)
         `)
-        .eq("hospital_id", hospitalId)
-        .eq(scopeColumn, scopeKey)
-        .order("recorded_at");
-      return data || [];
+        .eq("hospital_id", hospitalId);
+      const { data } = await (phase
+        ? base.eq("document_id", documentId!).eq("phase", phase)
+        : base.eq(scopeColumn, scopeKey)
+      ).order("recorded_at");
+      return (data as any[]) || [];
     },
   });
 
@@ -106,7 +120,7 @@ export default function DiagnosisTab({
 
   const { data: assessments = [], refetch: refetchAssessments } = useQuery({
     queryKey: ["scale-assessments", scopeKey, documentId ?? ""],
-    enabled: !!scopeKey,
+    enabled: !!scopeKey && !phase,
     queryFn: async () => {
       if (!documentId) return [];
       const { data } = await supabase
@@ -125,6 +139,27 @@ export default function DiagnosisTab({
   const handleAddDiagnosis = async () => {
     if (!addSelected) return;
     const selectedCode = addSelected.code;
+    if (phase) {
+      const docId = documentId ?? (await ensureDocumentId?.()) ?? null;
+      if (!docId) {
+        toast.error(DOCUMENT_DIAGNOSIS_ERRORS.error);
+        return;
+      }
+      const res = await addDocumentDiagnosis({
+        documentId: docId,
+        hospitalId,
+        phase,
+        icd10Code: selectedCode,
+        diagnosisType: addType,
+        notes: addNote || null,
+        userId: currentUserId,
+        downgradeMainIfTaken: false,
+      });
+      if (!res.ok) {
+        toast.error(DOCUMENT_DIAGNOSIS_ERRORS[res.reason!]);
+        return;
+      }
+    } else {
     await supabase.from("patient_diagnoses").insert({
       patient_id: patientId,
       hospital_id: hospitalId,
@@ -135,6 +170,7 @@ export default function DiagnosisTab({
       notes: addNote || null,
       recorded_by: currentUserId,
     });
+    }
     refetchDiagnoses();
     onDiagnosisChange?.();
     setShowAddForm(false);
@@ -143,6 +179,7 @@ export default function DiagnosisTab({
     setAddNote("");
     setAddType("main");
     setPendingSelection(null);
+    if (phase) return;
 
     // Check for scales linked to this diagnosis
     const { data: scales } = await supabase.rpc(
@@ -158,13 +195,13 @@ export default function DiagnosisTab({
   };
 
   const handleSaveNote = async (id: string, note: string) => {
-    await supabase.from("patient_diagnoses").update({ notes: note }).eq("id", id);
+    await supabase.from(table as any).update({ notes: note }).eq("id", id);
     refetchDiagnoses();
     setEditingNoteId(null);
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from("patient_diagnoses").delete().eq("id", id);
+    await supabase.from(table as any).delete().eq("id", id);
     refetchDiagnoses();
     onDiagnosisChange?.();
   };
