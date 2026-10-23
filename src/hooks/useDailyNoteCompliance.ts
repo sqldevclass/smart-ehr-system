@@ -9,7 +9,10 @@ import {
   PHYSICIAN_DAILY_NOTE_DOC_TYPE_ID,
   localDayKey,
   requiredNoteDays,
+  stayDayCount,
 } from "@/lib/physicianDailyNotes";
+import { OPERATION_PROTOCOL_DOC_TYPE_ID } from "@/lib/documentTypeIds";
+import { formatStaffShortName } from "@/lib/staffName";
 
 // Persons whose notes don't count (active employment as Анестезиолог-Реаниматолог).
 export function useExcludedNoteAuthorPersonIds() {
@@ -40,90 +43,66 @@ export interface MissingNotesRow {
   department: string;
   admittedAt: string;
   dischargedAt: string | null;
-  required: number;
-  written: number;
+  physician: string;
+  hadSurgery: boolean;
+  stayDays: number;
+  notes: number;
   missingDays: string[];
 }
 
-// Surgical inpatients (>= 1 COMPLETED service of type Хирургия on the hospitalization)
-// and the days in [from, to] they are missing a physician daily note.
+// All inpatient stays overlapping [from, to] and the days they are missing a
+// completed physician daily note.
 export function useMissingDailyNotes(from: string, to: string, excludedPersonIds: Set<string>) {
   const { user } = useAuth();
   const tz = useHospitalTimezone();
   const hospitalId = user?.hospitalId;
 
-  const { data: surgicalHospIds = [], isLoading: idsLoading } = useQuery({
-    queryKey: ["surgical-hospitalization-ids", hospitalId],
+  const { data: stays = [], isLoading } = useQuery({
+    queryKey: ["daily-note-inpatient-stays", hospitalId, from, to],
     enabled: !!hospitalId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("visit_services")
-        .select("hospitalization_id, services!inner(service_types!inner(code)), service_statuses!inner(code)")
-        .eq("hospital_id", hospitalId!)
-        .not("hospitalization_id", "is", null)
-        .eq("services.service_types.code", "surgery")
-        .eq("service_statuses.code", "completed");
-      if (error) throw error;
-      return Array.from(new Set((data || []).map((r: any) => r.hospitalization_id as string)));
-    },
-  });
-
-  const { data: stays = [], isLoading: staysLoading } = useQuery({
-    queryKey: ["surgical-stays", hospitalId, surgicalHospIds.join(","), from, to],
-    enabled: !!hospitalId && surgicalHospIds.length > 0,
-    queryFn: async () => {
-      const { data, error } = await supabase
         .from("hospitalizations")
-        .select("id, hospitalization_number, admitted_at, discharged_at, departments(name), patients(first_name, last_name, patient_number)")
+        .select(
+          "id, hospitalization_number, admitted_at, discharged_at, departments(name), patients(first_name, last_name, patient_number), physician:staff_roles!hospitalizations_primary_staff_role_id_fkey(person:persons(first_name, last_name)), patient_documents(created_at, document_type_id, author:profiles!patient_documents_created_by_fkey(person_id))"
+        )
         .eq("hospital_id", hospitalId!)
-        .in("id", surgicalHospIds)
         .lte("admitted_at", to)
-        .or(`discharged_at.is.null,discharged_at.gte."${from}"`);
+        .or(`discharged_at.is.null,discharged_at.gte."${from}"`)
+        .in("patient_documents.document_type_id", [PHYSICIAN_DAILY_NOTE_DOC_TYPE_ID, OPERATION_PROTOCOL_DOC_TYPE_ID])
+        .eq("patient_documents.status", "completed");
       if (error) throw error;
-      return data || [];
-    },
-  });
-
-  const stayIds = useMemo(() => stays.map((s: any) => s.id as string), [stays]);
-
-  const { data: notes = [], isLoading: notesLoading } = useQuery({
-    queryKey: ["surgical-stay-daily-notes", hospitalId, stayIds.join(",")],
-    enabled: !!hospitalId && stayIds.length > 0,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("patient_documents")
-        .select("hospitalization_id, created_at, author:profiles!patient_documents_created_by_fkey(person_id)")
-        .eq("hospital_id", hospitalId!)
-        .eq("document_type_id", PHYSICIAN_DAILY_NOTE_DOC_TYPE_ID)
-        .eq("status", "completed")
-        .in("hospitalization_id", stayIds);
-      if (error) throw error;
-      return data || [];
+      return (data || []) as any[];
     },
   });
 
   const rows = useMemo<MissingNotesRow[]>(() => {
-    // Report period as the calendar dates the user picked.
     const fromKey = format(new Date(from), "yyyy-MM-dd");
     const toKey = format(new Date(to), "yyyy-MM-dd");
     const now = new Date();
-
-    const coveredByStay = new Map<string, Set<string>>();
-    notes.forEach((n: any) => {
-      if (n.author?.person_id && excludedPersonIds.has(n.author.person_id)) return;
-      const set = coveredByStay.get(n.hospitalization_id) || new Set<string>();
-      set.add(localDayKey(n.created_at, tz));
-      coveredByStay.set(n.hospitalization_id, set);
-    });
+    const opts = { now, tz, fromKey, toKey };
 
     return stays
       .map((s: any): MissingNotesRow => {
-        const required = requiredNoteDays(
-          { admittedAt: s.admitted_at, dischargedAt: s.discharged_at },
-          { now, tz, fromKey, toKey }
+        const docs: any[] = s.patient_documents || [];
+        const noteDocs = docs.filter(
+          (d) =>
+            d.document_type_id === PHYSICIAN_DAILY_NOTE_DOC_TYPE_ID &&
+            !(d.author?.person_id && excludedPersonIds.has(d.author.person_id))
         );
-        const covered = coveredByStay.get(s.id) || new Set<string>();
+        const hadSurgery = docs.some((d) => d.document_type_id === OPERATION_PROTOCOL_DOC_TYPE_ID);
+        const stay = { admittedAt: s.admitted_at, dischargedAt: s.discharged_at };
+        const required = requiredNoteDays(stay, opts);
+        const covered = new Set(noteDocs.map((d) => localDayKey(d.created_at, tz)));
         const missingDays = required.filter((d) => !covered.has(d));
+        const admitKey = localDayKey(s.admitted_at, tz);
+        const endKey = localDayKey(s.discharged_at ?? now, tz);
+        const lo = admitKey > fromKey ? admitKey : fromKey;
+        const hi = endKey < toKey ? endKey : toKey;
+        const notes = noteDocs.filter((d) => {
+          const k = localDayKey(d.created_at, tz);
+          return k >= lo && k <= hi;
+        }).length;
         return {
           hospitalizationId: s.id,
           hospitalizationNumber: s.hospitalization_number,
@@ -132,19 +111,17 @@ export function useMissingDailyNotes(from: string, to: string, excludedPersonIds
           department: s.departments?.name ?? "—",
           admittedAt: s.admitted_at,
           dischargedAt: s.discharged_at,
-          required: required.length,
-          written: required.length - missingDays.length,
+          physician: formatStaffShortName({ person: s.physician?.person }) || "—",
+          hadSurgery,
+          stayDays: stayDayCount(stay, opts),
+          notes,
           missingDays,
         };
       })
       .filter((r) => r.missingDays.length > 0)
       .sort((a, b) => b.missingDays.length - a.missingDays.length);
-  }, [stays, notes, excludedPersonIds, from, to, tz]);
+  }, [stays, excludedPersonIds, from, to, tz]);
 
-  return {
-    rows,
-    surgicalStaysInPeriod: stays.length,
-    isLoading: idsLoading || staysLoading || notesLoading,
-  };
+  return { rows, inpatientsInPeriod: stays.length, isLoading };
 }
 
