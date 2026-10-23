@@ -1,6 +1,5 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/reports/data-table/DataTable";
 import { MetricTile, SummaryCard } from "@/components/shared/PeriodFilter";
 import { useIcuTransfers } from "@/hooks/useIcuTransfers";
@@ -8,32 +7,28 @@ import { useHospitalTimezone } from "@/hooks/useHospitalTimezone";
 import type { IcuTransferRow } from "@/lib/icuTransfers";
 import { toLocal } from "@/lib/timezone";
 
-type Mode = "all" | "24" | "48" | "return";
-const modes: { value: Mode; label: string }[] = [
-  { value: "all", label: "Все переводы" },
-  { value: "24", label: "Возврат ≤ 24 ч" },
-  { value: "48", label: "Возврат ≤ 48 ч" },
-  { value: "return", label: "Любой возврат" },
-];
+export function returnGroupLabel(row: IcuTransferRow): string {
+  if (!row.isReturn || row.returnHours === null) return "Нет возврата";
+  if (row.returnHours <= 24) return "Возврат: до 24 ч";
+  if (row.returnHours <= 48) return "Возврат: 24–48 ч";
+  return "Возврат: более 48 ч";
+}
 
 export default function IcuTransfersTab({ from, to }: { from: string; to: string }) {
   const { rows, excludedPlanned, isLoading, icuMissing, error } = useIcuTransfers(from, to);
   const tz = useHospitalTimezone();
-  const [mode, setMode] = useState<Mode>("all");
-  const filteredRows = rows.filter((r) => mode === "all" || (r.returnHours !== null &&
-    (mode === "return" || r.returnHours <= (mode === "24" ? 24 : 48))));
   const columns = useMemo<ColumnDef<IcuTransferRow, any>[]>(() => [
     { id: "patient", header: "Пациент", accessorFn: (r) => r.patientName },
     { id: "patient_number", header: "ID пациента", accessorFn: (r) => r.patientNumber ?? "" },
     { id: "hospitalization_number", header: "№ истории", accessorFn: (r) => r.hospitalizationNumber ?? "" },
     { id: "from_department", header: "Откуда", accessorFn: (r) => r.fromDepartment },
-    { id: "entered_at", header: "В реанимацию", accessorFn: (r) => toLocal(r.enteredAt, tz, "dd.MM.yyyy HH:mm") },
-    { id: "left_at", header: "Из реанимации", accessorFn: (r) => r.leftAt ? toLocal(r.leftAt, tz, "dd.MM.yyyy HH:mm") : "В реанимации" },
+    { id: "entered_at", header: "Дата перевода", accessorFn: (r) => toLocal(r.enteredAt, tz, "dd.MM.yyyy HH:mm") },
     { id: "epicrisis", header: "Переводной эпикриз", accessorFn: (r) => r.epicrisis === "yes"
       ? `Да${r.epicrisisAt ? ` (${toLocal(r.epicrisisAt, tz, "dd.MM.yyyy HH:mm")})` : ""}`
       : r.epicrisis === "draft" ? "Черновик" : "Нет" },
-    { id: "return", header: "Возврат", accessorFn: (r) => !r.isReturn ? "—"
-      : `Да, №${r.entryNumber}, через ${r.returnHours === null ? "—" : r.returnHours < 1 ? "<1" : Math.round(r.returnHours)} ч` },
+    { id: "return", header: "Возврат", accessorFn: (r) => returnGroupLabel(r),
+      cell: ({ row }) => !row.original.isReturn ? "—"
+        : `№${row.original.entryNumber}, через ${row.original.returnHours === null ? "—" : row.original.returnHours < 1 ? "<1" : Math.round(row.original.returnHours)} ч` },
   ], [tz]);
 
   return (
@@ -48,11 +43,8 @@ export default function IcuTransfersTab({ from, to }: { from: string; to: string
         <MetricTile label="Возвратов в ICU" value={rows.filter((r) => r.isReturn).length} />
         <MetricTile label="Исключено плановых п/о" value={excludedPlanned} />
       </SummaryCard>
-      <div className="flex flex-wrap gap-1">
-        {modes.map((m) => <Button key={m.value} size="sm" variant={mode === m.value ? "default" : "outline"} onClick={() => setMode(m.value)}>{m.label}</Button>)}
-      </div>
       <div className="h-[45vh] min-h-0">
-        <DataTable columns={columns} data={filteredRows} isLoading={isLoading}
+        <DataTable columns={columns} data={rows} isLoading={isLoading}
           viewKey="icu_transfers_columns" getRowId={(r) => `${r.hospitalizationId}_${r.enteredAt}`}
           emptyMessage="Переводов в реанимацию за этот период нет." />
       </div>
