@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import SearchInput from "@/components/shared/SearchInput";
 import HighlightMatch from "@/components/shared/HighlightMatch";
 import { useIcd10Search } from "@/hooks/useIcd10Search";
@@ -15,6 +15,10 @@ interface Props {
 export default function ICD10SearchField({ fieldId, value, onChange, onBlur, isReadOnly }: Props) {
   const [searchTerm, setSearchTerm] = useState<string>(() => value || "");
   const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    setSearchTerm(value || "");
+  }, [value]);
 
   const { data: results = [] } = useIcd10Search(searchTerm);
 
