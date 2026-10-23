@@ -8,7 +8,7 @@ export const DIAGNOSIS_PHASE_BY_SECTION: Record<string, DiagnosisPhase> = {
 };
 
 export type AddDocumentDiagnosisResult =
-  | { ok: true }
+  | { ok: true; reason?: undefined }
   | { ok: false; reason: "duplicate" | "main_exists" | "error" };
 
 export const DOCUMENT_DIAGNOSIS_ERRORS = {

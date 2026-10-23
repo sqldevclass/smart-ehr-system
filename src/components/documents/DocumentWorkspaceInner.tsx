@@ -882,7 +882,7 @@ export default function DocumentWorkspaceInner({
                         userId: user!.id,
                         downgradeMainIfTaken: true,
                       });
-                      if (!res.ok) toast.error(DOCUMENT_DIAGNOSIS_ERRORS[res.reason]);
+                      if (!res.ok) toast.error(DOCUMENT_DIAGNOSIS_ERRORS[res.reason!]);
                       queryClient.invalidateQueries({ queryKey: ["doc-diagnoses"] });
                       recheckDiagnosis();
                     }

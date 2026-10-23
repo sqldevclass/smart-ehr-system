@@ -156,7 +156,7 @@ export default function DiagnosisTab({
         downgradeMainIfTaken: false,
       });
       if (!res.ok) {
-        toast.error(DOCUMENT_DIAGNOSIS_ERRORS[res.reason]);
+        toast.error(DOCUMENT_DIAGNOSIS_ERRORS[res.reason!]);
         return;
       }
     } else {
