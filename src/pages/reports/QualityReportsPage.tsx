@@ -24,6 +24,7 @@ import DailyNotesTab from "@/components/reports/DailyNotesTab";
 import WoundInfectionTab from "@/components/reports/WoundInfectionTab";
 import IcuTransfersTab from "@/components/reports/IcuTransfersTab";
 import DiagnosisDiscrepancyTab from "@/components/reports/DiagnosisDiscrepancyTab";
+import OperatingRoomUtilizationTab from "@/components/reports/OperatingRoomUtilizationTab";
 
 const defaultPeriod = (): PeriodState => ({
   period: "custom",
@@ -94,6 +95,7 @@ export default function QualityReportsPage() {
                 <TabsTrigger value="critical-lab">Критические лабораторные показатели</TabsTrigger>
                 <TabsTrigger value="icu-transfers">Перевод в реанимацию</TabsTrigger>
                 <TabsTrigger value="diagnosis-discrepancy">Расхождение диагнозов</TabsTrigger>
+                <TabsTrigger value="or-utilization">Загруженность Операционного блока</TabsTrigger>
               </TabsList>
               <TabsContent value="census">
                 <CensusTab from={from} to={to} />
@@ -139,6 +141,9 @@ export default function QualityReportsPage() {
               </TabsContent>
               <TabsContent value="diagnosis-discrepancy">
                 <DiagnosisDiscrepancyTab from={from} to={to} />
+              </TabsContent>
+              <TabsContent value="or-utilization">
+                <OperatingRoomUtilizationTab from={from} to={to} />
               </TabsContent>
             </Tabs>
           </div>

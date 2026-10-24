@@ -19,6 +19,26 @@ function toWallClockMinutes(value: string | null | undefined): number | null {
 }
 
 /**
+ * Duration of an operation in whole minutes, from the operation start and end
+ * recorded in the completed Протокол операции.
+ *
+ * Returns null when either value is missing or malformed, or when the end is
+ * earlier than the start (a data-entry error). Values do not wrap at 24 hours.
+ */
+export function operationDurationMinutes(
+  startLocal: string | null | undefined,
+  endLocal: string | null | undefined
+): number | null {
+  const start = toWallClockMinutes(startLocal);
+  const end = toWallClockMinutes(endLocal);
+  if (start === null || end === null) return null;
+
+  const total = end - start;
+  if (total < 0) return null;
+  return total;
+}
+
+/**
  * Duration of an operation as "HH:mm", from the operation start and end
  * recorded in the completed Протокол операции.
  *
@@ -30,12 +50,8 @@ export function formatOperationDuration(
   startLocal: string | null | undefined,
   endLocal: string | null | undefined
 ): string | null {
-  const start = toWallClockMinutes(startLocal);
-  const end = toWallClockMinutes(endLocal);
-  if (start === null || end === null) return null;
-
-  const total = end - start;
-  if (total < 0) return null;
+  const total = operationDurationMinutes(startLocal, endLocal);
+  if (total === null) return null;
 
   const hours = Math.floor(total / 60);
   const minutes = total % 60;
