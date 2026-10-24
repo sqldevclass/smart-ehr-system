@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 import RichTextarea from "./RichTextarea";
 import MarkdownText from "./MarkdownText";
 import YesNoRadio from "./YesNoRadio";
+import { ROOM_FIELD_CONFIG } from "@/lib/roomFields";
+import RoomSelectField from "./RoomSelectField";
 
 
 interface FieldDef {
@@ -316,6 +318,17 @@ function FieldValue({
   isReadOnly: boolean;
   onFocusEditable?: (el: HTMLDivElement, onChange: (val: string) => void) => void;
 }) {
+  const roomConfig = ROOM_FIELD_CONFIG[field.def.attribute_code ?? ""];
+  if (roomConfig) {
+    return (
+      <RoomSelectField
+        value={values[field.def.id] ?? ""}
+        onChange={(v) => setVal(field.def.id, v)}
+        isReadOnly={isReadOnly}
+        config={roomConfig}
+      />
+    );
+  }
   const isDiag =
     field.def.attribute_code?.startsWith("diag.") &&
     field.def.field_type === "textarea";
