@@ -127,7 +127,7 @@ export default function InvoiceDiscountPanel() {
   return (
     <section className="space-y-4 border-t pt-6">
       <h2 className="font-heading text-xl font-semibold text-foreground">Apply discount to an invoice</h2>
-      <SearchInput placeholder="Search patient, patient ID, hospitalization or invoice" value={search} onChange={(event) => setSearch(event.target.value)} />
+      <SearchInput placeholder="Search patient, patient ID, hospitalization or invoice" value={search} onChange={setSearch} />
       {invoicesError ? <p role="alert" className="text-sm text-destructive">{invoicesError.message}</p> : (
         <div className="max-h-64 overflow-auto">
           <Table>
