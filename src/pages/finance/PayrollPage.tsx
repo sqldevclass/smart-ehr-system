@@ -42,6 +42,7 @@ interface BasePayItem {
 }
 
 interface PayItem {
+  discount_percent: number | null;
   staff_role_id: string;
   category: "own_service" | "referral";
   completed_at: string;
@@ -55,6 +56,7 @@ interface PayItem {
 }
 
 interface BucketPayItem {
+  discount_percent: number | null;
   staff_role_id: string;
   bucket_name: string;
   member_percent: number;
@@ -84,6 +86,10 @@ const fmt = (n: number) =>
 
 const patientName = (first: string | null, last: string | null) =>
   [last, first].filter(Boolean).join(" ") || "—";
+
+function withDiscountLabel(name: string, percent: number | null | undefined): string {
+  return percent == null ? name : `${name} (${Number(percent)}% discount)`;
+}
 
 function currentMonthValue() {
   const now = new Date();
@@ -162,7 +168,7 @@ export default function PayrollPage() {
       if (!user) return [];
       const { data, error } = await supabase
         .from("physician_service_pay_items")
-        .select("staff_role_id, category, completed_at, service_name, cost_at_time, rate_percent, amount, patient_first_name, patient_last_name, patient_number")
+        .select("staff_role_id, category, completed_at, service_name, cost_at_time, rate_percent, amount, patient_first_name, patient_last_name, patient_number, discount_percent")
         .gte("completed_at", periodStartISO)
         .lt("completed_at", periodEndISO)
         .order("completed_at", { ascending: false });
@@ -178,7 +184,7 @@ export default function PayrollPage() {
       if (!user) return [];
       const { data, error } = await supabase
         .from("payroll_bucket_pay_items")
-        .select("staff_role_id, bucket_name, member_percent, completed_at, service_name, cost_at_time, amount, patient_first_name, patient_last_name, patient_number")
+        .select("staff_role_id, bucket_name, member_percent, completed_at, service_name, cost_at_time, amount, patient_first_name, patient_last_name, patient_number, discount_percent")
         .gte("completed_at", periodStartISO)
         .lt("completed_at", periodEndISO)
         .order("completed_at", { ascending: false });
@@ -538,7 +544,7 @@ export default function PayrollPage() {
               rows: referralItems.map((item) => ({
                 patientId: item.patient_number || "—",
                 patient: patientName(item.patient_first_name, item.patient_last_name),
-                service: item.service_name,
+                service: withDiscountLabel(item.service_name, item.discount_percent),
                 date: format(new Date(item.completed_at), "dd.MM.yyyy"),
                 category: "Referral",
                 percent: `${item.rate_percent ?? 0}%`,
@@ -553,7 +559,7 @@ export default function PayrollPage() {
               rows: ownServiceItems.map((item) => ({
                 patientId: item.patient_number || "—",
                 patient: patientName(item.patient_first_name, item.patient_last_name),
-                service: item.service_name,
+                service: withDiscountLabel(item.service_name, item.discount_percent),
                 date: format(new Date(item.completed_at), "dd.MM.yyyy"),
                 category: "Own-Service",
                 percent: `${item.rate_percent ?? 0}%`,
@@ -568,7 +574,7 @@ export default function PayrollPage() {
               rows: bucketRows.map((item) => ({
                 patientId: item.patient_number || "—",
                 patient: patientName(item.patient_first_name, item.patient_last_name),
-                service: item.service_name,
+                service: withDiscountLabel(item.service_name, item.discount_percent),
                 date: format(new Date(item.completed_at), "dd.MM.yyyy"),
                 category: `${bucketName} bucket`,
                 percent: `${item.member_percent}%`,

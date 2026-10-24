@@ -1054,7 +1054,7 @@ function InvoiceDialog({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("invoice_items")
-        .select("id, amount, visit_services(created_at, services(name))")
+        .select("id, amount, discount_percent, visit_services(created_at, services(name))")
         .eq("invoice_id", invoiceId);
       if (error) throw error;
       return data || [];
@@ -1086,16 +1086,19 @@ function InvoiceDialog({
   const groupedItems = useMemo(() => {
     const map = new Map<string, { name: string; dates: string[]; totalCost: number }>();
     for (const it of items as any[]) {
-      const name = it.visit_services?.services?.name ?? "—";
+      const serviceName = it.visit_services?.services?.name ?? "—";
+      const discountPercent = it.discount_percent == null ? null : Number(it.discount_percent);
+      const key = JSON.stringify([serviceName, discountPercent]);
+      const name = discountPercent == null ? serviceName : `${serviceName} (скидка ${discountPercent}%)`;
       const dateStr = it.visit_services?.created_at
         ? format(new Date(it.visit_services.created_at), "dd.MM.yyyy")
         : "—";
-      const existing = map.get(name);
+      const existing = map.get(key);
       if (existing) {
         existing.dates.push(dateStr);
         existing.totalCost += Number(it.amount);
       } else {
-        map.set(name, { name, dates: [dateStr], totalCost: Number(it.amount) });
+        map.set(key, { name, dates: [dateStr], totalCost: Number(it.amount) });
       }
     }
     return Array.from(map.values());
