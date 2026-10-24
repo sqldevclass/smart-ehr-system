@@ -6,11 +6,13 @@ import { format } from "date-fns";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/reports/data-table/DataTable";
 import { MetricTile, SummaryCard } from "@/components/shared/PeriodFilter";
+import { formatOperationDuration } from "@/lib/operationDuration";
 
 const VIEW_KEY = "surgical_volume_columns";
 const OPERATION_PROTOCOL_DOC_TYPE_ID = "c1000000-0000-0000-0000-000000000011";
 
 const SURG_START_FIELD_ID = "b1000000-0000-0000-0000-000000000124";
+const SURG_END_FIELD_ID = "b1000000-0000-0000-0000-000000000125";
 const SURG_URGENCY_FIELD_ID = "b1000000-0000-0000-0000-000000000120";
 const SURG_IS_REPEAT_FIELD_ID = "b1000000-0000-0000-0000-000000000121";
 const SURG_COMPLICATIONS_FIELD_ID = "b1000000-0000-0000-0000-000000000128";
@@ -20,6 +22,7 @@ const SURG_INCISION_CLASS_FIELD_ID = "b1000000-0000-0000-0000-000000000131";
 
 const FIELD_IDS = [
   SURG_START_FIELD_ID,
+  SURG_END_FIELD_ID,
   SURG_URGENCY_FIELD_ID,
   SURG_IS_REPEAT_FIELD_ID,
   SURG_COMPLICATIONS_FIELD_ID,
@@ -58,6 +61,7 @@ interface FieldValueRow {
 interface OperationRow {
   id: string;
   date: Date;
+  duration: string | null;
   hospNumber: string;
   patientNumber: string;
   lastName: string;
@@ -132,6 +136,7 @@ export default function SurgicalVolumeTab({ from, to }: { from: string; to: stri
       return {
         id: d.id,
         date: startRaw ? new Date(startRaw) : new Date(d.created_at),
+        duration: formatOperationDuration(startRaw, vals[SURG_END_FIELD_ID]),
         hospNumber: d.hospitalizations?.hospitalization_number || "",
         patientNumber: d.patients?.patient_number || "",
         lastName: d.patients?.last_name || "",
@@ -161,6 +166,7 @@ export default function SurgicalVolumeTab({ from, to }: { from: string; to: stri
 
   const columns: ColumnDef<OperationRow, any>[] = [
     { id: "date", header: "Дата", accessorFn: (r) => format(r.date, "dd.MM.yyyy HH:mm") },
+    { id: "duration", header: "Длительность операции", accessorFn: (r) => r.duration ?? "—", meta: { align: "right" } },
     { id: "hosp_number", header: "№ истории", accessorFn: (r) => r.hospNumber },
     { id: "patient_number", header: "ID пациента", accessorFn: (r) => r.patientNumber },
     { id: "last_name", header: "Фамилия", accessorFn: (r) => r.lastName },
