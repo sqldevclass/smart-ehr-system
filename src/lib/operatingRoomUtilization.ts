@@ -1,8 +1,8 @@
 // Operating room (Операционный блок) utilization for the Quality reports:
 // operations per room and their total duration against the room's available
 // working time (business days x 8 hours) in the report period.
-import { operationDurationMinutes } from "@/lib/operationDuration";
-import { addDaysToKey } from "@/lib/physicianDailyNotes";
+import { operationDurationMinutes } from "/dev-server/src/lib/operationDuration";
+import { addDaysToKey } from "/dev-server/src/lib/physicianDailyNotes";
 
 export const SURG_START_DATETIME_FIELD_ID = "b1000000-0000-0000-0000-000000000124";
 export const SURG_END_DATETIME_FIELD_ID = "b1000000-0000-0000-0000-000000000125";
