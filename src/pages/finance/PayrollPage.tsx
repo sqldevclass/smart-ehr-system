@@ -7,6 +7,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/reports/data-table/DataTable";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,7 +37,11 @@ interface PayrollRow {
   carried_out_amount: number;
   total_amount: number;
   is_confirmed: boolean;
+  can_confirm: boolean;
+  confirm_required_month: string | null;
 }
+
+const isSelectable = (r: PayrollRow) => !r.is_confirmed && r.can_confirm;
 
 interface BasePayItem {
   staff_role_id: string;
@@ -135,6 +140,7 @@ export default function PayrollPage() {
   const queryClient = useQueryClient();
   const [monthValue, setMonthValue] = useState(currentMonthValue());
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirming, setConfirming] = useState(false);
 
   const [adjustmentDialogOpen, setAdjustmentDialogOpen] = useState(false);
@@ -362,17 +368,29 @@ export default function PayrollPage() {
   const monthLabel = new Date(year, (month || 1) - 1, 1).toLocaleString(undefined, { month: "long", year: "numeric" });
   const grandTotal = filteredRows.reduce((sum, r) => sum + Number(r.total_amount || 0), 0);
 
+  const selectableRows = rows.filter(isSelectable);
+  const effectiveSelection = new Set(
+    selectableRows.map((r) => r.staff_role_id).filter((id) => selectedIds.has(id)),
+  );
+  const selectedCount = effectiveSelection.size;
+  const selectedTotal = selectableRows
+    .filter((r) => effectiveSelection.has(r.staff_role_id))
+    .reduce((sum, r) => sum + Number(r.total_amount || 0), 0);
+
   const handleConfirm = async () => {
     if (!user) return;
+    const count = selectedCount;
     setConfirming(true);
     try {
       const { error } = await supabase.rpc("confirm_physician_payroll", {
         p_hospital_id: user.hospitalId,
         p_year: year,
         p_month: month,
-      });
+        p_staff_role_ids: Array.from(effectiveSelection),
+      } as any);
       if (error) throw error;
-      toast.success("Payroll confirmed. These amounts are now locked for this month.");
+      toast.success(`Payroll confirmed for ${count} employee(s). These amounts are now locked for this month.`);
+      setSelectedIds(new Set());
       setConfirmOpen(false);
       queryClient.invalidateQueries({ queryKey: ["physician-payroll", user.hospitalId, year, month] });
       queryClient.invalidateQueries({ queryKey: ["physician-payroll-corrections", user.hospitalId, year, month] });
@@ -445,6 +463,61 @@ export default function PayrollPage() {
   };
 
   const columns = useMemo<ColumnDef<PayrollRow, any>[]>(() => [
+    {
+      id: "select",
+      enableColumnFilter: false,
+      enableHiding: false,
+      header: () => {
+        const tabSelectable = filteredRows.filter(isSelectable);
+        const selCount = tabSelectable.filter((r) => effectiveSelection.has(r.staff_role_id)).length;
+        const all = tabSelectable.length > 0 && selCount === tabSelectable.length;
+        const checked: boolean | "indeterminate" = all ? true : selCount > 0 ? "indeterminate" : false;
+        return (
+          <label className="flex items-center gap-1.5 text-xs">
+            <Checkbox
+              aria-label="Select all"
+              checked={checked}
+              disabled={tabSelectable.length === 0}
+              onCheckedChange={() => {
+                setSelectedIds((prev) => {
+                  const next = new Set(prev);
+                  tabSelectable.forEach((r) => (all ? next.delete(r.staff_role_id) : next.add(r.staff_role_id)));
+                  return next;
+                });
+              }}
+            />
+            All
+          </label>
+        );
+      },
+      cell: ({ row }) => {
+        const r = row.original;
+        const selectable = isSelectable(r);
+        const title = selectable
+          ? undefined
+          : r.is_confirmed
+            ? "Already confirmed"
+            : !r.can_confirm && r.confirm_required_month
+              ? `Confirm ${format(parseISO(r.confirm_required_month), "MMMM yyyy")} first`
+              : "A later month is already confirmed";
+        return (
+          <span title={title} className="inline-flex">
+            <Checkbox
+              aria-label={`Select ${r.full_name}`}
+              checked={effectiveSelection.has(r.staff_role_id)}
+              disabled={!selectable}
+              onCheckedChange={(v) => {
+                setSelectedIds((prev) => {
+                  const next = new Set(prev);
+                  if (v) next.add(r.staff_role_id); else next.delete(r.staff_role_id);
+                  return next;
+                });
+              }}
+            />
+          </span>
+        );
+      },
+    },
     { id: "full_name", header: "Physician", accessorFn: (r) => r.full_name, enableColumnFilter: false, enableHiding: false },
     { id: "base_pay_amount", header: "Base Pay", accessorFn: (r) => fmt(r.base_pay_amount), meta: { align: "right" }, enableColumnFilter: false, enableHiding: false },
     { id: "own_service_amount", header: "Own-Service", accessorFn: (r) => fmt(r.own_service_amount), meta: { align: "right" }, enableColumnFilter: false, enableHiding: false },
@@ -526,7 +599,7 @@ export default function PayrollPage() {
           </span>
         ),
     },
-  ], [adjustmentsByKey]);
+  ], [adjustmentsByKey, effectiveSelection, filteredRows]);
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -803,17 +876,17 @@ export default function PayrollPage() {
             <Input
               type="month"
               value={monthValue}
-              onChange={(e) => setMonthValue(e.target.value)}
+              onChange={(e) => { setMonthValue(e.target.value); setSelectedIds(new Set()); }}
               className="h-8 text-xs w-auto"
             />
             <Button
               size="sm"
               className="h-8 text-xs gap-1.5"
               onClick={() => setConfirmOpen(true)}
-              disabled={allConfirmed || rows.length === 0}
+              disabled={allConfirmed || selectedCount === 0 || confirming}
             >
               <Lock className="h-3.5 w-3.5" />
-              {allConfirmed ? "All Confirmed" : "Confirm Payroll"}
+              {allConfirmed ? "All Confirmed" : `Confirm Payroll (${selectedCount})`}
             </Button>
           </div>
         }
@@ -839,7 +912,7 @@ export default function PayrollPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm payroll for {monthLabel}?</AlertDialogTitle>
             <AlertDialogDescription className="space-y-2">
-              <p>This locks the calculated amounts for every physician not already confirmed this month.</p>
+              <p>This locks the calculated amounts for the {selectedCount} selected employee(s) for {monthLabel}, total {fmt(selectedTotal)}.</p>
               <p>Locked amounts cannot be changed afterward, even if underlying records change later.</p>
               <p>This action cannot be undone.</p>
               <p>Discount corrections for earlier months and any carried-over balance are included in these amounts.</p>

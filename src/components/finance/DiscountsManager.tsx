@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -20,6 +20,7 @@ export default function DiscountsManager() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [percent, setPercent] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ name?: string; percent?: string }>({});
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["finance-discount-list", user?.hospitalId] });
 
@@ -41,6 +42,36 @@ export default function DiscountsManager() {
     ),
   });
 
+  const update = useMutation({
+    mutationFn: async (values: { name: string; percent: number }) => {
+      if (!user || !editingId) throw new Error("Please sign in.");
+      const { error } = await supabase.from("discounts").update(values)
+        .eq("id", editingId).eq("hospital_id", user.hospitalId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Discount updated.");
+      setOpen(false);
+      invalidate();
+    },
+    onError: (error: { code?: string; message: string }) => toast.error(
+      error.code === "23505" ? "A discount with this name already exists." : error.message,
+    ),
+  });
+
+  const usage = useQuery({
+    queryKey: ["discount-usage-count", editingId],
+    enabled: open && !!editingId,
+    queryFn: async () => {
+      const { count, error } = await supabase.from("invoice_items")
+        .select("id", { count: "exact", head: true }).eq("discount_id", editingId!);
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
+
+  const saving = create.isPending || update.isPending;
+
   const toggle = useMutation({
     mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
       if (!user) throw new Error("Please sign in.");
@@ -61,14 +92,17 @@ export default function DiscountsManager() {
       nextErrors.percent = "Percent must be greater than 0 and at most 100, with up to 2 decimals.";
     }
     setErrors(nextErrors);
-    if (Object.keys(nextErrors).length === 0) create.mutate({ name: name.trim(), percent: numericPercent });
+    if (Object.keys(nextErrors).length === 0) {
+      const values = { name: name.trim(), percent: numericPercent };
+      if (editingId) update.mutate(values); else create.mutate(values);
+    }
   };
 
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-heading text-xl font-semibold text-foreground">Discount list</h2>
-        <Button size="sm" className="gap-1" onClick={() => { setName(""); setPercent(""); setErrors({}); setOpen(true); }}>
+        <Button size="sm" className="gap-1" onClick={() => { setEditingId(null); setName(""); setPercent(""); setErrors({}); setOpen(true); }}>
           <Plus className="h-4 w-4" /> New discount
         </Button>
       </div>
@@ -76,10 +110,10 @@ export default function DiscountsManager() {
         <Table>
           <TableHeader><TableRow>
             <TableHead>Name</TableHead><TableHead className="text-right">Percent</TableHead>
-            <TableHead>Status</TableHead><TableHead className="w-20">Active</TableHead>
+            <TableHead>Status</TableHead><TableHead className="w-20">Active</TableHead><TableHead className="w-12" />
           </TableRow></TableHeader>
           <TableBody>
-            {isLoading || discounts.length === 0 ? <TableRow><TableCell colSpan={4} className="text-muted-foreground">
+            {isLoading || discounts.length === 0 ? <TableRow><TableCell colSpan={5} className="text-muted-foreground">
               {isLoading ? "Loading…" : "No discounts yet."}
             </TableCell></TableRow> : discounts.map((discount) => <TableRow key={discount.id}>
               <TableCell className="font-medium">{discount.name}</TableCell>
@@ -87,27 +121,33 @@ export default function DiscountsManager() {
               <TableCell><Badge variant={discount.is_active ? "default" : "secondary"}>{discount.is_active ? "Active" : "Inactive"}</Badge></TableCell>
               <TableCell><Switch aria-label={`Active: ${discount.name}`} checked={discount.is_active} disabled={toggle.isPending}
                 onCheckedChange={(active) => toggle.mutate({ id: discount.id, active })} /></TableCell>
+              <TableCell><Button variant="ghost" size="icon" aria-label={`Edit ${discount.name}`} onClick={() => {
+                setEditingId(discount.id); setName(discount.name); setPercent(String(Number(discount.percent))); setErrors({}); setOpen(true);
+              }}><Pencil className="h-4 w-4" /></Button></TableCell>
             </TableRow>)}
           </TableBody>
         </Table>
       )}
-      <Dialog open={open} onOpenChange={(value) => { if (!create.isPending) setOpen(value); }}>
+      <Dialog open={open} onOpenChange={(value) => { if (!saving) setOpen(value); }}>
         <DialogContent>
-          <DialogHeader><DialogTitle>New discount</DialogTitle><DialogDescription>Name and percent cannot be changed after saving.</DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle>{editingId ? "Edit discount" : "New discount"}</DialogTitle><DialogDescription>Changing the percent only affects discounts applied from now on. Invoices that already have this discount keep their percent.</DialogDescription></DialogHeader>
           <form onSubmit={save} className="space-y-4" noValidate>
             <div className="space-y-2">
               <Label htmlFor="discount-name">Name</Label>
-              <Input id="discount-name" value={name} onChange={(event) => setName(event.target.value)} aria-invalid={!!errors.name} disabled={create.isPending} />
+              <Input id="discount-name" value={name} onChange={(event) => setName(event.target.value)} aria-invalid={!!errors.name} disabled={saving} />
               {errors.name && <p role="alert" className="text-sm text-destructive">{errors.name}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="discount-percent">Percent</Label>
-              <Input id="discount-percent" type="number" min="0.01" max="100" step="0.01" value={percent} onChange={(event) => setPercent(event.target.value)} aria-invalid={!!errors.percent} disabled={create.isPending} />
+              <Input id="discount-percent" type="number" min="0.01" max="100" step="0.01" value={percent} onChange={(event) => setPercent(event.target.value)} aria-invalid={!!errors.percent} disabled={saving} />
               {errors.percent && <p role="alert" className="text-sm text-destructive">{errors.percent}</p>}
             </div>
+            {editingId && usage.data !== undefined && !usage.isLoading && (
+              <p className="text-sm text-muted-foreground">{usage.data} invoice item(s) already use this discount and keep their current percent.</p>
+            )}
             <DialogFooter>
-              <Button type="button" variant="outline" disabled={create.isPending} onClick={() => setOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={create.isPending}>{create.isPending ? "Saving…" : "Save"}</Button>
+              <Button type="button" variant="outline" disabled={saving} onClick={() => setOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
