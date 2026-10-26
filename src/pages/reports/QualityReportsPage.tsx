@@ -1,13 +1,8 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PeriodFilter, PeriodState, getDateBounds } from "@/components/shared/PeriodFilter";
-import RoleSwitcher from "@/components/shared/RoleSwitcher";
-import { ArrowLeft, LogOut } from "lucide-react";
-import { toast } from "sonner";
+import ReportPageHeader from "@/components/reports/ReportPageHeader";
 import { startOfMonth, format } from "date-fns";
 import RegistrationSourceTab from "@/components/reports/RegistrationSourceTab";
 import MortalityTab from "@/components/reports/MortalityTab";
@@ -33,38 +28,15 @@ const defaultPeriod = (): PeriodState => ({
 });
 
 export default function QualityReportsPage() {
-  const { user, hasAnyRole } = useAuth();
-  const navigate = useNavigate();
+  const { hasAnyRole } = useAuth();
   const [period, setPeriod] = useState<PeriodState>(defaultPeriod);
 
   const canView = hasAnyRole(["admin", "senior_manager", "finance"]);
   const { from, to } = getDateBounds(period);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    toast.success("Вы вышли из системы.");
-    navigate("/login");
-  };
-
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <header className="h-14 flex items-center justify-between border-b bg-card px-4">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <span className="text-sm font-semibold text-foreground">Отчёты по качеству</span>
-        </div>
-        {user && (
-          <div className="flex items-center gap-3 text-sm text-muted-foreground">
-            <span>{user.fullName}</span>
-            <RoleSwitcher roles={user.roleDetails} />
-            <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="Выйти">
-              <LogOut className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
-      </header>
+      <ReportPageHeader title="Отчёты по качеству" />
 
       <main className="flex-1 p-6 space-y-8 overflow-y-auto">
         {!canView ? (

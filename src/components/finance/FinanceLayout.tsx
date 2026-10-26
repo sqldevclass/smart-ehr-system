@@ -1,5 +1,5 @@
 import { Outlet, useNavigate } from "react-router-dom";
-import { Wallet, UserCircle, LogOut, ClipboardCheck, BarChart3, PiggyBank, Share2, Activity, Percent } from "lucide-react";
+import { Wallet, UserCircle, LogOut, ClipboardCheck, BarChart3, PiggyBank, Share2, Activity, HandCoins, Percent } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -26,6 +26,7 @@ const navItems = [
   { title: "Referral Rates", url: "/finance/referral-rates", icon: Share2 },
   { title: "Reports", url: "/reports", icon: BarChart3 },
   { title: "Quality Reports", url: "/reports/quality", icon: Activity },
+  { title: "Долг", url: "/reports/debts", icon: HandCoins },
   { title: "Profile", url: "/finance/profile", icon: UserCircle },
 ];
 
