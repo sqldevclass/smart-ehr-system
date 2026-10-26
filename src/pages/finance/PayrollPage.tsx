@@ -2,7 +2,7 @@ import { Fragment, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/reports/data-table/DataTable";
 import { TableCell, TableRow } from "@/components/ui/table";
@@ -31,6 +31,9 @@ interface PayrollRow {
   department_bucket_amount: number;
   bonus_amount: number;
   advance_amount: number;
+  discount_correction_amount: number;
+  carried_in_amount: number;
+  carried_out_amount: number;
   total_amount: number;
   is_confirmed: boolean;
 }
@@ -79,6 +82,23 @@ interface AdjustmentItem {
   description: string | null;
   created_at: string;
   approved_by_name: string | null;
+}
+
+interface CorrectionItem {
+  correction_id: string;
+  staff_role_id: string;
+  source: "own_service" | "referral" | "bucket";
+  bucket_name: string | null;
+  service_name: string;
+  patient_first_name: string | null;
+  patient_last_name: string | null;
+  patient_number: string | null;
+  service_month: string;
+  rate_percent: number;
+  discount_percent_before: number | null;
+  discount_percent_after: number | null;
+  amount: number;
+  created_at: string;
 }
 
 const fmt = (n: number) =>
@@ -223,6 +243,31 @@ export default function PayrollPage() {
     return map;
   }, [basePayItems]);
 
+  const { data: correctionItems = [] } = useQuery({
+    queryKey: ["physician-payroll-corrections", user?.hospitalId, year, month],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase.rpc("get_payroll_correction_items", {
+        p_hospital_id: user.hospitalId,
+        p_year: year,
+        p_month: month,
+      });
+      if (error) throw error;
+      return (data || []) as CorrectionItem[];
+    },
+    enabled: !!user && !!year && !!month,
+  });
+
+  const correctionsByPhysician = useMemo(() => {
+    const map = new Map<string, CorrectionItem[]>();
+    correctionItems.forEach((item) => {
+      const list = map.get(item.staff_role_id) ?? [];
+      list.push(item);
+      map.set(item.staff_role_id, list);
+    });
+    return map;
+  }, [correctionItems]);
+
   const itemsByPhysician = useMemo(() => {
     const map = new Map<string, PayItem[]>();
     payItems.forEach((item) => {
@@ -330,6 +375,7 @@ export default function PayrollPage() {
       toast.success("Payroll confirmed. These amounts are now locked for this month.");
       setConfirmOpen(false);
       queryClient.invalidateQueries({ queryKey: ["physician-payroll", user.hospitalId, year, month] });
+      queryClient.invalidateQueries({ queryKey: ["physician-payroll-corrections", user.hospitalId, year, month] });
     } catch (err: any) {
       toast.error(err.message || "Failed to confirm payroll.");
     } finally {
@@ -452,6 +498,7 @@ export default function PayrollPage() {
         );
       },
     },
+    { id: "discount_correction_amount", header: "Discount Adj.", accessorFn: (r) => fmt(r.discount_correction_amount + r.carried_in_amount), meta: { align: "right" }, enableColumnFilter: false, enableHiding: false },
     {
       id: "total_amount",
       header: "Total",
@@ -461,6 +508,7 @@ export default function PayrollPage() {
       enableHiding: false,
       cell: ({ row }) => <span className="font-semibold">{fmt(row.original.total_amount)}</span>,
     },
+    { id: "carried_out_amount", header: "Carried Over", accessorFn: (r) => fmt(r.carried_out_amount), meta: { align: "right" }, enableColumnFilter: false, enableHiding: false },
     {
       id: "status",
       header: "Status",
@@ -501,7 +549,10 @@ export default function PayrollPage() {
           (itemsByPhysician.get(r.staff_role_id)?.length ?? 0) > 0 ||
           (bucketItemsByPhysician.get(r.staff_role_id)?.length ?? 0) > 0 ||
           (adjustmentsByKey.get(`${r.staff_role_id}-bonus`)?.length ?? 0) > 0 ||
-          (adjustmentsByKey.get(`${r.staff_role_id}-advance`)?.length ?? 0) > 0
+          (adjustmentsByKey.get(`${r.staff_role_id}-advance`)?.length ?? 0) > 0 ||
+          (correctionsByPhysician.get(r.staff_role_id)?.length ?? 0) > 0 ||
+          r.carried_in_amount !== 0 ||
+          r.carried_out_amount !== 0
         }
         renderSubRow={(r) => {
           const basePay = basePayByPhysician.get(r.staff_role_id) ?? [];
@@ -511,6 +562,7 @@ export default function PayrollPage() {
           const ownServiceItems = items.filter((i) => i.category === "own_service");
           const bonusItems = adjustmentsByKey.get(`${r.staff_role_id}-bonus`) ?? [];
           const advanceItems = adjustmentsByKey.get(`${r.staff_role_id}-advance`) ?? [];
+          const physicianCorrections = correctionsByPhysician.get(r.staff_role_id) ?? [];
 
           // Group bucket rows by bucket, labeling the Category column
           // with the bucket's own name rather than a generic "Bucket".
@@ -614,6 +666,57 @@ export default function PayrollPage() {
               })),
               total: -advanceItems.reduce((sum, i) => sum + Number(i.amount), 0),
             });
+          }
+
+          if (physicianCorrections.length > 0) {
+            sections.push({
+              rows: physicianCorrections.map((item) => {
+                const label = item.discount_percent_after != null
+                  ? `${Number(item.discount_percent_after)}% discount applied`
+                  : "discount removed";
+                return {
+                  patientId: item.patient_number || "—",
+                  patient: patientName(item.patient_first_name, item.patient_last_name),
+                  service: `${item.service_name} (${label}), ${format(parseISO(item.service_month), "MMM yyyy")}`,
+                  date: format(new Date(item.created_at), "dd.MM.yyyy"),
+                  category: item.source === "bucket"
+                    ? `${item.bucket_name} bucket – discount correction`
+                    : item.source === "referral"
+                      ? "Referral – discount correction"
+                      : "Own-Service – discount correction",
+                  percent: `${item.rate_percent}%`,
+                  amount: Number(item.amount),
+                };
+              }),
+              total: physicianCorrections.reduce((sum, item) => sum + Number(item.amount), 0),
+            });
+          }
+
+          if (r.carried_in_amount !== 0 || r.carried_out_amount !== 0) {
+            const carryRows: DetailRow[] = [];
+            if (r.carried_in_amount !== 0) {
+              carryRows.push({
+                patientId: "—",
+                patient: "—",
+                service: "Carried over from previous month",
+                date: "—",
+                category: "Carry-over",
+                percent: "—",
+                amount: r.carried_in_amount,
+              });
+            }
+            if (r.carried_out_amount !== 0) {
+              carryRows.push({
+                patientId: "—",
+                patient: "—",
+                service: "Deferred to next month (payable total cannot be negative)",
+                date: "—",
+                category: "Carry-over",
+                percent: "—",
+                amount: -r.carried_out_amount,
+              });
+            }
+            sections.push({ rows: carryRows, total: r.carried_in_amount - r.carried_out_amount });
           }
 
           const grand = sections.reduce((sum, s) => sum + s.total, 0);
@@ -739,6 +842,7 @@ export default function PayrollPage() {
               <p>This locks the calculated amounts for every physician not already confirmed this month.</p>
               <p>Locked amounts cannot be changed afterward, even if underlying records change later.</p>
               <p>This action cannot be undone.</p>
+              <p>Discount corrections for earlier months and any carried-over balance are included in these amounts.</p>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
