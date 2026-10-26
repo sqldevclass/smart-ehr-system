@@ -12,6 +12,7 @@ import DashboardPlaceholder from "./pages/DashboardPlaceholder.tsx";
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
 import ReportsPage from "./pages/reports/ReportsPage.tsx";
 import QualityReportsPage from "./pages/reports/QualityReportsPage.tsx";
+import DebtsPage from "./pages/reports/DebtsPage.tsx";
 import AdminLayout from "./components/admin/AdminLayout.tsx";
 import AdminOverview from "./pages/admin/AdminOverview.tsx";
 import UserManagement from "./pages/admin/UserManagement.tsx";
@@ -218,6 +219,14 @@ const App = () => (
             element={
               <ProtectedRoute allowedRoles={["admin", "senior_manager", "finance"]}>
                 <QualityReportsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/debts"
+            element={
+              <ProtectedRoute allowedRoles={["admin", "senior_manager", "finance"]}>
+                <DebtsPage />
               </ProtectedRoute>
             }
           />
