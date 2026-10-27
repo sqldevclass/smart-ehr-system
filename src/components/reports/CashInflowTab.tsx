@@ -1,4 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -29,6 +31,8 @@ interface CashFlowItem {
   invoice_number: string | null;
   payment_method_code: string | null;
   payment_method_name: string | null;
+  kassa_id: string | null;
+  kassa_name: string | null;
   pos_terminal_name: string | null;
   auth_code: string | null;
   staff_name: string | null;
@@ -51,20 +55,35 @@ const negClass = (n: number) => (n < 0 ? "text-destructive" : undefined);
 
 export default function CashInflowTab({ from, to }: { from: string; to: string }) {
   const { user } = useAuth();
+  const [kassaFilter, setKassaFilter] = useState("all");
+
+  const { data: kassas = [] } = useQuery({
+    queryKey: ["kassas-list", user?.hospitalId],
+    enabled: !!user?.hospitalId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("kassas").select("id, name")
+        .eq("hospital_id", user!.hospitalId).order("name");
+      if (error) throw error;
+      return (data || []) as { id: string; name: string }[];
+    },
+  });
 
   const { data: items = [], isLoading } = useQuery({
-    queryKey: ["cash-flow-items", user?.hospitalId, from, to],
+    queryKey: ["cash-flow-items", user?.hospitalId, from, to, kassaFilter],
     queryFn: async () => {
       if (!user) return [];
-      const { data, error } = await (supabase as any)
+      let q = (supabase as any)
         .from("cash_flow_report_items")
         .select(
-          "id, hospital_id, occurred_at, movement_type, amount, receipt_number, care_type, patient_id, patient_number, last_name, first_name, date_of_birth, hospitalization_number, invoice_number, payment_method_code, payment_method_name, pos_terminal_name, auth_code, staff_name, note",
+          "id, hospital_id, occurred_at, movement_type, amount, receipt_number, care_type, patient_id, patient_number, last_name, first_name, date_of_birth, hospitalization_number, invoice_number, payment_method_code, payment_method_name, kassa_id, kassa_name, pos_terminal_name, auth_code, staff_name, note",
         )
         .eq("hospital_id", user.hospitalId)
         .gte("occurred_at", from)
         .lte("occurred_at", to)
         .order("occurred_at", { ascending: false });
+      if (kassaFilter === "none") q = q.is("kassa_id", null);
+      else if (kassaFilter !== "all") q = q.eq("kassa_id", kassaFilter);
+      const { data, error } = await q;
       if (error) throw error;
       return (data || []) as CashFlowItem[];
     },
@@ -103,6 +122,7 @@ export default function CashInflowTab({ from, to }: { from: string; to: string }
       accessorFn: (r) => (r.date_of_birth ? format(new Date(r.date_of_birth), "dd.MM.yyyy") : ""),
     },
     { id: "method", header: "Способ оплаты", accessorFn: (r) => s(r.payment_method_name) },
+    { id: "kassa", header: "Касса", accessorFn: (r) => s(r.kassa_name) },
     { id: "terminal", header: "Терминал", accessorFn: (r) => s(r.pos_terminal_name) },
     { id: "auth_code", header: "Код авторизации", accessorFn: (r) => s(r.auth_code) },
     { id: "staff", header: "Кассир", accessorFn: (r) => s(r.staff_name) },
@@ -121,6 +141,17 @@ export default function CashInflowTab({ from, to }: { from: string; to: string }
 
   return (
     <div className="mt-4 space-y-6">
+      <div className="space-y-1.5">
+        <Label htmlFor="cash-flow-kassa">Касса</Label>
+        <Select value={kassaFilter} onValueChange={setKassaFilter}>
+          <SelectTrigger id="cash-flow-kassa" className="w-64"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Все кассы</SelectItem>
+            {kassas.map((k) => <SelectItem key={k.id} value={k.id}>{k.name}</SelectItem>)}
+            <SelectItem value="none">Без кассы</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
       <SummaryCard>
         <MetricTile label="Поступления" value={fmt(stats.inflow)} />
         <MetricTile label="Возвраты" value={fmt(stats.refunds)} />

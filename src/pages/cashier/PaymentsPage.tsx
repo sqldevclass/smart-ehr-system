@@ -24,7 +24,8 @@ import { PeriodFilter, PeriodState, getDateBounds, getTodayBounds, SummaryCard, 
 import EWSStatusDot from "@/components/ews/EWSStatusDot";
 import { applyPatientSearch, hasPatientSearch, PATIENT_SEARCH_PLACEHOLDER } from "@/lib/patientSearch";
 import PatientMatchSummary from "@/components/shared/PatientMatchSummary";
-import { PosPaymentFields, usePaymentMethodsAndTerminals } from "@/components/cashier/PosPaymentFields";
+import { PosPaymentFields, usePaymentMethodFields } from "@/components/cashier/PosPaymentFields";
+import { KassaStatus } from "@/components/cashier/KassaStatus";
 
 interface Visit {
   id: string;
@@ -208,6 +209,7 @@ export default function PaymentsPage() {
 
   return (
     <div className="space-y-6">
+      <KassaStatus />
       <div>
         <h1 className="font-heading text-2xl font-bold text-foreground">Payments</h1>
         <p className="text-sm text-muted-foreground">Process visit payments and view today's collections.</p>
@@ -355,8 +357,8 @@ function PaymentDialog({
 }) {
   const { user } = useAuth();
   const [services, setServices] = useState<VisitServiceRow[]>([]);
-  const payment = usePaymentMethodsAndTerminals(!!visit);
-  const { methodId, isReady, payload } = payment;
+  const payment = usePaymentMethodFields(!!visit);
+  const { methodId, isReady, payload, notReadyMessage } = payment;
   const [amount, setAmount] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -388,7 +390,7 @@ function PaymentDialog({
       return;
     }
 
-    if (!isReady) { toast.error("Выберите POS-терминал."); return; }
+    if (!isReady) { toast.error(notReadyMessage); return; }
     setSubmitting(true);
     const { data, error } = await supabase.rpc("process_payment", {
       p_visit_id: visit.id,
@@ -943,8 +945,8 @@ function RefundDialog({
   onClose: () => void; onSaved: () => void;
 }) {
   const queryClient = useQueryClient();
-  const payment = usePaymentMethodsAndTerminals(open);
-  const { methodId, isReady, payload } = payment;
+  const payment = usePaymentMethodFields(open);
+  const { methodId, isReady, payload, notReadyMessage } = payment;
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -963,7 +965,7 @@ function RefundDialog({
     if (amt > refundable + 1e-9) { toast.error(`Сумма превышает доступный остаток ${fmt(refundable)}.`); return; }
     if (!methodId) { toast.error("Выберите способ возврата."); return; }
     if (!note.trim()) { toast.error("Укажите причину."); return; }
-    if (!isReady) { toast.error("Выберите POS-терминал."); return; }
+    if (!isReady) { toast.error(notReadyMessage); return; }
     setSubmitting(true);
     const { data, error } = await supabase.rpc("refund_patient_deposit" as any, {
       p_patient_id: patient.id,
@@ -1022,8 +1024,8 @@ function DepositDialog({
 }) {
   const queryClient = useQueryClient();
   const [amount, setAmount] = useState("");
-  const payment = usePaymentMethodsAndTerminals(open);
-  const { methodId, isReady, payload } = payment;
+  const payment = usePaymentMethodFields(open);
+  const { methodId, isReady, payload, notReadyMessage } = payment;
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -1035,7 +1037,7 @@ function DepositDialog({
     const amt = Number(amount);
     if (!amt || amt <= 0) { toast.error("Enter a valid amount."); return; }
     if (!methodId) { toast.error("Select a payment method."); return; }
-    if (!isReady) { toast.error("Выберите POS-терминал."); return; }
+    if (!isReady) { toast.error(notReadyMessage); return; }
     setSubmitting(true);
     const { error } = await supabase.rpc("record_patient_deposit", {
       p_patient_id: patient.id,
@@ -1087,8 +1089,8 @@ function InvoiceDialog({
   const queryClient = useQueryClient();
   const [confirming, setConfirming] = useState(false);
   const [paying, setPaying] = useState(false);
-  const payment = usePaymentMethodsAndTerminals(open && mode === "debt");
-  const { isReady, payload } = payment;
+  const payment = usePaymentMethodFields(open && mode === "debt");
+  const { isReady, payload, notReadyMessage } = payment;
 
   const { data: depositBalance = 0 } = useQuery({
     queryKey: ["invoice-dialog-deposit-balance", patient.id],
@@ -1200,12 +1202,12 @@ function InvoiceDialog({
   };
 
   const handlePay = async () => {
-    if (previewRemaining > 0 && !isReady) { toast.error("Выберите POS-терминал."); return; }
+    if (!payment.kassa || (previewRemaining > 0 && !isReady)) { toast.error(notReadyMessage); return; }
     setPaying(true);
     const { error } = await supabase.rpc("pay_hospitalization_invoice", {
       p_invoice_id: invoiceId,
       ...(previewRemaining > 0 ? payload : {
-        p_payment_method_id: null, p_pos_terminal_id: null, p_auth_code: null,
+        p_device_token: payload.p_device_token, p_payment_method_id: null, p_auth_code: null,
       }),
     } as any);
     setPaying(false);
@@ -1376,7 +1378,7 @@ function InvoiceDialog({
             </Button>
           )}
           {mode === "debt" && (
-            <Button onClick={handlePay} disabled={paying || (previewRemaining > 0 && !isReady)}>
+            <Button onClick={handlePay} disabled={paying || !payment.kassa || (previewRemaining > 0 && !isReady)}>
               {paying ? "..." : `Оплатить ${previewRemaining.toFixed(2)}`}
             </Button>
           )}

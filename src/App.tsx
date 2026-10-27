@@ -25,6 +25,7 @@ import ServicesPage from "./pages/admin/ServicesPage.tsx";
 import PhysicianPrivilegesPage from "./pages/admin/PhysicianPrivilegesPage.tsx";
 import WarehousesPage from "./pages/admin/WarehousesPage.tsx";
 import PosTerminalsPage from "./pages/admin/PosTerminalsPage.tsx";
+import KassasPage from "./pages/admin/KassasPage.tsx";
 import RegistrarLayout from "./components/registrar/RegistrarLayout.tsx";
 import PatientsList from "./pages/registrar/PatientsList.tsx";
 import PatientDetail from "./pages/registrar/PatientDetail.tsx";
@@ -130,6 +131,7 @@ const App = () => (
             <Route path="rooms" element={<RoomsPage />} />
             <Route path="warehouses" element={<WarehousesPage />} />
             <Route path="pos-terminals" element={<PosTerminalsPage />} />
+            <Route path="kassas" element={<KassasPage />} />
             <Route path="physician-privileges" element={<PhysicianPrivilegesPage />} />
             <Route path="audit" element={<AdminPlaceholder title="Audit Log" />} />
             <Route path="profile" element={<AdminProfile />} />
