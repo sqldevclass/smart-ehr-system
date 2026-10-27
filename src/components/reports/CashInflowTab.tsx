@@ -7,7 +7,6 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { DataTable } from "@/components/reports/data-table/DataTable";
 import { MetricTile, SummaryCard } from "@/components/shared/PeriodFilter";
-import DailyReportSummaryChart from "@/components/reports/DailyReportSummaryChart";
 
 const VIEW_KEY = "cash_flow_columns";
 
@@ -82,15 +81,6 @@ export default function CashInflowTab({ from, to }: { from: string; to: string }
     return { inflow, refunds: r, net: inflow - r };
   }, [items]);
 
-  const chartData = useMemo(() => {
-    const m = new Map<string, number>();
-    items.forEach((i) => {
-      const k = i.payment_method_name ?? "—";
-      m.set(k, (m.get(k) ?? 0) + Number(i.amount));
-    });
-    return Array.from(m, ([name, revenue]) => ({ name, revenue })).sort((a, b) => b.revenue - a.revenue);
-  }, [items]);
-
   const columns: ColumnDef<CashFlowItem, any>[] = [
     { id: "date", header: "Дата", accessorFn: (r) => format(new Date(r.occurred_at), "dd.MM.yyyy HH:mm") },
     { id: "receipt", header: "№ квитанции", accessorFn: (r) => s(r.receipt_number) },
@@ -132,10 +122,6 @@ export default function CashInflowTab({ from, to }: { from: string; to: string }
         <MetricTile label="Возвраты" value={fmt(stats.refunds)} />
         <MetricTile label="Итого (чистое)" value={fmt(stats.net)} />
       </SummaryCard>
-
-      {items.length > 0 && (
-        <DailyReportSummaryChart data={chartData} title="Чистые поступления по способу оплаты" />
-      )}
 
       <div className="h-[65vh] min-h-0">
         <DataTable

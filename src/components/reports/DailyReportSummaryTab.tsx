@@ -6,9 +6,6 @@ import {
   Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import DailyReportSummaryChart from "@/components/reports/DailyReportSummaryChart";
-import DailyReportBulletChart from "@/components/reports/DailyReportBulletChart";
-import DailyReportYoyChart from "@/components/reports/DailyReportYoyChart";
 import DailyReportPlanDialog from "@/components/reports/DailyReportPlanDialog";
 import { aggregateSummary } from "./reportAggregation";
 
@@ -142,8 +139,10 @@ export default function DailyReportSummaryTab({ from, to }: { from: string; to: 
     (acc, r) => ({
       serviceCount: acc.serviceCount + r.serviceCount,
       revenue: acc.revenue + r.revenue,
+      target: acc.target + (r.target ?? 0),
+      priorYearRevenue: acc.priorYearRevenue + (r.priorYearRevenue ?? 0),
     }),
-    { serviceCount: 0, revenue: 0 },
+    { serviceCount: 0, revenue: 0, target: 0, priorYearRevenue: 0 },
   );
 
   return (
@@ -159,26 +158,6 @@ export default function DailyReportSummaryTab({ from, to }: { from: string; to: 
         )}
       </div>
 
-      {rows.length > 0 && (
-        <>
-          <DailyReportSummaryChart
-            data={rows.map((r) => ({ name: r.name, revenue: r.revenue }))}
-          />
-          <div className="grid gap-6 lg:grid-cols-2">
-            <DailyReportBulletChart
-              data={rows.map((r) => ({ name: r.name, revenue: r.revenue, target: r.target }))}
-            />
-            <DailyReportYoyChart
-              data={rows.map((r) => ({
-                name: r.name,
-                currentRevenue: r.revenue,
-                priorYearRevenue: r.priorYearRevenue,
-              }))}
-            />
-          </div>
-        </>
-      )}
-
       <div className="rounded-md border bg-card">
         {isLoading ? (
           <p className="p-4 text-sm text-muted-foreground">Загрузка…</p>
@@ -192,6 +171,8 @@ export default function DailyReportSummaryTab({ from, to }: { from: string; to: 
                 <TableHead className="text-right">Услуги</TableHead>
                 <TableHead className="text-right">Посетители</TableHead>
                 <TableHead className="text-right">Доход</TableHead>
+                <TableHead className="text-right">План</TableHead>
+                <TableHead className="text-right">Тот же период в прошлом году</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -201,6 +182,8 @@ export default function DailyReportSummaryTab({ from, to }: { from: string; to: 
                   <TableCell className="text-right">{r.serviceCount}</TableCell>
                   <TableCell className="text-right">{r.visitorCount}</TableCell>
                   <TableCell className="text-right">{fmt(r.revenue)}</TableCell>
+                  <TableCell className="text-right">{fmt(r.target)}</TableCell>
+                  <TableCell className="text-right">{fmt(r.priorYearRevenue)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -210,6 +193,8 @@ export default function DailyReportSummaryTab({ from, to }: { from: string; to: 
                 <TableCell className="text-right font-semibold">{totals.serviceCount}</TableCell>
                 <TableCell />
                 <TableCell className="text-right font-semibold">{fmt(totals.revenue)}</TableCell>
+                <TableCell className="text-right font-semibold">{fmt(totals.target)}</TableCell>
+                <TableCell className="text-right font-semibold">{fmt(totals.priorYearRevenue)}</TableCell>
               </TableRow>
             </TableFooter>
           </Table>

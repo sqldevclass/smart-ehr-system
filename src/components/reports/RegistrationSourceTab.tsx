@@ -5,7 +5,6 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import DailyReportSummaryChart from "@/components/reports/DailyReportSummaryChart";
 
 const SOURCE_LABELS: Record<string, string> = {
   facebook: "Facebook",
@@ -56,13 +55,6 @@ export default function RegistrationSourceTab({ from, to }: { from: string; to: 
 
   return (
     <div className="mt-4 space-y-6">
-      {rows.length > 0 && (
-        <DailyReportSummaryChart
-          data={rows.map((r) => ({ name: r.name, revenue: r.count }))}
-          title="Визиты по источнику привлечения"
-        />
-      )}
-
       <div className="rounded-md border bg-card">
         {isLoading ? (
           <p className="p-4 text-sm text-muted-foreground">Загрузка…</p>
