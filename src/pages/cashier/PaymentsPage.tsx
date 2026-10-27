@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -73,6 +74,8 @@ const PATIENT_BILLING_QUERY_PREFIXES = [
   "invoice-items",
   "invoice-balance",
   "invoice-hosp",
+  "patient-refundable-deposit",
+  "patient-deposit-refunds",
 ];
 
 function invalidatePatientBilling(queryClient: ReturnType<typeof useQueryClient>) {
@@ -542,6 +545,40 @@ function PatientBillingPanel({
 }) {
   const [showDeposit, setShowDeposit] = useState(false);
   const [showInvoice, setShowInvoice] = useState(false);
+  const [showRefund, setShowRefund] = useState(false);
+
+  const { data: refundInfo, isSuccess: refundInfoOk } = useQuery({
+    queryKey: ["patient-refundable-deposit", patient.id],
+    retry: false,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_patient_refundable_deposit" as any, {
+        p_patient_id: patient.id,
+      } as any);
+      if (error) throw error;
+      const row: any = Array.isArray(data) ? data[0] : data;
+      return {
+        deposit_balance: Number(row?.deposit_balance || 0),
+        billed_outstanding: Number(row?.billed_outstanding || 0),
+        refundable: Number(row?.refundable || 0),
+      } as RefundableInfo;
+    },
+  });
+
+  const { data: refunds = [] } = useQuery({
+    queryKey: ["patient-deposit-refunds", patient.id],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("patient_deposit_ledger")
+        .select("created_at, amount, receipt_number, note, payment_methods(name_en)")
+        .eq("patient_id", patient.id)
+        .eq("transaction_type", "refund")
+        .order("created_at", { ascending: false })
+        .limit(5);
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
 
   const { data: balance = 0, refetch: refetchBalance } = useQuery({
     queryKey: ["patient-deposit-balance", patient.id],
@@ -625,8 +662,28 @@ function PatientBillingPanel({
       <div className="text-sm">
         Баланс депозита: <span className="font-semibold">{Number(balance).toFixed(2)}</span>
       </div>
+      {refunds.length > 0 && (
+        <div className="text-xs text-muted-foreground space-y-0.5">
+          <div>Возвраты депозита:</div>
+          {refunds.map((r: any, i: number) => (
+            <div key={`${r.receipt_number}-${i}`}>
+              {format(new Date(r.created_at), "dd.MM.yyyy HH:mm")} · {fmt(Math.abs(Number(r.amount)))} · {r.payment_methods?.name_en ?? "—"} · {r.receipt_number ?? "—"} · {r.note ?? ""}
+            </div>
+          ))}
+        </div>
+      )}
       <div className="flex gap-2">
         <Button size="sm" onClick={() => setShowDeposit(true)}>+ Принять депозит</Button>
+        {refundInfoOk && refundInfo && (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={Number(refundInfo.refundable) <= 0}
+            onClick={() => setShowRefund(true)}
+          >
+            Вернуть остаток
+          </Button>
+        )}
         <Button
           size="sm"
           variant="secondary"
@@ -652,6 +709,15 @@ function PatientBillingPanel({
           refetchBalance();
         }}
       />
+      {refundInfoOk && refundInfo && (
+        <RefundDialog
+          open={showRefund}
+          patient={patient}
+          info={refundInfo}
+          onClose={() => setShowRefund(false)}
+          onSaved={() => setShowRefund(false)}
+        />
+      )}
       {latestInvoice && (
         <InvoiceDialog
           open={showInvoice}
@@ -903,6 +969,109 @@ function HistorySection({ patient, hospitalId }: { patient: any; hospitalId: str
 }
 
 
+function usePaymentMethods(open: boolean) {
+  const [methodId, setMethodId] = useState("");
+  const [methods, setMethods] = useState<PaymentMethod[]>([]);
+  useEffect(() => {
+    if (!open) return;
+    supabase.from("payment_methods").select("id, name_en")
+      .eq("is_active", true).order("name_en")
+      .then(({ data }) => {
+        setMethods((data ?? []) as any);
+        if (data && data.length > 0) setMethodId(data[0].id);
+      });
+  }, [open]);
+  return { methods, methodId, setMethodId };
+}
+
+type RefundableInfo = { deposit_balance: number; billed_outstanding: number; refundable: number };
+
+function RefundDialog({
+  open, patient, info, onClose, onSaved,
+}: {
+  open: boolean; patient: any; info: RefundableInfo;
+  onClose: () => void; onSaved: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const { methods, methodId, setMethodId } = usePaymentMethods(open);
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const refundable = Number(info.refundable || 0);
+
+  useEffect(() => {
+    if (!open) return;
+    setAmount(refundable > 0 ? refundable.toFixed(2) : "");
+    setNote("");
+  }, [open, refundable]);
+
+  const handleConfirm = async () => {
+    const amt = Number(amount);
+    if (!amount || !Number.isFinite(amt) || amt <= 0) { toast.error("Введите сумму больше 0."); return; }
+    if (!/^\d+(\.\d{1,2})?$/.test(amount.trim())) { toast.error("Не более 2 знаков после запятой."); return; }
+    if (amt > refundable + 1e-9) { toast.error(`Сумма превышает доступный остаток ${fmt(refundable)}.`); return; }
+    if (!methodId) { toast.error("Выберите способ возврата."); return; }
+    if (!note.trim()) { toast.error("Укажите причину."); return; }
+    setSubmitting(true);
+    const { data, error } = await supabase.rpc("refund_patient_deposit" as any, {
+      p_patient_id: patient.id,
+      p_amount: amt,
+      p_payment_method_id: methodId,
+      p_note: note.trim(),
+    } as any);
+    setSubmitting(false);
+    if (error) { toast.error(error.message); return; }
+    const res: any = Array.isArray(data) ? data[0] : data;
+    toast.success(`Возврат ${fmt(amt)} оформлен. Квитанция ${res?.receipt_number ?? ""}.`);
+    invalidatePatientBilling(queryClient);
+    onSaved();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && !submitting && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Вернуть остаток депозита</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="text-sm space-y-1">
+            <p><span className="text-muted-foreground">Баланс депозита:</span> {fmt(info.deposit_balance)}</p>
+            {Number(info.billed_outstanding) > 0 && (
+              <p><span className="text-muted-foreground">Зарезервировано под выставленные счета:</span> {fmt(info.billed_outstanding)}</p>
+            )}
+            <p><span className="text-muted-foreground">Можно вернуть:</span> <span className="font-semibold">{fmt(refundable)}</span></p>
+          </div>
+          <div>
+            <Label>Сумма</Label>
+            <Input type="number" step="0.01" min="0.01" value={amount} disabled={submitting} onChange={(e) => setAmount(e.target.value)} />
+          </div>
+          <div>
+            <Label>Способ возврата</Label>
+            <Select value={methodId} onValueChange={setMethodId} disabled={submitting}>
+              <SelectTrigger><SelectValue placeholder="Select method" /></SelectTrigger>
+              <SelectContent>
+                {methods.map((m: any) => (
+                  <SelectItem key={m.id} value={m.id}>{m.name_en}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Причина</Label>
+            <Textarea value={note} disabled={submitting} onChange={(e) => setNote(e.target.value)} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={submitting}>Отмена</Button>
+          <Button onClick={handleConfirm} disabled={submitting}>
+            {submitting ? "..." : "Вернуть"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function DepositDialog({
   open, patient, hospitalId, onClose, onSaved,
 }: {
@@ -912,19 +1081,12 @@ function DepositDialog({
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [amount, setAmount] = useState("");
-  const [methodId, setMethodId] = useState("");
-  const [methods, setMethods] = useState<PaymentMethod[]>([]);
+  const { methods, methodId, setMethodId } = usePaymentMethods(open);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setAmount("");
-    supabase.from("payment_methods").select("id, name_en")
-      .eq("is_active", true).order("name_en")
-      .then(({ data }) => {
-        setMethods((data ?? []) as any);
-        if (data && data.length > 0) setMethodId(data[0].id);
-      });
   }, [open]);
 
   const handleConfirm = async () => {
