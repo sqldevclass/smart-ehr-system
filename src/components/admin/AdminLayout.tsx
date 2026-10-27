@@ -1,5 +1,5 @@
 import { Outlet, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, Building2, Wrench, Stethoscope, FileText, UserCircle, LogOut, DoorOpen, ShieldCheck, Warehouse, BarChart3, Activity, HandCoins } from "lucide-react";
+import { LayoutDashboard, Users, Building2, Wrench, Stethoscope, FileText, UserCircle, LogOut, DoorOpen, ShieldCheck, Warehouse, BarChart3, Activity, HandCoins, CreditCard } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -18,6 +18,7 @@ const navItems = [
   { title: "Physicians", url: "/admin/physicians", icon: Stethoscope },
   { title: "Rooms", url: "/admin/rooms", icon: DoorOpen },
   { title: "Склады", url: "/admin/warehouses", icon: Warehouse },
+  { title: "POS-терминалы", url: "/admin/pos-terminals", icon: CreditCard },
   { title: "Physician Privileges", url: "/admin/physician-privileges", icon: ShieldCheck },
   { title: "Audit Log", url: "/admin/audit", icon: FileText },
   { title: "Reports", url: "/reports", icon: BarChart3 },
