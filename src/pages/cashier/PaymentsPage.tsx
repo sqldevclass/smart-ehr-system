@@ -19,18 +19,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { toLocal } from "@/lib/timezone";
 import { PeriodFilter, PeriodState, getDateBounds, getTodayBounds, SummaryCard, MetricTile } from "@/components/shared/PeriodFilter";
 import EWSStatusDot from "@/components/ews/EWSStatusDot";
 import { applyPatientSearch, hasPatientSearch, PATIENT_SEARCH_PLACEHOLDER } from "@/lib/patientSearch";
 import PatientMatchSummary from "@/components/shared/PatientMatchSummary";
+import { PosPaymentFields, usePaymentMethodsAndTerminals } from "@/components/cashier/PosPaymentFields";
 
 interface Visit {
   id: string;
@@ -51,11 +45,6 @@ interface VisitServiceRow {
   cost_at_time: number;
   services: { name: string | null; code: string | null } | null;
   service_statuses: { code: string | null; name_en: string | null } | null;
-}
-
-interface PaymentMethod {
-  id: string;
-  name_en: string;
 }
 
 const fmt = (n: number) => Number(n || 0).toFixed(2);
@@ -366,8 +355,8 @@ function PaymentDialog({
 }) {
   const { user } = useAuth();
   const [services, setServices] = useState<VisitServiceRow[]>([]);
-  const [methods, setMethods] = useState<PaymentMethod[]>([]);
-  const [methodId, setMethodId] = useState<string>("");
+  const payment = usePaymentMethodsAndTerminals(!!visit);
+  const { methodId, isReady, payload } = payment;
   const [amount, setAmount] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -378,22 +367,12 @@ function PaymentDialog({
     setAmount(outstanding.toFixed(2));
 
     (async () => {
-      const [vsRes, pmRes] = await Promise.all([
-        supabase
-          .from("visit_services")
-          .select("id, cost_at_time, services(name, code), service_statuses(code, name_en)")
-          .eq("visit_id", visit.id),
-        supabase
-          .from("payment_methods")
-          .select("id, name_en")
-          .eq("is_active", true)
-          .order("name_en"),
-      ]);
+      const vsRes = await supabase
+        .from("visit_services")
+        .select("id, cost_at_time, services(name, code), service_statuses(code, name_en)")
+        .eq("visit_id", visit.id);
       if (vsRes.error) toast.error(vsRes.error.message);
-      if (pmRes.error) toast.error(pmRes.error.message);
       setServices((vsRes.data ?? []) as any);
-      setMethods((pmRes.data ?? []) as any);
-      if (pmRes.data && pmRes.data.length > 0) setMethodId(pmRes.data[0].id);
     })();
   }, [visit, user]);
 
@@ -409,13 +388,13 @@ function PaymentDialog({
       return;
     }
 
+    if (!isReady) { toast.error("Выберите POS-терминал."); return; }
     setSubmitting(true);
     const { data, error } = await supabase.rpc("process_payment", {
       p_visit_id: visit.id,
       p_amount: amt,
-      p_payment_method_id: methodId,
-      p_received_by: user.id,
-    });
+      ...payload,
+    } as any);
     setSubmitting(false);
 
     if (error) {
@@ -503,21 +482,7 @@ function PaymentDialog({
                 onChange={(e) => setAmount(e.target.value)}
               />
             </div>
-            <div>
-              <Label htmlFor="method">Payment Method</Label>
-              <Select value={methodId} onValueChange={setMethodId}>
-                <SelectTrigger id="method">
-                  <SelectValue placeholder="Select method" />
-                </SelectTrigger>
-                <SelectContent>
-                  {methods.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.name_en}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <PosPaymentFields hook={payment} methodLabel="Payment Method" disabled={submitting} />
           </div>
         </div>
 
@@ -525,7 +490,7 @@ function PaymentDialog({
           <Button variant="outline" onClick={onClose} disabled={submitting}>
             Cancel
           </Button>
-          <Button onClick={handleConfirm} disabled={submitting}>
+          <Button onClick={handleConfirm} disabled={submitting || !isReady}>
             {submitting ? "Processing…" : "Confirm Payment"}
           </Button>
         </DialogFooter>
@@ -702,7 +667,7 @@ function PatientBillingPanel({
       <DepositDialog
         open={showDeposit}
         patient={patient}
-        hospitalId={hospitalId}
+        
         onClose={() => setShowDeposit(false)}
         onSaved={() => {
           setShowDeposit(false);
@@ -969,21 +934,6 @@ function HistorySection({ patient, hospitalId }: { patient: any; hospitalId: str
 }
 
 
-function usePaymentMethods(open: boolean) {
-  const [methodId, setMethodId] = useState("");
-  const [methods, setMethods] = useState<PaymentMethod[]>([]);
-  useEffect(() => {
-    if (!open) return;
-    supabase.from("payment_methods").select("id, name_en")
-      .eq("is_active", true).order("name_en")
-      .then(({ data }) => {
-        setMethods((data ?? []) as any);
-        if (data && data.length > 0) setMethodId(data[0].id);
-      });
-  }, [open]);
-  return { methods, methodId, setMethodId };
-}
-
 type RefundableInfo = { deposit_balance: number; billed_outstanding: number; refundable: number };
 
 function RefundDialog({
@@ -993,7 +943,8 @@ function RefundDialog({
   onClose: () => void; onSaved: () => void;
 }) {
   const queryClient = useQueryClient();
-  const { methods, methodId, setMethodId } = usePaymentMethods(open);
+  const payment = usePaymentMethodsAndTerminals(open);
+  const { methodId, isReady, payload } = payment;
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -1012,11 +963,12 @@ function RefundDialog({
     if (amt > refundable + 1e-9) { toast.error(`Сумма превышает доступный остаток ${fmt(refundable)}.`); return; }
     if (!methodId) { toast.error("Выберите способ возврата."); return; }
     if (!note.trim()) { toast.error("Укажите причину."); return; }
+    if (!isReady) { toast.error("Выберите POS-терминал."); return; }
     setSubmitting(true);
     const { data, error } = await supabase.rpc("refund_patient_deposit" as any, {
       p_patient_id: patient.id,
       p_amount: amt,
-      p_payment_method_id: methodId,
+      ...payload,
       p_note: note.trim(),
     } as any);
     setSubmitting(false);
@@ -1045,17 +997,7 @@ function RefundDialog({
             <Label>Сумма</Label>
             <Input type="number" step="0.01" min="0.01" value={amount} disabled={submitting} onChange={(e) => setAmount(e.target.value)} />
           </div>
-          <div>
-            <Label>Способ возврата</Label>
-            <Select value={methodId} onValueChange={setMethodId} disabled={submitting}>
-              <SelectTrigger><SelectValue placeholder="Select method" /></SelectTrigger>
-              <SelectContent>
-                {methods.map((m: any) => (
-                  <SelectItem key={m.id} value={m.id}>{m.name_en}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <PosPaymentFields hook={payment} methodLabel="Способ возврата" disabled={submitting} />
           <div>
             <Label>Причина</Label>
             <Textarea value={note} disabled={submitting} onChange={(e) => setNote(e.target.value)} />
@@ -1063,7 +1005,7 @@ function RefundDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={submitting}>Отмена</Button>
-          <Button onClick={handleConfirm} disabled={submitting}>
+          <Button onClick={handleConfirm} disabled={submitting || !isReady}>
             {submitting ? "..." : "Вернуть"}
           </Button>
         </DialogFooter>
@@ -1073,15 +1015,15 @@ function RefundDialog({
 }
 
 function DepositDialog({
-  open, patient, hospitalId, onClose, onSaved,
+  open, patient, onClose, onSaved,
 }: {
-  open: boolean; patient: any; hospitalId: string;
+  open: boolean; patient: any;
   onClose: () => void; onSaved: () => void;
 }) {
-  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [amount, setAmount] = useState("");
-  const { methods, methodId, setMethodId } = usePaymentMethods(open);
+  const payment = usePaymentMethodsAndTerminals(open);
+  const { methodId, isReady, payload } = payment;
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -1093,14 +1035,13 @@ function DepositDialog({
     const amt = Number(amount);
     if (!amt || amt <= 0) { toast.error("Enter a valid amount."); return; }
     if (!methodId) { toast.error("Select a payment method."); return; }
+    if (!isReady) { toast.error("Выберите POS-терминал."); return; }
     setSubmitting(true);
     const { error } = await supabase.rpc("record_patient_deposit", {
       p_patient_id: patient.id,
-      p_hospital_id: hospitalId,
       p_amount: amt,
-      p_payment_method_id: methodId,
-      p_received_by: user!.id,
-    });
+      ...payload,
+    } as any);
     setSubmitting(false);
     if (error) { toast.error(error.message); return; }
     toast.success("Депозит принят.");
@@ -1119,21 +1060,11 @@ function DepositDialog({
             <Label>Сумма</Label>
             <Input type="number" step="0.01" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} />
           </div>
-          <div>
-            <Label>Способ оплаты</Label>
-            <Select value={methodId} onValueChange={setMethodId}>
-              <SelectTrigger><SelectValue placeholder="Select method" /></SelectTrigger>
-              <SelectContent>
-                {methods.map((m: any) => (
-                  <SelectItem key={m.id} value={m.id}>{m.name_en}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <PosPaymentFields hook={payment} methodLabel="Способ оплаты" disabled={submitting} />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={submitting}>Отмена</Button>
-          <Button onClick={handleConfirm} disabled={submitting}>
+          <Button onClick={handleConfirm} disabled={submitting || !isReady}>
             {submitting ? "..." : "Принять депозит"}
           </Button>
         </DialogFooter>
@@ -1156,8 +1087,8 @@ function InvoiceDialog({
   const queryClient = useQueryClient();
   const [confirming, setConfirming] = useState(false);
   const [paying, setPaying] = useState(false);
-  const [methods, setMethods] = useState<PaymentMethod[]>([]);
-  const [methodId, setMethodId] = useState("");
+  const payment = usePaymentMethodsAndTerminals(open && mode === "debt");
+  const { isReady, payload } = payment;
 
   const { data: depositBalance = 0 } = useQuery({
     queryKey: ["invoice-dialog-deposit-balance", patient.id],
@@ -1170,17 +1101,6 @@ function InvoiceDialog({
       return Number(data);
     },
   });
-
-  useEffect(() => {
-    if (!open || mode !== "debt") return;
-    supabase.from("payment_methods").select("id, name_en")
-      .eq("is_active", true).order("name_en")
-      .then(({ data }) => {
-        setMethods((data ?? []) as any);
-        if (data && data.length > 0) setMethodId(data[0].id);
-      });
-  }, [open, mode]);
-
 
   const { data: hosp } = useQuery({
     queryKey: ["invoice-hosp", hospitalizationId],
@@ -1280,15 +1200,14 @@ function InvoiceDialog({
   };
 
   const handlePay = async () => {
+    if (previewRemaining > 0 && !isReady) { toast.error("Выберите POS-терминал."); return; }
     setPaying(true);
     const { error } = await supabase.rpc("pay_hospitalization_invoice", {
       p_invoice_id: invoiceId,
-      p_hospital_id: hospitalId,
-      p_patient_id: patient.id,
-      p_hospitalization_id: hospitalizationId,
-      p_payment_method_id: previewRemaining > 0 ? (methodId || null) : null,
-      p_received_by: user!.id,
-    });
+      ...(previewRemaining > 0 ? payload : {
+        p_payment_method_id: null, p_pos_terminal_id: null, p_auth_code: null,
+      }),
+    } as any);
     setPaying(false);
     if (error) { toast.error(error.message); return; }
     toast.success("Счёт оплачен.");
@@ -1445,16 +1364,7 @@ function InvoiceDialog({
               )}
             </div>
             {mode === "debt" && previewRemaining > 0 && (
-              <div className="flex items-center gap-2">
-                <Select value={methodId} onValueChange={setMethodId}>
-                  <SelectTrigger className="h-9 w-48"><SelectValue placeholder="Способ оплаты" /></SelectTrigger>
-                  <SelectContent>
-                    {methods.map((m: any) => (
-                      <SelectItem key={m.id} value={m.id}>{m.name_en}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <PosPaymentFields hook={payment} methodLabel="Способ оплаты" disabled={paying} />
             )}
           </div>
         </div>
@@ -1466,7 +1376,7 @@ function InvoiceDialog({
             </Button>
           )}
           {mode === "debt" && (
-            <Button onClick={handlePay} disabled={paying}>
+            <Button onClick={handlePay} disabled={paying || (previewRemaining > 0 && !isReady)}>
               {paying ? "..." : `Оплатить ${previewRemaining.toFixed(2)}`}
             </Button>
           )}

@@ -29,6 +29,8 @@ interface CashFlowItem {
   invoice_number: string | null;
   payment_method_code: string | null;
   payment_method_name: string | null;
+  pos_terminal_name: string | null;
+  auth_code: string | null;
   staff_name: string | null;
   note: string | null;
 }
@@ -57,7 +59,7 @@ export default function CashInflowTab({ from, to }: { from: string; to: string }
       const { data, error } = await (supabase as any)
         .from("cash_flow_report_items")
         .select(
-          "id, hospital_id, occurred_at, movement_type, amount, receipt_number, care_type, patient_id, patient_number, last_name, first_name, date_of_birth, hospitalization_number, invoice_number, payment_method_code, payment_method_name, staff_name, note",
+          "id, hospital_id, occurred_at, movement_type, amount, receipt_number, care_type, patient_id, patient_number, last_name, first_name, date_of_birth, hospitalization_number, invoice_number, payment_method_code, payment_method_name, pos_terminal_name, auth_code, staff_name, note",
         )
         .eq("hospital_id", user.hospitalId)
         .gte("occurred_at", from)
@@ -101,6 +103,8 @@ export default function CashInflowTab({ from, to }: { from: string; to: string }
       accessorFn: (r) => (r.date_of_birth ? format(new Date(r.date_of_birth), "dd.MM.yyyy") : ""),
     },
     { id: "method", header: "Способ оплаты", accessorFn: (r) => s(r.payment_method_name) },
+    { id: "terminal", header: "Терминал", accessorFn: (r) => s(r.pos_terminal_name) },
+    { id: "auth_code", header: "Код авторизации", accessorFn: (r) => s(r.auth_code) },
     { id: "staff", header: "Кассир", accessorFn: (r) => s(r.staff_name) },
     { id: "note", header: "Основание", accessorFn: (r) => s(r.note) },
     {
