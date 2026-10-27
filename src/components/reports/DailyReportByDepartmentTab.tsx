@@ -4,7 +4,6 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import DailyReportDepartmentChart from "@/components/reports/DailyReportDepartmentChart";
 
 interface ServiceItem {
   department_id: string | null;
@@ -82,7 +81,6 @@ export default function DailyReportByDepartmentTab({ from, to }: { from: string;
 
   return (
     <>
-      {rows.length > 0 && <DailyReportDepartmentChart data={rows} />}
       <div className="mt-4 rounded-md border bg-card">
         {isLoading ? (
           <p className="p-4 text-sm text-muted-foreground">Загрузка…</p>
