@@ -17,10 +17,9 @@ interface TerminalForm {
   bank_name: string;
   terminal_code: string;
   merchant_id: string;
-  location: string;
   is_active: boolean;
 }
-const emptyForm: TerminalForm = { name: "", bank_name: "", terminal_code: "", merchant_id: "", location: "", is_active: true };
+const emptyForm: TerminalForm = { name: "", bank_name: "", terminal_code: "", merchant_id: "", is_active: true };
 
 export default function PosTerminalsPage() {
   const { user } = useAuth();
@@ -34,7 +33,7 @@ export default function PosTerminalsPage() {
     queryFn: async () => {
       if (!user) return [];
       const { data, error } = await (supabase as any).from("pos_terminals")
-        .select("id, name, bank_name, terminal_code, merchant_id, location, is_active")
+        .select("id, name, bank_name, terminal_code, merchant_id, is_active")
         .eq("hospital_id", user.hospitalId).order("name");
       if (error) { toast.error(error.message); throw error; }
       return data || [];
@@ -46,7 +45,7 @@ export default function PosTerminalsPage() {
     const payload = {
       name: form.name.trim(), bank_name: form.bank_name.trim() || null,
       terminal_code: form.terminal_code.trim() || null, merchant_id: form.merchant_id.trim() || null,
-      location: form.location.trim() || null, is_active: form.is_active,
+      is_active: form.is_active,
     };
     const { error } = form.id
       ? await (supabase as any).from("pos_terminals").update(payload).eq("id", form.id)
@@ -71,7 +70,7 @@ export default function PosTerminalsPage() {
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
             <tr className="text-left">
-              {["Название", "Банк", "TID", "Merchant ID", "Расположение", "Активен"].map((label) => <th key={label} className="p-3">{label}</th>)}
+              {["Название", "Банк", "TID", "Merchant ID", "Активен"].map((label) => <th key={label} className="p-3">{label}</th>)}
               <th className="p-3 w-12"></th>
             </tr>
           </thead>
@@ -80,15 +79,14 @@ export default function PosTerminalsPage() {
               <tr key={t.id} className="border-t">
                 <td className="p-3">{t.name}</td><td className="p-3">{t.bank_name || "—"}</td>
                 <td className="p-3">{t.terminal_code || "—"}</td><td className="p-3">{t.merchant_id || "—"}</td>
-                <td className="p-3">{t.location || "—"}</td>
                 <td className="p-3"><Badge variant={t.is_active ? "default" : "secondary"}>{t.is_active ? "Да" : "Нет"}</Badge></td>
                 <td className="p-3"><Button size="icon" variant="ghost" title="Редактировать терминал" aria-label="Редактировать терминал" onClick={() => {
-                  setForm({ id: t.id, name: t.name, bank_name: t.bank_name || "", terminal_code: t.terminal_code || "", merchant_id: t.merchant_id || "", location: t.location || "", is_active: t.is_active });
+                  setForm({ id: t.id, name: t.name, bank_name: t.bank_name || "", terminal_code: t.terminal_code || "", merchant_id: t.merchant_id || "", is_active: t.is_active });
                   setOpen(true);
                 }}><Pencil className="h-4 w-4" /></Button></td>
               </tr>
             ))}
-            {terminals.length === 0 && <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">Нет терминалов</td></tr>}
+            {terminals.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">Нет терминалов</td></tr>}
           </tbody>
         </table>
       </div>
@@ -97,7 +95,7 @@ export default function PosTerminalsPage() {
           <DialogHeader><DialogTitle>{form.id ? "Редактировать терминал" : "Добавить терминал"}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             {([
-              ["name", "Название *"], ["bank_name", "Банк"], ["terminal_code", "TID"], ["merchant_id", "Merchant ID"], ["location", "Расположение"],
+              ["name", "Название *"], ["bank_name", "Банк"], ["terminal_code", "TID"], ["merchant_id", "Merchant ID"]
             ] as const).map(([key, label]) => (
               <div key={key} className="space-y-1.5">
                 <Label htmlFor={`pos-${key}`}>{label}</Label>
