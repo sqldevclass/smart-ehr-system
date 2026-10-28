@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,22 +17,23 @@ type Filter = "all" | "expiring" | "low";
 
 export default function StockView({ warehouseTypeCode, title }: Props) {
   const { user } = useAuth();
-  const { data: warehouse, isLoading: whLoading } = useMyWarehouse(warehouseTypeCode);
+  const { data: warehouse, isLoading: whLoading, error: warehouseError } = useMyWarehouse(warehouseTypeCode);
   const [filter, setFilter] = useState<Filter>("all");
 
-  const { data: stock = [] } = useQuery({
+  const { data: stock = [], error: stockError } = useQuery({
     queryKey: ["stock", warehouse?.id],
     enabled: !!warehouse?.id && !!user?.hospitalId,
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("inventory_batches")
         .select(
-          "id, product_id, drug_formulary_id, series_number, expiry_date, quantity_packages, quantity_units, selling_price, products(name, min_stock_quantity, expiry_notify_days), drug_formulary(trade_name, min_quantity, expiry_notify_days)"
+          "id, product_id, drug_formulary_id, series_number, expiry_date, quantity_units, selling_price, products(name, min_stock_quantity, expiry_notify_days), drug_formulary(trade_name, min_quantity, expiry_notify_days)"
         )
-        .eq("hospital_id", user!.hospitalId)
-        .eq("warehouse_id", warehouse!.id)
+        .eq("hospital_id", user?.hospitalId ?? "")
+        .eq("warehouse_id", warehouse?.id ?? "")
         .gt("quantity_units", 0)
         .order("expiry_date", { ascending: true, nullsFirst: false });
+      if (error) { toast.error(error.message); throw error; }
       return data || [];
     },
   });
@@ -62,9 +64,10 @@ export default function StockView({ warehouseTypeCode, title }: Props) {
     return true;
   });
 
-  if (whLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
+  if (whLoading) return <p className="text-sm text-muted-foreground">Загрузка…</p>;
+  if (warehouseError) return <p className="text-sm text-destructive">{warehouseError.message}</p>;
   if (!warehouse)
-    return <p className="text-sm text-destructive">No warehouse configured.</p>;
+    return <p className="text-sm text-destructive">Склад не настроен</p>;
 
   return (
     <div className="space-y-4">
@@ -73,11 +76,12 @@ export default function StockView({ warehouseTypeCode, title }: Props) {
         <p className="text-sm text-muted-foreground">{warehouse.name}</p>
       </div>
 
+      {stockError && <p role="alert" className="text-sm text-destructive">{stockError.message}</p>}
       <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
         <TabsList>
-          <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="expiring">Expiring Soon</TabsTrigger>
-          <TabsTrigger value="low">Low Stock</TabsTrigger>
+          <TabsTrigger value="all">Все</TabsTrigger>
+          <TabsTrigger value="expiring">Истекает срок</TabsTrigger>
+          <TabsTrigger value="low">Низкий остаток</TabsTrigger>
         </TabsList>
       </Tabs>
 
@@ -112,7 +116,7 @@ export default function StockView({ warehouseTypeCode, title }: Props) {
             {filtered.length === 0 && (
               <tr>
                 <td colSpan={5} className="p-6 text-center text-muted-foreground">
-                  No items.
+                  Нет позиций
                 </td>
               </tr>
             )}
