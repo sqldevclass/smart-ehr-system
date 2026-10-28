@@ -99,12 +99,13 @@ export default function NurseInventoryModal({
   const { data: deptWarehouse } = useQuery({
     queryKey: ["dept-warehouse", departmentId, hospitalId],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("warehouses")
         .select("id, name")
         .eq("hospital_id", hospitalId)
         .eq("department_id", departmentId)
         .maybeSingle();
+      if (error) throw error;
       return data;
     },
   });
@@ -157,7 +158,7 @@ export default function NurseInventoryModal({
           )
         `)
         .eq("hospital_id", hospitalId)
-        .eq("to_warehouse_id", deptWarehouse!.id)
+        .eq("to_warehouse_id", deptWarehouse?.id ?? "")
         .eq("status", "pending_acceptance")
         .order("sent_at", { ascending: false });
       if (error) throw error;
@@ -169,7 +170,7 @@ export default function NurseInventoryModal({
     queryKey: ["all-dept-warehouses", hospitalId, deptWarehouse?.id],
     enabled: !!deptWarehouse?.id,
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("warehouses")
         .select(`
           id, name,
@@ -179,6 +180,7 @@ export default function NurseInventoryModal({
         .eq("hospital_id", hospitalId)
         .eq("is_active", true)
         .neq("id", deptWarehouse?.id ?? "");
+      if (error) throw error;
       return (data || []).filter((w: any) =>
         w.warehouse_types?.code === "department"
       );
@@ -201,7 +203,7 @@ export default function NurseInventoryModal({
           drug_formulary(trade_name, inn),
           products(name)
         `)
-        .eq("warehouse_id", deptWarehouse!.id)
+        .eq("warehouse_id", deptWarehouse?.id ?? "")
         .eq("hospital_id", hospitalId)
         .gt("quantity_units", 0);
       if (error) throw error;
@@ -212,12 +214,13 @@ export default function NurseInventoryModal({
   const { data: activeHosps = [] } = useQuery({
     queryKey: ["nurse-active-hosps-dept", departmentId, hospitalId],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("hospitalizations")
         .select("id, patients!inner(first_name, last_name, patient_number)")
         .eq("hospital_id", hospitalId)
         .eq("department_id", departmentId)
         .is("discharged_at", null);
+      if (error) throw error;
       return data || [];
     },
   });
@@ -246,6 +249,13 @@ export default function NurseInventoryModal({
     matchesSearch([b.drug_formulary?.trade_name, b.drug_formulary?.inn, b.products?.name], filters.drug ?? "")
   ), [deptStock, filters]);
 
+  const refreshInventory = () => {
+    refetchPres(); refetchTrans(); refetchStock();
+    if (!deptWarehouse) return;
+    for (const key of ["stock", "transfers", "my-batches", "writeoff-batches"]) qc.invalidateQueries({ queryKey: [key, deptWarehouse.id] });
+    for (const key of ["nurse-prescriptions", "nurse-admin-slots", "all-slots"]) qc.invalidateQueries({ queryKey: [key] });
+  };
+
   // Actions
   const acceptSlot = async (slotId: string) => {
     if (!user) return;
@@ -253,12 +263,10 @@ export default function NurseInventoryModal({
     try {
       const { error } = await supabase.rpc("dispense_slot", {
         p_slot_id: slotId,
-        p_hospital_id: hospitalId,
-        p_accepted_by: user.id,
       });
       if (error) throw error;
       toast.success("Принято");
-      refetchPres(); refetchStock();
+      refreshInventory();
       qc.invalidateQueries({ queryKey: ["nurse-prescriptions"] });
       qc.invalidateQueries({ queryKey: ["nurse-admin-slots"] });
       qc.invalidateQueries({ queryKey: ["all-slots"] });
@@ -277,17 +285,15 @@ export default function NurseInventoryModal({
       try {
         const { error } = await supabase.rpc("dispense_slot", {
           p_slot_id: s.id,
-          p_hospital_id: hospitalId,
-          p_accepted_by: user.id,
         });
         if (error) throw error;
         ok++;
-      } catch { err++; }
+      } catch (e: any) { err++; toast.error(e.message); }
     }
     setBusyAll(false);
     if (ok) toast.success(`Принято: ${ok}`);
     if (err) toast.error(`Ошибок: ${err}`);
-    refetchPres(); refetchStock();
+    refreshInventory();
   };
 
   const acceptTransfer = async (id: string) => {
@@ -296,12 +302,10 @@ export default function NurseInventoryModal({
     try {
       const { error } = await supabase.rpc("accept_transfer", {
         p_transfer_record_id: id,
-        p_hospital_id: hospitalId,
-        p_accepted_by: user.id,
       });
       if (error) throw error;
       toast.success("Перемещение принято");
-      refetchTrans(); refetchStock();
+      refreshInventory();
     } catch (e: any) {
       toast.error(e.message);
     } finally {
@@ -317,17 +321,15 @@ export default function NurseInventoryModal({
       try {
         const { error } = await supabase.rpc("accept_transfer", {
           p_transfer_record_id: t.id,
-          p_hospital_id: hospitalId,
-          p_accepted_by: user.id,
         });
         if (error) throw error;
         ok++;
-      } catch { err++; }
+      } catch (e: any) { err++; toast.error(e.message); }
     }
     setBusyAll(false);
     if (ok) toast.success(`Принято: ${ok}`);
     if (err) toast.error(`Ошибок: ${err}`);
-    refetchTrans(); refetchStock();
+    refreshInventory();
   };
 
   const sendTransfer = async () => {
@@ -335,34 +337,21 @@ export default function NurseInventoryModal({
     setTxSending(true);
     try {
       const batch = (deptStock as any[]).find((b) => b.id === txBatchId);
-      const { data: record, error: recErr } = await supabase
-        .from("transfer_records")
-        .insert({
-          hospital_id: hospitalId,
-          from_warehouse_id: deptWarehouse.id,
-          to_warehouse_id: txWarehouseId,
-          status: "pending_acceptance",
-          sent_by: user.id,
-          sent_at: new Date().toISOString(),
-        })
-        .select("id")
-        .single();
-      if (recErr) throw recErr;
-      const { error: itemErr } = await supabase
-        .from("transfer_record_items")
-        .insert({
-          transfer_record_id: record.id,
-          hospital_id: hospitalId,
-          inventory_batch_id: txBatchId,
-          product_id: batch?.product_id ?? null,
-          drug_formulary_id: batch?.drug_formulary_id ?? null,
-          quantity_packages: 0,
-          quantity_units: parseFloat(txQty),
-        });
-      if (itemErr) throw itemErr;
+      const qty = Number(txQty);
+      if (!batch || !Number.isFinite(qty) || qty <= 0) throw new Error("Укажите количество больше нуля");
+      if (qty > Number(batch.quantity_units)) throw new Error("Количество превышает доступный остаток партии");
+      const { error } = await supabase.rpc("send_transfer", {
+        p_from_warehouse_id: deptWarehouse.id,
+        p_to_warehouse_id: txWarehouseId,
+        p_notes: null,
+        p_items: [{ batch_id: txBatchId, quantity_units: qty }],
+      });
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: ["stock", txWarehouseId] });
+      qc.invalidateQueries({ queryKey: ["transfers", txWarehouseId] });
       toast.success("Перемещение отправлено");
       setTxBatchId(""); setTxWarehouseId(""); setTxQty("");
-      refetchStock();
+      refreshInventory();
     } catch (e: any) {
       toast.error(e.message);
     } finally {
@@ -371,46 +360,33 @@ export default function NurseInventoryModal({
   };
 
   const writeOff = async () => {
-    if (!user || !woBatchId || !woQty) return;
+    if (!user || !deptWarehouse || !woBatchId || !woQty) return;
     setWoSending(true);
     try {
+      const batch = (deptStock as any[]).find((b) => b.id === woBatchId);
+      const qty = Number(woQty);
+      if (!batch || !Number.isFinite(qty) || qty <= 0) throw new Error("Укажите количество больше нуля");
+      if (qty > Number(batch.quantity_units)) throw new Error("Количество превышает доступный остаток партии");
       if (woPatientHospId) {
         const { error } = await supabase.rpc("writeoff_to_patient", {
-          p_batch_id: woBatchId,
-          p_quantity_units: parseFloat(woQty),
-          p_hospitalization_id: woPatientHospId,
-          p_hospital_id: hospitalId,
-          p_written_off_by: user.id,
+          p_batch_id: woBatchId, p_quantity_units: qty, p_hospitalization_id: woPatientHospId, p_notes: null,
         });
         if (error) throw error;
       } else {
-        const batch = (deptStock as any[]).find((b) => b.id === woBatchId);
-        const { data: woType } = await supabase
-          .from("write_off_types")
-          .select("id")
-          .eq("code", "expired")
-          .maybeSingle();
+        const { data: woType, error: typeError } = await supabase.from("write_off_types").select("id").eq("code", "act").maybeSingle();
+        if (typeError) throw typeError;
+        if (!woType) throw new Error("Тип списания «По акту» (act) не найден");
         const { error } = await supabase.rpc("perform_writeoff", {
-          p_hospital_id: hospitalId,
-          p_warehouse_id: deptWarehouse?.id,
-          p_write_off_type_id: woType?.id,
-          p_employee_id: null,
-          p_supplier_id: null,
-          p_notes: null,
-          p_written_off_by: user.id,
-          p_items: JSON.stringify([{
-            batch_id: woBatchId,
-            product_id: batch?.product_id ?? null,
-            drug_formulary_id: batch?.drug_formulary_id ?? null,
-            quantity_packages: 0,
-            quantity_units: parseFloat(woQty),
-          }]),
+          p_warehouse_id: deptWarehouse.id, p_write_off_type_id: woType.id,
+          p_employee_id: null, p_supplier_id: null, p_notes: null,
+          p_items: [{ batch_id: woBatchId, quantity_units: qty }],
         });
         if (error) throw error;
       }
+      qc.invalidateQueries({ queryKey: ["writeoffs", deptWarehouse.id] });
       toast.success("Списано");
       setWoBatchId(""); setWoQty(""); setWoPatientHospId("");
-      refetchStock();
+      refreshInventory();
     } catch (e: any) {
       toast.error(e.message);
     } finally {
@@ -605,7 +581,7 @@ export default function NurseInventoryModal({
                       <SelectContent>
                         {(deptStock as any[]).map((b) => (
                           <SelectItem key={b.id} value={b.id}>
-                            {b.drug_formulary?.trade_name || b.products?.name || "—"} ({b.quantity_units} ед.)
+                            {b.drug_formulary?.trade_name || b.products?.name || "—"} — серия {b.series_number || "—"}, годен до {b.expiry_date || "—"}, доступно {b.quantity_units} ед.
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -654,7 +630,7 @@ export default function NurseInventoryModal({
                     <SelectContent>
                       {filteredStock.map((b: any) => (
                         <SelectItem key={b.id} value={b.id}>
-                          {b.drug_formulary?.trade_name || b.products?.name || "—"} ({b.quantity_units} ед.)
+                          {b.drug_formulary?.trade_name || b.products?.name || "—"} — серия {b.series_number || "—"}, годен до {b.expiry_date || "—"}, доступно {b.quantity_units} ед.
                         </SelectItem>
                       ))}
                     </SelectContent>

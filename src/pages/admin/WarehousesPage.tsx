@@ -28,6 +28,8 @@ export default function WarehousesPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [movementHint, setMovementHint] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<{
     id?: string;
     name: string;
@@ -39,10 +41,11 @@ export default function WarehousesPage() {
   const { data: types = [] } = useQuery({
     queryKey: ["warehouse_types"],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("warehouse_types")
-        .select("id, name_ru")
+        .select("id, name_ru, code")
         .order("sort_order");
+      if (error) throw error;
       return data || [];
     },
   });
@@ -51,11 +54,12 @@ export default function WarehousesPage() {
     queryKey: ["departments-for-wh", user?.hospitalId],
     enabled: !!user?.hospitalId,
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("departments")
         .select("id, name")
-        .eq("hospital_id", user!.hospitalId)
+        .eq("hospital_id", user?.hospitalId ?? "")
         .order("name");
+      if (error) throw error;
       return data || [];
     },
   });
@@ -64,44 +68,46 @@ export default function WarehousesPage() {
     queryKey: ["warehouses", user?.hospitalId],
     enabled: !!user?.hospitalId,
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("warehouses")
         .select(
           "id, name, is_active, warehouse_type_id, department_id, warehouse_types(name_ru), departments(name)"
         )
-        .eq("hospital_id", user!.hospitalId)
+        .eq("hospital_id", user?.hospitalId ?? "")
         .order("name");
+      if (error) throw error;
       return data || [];
     },
   });
 
+  const isDepartment = types.find((t: any) => t.id === form.warehouse_type_id)?.code === "department";
+  const availableDepartments = departments.filter((d: any) => !warehouses.some((w: any) => w.department_id === d.id && w.id !== form.id));
   const save = async () => {
     if (!user) return;
-    const payload: any = {
-      name: form.name.trim(),
-      warehouse_type_id: form.warehouse_type_id,
-      department_id: form.department_id || null,
-      is_active: form.is_active,
+    if (!form.name.trim() || !form.warehouse_type_id) { toast.error("Укажите название и тип склада"); return; }
+    if (isDepartment && !form.department_id) { toast.error("Выберите отделение"); return; }
+    const payload = {
+      name: form.name.trim(), warehouse_type_id: form.warehouse_type_id,
+      department_id: isDepartment ? form.department_id : null, is_active: form.is_active,
     };
-    if (form.id) {
-      const { error } = await supabase.from("warehouses").update(payload).eq("id", form.id);
+    setSaving(true);
+    try {
+      const { error } = form.id
+        ? await supabase.from("warehouses").update(payload).eq("id", form.id)
+        : await supabase.from("warehouses").insert({ ...payload, hospital_id: user.hospitalId });
       if (error) {
-        toast.error(error.message);
-        return;
+        if (/movement|движен|cannot.*(type|department)|нельзя.*(тип|отделен)/i.test(error.message)) setMovementHint(true);
+        throw error;
       }
-    } else {
-      const { error } = await supabase
-        .from("warehouses")
-        .insert({ ...payload, hospital_id: user.hospitalId });
-      if (error) {
-        toast.error(error.message);
-        return;
-      }
-    }
-    toast.success("Saved");
-    setOpen(false);
-    setForm({ name: "", warehouse_type_id: "", department_id: null, is_active: true });
-    qc.invalidateQueries({ queryKey: ["warehouses", user?.hospitalId] });
+      toast.success("Сохранено");
+      setOpen(false);
+      setForm({ name: "", warehouse_type_id: "", department_id: null, is_active: true });
+      qc.invalidateQueries({ queryKey: ["warehouses", user.hospitalId] });
+      qc.invalidateQueries({ queryKey: ["my-warehouse", user.hospitalId] });
+      qc.invalidateQueries({ queryKey: ["transfer-destinations", user.hospitalId] });
+      qc.invalidateQueries({ queryKey: ["all-dept-warehouses", user.hospitalId] });
+      qc.invalidateQueries({ queryKey: ["dept-warehouse"] });
+    } catch (e: any) { toast.error(e.message); } finally { setSaving(false); }
   };
 
   return (
@@ -111,6 +117,7 @@ export default function WarehousesPage() {
         <Button
           onClick={() => {
             setForm({ name: "", warehouse_type_id: "", department_id: null, is_active: true });
+            setMovementHint(false);
             setOpen(true);
           }}
         >
@@ -152,7 +159,8 @@ export default function WarehousesPage() {
                         department_id: w.department_id,
                         is_active: w.is_active,
                       });
-                      setOpen(true);
+                      setMovementHint(false);
+            setOpen(true);
                     }}
                   >
                     <Pencil className="h-4 w-4" />
@@ -188,7 +196,8 @@ export default function WarehousesPage() {
               <Label>Тип склада *</Label>
               <Select
                 value={form.warehouse_type_id}
-                onValueChange={(v) => setForm({ ...form, warehouse_type_id: v })}
+                disabled={!!form.id}
+                onValueChange={(v) => setForm({ ...form, warehouse_type_id: v, department_id: types.find((t: any) => t.id === v)?.code === "department" ? form.department_id : null })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Выберите тип" />
@@ -202,27 +211,28 @@ export default function WarehousesPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
-              <Label>Отделение</Label>
+            {isDepartment && <div className="space-y-1.5">
+              <Label>Отделение *</Label>
               <Select
-                value={form.department_id || "none"}
+                disabled={!!form.id}
+                value={form.department_id || ""}
                 onValueChange={(v) =>
                   setForm({ ...form, department_id: v === "none" ? null : v })
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Необязательно" />
+                  <SelectValue placeholder="Выберите отделение" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">—</SelectItem>
-                  {departments.map((d: any) => (
+                  {availableDepartments.map((d: any) => (
                     <SelectItem key={d.id} value={d.id}>
                       {d.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </div>}
+            {movementHint && <p className="text-sm text-muted-foreground">Нельзя менять после первых движений</p>}
             <div className="flex items-center gap-2">
               <Switch
                 id="wh-active"
@@ -240,7 +250,7 @@ export default function WarehousesPage() {
             </Button>
             <Button
               onClick={save}
-              disabled={!form.name.trim() || !form.warehouse_type_id}
+              disabled={saving || !form.name.trim() || !form.warehouse_type_id || (isDepartment && !form.department_id)}
             >
               Сохранить
             </Button>
