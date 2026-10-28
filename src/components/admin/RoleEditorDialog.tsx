@@ -200,7 +200,7 @@ export default function RoleEditorDialog({ open, onOpenChange, role, mode, onSav
   }, [workspaceOptions, route, permissions.length, mode, rolePermissionIds]);
 
   const grouped = useMemo(() => {
-    const filtered = permissions.filter((p) => matchesSearch(search, [p.name_ru, p.code]));
+    const filtered = permissions.filter((p) => matchesSearch([p.name_ru, p.code], search));
     const map = new Map<string, Permission[]>();
     for (const p of filtered) {
       const list = map.get(p.module) ?? [];
