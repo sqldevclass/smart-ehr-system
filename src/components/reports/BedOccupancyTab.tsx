@@ -108,7 +108,8 @@ export default function BedOccupancyTab() {
     enabled: !!user?.hospitalId,
     queryFn: async () => {
       if (!user?.hospitalId) return [];
-      const { data, error } = await supabase.rpc("get_bed_occupancy", { p_hospital_id: user.hospitalId }).returns<BedRow[]>();
+      const { data, error } = await supabase.rpc("get_bed_occupancy", { p_hospital_id: user.hospitalId })
+        .overrideTypes<BedRow[], { merge: false }>();
       if (error) throw error;
       return data ?? [];
     },
