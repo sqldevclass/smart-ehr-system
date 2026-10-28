@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScreenHeader } from "./ScreenHeader";
+import { TableTotalsFooter } from "./TableTotalsFooter";
 import {
   Select,
   SelectContent,
@@ -57,13 +59,14 @@ interface Manufacturer {
 export default function SettingsView({ title }: { title: string }) {
   return (
     <div className="space-y-4">
-      <h2 className="font-heading text-xl font-bold text-foreground">{title}</h2>
-      <Tabs defaultValue="products">
-        <TabsList>
-          <TabsTrigger value="products">Товары</TabsTrigger>
-          <TabsTrigger value="suppliers">Поставщики</TabsTrigger>
-          <TabsTrigger value="manufacturers">Производители</TabsTrigger>
-        </TabsList>
+      <Tabs defaultValue="products" className="space-y-4">
+        <ScreenHeader title={title} right={
+          <TabsList>
+            <TabsTrigger value="products">Товары</TabsTrigger>
+            <TabsTrigger value="suppliers">Поставщики</TabsTrigger>
+            <TabsTrigger value="manufacturers">Производители</TabsTrigger>
+          </TabsList>
+        } />
         <TabsContent value="products">
           <ТоварыSection />
         </TabsContent>
@@ -355,6 +358,7 @@ function ТоварыSection() {
               <tr><td colSpan={13} className="p-6 text-center text-muted-foreground">Нет товаров</td></tr>
             )}
           </tbody>
+          {products.length > 0 && <TableTotalsFooter label="Итого" cells={[{}, { colSpan: 10, content: `Записей: ${products.length}` }, { content: `Активных: ${products.filter((x: any) => x.is_active).length}` }, {}]} />}
         </table>
       </div>
 
@@ -619,6 +623,7 @@ function ПоставщикиSection() {
               <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">Нет поставщиков</td></tr>
             )}
           </tbody>
+          {items.length > 0 && <TableTotalsFooter label="Итого" cells={[{}, { colSpan: 4, content: `Записей: ${items.length}` }, { content: `Активных: ${items.filter((x: any) => x.is_active).length}` }, {}]} />}
         </table>
       </div>
     </div>
@@ -735,6 +740,7 @@ function ПроизводителиSection() {
               <tr><td colSpan={4} className="p-6 text-center text-muted-foreground">Нет производителей</td></tr>
             )}
           </tbody>
+          {items.length > 0 && <TableTotalsFooter label="Итого" cells={[{}, { colSpan: 1, content: `Записей: ${items.length}` }, { content: `Активных: ${items.filter((x: any) => x.is_active).length}` }, {}]} />}
         </table>
       </div>
     </div>
