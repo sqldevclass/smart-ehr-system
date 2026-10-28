@@ -16,6 +16,7 @@ import SearchInput from "@/components/shared/SearchInput";
 import HighlightMatch from "@/components/shared/HighlightMatch";
 import { matchesSearch } from "@/lib/search";
 import { matchesPatientSearch, PATIENT_SEARCH_PLACEHOLDER } from "@/lib/patientSearch";
+import NurseTransfersPanel, { filterNurseTransfers, useNurseIncomingTransfers } from "./NurseTransfersPanel";
 
 interface Props {
   departmentId: string;
@@ -84,12 +85,6 @@ export default function NurseInventoryModal({
   const setFilter = (k: string, v: string) =>
     setFilters((prev) => ({ ...prev, [k]: v }));
 
-  // Transfer-out form state
-  const [txBatchId, setTxBatchId] = useState("");
-  const [txWarehouseId, setTxWarehouseId] = useState("");
-  const [txQty, setTxQty] = useState("");
-  const [txSending, setTxSending] = useState(false);
-
   // Write-off form state
   const [woBatchId, setWoBatchId] = useState("");
   const [woQty, setWoQty] = useState("");
@@ -139,31 +134,13 @@ export default function NurseInventoryModal({
     },
   });
 
-  const {
-    data: transfers = [],
-    isLoading: transLoading,
-    refetch: refetchTrans,
-  } = useQuery({
-    queryKey: ["nurse-inv-transfers", deptWarehouse?.id],
-    enabled: !!deptWarehouse?.id,
+  const { data: transfers = [] } = useNurseIncomingTransfers(hospitalId, deptWarehouse?.id);
+  const { data: department } = useQuery({
+    queryKey: ["nurse-inv-department", departmentId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("transfer_records")
-        .select(`
-          id, sent_at, notes, status,
-          from_warehouse:warehouses!from_warehouse_id(id, name),
-          transfer_record_items(
-            id, quantity_units, drug_formulary_id, product_id,
-            drug_formulary(trade_name, inn),
-            products(name)
-          )
-        `)
-        .eq("hospital_id", hospitalId)
-        .eq("to_warehouse_id", deptWarehouse?.id ?? "")
-        .eq("status", "pending_acceptance")
-        .order("sent_at", { ascending: false });
+      const { data, error } = await supabase.from("departments").select("name").eq("id", departmentId).maybeSingle();
       if (error) { toast.error(error.message); throw error; }
-      return data || [];
+      return data;
     },
   });
 
@@ -236,22 +213,16 @@ export default function NurseInventoryModal({
     return true;
   }), [pendingSlots, filters]);
 
-  const filteredTrans = useMemo(() => (transfers as any[]).filter((t) => {
-    const names = (t.transfer_record_items || []).flatMap((i: any) => [
-      i.drug_formulary?.trade_name, i.drug_formulary?.inn, i.products?.name,
-    ]);
-    const date = t.sent_at?.slice(0, 10) ?? "";
-    if (!matchesSearch(names, filters.drug ?? "")) return false;
-    if (filters.transferDate && date !== filters.transferDate) return false;
-    return true;
-  }), [transfers, filters]);
+  const filteredTrans = useMemo(() => filterNurseTransfers(transfers, filters)
+    .filter((transfer: any) => transfer.status === "pending_acceptance"), [transfers, filters]);
 
   const filteredStock = useMemo(() => (deptStock as any[]).filter((b) =>
     matchesSearch([b.drug_formulary?.trade_name, b.drug_formulary?.inn, b.products?.name], filters.drug ?? "")
   ), [deptStock, filters]);
 
   const refreshInventory = () => {
-    refetchPres(); refetchTrans(); refetchStock();
+    refetchPres(); refetchStock();
+    qc.invalidateQueries({ queryKey: ["nurse-inv-transfers", deptWarehouse?.id] });
     if (!deptWarehouse) return;
     for (const key of ["stock", "transfers", "my-batches", "writeoff-batches"]) qc.invalidateQueries({ queryKey: [key, deptWarehouse.id] });
     for (const key of ["nurse-prescriptions", "nurse-admin-slots", "all-slots"]) qc.invalidateQueries({ queryKey: [key] });
@@ -295,71 +266,6 @@ export default function NurseInventoryModal({
     if (ok) toast.success(`Принято: ${ok}`);
     if (err) toast.error(`Ошибок: ${err}`);
     refreshInventory();
-  };
-
-  const acceptTransfer = async (id: string) => {
-    if (!user) return;
-    setBusy((prev) => new Set(prev).add(id));
-    try {
-      const { error } = await supabase.rpc("accept_transfer", {
-        p_transfer_record_id: id,
-      });
-      if (error) throw error;
-      toast.success("Перемещение принято");
-      refreshInventory();
-    } catch (e: any) {
-      toast.error(e.message);
-    } finally {
-      setBusy((prev) => { const n = new Set(prev); n.delete(id); return n; });
-    }
-  };
-
-  const acceptAllTransfers = async () => {
-    if (!user || filteredTrans.length === 0) return;
-    setBusyAll(true);
-    let ok = 0, err = 0;
-    for (const t of filteredTrans) {
-      try {
-        const { error } = await supabase.rpc("accept_transfer", {
-          p_transfer_record_id: t.id,
-        });
-        if (error) throw error;
-        ok++;
-      } catch (e: any) { err++; toast.error(e.message); }
-    }
-    setBusyAll(false);
-    if (ok) toast.success(`Принято: ${ok}`);
-    if (err) toast.error(`Ошибок: ${err}`);
-    refreshInventory();
-  };
-
-  const sendTransfer = async () => {
-    if (!user || !deptWarehouse || !txBatchId || !txWarehouseId || !txQty) return;
-    setTxSending(true);
-    try {
-      const batch = (deptStock as any[]).find((b) => b.id === txBatchId);
-      const qty = Number(txQty);
-      if (!batch || !Number.isFinite(qty) || qty <= 0) throw new Error("Укажите количество больше нуля");
-      if (qty > Number(batch.quantity_units)) throw new Error("Количество превышает доступный остаток партии");
-      const { error } = await supabase.rpc("send_transfer", {
-        p_from_warehouse_id: deptWarehouse.id,
-        p_to_warehouse_id: txWarehouseId,
-        p_notes: null,
-        p_items: [{ batch_id: txBatchId, quantity_units: qty }],
-      });
-      if (error) throw error;
-      qc.invalidateQueries({ queryKey: ["stock", txWarehouseId] });
-      qc.invalidateQueries({ queryKey: ["transfers", txWarehouseId] });
-      qc.invalidateQueries({ queryKey: ["nurse-inv-transfers", txWarehouseId] });
-      qc.invalidateQueries({ queryKey: ["nurse-inv-stock", txWarehouseId] });
-      toast.success("Перемещение отправлено");
-      setTxBatchId(""); setTxWarehouseId(""); setTxQty("");
-      refreshInventory();
-    } catch (e: any) {
-      toast.error(e.message);
-    } finally {
-      setTxSending(false);
-    }
   };
 
   const writeOff = async () => {
@@ -412,9 +318,12 @@ export default function NurseInventoryModal({
         className="bg-white rounded-lg flex flex-col"
         style={{ width: "calc(100vw - 32px)", height: "calc(100vh - 32px)" }}
       >
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-          <div className="flex items-center gap-4 px-4 py-2.5 border-b">
-            <div className="text-lg font-semibold shrink-0">Приход / Списание</div>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full min-h-0 flex flex-col">
+          <div className="flex flex-wrap shrink-0 items-center gap-4 px-4 py-2.5 border-b">
+            <div className="shrink-0">
+              <div className="text-lg font-semibold">Приход / Списание</div>
+              <div className="text-sm text-muted-foreground">Склад: {deptWarehouse?.name || "—"} · Отделение: {department?.name || "—"}</div>
+            </div>
             <TabsList className="mx-auto">
               <TabsTrigger value="prescriptions" className="gap-2">
                 Назначения {filteredPres.length > 0 && badge(filteredPres.length)}
@@ -433,11 +342,11 @@ export default function NurseInventoryModal({
             </button>
           </div>
 
-          <div className="flex-1 overflow-hidden p-3">
+          <div className="flex flex-col flex-1 min-h-0 overflow-hidden p-3">
 
 
             {/* TAB 1 */}
-            <TabsContent value="prescriptions" className="flex-1 overflow-auto mt-2">
+            <TabsContent value="prescriptions" className="flex-1 min-h-0 overflow-y-auto mt-2">
               <FilterBar
                 filters={filters}
                 onChange={setFilter}
@@ -505,117 +414,18 @@ export default function NurseInventoryModal({
             </TabsContent>
 
             {/* TAB 2 */}
-            <TabsContent value="transfers" className="flex-1 overflow-auto mt-2 space-y-3">
+            <TabsContent value="transfers" className="flex-1 min-h-0 overflow-y-auto mt-2 space-y-3">
               <FilterBar
                 filters={filters}
                 onChange={setFilter}
                 fields={["drug", "transferDate"]}
               />
 
-              <div>
-                <h3 className="font-semibold mb-2">Входящие перемещения</h3>
-                {transLoading ? (
-                  <div className="flex items-center justify-center h-32">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  </div>
-                ) : !deptWarehouse ? (
-                  <div className="text-center text-muted-foreground py-6">
-                    Склад отделения не настроен
-                  </div>
-                ) : filteredTrans.length === 0 ? (
-                  <div className="text-center text-muted-foreground py-6">
-                    Нет ожидающих перемещений
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex justify-end mb-2">
-                      <Button onClick={acceptAllTransfers} disabled={busyAll} className="gap-2">
-                        {busyAll && <Loader2 className="h-4 w-4 animate-spin" />}
-                        Принять все ({filteredTrans.length})
-                      </Button>
-                    </div>
-                    <div className="border rounded-lg overflow-x-auto">
-                      <table className="w-full">
-                        <thead className="bg-muted/50">
-                          <tr>
-                            <th className={th}>Откуда</th>
-                            <th className={th}>Дата</th>
-                            <th className={th}>Препараты / Товары</th>
-                            <th className={th}>Кол-во</th>
-                            <th className={th}></th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredTrans.map((t: any) => (
-                            <tr key={t.id} className="border-t align-top">
-                              <td className={td}>{t.from_warehouse?.name || "—"}</td>
-                              <td className={td}>{t.sent_at ? format(new Date(t.sent_at), "dd.MM.yyyy") : "—"}</td>
-                              <td className={td}>
-                                {(t.transfer_record_items || []).map((i: any) => (
-                                  <div key={i.id}><HighlightMatch text={i.drug_formulary?.trade_name || i.products?.name} term={filters.drug ?? ""} fallback="—" /></div>
-                                ))}
-                              </td>
-                              <td className={td}>
-                                {(t.transfer_record_items || []).map((i: any) => (
-                                  <div key={i.id}>{i.quantity_units}</div>
-                                ))}
-                              </td>
-                              <td className={td}>
-                                <Button size="sm" onClick={() => acceptTransfer(t.id)} disabled={busy.has(t.id) || busyAll}>
-                                  {busy.has(t.id) ? <Loader2 className="h-4 w-4 animate-spin" /> : "Принять"}
-                                </Button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              <div>
-                <h3 className="font-semibold mb-2">Отправить в другой склад</h3>
-                <div className="grid grid-cols-[1fr_1fr_120px_auto] gap-2 items-end">
-                  <div>
-                    <Label className="text-xs">Препарат / Товар</Label>
-                    <Select value={txBatchId} onValueChange={setTxBatchId}>
-                      <SelectTrigger><SelectValue placeholder="Выберите" /></SelectTrigger>
-                      <SelectContent>
-                        {(deptStock as any[]).map((b) => (
-                          <SelectItem key={b.id} value={b.id}>
-                            {b.drug_formulary?.trade_name || b.products?.name || "—"} — серия {b.series_number || "—"}, годен до {b.expiry_date || "—"}, доступно {b.quantity_units} ед.
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-xs">Склад получатель</Label>
-                    <Select value={txWarehouseId} onValueChange={setTxWarehouseId}>
-                      <SelectTrigger><SelectValue placeholder="Выберите" /></SelectTrigger>
-                      <SelectContent>
-                        {(allWarehouses as any[]).map((w) => (
-                          <SelectItem key={w.id} value={w.id}>
-                            {w.name} {w.departments?.name ? `(${w.departments.name})` : ""}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-xs">Количество</Label>
-                    <Input type="number" value={txQty} onChange={(e) => setTxQty(e.target.value)} />
-                  </div>
-                  <Button onClick={sendTransfer} disabled={txSending || !txBatchId || !txWarehouseId || !txQty}>
-                    {txSending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Отправить"}
-                  </Button>
-                </div>
-              </div>
+              <NurseTransfersPanel hospitalId={hospitalId} deptWarehouse={deptWarehouse} stock={deptStock} allWarehouses={allWarehouses} filters={filters} />
             </TabsContent>
 
             {/* TAB 3 */}
-            <TabsContent value="writeoff" className="flex-1 overflow-auto mt-2 space-y-3">
+            <TabsContent value="writeoff" className="flex-1 min-h-0 overflow-y-auto mt-2 space-y-3">
               <div className="grid grid-cols-[140px_1fr_90px_1fr_auto] gap-2 items-end">
                 <div>
                   <Label className="text-xs">Поиск</Label>
@@ -699,7 +509,7 @@ export default function NurseInventoryModal({
             </TabsContent>
 
             {/* TAB 4 */}
-            <TabsContent value="stock" className="flex-1 overflow-auto mt-2 space-y-2">
+            <TabsContent value="stock" className="flex-1 min-h-0 overflow-y-auto mt-2 space-y-2">
               <FilterBar filters={filters} onChange={setFilter} fields={["drug"]} />
               {stockLoading ? (
                 <div className="flex items-center justify-center h-32">
