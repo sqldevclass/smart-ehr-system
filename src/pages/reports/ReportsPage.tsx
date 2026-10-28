@@ -14,6 +14,7 @@ import DailyReportByDepartmentTab from "@/components/reports/DailyReportByDepart
 import FinanceServicesTab from "@/components/reports/FinanceServicesTab";
 import CashInflowTab from "@/components/reports/CashInflowTab";
 import AdvanceTab from "@/components/reports/AdvanceTab";
+import BedOccupancyTab from "@/components/reports/BedOccupancyTab";
 import DiscountReportTab from "@/components/reports/DiscountReportTab";
 import TopServicesTab from "@/components/reports/TopServicesTab";
 import PhysicianMonthlyTab from "@/components/reports/PhysicianMonthlyTab";
@@ -76,7 +77,8 @@ export default function ReportsPage() {
                 <TabsTrigger value="summary">Сводка</TabsTrigger>
                 <TabsTrigger value="department">По отделениям</TabsTrigger>
                 <TabsTrigger value="cash-inflow">Поступления денежных средств</TabsTrigger>
-                <TabsTrigger value="advance">Аванс</TabsTrigger>
+                <TabsTrigger value="advance">Баланс депозита</TabsTrigger>
+                <TabsTrigger value="bed-occupancy">Загруженность палат и коек</TabsTrigger>
                 <TabsTrigger value="discounts">Отчет скидок</TabsTrigger>
                 <TabsTrigger value="operations" disabled>Операции</TabsTrigger>
                 <TabsTrigger value="diagnostics" disabled>Диагностика и лаборатория</TabsTrigger>
@@ -98,6 +100,9 @@ export default function ReportsPage() {
               </TabsContent>
               <TabsContent value="advance">
                 <AdvanceTab to={to} />
+              </TabsContent>
+              <TabsContent value="bed-occupancy">
+                <BedOccupancyTab />
               </TabsContent>
               <TabsContent value="discounts">
                 <DiscountReportTab from={from} to={to} />
