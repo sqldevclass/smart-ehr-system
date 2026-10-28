@@ -104,7 +104,12 @@ export default function HospitalizationPage() {
       queryClient.invalidateQueries({ queryKey: ["hospitalization", hospId] });
       queryClient.invalidateQueries({ queryKey: ["occupied-beds", user!.hospitalId] });
     } catch (err: any) {
-      toast.error(err.message || "Failed to assign room");
+      if (err.code === "23505") {
+        toast.error("Койка уже занята или пациенту уже назначена койка");
+        queryClient.invalidateQueries({ queryKey: ["occupied-beds", user?.hospitalId] });
+      } else {
+        toast.error(err.message || "Failed to assign room");
+      }
     } finally {
       setRoomSubmitting(false);
     }
