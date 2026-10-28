@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, X } from "lucide-react";
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
 
 export type Period = "today" | "week" | "month" | "custom";
@@ -42,12 +42,31 @@ export function getTodayBounds(): { from: string; to: string } {
   return { from: startOfDay(now).toISOString(), to: endOfDay(now).toISOString() };
 }
 
+export function matchesRange(iso: string | null | undefined, state: PeriodState): boolean {
+  if (state.period !== "custom" || (!state.customFrom && !state.customTo)) return true;
+  if (!iso) return false;
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return false;
+  if (state.customFrom && t < startOfDay(new Date(state.customFrom)).getTime()) return false;
+  if (state.customTo && t > endOfDay(new Date(state.customTo)).getTime()) return false;
+  return true;
+}
+
+export function rangeBounds(state: PeriodState): { from?: string; to?: string } {
+  if (state.period !== "custom") return {};
+  return {
+    from: state.customFrom ? startOfDay(new Date(state.customFrom)).toISOString() : undefined,
+    to: state.customTo ? endOfDay(new Date(state.customTo)).toISOString() : undefined,
+  };
+}
+
 interface Props {
   value: PeriodState;
   onChange: (s: PeriodState) => void;
+  clearable?: boolean;
 }
 
-export function PeriodFilter({ value, onChange }: Props) {
+export function PeriodFilter({ value, onChange, clearable }: Props) {
   const [openFrom, setOpenFrom] = useState(false);
   const [openTo, setOpenTo] = useState(false);
 
@@ -91,6 +110,17 @@ export function PeriodFilter({ value, onChange }: Props) {
           <Calendar mode="single" selected={toDate} onSelect={handleToSelect} initialFocus />
         </PopoverContent>
       </Popover>
+      {clearable && (value.customFrom || value.customTo) && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          aria-label="Сбросить даты"
+          onClick={() => onChange({ period: "custom" })}
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      )}
     </div>
   );
 }

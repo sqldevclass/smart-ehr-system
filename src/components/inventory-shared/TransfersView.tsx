@@ -14,6 +14,9 @@ import { toast } from "sonner";
 import { Trash2, Plus } from "lucide-react";
 import { TransferTable } from "./TransferTable";
 import { useTransferActions } from "./useTransferActions";
+import { PeriodFilter, rangeBounds } from "@/components/shared/PeriodFilter";
+import { FilterToolbar } from "@/components/shared/FilterToolbar";
+import { usePeriodFilter } from "@/hooks/usePeriodFilter";
 
 interface Props { warehouseTypeCode: "central_pharmacy" | "general"; title: string }
 interface LineItem { batchId: string; quantityUnits: string }
@@ -25,6 +28,8 @@ export default function TransfersView({ warehouseTypeCode, title }: Props) {
   const [destId, setDestId] = useState("");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<LineItem[]>([{ batchId: "", quantityUnits: "" }]);
+  const [period, setPeriod] = usePeriodFilter(true);
+  const bounds = rangeBounds(period);
   const { data: destinations = [] } = useQuery({
     queryKey: ["transfer-destinations", user?.hospitalId, warehouse?.id], enabled: !!user?.hospitalId && !!warehouse?.id,
     queryFn: async () => {
@@ -45,16 +50,19 @@ export default function TransfersView({ warehouseTypeCode, title }: Props) {
     },
   });
   const { data: transfers = [], error: transfersError } = useQuery({
-    queryKey: ["transfers", warehouse?.id], enabled: !!warehouse?.id,
+    queryKey: ["transfers", warehouse?.id, bounds.from ?? null, bounds.to ?? null], enabled: !!warehouse?.id,
     queryFn: async () => {
-      const { data, error } = await supabase.from("transfer_records").select(`
+      let q = supabase.from("transfer_records").select(`
         id, status, sent_at, accepted_at, rejected_at, returned_at, reject_reason, notes, from_warehouse_id, to_warehouse_id,
         from_warehouse:warehouses!transfer_records_from_warehouse_id_fkey(name),
         to_warehouse:warehouses!transfer_records_to_warehouse_id_fkey(name),
         sent_by_profile:profiles!transfer_records_sent_by_fkey(full_name),
         accepted_by_profile:profiles!transfer_records_accepted_by_fkey(full_name),
         transfer_record_items(id, quantity_units, products(name), drug_formulary(trade_name, inn), inventory_batches(series_number, expiry_date))
-      `).or(`from_warehouse_id.eq.${warehouse?.id},to_warehouse_id.eq.${warehouse?.id}`).order("sent_at", { ascending: false }).limit(100);
+      `).or(`from_warehouse_id.eq.${warehouse?.id},to_warehouse_id.eq.${warehouse?.id}`);
+      const range = [bounds.from && `sent_at.gte."${bounds.from}"`, bounds.to && `sent_at.lte."${bounds.to}"`].filter(Boolean);
+      if (range.length) q = q.or(`status.in.(pending_acceptance,rejected),and(${range.join(",")})`);
+      const { data, error } = await q.order("sent_at", { ascending: false }).limit(500);
       if (error) { toast.error(error.message); throw error; }
       return data || [];
     },
@@ -114,7 +122,11 @@ export default function TransfersView({ warehouseTypeCode, title }: Props) {
         <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Отмена</Button><Button disabled={sendMutation.isPending} onClick={() => sendMutation.mutate()}>{sendMutation.isPending ? "Отправка…" : "Отправить"}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
-    <Tabs defaultValue="outgoing"><TabsList><TabsTrigger value="outgoing">Исходящие</TabsTrigger><TabsTrigger value="incoming">Входящие</TabsTrigger><TabsTrigger value="all">Все перемещения</TabsTrigger></TabsList>
+    <Tabs defaultValue="incoming" className="space-y-3">
+      <FilterToolbar
+        left={<PeriodFilter clearable value={period} onChange={setPeriod} />}
+        right={<TabsList><TabsTrigger value="incoming">Принятые</TabsTrigger><TabsTrigger value="outgoing">Отправленные</TabsTrigger><TabsTrigger value="all">Все перемещения</TabsTrigger></TabsList>}
+      />
       <TabsContent value="outgoing"><TransferTable rows={transfers.filter((t: any) => t.from_warehouse_id === warehouse?.id)} currentWarehouseId={warehouse?.id} actions={actions} /></TabsContent>
       <TabsContent value="incoming"><TransferTable rows={transfers.filter((t: any) => t.to_warehouse_id === warehouse?.id)} currentWarehouseId={warehouse?.id} actions={actions} /></TabsContent>
       <TabsContent value="all"><TransferTable rows={transfers} currentWarehouseId={warehouse?.id} actions={actions} /></TabsContent>

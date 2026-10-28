@@ -3,6 +3,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useMyWarehouse } from "./useMyWarehouse";
+import { PeriodFilter, rangeBounds } from "@/components/shared/PeriodFilter";
+import { FilterToolbar } from "@/components/shared/FilterToolbar";
+import { usePeriodFilter } from "@/hooks/usePeriodFilter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,6 +45,8 @@ export default function ExpensesView({ warehouseTypeCode, title }: Props) {
   const { data: warehouse } = useMyWarehouse(warehouseTypeCode);
 
   const [open, setOpen] = useState(false);
+  const [period, setPeriod] = usePeriodFilter(true);
+  const bounds = rangeBounds(period);
   const [typeId, setTypeId] = useState("");
   const [employeeId, setEmployeeId] = useState("");
   const [supplierId, setSupplierId] = useState("");
@@ -107,17 +112,20 @@ export default function ExpensesView({ warehouseTypeCode, title }: Props) {
   });
 
   const { data: history = [] } = useQuery({
-    queryKey: ["writeoffs", warehouse?.id],
+    queryKey: ["writeoffs", warehouse?.id, bounds.from ?? null, bounds.to ?? null],
     enabled: !!warehouse?.id,
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("write_off_records")
         .select(
           "id, written_off_at, notes, write_off_types(name_ru, code), profiles!write_off_records_written_off_by_fkey(full_name), write_off_record_items(id)"
         )
-        .eq("warehouse_id", warehouse?.id ?? "")
+        .eq("warehouse_id", warehouse?.id ?? "");
+      if (bounds.from) q = q.gte("written_off_at", bounds.from);
+      if (bounds.to) q = q.lte("written_off_at", bounds.to);
+      const { data, error } = await q
         .order("written_off_at", { ascending: false })
-        .limit(50);
+        .limit(500);
       if (error) { toast.error(error.message); throw error; }
       return data || [];
     },
@@ -311,6 +319,8 @@ export default function ExpensesView({ warehouseTypeCode, title }: Props) {
           </DialogContent>
         </Dialog>
       </div>
+
+      <FilterToolbar left={<PeriodFilter clearable value={period} onChange={setPeriod} />} />
 
       <div className="rounded-lg border bg-card overflow-x-auto">
         <table className="w-full text-sm">
