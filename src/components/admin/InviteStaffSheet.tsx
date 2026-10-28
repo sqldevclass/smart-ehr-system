@@ -12,11 +12,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { User } from "lucide-react";
 
-interface Role {
-  id: string;
-  code: string;
-  name_en: string | null;
-}
+import { PICKABLE_ROLE_FIELDS, filterPickableRoles, pickerRoleLabel, type PickableRole } from "@/lib/roleLabels";
+
+type Role = PickableRole;
 
 interface EligibleEmployee {
   id: string;
@@ -37,7 +35,7 @@ interface Props {
 }
 
 export default function InviteStaffSheet({ open, onOpenChange, onSuccess }: Props) {
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
 
   const [newEmployees, setNewEmployees] = useState<EligibleEmployee[]>([]);
   const [selectedNew, setSelectedNew] = useState<EligibleEmployee | null>(null);
@@ -96,7 +94,7 @@ export default function InviteStaffSheet({ open, onOpenChange, onSuccess }: Prop
         .not("profiles", "is", null)
         .order("last_name"),
 
-      supabase.from("roles").select("id, code, name_en").order("code"),
+      supabase.from("roles").select(PICKABLE_ROLE_FIELDS).order("code"),
 
       supabase
         .from("staff_invitations")
@@ -141,7 +139,7 @@ export default function InviteStaffSheet({ open, onOpenChange, onSuccess }: Prop
       }));
       setReactivateEmployees(reactivatable as EligibleEmployee[]);
 
-      setAllRoles((rolesRes.data as Role[]) ?? []);
+      setAllRoles(filterPickableRoles((rolesRes.data as Role[]) ?? [], hasRole("admin")));
       setLoading(false);
     });
   }, [open, user]);
@@ -263,7 +261,7 @@ export default function InviteStaffSheet({ open, onOpenChange, onSuccess }: Prop
               checked={roleCodes.has(r.code)}
               onCheckedChange={() => toggleRole(r.code)}
             />
-            <span>{r.name_en || r.code.replace(/_/g, " ")}</span>
+            <span>{pickerRoleLabel(r)}</span>
           </label>
         ))}
       </div>

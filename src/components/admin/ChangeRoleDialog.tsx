@@ -7,11 +7,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
-interface Role {
-  id: string;
-  code: string;
-  name_en: string | null;
-}
+import { PICKABLE_ROLE_FIELDS, filterPickableRoles, pickerRoleLabel, type PickableRole } from "@/lib/roleLabels";
+
+type Role = PickableRole;
 
 interface Props {
   open: boolean;
@@ -23,7 +21,7 @@ interface Props {
 }
 
 export default function ChangeRoleDialog({ open, onOpenChange, profileId, currentRoles, fullName, onSuccess }: Props) {
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
   const [allRoles, setAllRoles] = useState<Role[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set(currentRoles));
   const [loading, setLoading] = useState(false);
@@ -35,13 +33,13 @@ export default function ChangeRoleDialog({ open, onOpenChange, profileId, curren
     setLoading(true);
     supabase
       .from("roles")
-      .select("id, code, name_en")
+      .select(PICKABLE_ROLE_FIELDS)
       .order("code")
       .then(({ data }) => {
-        setAllRoles((data as Role[]) ?? []);
+        setAllRoles(filterPickableRoles((data as Role[]) ?? [], hasRole("admin")));
         setLoading(false);
       });
-  }, [open, currentRoles]);
+  }, [open, currentRoles, hasRole]);
 
   const toggle = (code: string) => {
     setSelected((prev) => {
@@ -101,7 +99,7 @@ export default function ChangeRoleDialog({ open, onOpenChange, profileId, curren
                   onCheckedChange={() => toggle(r.code)}
                 />
                 <Label htmlFor={`role-${r.id}`} className="cursor-pointer">
-                  {r.name_en || r.code.replace(/_/g, " ")}
+                  {pickerRoleLabel(r)}
                 </Label>
               </div>
             ))
