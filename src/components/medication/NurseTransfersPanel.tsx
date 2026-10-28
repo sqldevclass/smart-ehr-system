@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,6 +13,8 @@ import { format } from "date-fns";
 import HighlightMatch from "@/components/shared/HighlightMatch";
 import { matchesSearch } from "@/lib/search";
 import { TransferTable } from "@/components/inventory-shared/TransferTable";
+import { matchesRange, type PeriodState } from "@/components/shared/PeriodFilter";
+import { FilterToolbar } from "@/components/shared/FilterToolbar";
 import { useTransferActions } from "@/components/inventory-shared/useTransferActions";
 
 interface Props {
@@ -21,6 +23,8 @@ interface Props {
   stock: any[];
   allWarehouses: any[];
   filters: Record<string, string>;
+  period: PeriodState;
+  toolbarLeft: ReactNode;
 }
 
 function useNurseTransfers(hospitalId: string, warehouseId: string | undefined, direction: "incoming" | "outgoing") {
@@ -48,17 +52,20 @@ export function useNurseIncomingTransfers(hospitalId: string, warehouseId?: stri
   return useNurseTransfers(hospitalId, warehouseId, "incoming");
 }
 
-export function filterNurseTransfers(rows: any[], filters: Record<string, string>) {
+const ALWAYS_SHOWN = new Set(["pending_acceptance", "rejected"]);
+
+/** Drug search always applies; when a period is given, the range applies to sent_at except for actionable rows. */
+export function filterNurseTransfers(rows: any[], filters: Record<string, string>, period?: PeriodState) {
   return rows.filter((transfer) => {
     const names = (transfer.transfer_record_items || []).flatMap((item: any) => [
       item.drug_formulary?.trade_name, item.drug_formulary?.inn, item.products?.name,
     ]);
     return matchesSearch(names, filters.drug ?? "") &&
-      (!filters.transferDate || transfer.sent_at?.slice(0, 10) === filters.transferDate);
+      (!period || ALWAYS_SHOWN.has(transfer.status) || matchesRange(transfer.sent_at, period));
   });
 }
 
-export default function NurseTransfersPanel({ hospitalId, deptWarehouse, stock, allWarehouses, filters }: Props) {
+export default function NurseTransfersPanel({ hospitalId, deptWarehouse, stock, allWarehouses, filters, period, toolbarLeft }: Props) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [busyAll, setBusyAll] = useState(false);
@@ -68,9 +75,8 @@ export default function NurseTransfersPanel({ hospitalId, deptWarehouse, stock, 
   const [txSending, setTxSending] = useState(false);
   const { data: incoming = [], isLoading: transLoading, error: incomingError } = useNurseIncomingTransfers(hospitalId, deptWarehouse?.id);
   const { data: outgoing = [], isLoading: outgoingLoading, error: outgoingError } = useNurseTransfers(hospitalId, deptWarehouse?.id, "outgoing");
-  const filteredIncoming = filterNurseTransfers(incoming, filters);
-  const pending = filteredIncoming.filter((transfer: any) => transfer.status === "pending_acceptance");
-  const history = filteredIncoming.filter((transfer: any) => transfer.status !== "pending_acceptance");
+  const pending = filterNurseTransfers(incoming, filters).filter((transfer: any) => transfer.status === "pending_acceptance");
+  const history = filterNurseTransfers(incoming, filters, period).filter((transfer: any) => transfer.status !== "pending_acceptance");
   const refresh = (ids: string[]) => {
     for (const id of new Set([deptWarehouse?.id, ...ids])) {
       if (!id) continue;
@@ -118,8 +124,11 @@ export default function NurseTransfersPanel({ hospitalId, deptWarehouse, stock, 
   const th = "p-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide";
   const td = "p-3 text-sm";
   return <>
-    <Tabs defaultValue="incoming">
-      <TabsList><TabsTrigger value="incoming">Принятые</TabsTrigger><TabsTrigger value="outgoing">Отправленные</TabsTrigger></TabsList>
+    <Tabs defaultValue="incoming" className="space-y-3">
+      <FilterToolbar
+        left={toolbarLeft}
+        right={<TabsList><TabsTrigger value="incoming">Принятые</TabsTrigger><TabsTrigger value="outgoing">Отправленные</TabsTrigger></TabsList>}
+      />
       <TabsContent value="incoming" className="space-y-3">
         {incomingError && <p role="alert" className="text-destructive">{incomingError.message}</p>}
               <div>
@@ -228,7 +237,7 @@ export default function NurseTransfersPanel({ hospitalId, deptWarehouse, stock, 
               </div>
         <section><h3 className="font-semibold mb-2">Отправленные перемещения</h3>
           {outgoingError && <p role="alert" className="text-destructive">{outgoingError.message}</p>}
-          {outgoingLoading ? <div className="flex items-center justify-center h-32"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div> : <TransferTable rows={filterNurseTransfers(outgoing, filters)} currentWarehouseId={deptWarehouse?.id} actions={actions} compact />}
+          {outgoingLoading ? <div className="flex items-center justify-center h-32"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div> : <TransferTable rows={filterNurseTransfers(outgoing, filters, period)} currentWarehouseId={deptWarehouse?.id} actions={actions} compact />}
         </section>
       </TabsContent>
     </Tabs>
