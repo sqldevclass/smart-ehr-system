@@ -3,6 +3,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useMyWarehouse } from "./useMyWarehouse";
+import { PeriodFilter, rangeBounds } from "@/components/shared/PeriodFilter";
+import { FilterToolbar } from "@/components/shared/FilterToolbar";
+import { usePeriodFilter } from "@/hooks/usePeriodFilter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,6 +37,8 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
   const [markup, setMarkup] = useState("0");
   const [supplierId, setSupplierId] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [period, setPeriod] = usePeriodFilter(true);
+  const bounds = rangeBounds(period);
 
   const { data: products = [] } = useQuery({
     queryKey: ["products", user?.hospitalId, "incoming-active"],
@@ -81,17 +86,20 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
   });
 
   const { data: recent = [] } = useQuery({
-    queryKey: ["incoming-recent", warehouse?.id],
+    queryKey: ["incoming-recent", warehouse?.id, bounds.from ?? null, bounds.to ?? null],
     enabled: !!warehouse?.id,
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("inventory_batches")
         .select(
           "id, received_at, series_number, expiry_date, quantity_units, purchase_price, selling_price, products(name), drug_formulary(trade_name), suppliers(name)"
         )
-        .eq("warehouse_id", warehouse?.id ?? "")
+        .eq("warehouse_id", warehouse?.id ?? "");
+      if (bounds.from) q = q.gte("received_at", bounds.from);
+      if (bounds.to) q = q.lte("received_at", bounds.to);
+      const { data, error } = await q
         .order("received_at", { ascending: false })
-        .limit(20);
+        .limit(500);
       if (error) { toast.error(error.message); throw error; }
       return data || [];
     },
@@ -262,6 +270,8 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
           </Button>
         </div>
       </form>
+
+      <FilterToolbar left={<PeriodFilter clearable value={period} onChange={setPeriod} />} />
 
       <div className="rounded-lg border bg-card">
         <div className="p-4 border-b">
