@@ -2,11 +2,12 @@ import { Navigate } from "react-router-dom";
 import { useAuthContext } from "@/contexts/AuthContext";
 
 interface ProtectedRouteProps {
-  allowedRoles: string[];
+  allowedRoles?: string[];
+  anyPermission?: string[];
   children: React.ReactNode;
 }
 
-const ProtectedRoute = ({ allowedRoles, children }: ProtectedRouteProps) => {
+const ProtectedRoute = ({ allowedRoles = [], anyPermission = [], children }: ProtectedRouteProps) => {
   const { user, loading } = useAuthContext();
 
   if (loading && !user) {
@@ -21,7 +22,11 @@ const ProtectedRoute = ({ allowedRoles, children }: ProtectedRouteProps) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (!user.roles.includes("admin") && !allowedRoles.some((r) => user.roles.includes(r))) {
+  const allowed =
+    user.roles.includes("admin") ||
+    allowedRoles.some((r) => user.roles.includes(r)) ||
+    anyPermission.some((p) => user.permissions.includes(p));
+  if (!allowed) {
     return <Navigate to="/login" replace />;
   }
 

@@ -13,6 +13,8 @@ import ChangeRoleDialog from "@/components/admin/ChangeRoleDialog";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { isCustomRole } from "@/lib/roleLabels";
 
 interface Profile {
   id: string;
@@ -54,13 +56,13 @@ const roleBadge: Record<string, string> = {
   radiology_technician: "bg-chart-2/20 text-chart-2",
 };
 
-function RoleBadges({ codes }: { codes: string[] }) {
+function RoleBadges({ codes, labels }: { codes: string[]; labels: Record<string, string> }) {
   if (!codes || codes.length === 0) return <span className="text-muted-foreground">—</span>;
   return (
     <div className="flex flex-wrap gap-1">
       {codes.map((code) => (
         <Badge key={code} variant="secondary" className={roleBadge[code] || ""}>
-          {code.replace(/_/g, " ")}
+          {(isCustomRole(code) && labels[code]) || code.replace(/_/g, " ")}
         </Badge>
       ))}
     </div>
@@ -69,6 +71,17 @@ function RoleBadges({ codes }: { codes: string[] }) {
 
 export default function UserManagement() {
   const { user } = useAuth();
+  const { data: roleLabels = {} } = useQuery({
+    queryKey: ["role-labels", user?.hospitalId],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("roles").select("code, name_ru");
+      if (error) throw error;
+      return Object.fromEntries(
+        ((data ?? []) as { code: string; name_ru: string | null }[]).map((r) => [r.code, r.name_ru ?? r.code]),
+      ) as Record<string, string>;
+    },
+  });
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [search, setSearch] = useState("");
@@ -219,7 +232,7 @@ export default function UserManagement() {
                     <TableRow key={p.id}>
                       <TableCell className="text-muted-foreground"><HighlightMatch text={p.employee_number} term={search} fallback="—" /></TableCell>
                       <TableCell className="font-medium"><HighlightMatch text={p.full_name} term={search} fallback="—" /></TableCell>
-                      <TableCell><RoleBadges codes={p.roles} /></TableCell>
+                      <TableCell><RoleBadges codes={p.roles} labels={roleLabels} /></TableCell>
                       <TableCell className="text-muted-foreground">
                         {p.created_at ? format(new Date(p.created_at), "MMM d, yyyy") : "—"}
                       </TableCell>
@@ -255,7 +268,7 @@ export default function UserManagement() {
                     <TableRow key={inv.id}>
                       <TableCell className="font-medium"><HighlightMatch text={inv.full_name} term={search} fallback="—" /></TableCell>
                       <TableCell className="text-muted-foreground"><HighlightMatch text={inv.email} term={search} /></TableCell>
-                      <TableCell><RoleBadges codes={inv.role_codes ?? []} /></TableCell>
+                      <TableCell><RoleBadges codes={inv.role_codes ?? []} labels={roleLabels} /></TableCell>
                       <TableCell className="text-muted-foreground">
                         {inv.invited_at ? format(new Date(inv.invited_at), "MMM d, yyyy") : "—"}
                       </TableCell>

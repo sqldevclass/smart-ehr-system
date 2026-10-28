@@ -28,10 +28,10 @@ const defaultPeriod = (): PeriodState => ({
 });
 
 export default function QualityReportsPage() {
-  const { hasAnyRole } = useAuth();
+  const { hasPermission } = useAuth();
   const [period, setPeriod] = useState<PeriodState>(defaultPeriod);
 
-  const canView = hasAnyRole(["admin", "senior_manager", "finance"]);
+  const canView = hasPermission("reports.view_daily");
   const { from, to } = getDateBounds(period);
 
   return (

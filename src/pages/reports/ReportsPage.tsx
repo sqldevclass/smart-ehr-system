@@ -26,12 +26,12 @@ const defaultPeriod = (): PeriodState => ({
 });
 
 export default function ReportsPage() {
-  const { user, hasAnyRole } = useAuth();
+  const { user, hasPermission } = useAuth();
   const navigate = useNavigate();
   const [period, setPeriod] = useState<PeriodState>(defaultPeriod);
 
-  const canViewDaily = hasAnyRole(["admin", "senior_manager", "finance"]);
-  const canViewFinance = hasAnyRole(["finance"]);
+  const canViewDaily = hasPermission("reports.view_daily");
+  const canViewFinance = hasPermission("finance.view_revenue_report");
   const { from, to } = getDateBounds(period);
 
   const handleLogout = async () => {

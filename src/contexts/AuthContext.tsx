@@ -12,6 +12,7 @@ export interface AuthUser {
   defaultRoleCode: string | null;
   defaultDashboardMode: string | null;
   defaultDepartmentIds: string[];
+  permissions: string[];
 }
 
 interface AuthContextValue {
@@ -19,6 +20,8 @@ interface AuthContextValue {
   loading: boolean;
   hasRole: (role: string) => boolean;
   hasAnyRole: (roles: string[]) => boolean;
+  hasPermission: (code: string) => boolean;
+  hasAnyPermission: (codes: string[]) => boolean;
   refreshUser: () => Promise<void>;
 }
 
@@ -27,6 +30,8 @@ const AuthContext = createContext<AuthContextValue>({
   loading: true,
   hasRole: () => false,
   hasAnyRole: () => false,
+  hasPermission: () => false,
+  hasAnyPermission: () => false,
   refreshUser: async () => {},
 });
 
@@ -64,8 +69,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const { data: userRoles } = await supabase
         .from("user_roles")
-        .select("roles(code, name_ru, dashboard_route)")
-        .eq("user_id", session.user.id);
+        .select("roles!inner(code, name_ru, dashboard_route, is_active)")
+        .eq("user_id", session.user.id)
+        .eq("roles.is_active", true);
 
       const roles = (userRoles ?? [])
         .map((ur: any) => ur.roles?.code)
@@ -74,6 +80,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const roleDetails = (userRoles ?? [])
         .map((ur: any) => ur.roles)
         .filter(Boolean) as { code: string; name_ru: string; dashboard_route: string | null }[];
+
+      const { data: permissionCodes } = await supabase.rpc("get_my_permissions");
+      const permissions = ((permissionCodes ?? []) as unknown[])
+        .map((p) => (typeof p === "string" ? p : (p as { code?: string })?.code ?? ""))
+        .filter(Boolean);
 
       const { data: hospital } = await supabase
         .from("hospitals")
@@ -92,6 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         fullName: profile.full_name || "Unknown",
         roles,
         roleDetails,
+        permissions,
         hospitalId: profile.hospital_id,
         hospitalName: hospital?.name || "Unknown Hospital",
         timezone: (settings as any)?.timezone || "Asia/Tashkent",
@@ -126,8 +138,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const hasRole = useCallback((role: string) => user?.roles.includes(role) ?? false, [user]);
   const hasAnyRole = useCallback((roles: string[]) => roles.some(r => user?.roles.includes(r)) ?? false, [user]);
 
+  const hasPermission = useCallback((code: string) => user?.permissions.includes(code) ?? false, [user]);
+  const hasAnyPermission = useCallback((codes: string[]) => codes.some(c => user?.permissions.includes(c)), [user]);
+
   return (
-    <AuthContext.Provider value={{ user, loading, hasRole, hasAnyRole, refreshUser: loadUser }}>
+    <AuthContext.Provider value={{ user, loading, hasRole, hasAnyRole, hasPermission, hasAnyPermission, refreshUser: loadUser }}>
       {children}
     </AuthContext.Provider>
   );

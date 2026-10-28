@@ -37,10 +37,10 @@ function shiftYearsISO(iso: string, years: number) {
 }
 
 export default function DailyReportSummaryTab({ from, to }: { from: string; to: string }) {
-  const { user, hasAnyRole } = useAuth();
+  const { user, hasPermission } = useAuth();
   const queryClient = useQueryClient();
   const [planDialogOpen, setPlanDialogOpen] = useState(false);
-  const canManagePlans = hasAnyRole(["admin"]);
+  const canManagePlans = hasPermission("reports.manage_plans");
   const months = monthsInRange(from, to);
   const primaryMonth = months[0] ?? {
     year: new Date().getFullYear(),
