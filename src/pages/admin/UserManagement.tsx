@@ -71,6 +71,17 @@ function RoleBadges({ codes, labels }: { codes: string[]; labels: Record<string,
 
 export default function UserManagement() {
   const { user } = useAuth();
+  const { data: roleLabels = {} } = useQuery({
+    queryKey: ["role-labels", user?.hospitalId],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("roles").select("code, name_ru");
+      if (error) throw error;
+      return Object.fromEntries(
+        ((data ?? []) as { code: string; name_ru: string | null }[]).map((r) => [r.code, r.name_ru ?? r.code]),
+      ) as Record<string, string>;
+    },
+  });
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [search, setSearch] = useState("");
