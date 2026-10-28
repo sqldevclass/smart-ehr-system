@@ -15,6 +15,7 @@ import FinanceServicesTab from "@/components/reports/FinanceServicesTab";
 import CashInflowTab from "@/components/reports/CashInflowTab";
 import AdvanceTab from "@/components/reports/AdvanceTab";
 import BedOccupancyTab from "@/components/reports/BedOccupancyTab";
+import WarehouseStockTab from "@/components/reports/WarehouseStockTab";
 import DiscountReportTab from "@/components/reports/DiscountReportTab";
 import TopServicesTab from "@/components/reports/TopServicesTab";
 import PhysicianMonthlyTab from "@/components/reports/PhysicianMonthlyTab";
@@ -32,6 +33,7 @@ export default function ReportsPage() {
 
   const canViewDaily = hasPermission("reports.view_daily");
   const canViewFinance = hasPermission("finance.view_revenue_report");
+  const canViewWarehouses = hasPermission("reports.view_warehouse_stock");
   const { from, to } = getDateBounds(period);
 
   const handleLogout = async () => {
@@ -79,6 +81,7 @@ export default function ReportsPage() {
                 <TabsTrigger value="cash-inflow">Поступления денежных средств</TabsTrigger>
                 <TabsTrigger value="advance">Баланс депозита</TabsTrigger>
                 <TabsTrigger value="bed-occupancy">Загруженность палат и коек</TabsTrigger>
+                {canViewWarehouses && <TabsTrigger value="warehouses">Склады</TabsTrigger>}
                 <TabsTrigger value="discounts">Отчет скидок</TabsTrigger>
                 <TabsTrigger value="operations" disabled>Операции</TabsTrigger>
                 <TabsTrigger value="diagnostics" disabled>Диагностика и лаборатория</TabsTrigger>
@@ -104,6 +107,11 @@ export default function ReportsPage() {
               <TabsContent value="bed-occupancy">
                 <BedOccupancyTab />
               </TabsContent>
+              {canViewWarehouses && (
+                <TabsContent value="warehouses">
+                  <WarehouseStockTab />
+                </TabsContent>
+              )}
               <TabsContent value="discounts">
                 <DiscountReportTab from={from} to={to} />
               </TabsContent>

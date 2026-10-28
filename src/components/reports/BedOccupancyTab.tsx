@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { MetricTile, SummaryCard } from "@/components/shared/PeriodFilter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FilterSelect } from "@/components/reports/FilterSelect";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -84,17 +84,6 @@ function RoomCard({ beds, allBeds, now }: { beds: BedRow[]; allBeds: BedRow[]; n
           .map((bed) => <BedIcon key={String(bed.bed_number)} bed={bed} now={now} />)}
       </div>
     </div>
-  );
-}
-
-function FilterSelect({ label, value, onChange, options }: {
-  label: string; value: string; onChange: (value: string) => void; options: { value: string; label: string }[];
-}) {
-  return (
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger aria-label={label} className="w-full sm:w-60"><SelectValue /></SelectTrigger>
-      <SelectContent>{options.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
-    </Select>
   );
 }
 
