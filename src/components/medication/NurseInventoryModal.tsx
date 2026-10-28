@@ -72,7 +72,7 @@ export default function NurseInventoryModal({
   const [busy, setBusy] = useState<Set<string>>(new Set());
   const [busyAll, setBusyAll] = useState(false);
   const [filters, setFilters] = useState<Filters>({});
-  const [period, setPeriod] = usePeriodFilter(false);
+  const [period, setPeriod] = usePeriodFilter(true);
   const [activeTab, setActiveTab] = useState("prescriptions");
   const setFilter = (k: string, v: string) =>
     setFilters((prev) => ({ ...prev, [k]: v }));
@@ -271,6 +271,12 @@ export default function NurseInventoryModal({
     if (!matchesRange(s.drug_prescriptions?.created_at, period)) return false;
     return true;
   }), [pendingSlots, filters, period]);
+  const presHiddenByPeriod = useMemo(() => (pendingSlots as any[]).filter((s) => {
+    const drug = s.drug_prescriptions?.drug_formulary;
+    return matchesSearch([drug?.trade_name, drug?.inn], filters.drug ?? "")
+      && matchesPatientSearch(s.hospitalizations?.patients, filters.patient ?? "")
+      && !matchesRange(s.drug_prescriptions?.created_at, period);
+  }).length, [pendingSlots, filters, period]);
 
   const filteredTrans = useMemo(() => filterNurseTransfers(transfers, filters)
     .filter((transfer: any) => transfer.status === "pending_acceptance"), [transfers, filters]);
@@ -385,7 +391,7 @@ export default function NurseInventoryModal({
             </div>
             <TabsList className="mx-auto">
               <TabsTrigger value="prescriptions" className="gap-2">
-                Назначения {filteredPres.length > 0 && badge(filteredPres.length)}
+                Назначения {pendingSlots.length > 0 && badge(pendingSlots.length)}
               </TabsTrigger>
               <TabsTrigger value="transfers" className="gap-2">
                 Перемещения {filteredTrans.length > 0 && badge(filteredTrans.length)}
@@ -413,6 +419,9 @@ export default function NurseInventoryModal({
                 period={period}
                 onPeriodChange={setPeriod}
               />
+              {!presLoading && presHiddenByPeriod > 0 && (
+                <p className="text-xs text-muted-foreground mb-2">Скрыто вне периода: {presHiddenByPeriod}</p>
+              )}
               {presLoading ? (
                 <div className="flex items-center justify-center h-32">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
