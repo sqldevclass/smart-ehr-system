@@ -4,8 +4,8 @@ import ReportPageHeader from "@/components/reports/ReportPageHeader";
 import DebtTab from "@/components/reports/DebtTab";
 
 export default function DebtsPage() {
-  const { hasAnyRole } = useAuth();
-  const canView = hasAnyRole(["admin", "senior_manager", "finance"]);
+  const { hasPermission } = useAuth();
+  const canView = hasPermission("finance.view_patient_debts");
 
   return (
     <div className="min-h-screen flex flex-col bg-background">

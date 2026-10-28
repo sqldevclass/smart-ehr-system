@@ -148,7 +148,9 @@ Deno.serve(async (req) => {
     // Assign roles — clear first then re-assign
     await supabaseAdmin.from("user_roles").delete().eq("user_id", newUserId!).eq("hospital_id", invitation.hospital_id);
 
-    const { data: roles } = await supabaseAdmin.from("roles").select("id, code").in("code", roleCodes);
+    const { data: roles } = await supabaseAdmin.from("roles").select("id, code").in("code", roleCodes)
+      .eq("is_active", true)
+      .or(`hospital_id.is.null,hospital_id.eq.${invitation.hospital_id}`);
 
     if (roles && roles.length > 0) {
       const { error: rolesError } = await supabaseAdmin.from("user_roles").insert(

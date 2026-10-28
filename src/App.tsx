@@ -26,6 +26,7 @@ import PhysicianPrivilegesPage from "./pages/admin/PhysicianPrivilegesPage.tsx";
 import WarehousesPage from "./pages/admin/WarehousesPage.tsx";
 import PosTerminalsPage from "./pages/admin/PosTerminalsPage.tsx";
 import KassasPage from "./pages/admin/KassasPage.tsx";
+import RolesPage from "./pages/admin/RolesPage.tsx";
 import RegistrarLayout from "./components/registrar/RegistrarLayout.tsx";
 import PatientsList from "./pages/registrar/PatientsList.tsx";
 import PatientDetail from "./pages/registrar/PatientDetail.tsx";
@@ -125,6 +126,7 @@ const App = () => (
           <Route path="/admin" element={<ProtectedRoute allowedRoles={["admin"]}><AdminLayout /></ProtectedRoute>}>
             <Route index element={<AdminOverview />} />
             <Route path="users" element={<UserManagement />} />
+            <Route path="roles" element={<RolesPage />} />
             <Route path="departments" element={<DepartmentsPage />} />
             <Route path="services" element={<ServicesPage />} />
             <Route path="physicians" element={<PhysiciansPage />} />
@@ -136,7 +138,7 @@ const App = () => (
             <Route path="audit" element={<AdminPlaceholder title="Audit Log" />} />
             <Route path="profile" element={<AdminProfile />} />
           </Route>
-          <Route path="/physician" element={<ProtectedRoute allowedRoles={["physician"]}><PhysicianLayout /></ProtectedRoute>}>
+          <Route path="/physician" element={<ProtectedRoute allowedRoles={["physician"]} anyPermission={["workspace.physician"]}><PhysicianLayout /></ProtectedRoute>}>
             <Route index element={<MyPatientsList />} />
             <Route path="inpatient" element={<InpatientPatientsList />} />
             <Route path="inpatient/:hospId" element={<InpatientPatientDetail />} />
@@ -145,13 +147,13 @@ const App = () => (
             <Route path="schedule" element={<PhysicianSchedule />} />
             <Route path="profile" element={<PhysicianProfile />} />
           </Route>
-          <Route path="/registrar" element={<ProtectedRoute allowedRoles={["outpatient_registrar"]}><RegistrarLayout /></ProtectedRoute>}>
+          <Route path="/registrar" element={<ProtectedRoute allowedRoles={["outpatient_registrar"]} anyPermission={["workspace.registrar"]}><RegistrarLayout /></ProtectedRoute>}>
             <Route index element={<PatientsList />} />
             <Route path="patients/:patientId" element={<PatientDetail />} />
             <Route path="visits/:visitId" element={<VisitPage />} />
             <Route path="profile" element={<RegistrarProfile />} />
           </Route>
-          <Route path="/hr" element={<ProtectedRoute allowedRoles={["hr"]}><HRLayout /></ProtectedRoute>}>
+          <Route path="/hr" element={<ProtectedRoute allowedRoles={["hr"]} anyPermission={["workspace.hr"]}><HRLayout /></ProtectedRoute>}>
             <Route index element={<HREmployees />} />
             <Route path="schedules" element={<HRSchedules />} />
             <Route path="employees" element={<HREmployees />} />
@@ -159,11 +161,11 @@ const App = () => (
             <Route path="settings" element={<HRSettings />} />
             <Route path="profile" element={<HRProfile />} />
           </Route>
-          <Route path="/cashier" element={<ProtectedRoute allowedRoles={["cashier"]}><CashierLayout /></ProtectedRoute>}>
+          <Route path="/cashier" element={<ProtectedRoute allowedRoles={["cashier"]} anyPermission={["workspace.cashier"]}><CashierLayout /></ProtectedRoute>}>
             <Route index element={<PaymentsPage />} />
             <Route path="profile" element={<CashierProfile />} />
           </Route>
-          <Route path="/finance" element={<ProtectedRoute allowedRoles={["finance"]}><FinanceLayout /></ProtectedRoute>}>
+          <Route path="/finance" element={<ProtectedRoute allowedRoles={["finance"]} anyPermission={["workspace.finance"]}><FinanceLayout /></ProtectedRoute>}>
             <Route index element={<PhysicianPayRatesPage />} />
             <Route path="payroll" element={<PayrollPage />} />
             <Route path="buckets" element={<BucketsPage />} />
@@ -171,23 +173,23 @@ const App = () => (
             <Route path="referral-rates" element={<ReferralRatesPage />} />
             <Route path="profile" element={<FinanceProfile />} />
           </Route>
-          <Route path="/inpatient" element={<ProtectedRoute allowedRoles={["inpatient_registrar"]}><InpatientLayout /></ProtectedRoute>}>
+          <Route path="/inpatient" element={<ProtectedRoute allowedRoles={["inpatient_registrar"]} anyPermission={["workspace.inpatient"]}><InpatientLayout /></ProtectedRoute>}>
             <Route index element={<AdmissionsPage />} />
             <Route path="hospitalizations/:hospId" element={<HospitalizationPage />} />
             <Route path="profile" element={<InpatientProfile />} />
           </Route>
-          <Route path="/nurse" element={<ProtectedRoute allowedRoles={["inpatient_nurse", "head_nurse"]}><NurseLayout /></ProtectedRoute>}>
+          <Route path="/nurse" element={<ProtectedRoute allowedRoles={["inpatient_nurse", "head_nurse"]} anyPermission={["workspace.nurse"]}><NurseLayout /></ProtectedRoute>}>
             <Route index element={<NursePatientsList />} />
             <Route path=":hospId" element={<NursePatientDetail />} />
             <Route path="profile" element={<NurseProfile />} />
           </Route>
-          <Route path="/lab" element={<ProtectedRoute allowedRoles={["lab_physician", "blood_draw_nurse"]}><LabLayout /></ProtectedRoute>}>
+          <Route path="/lab" element={<ProtectedRoute allowedRoles={["lab_physician", "blood_draw_nurse"]} anyPermission={["workspace.lab"]}><LabLayout /></ProtectedRoute>}>
             <Route index element={<LabResultsPage />} />
             <Route path="blood-draw" element={<BloodDrawPage />} />
             <Route path="results" element={<LabResultsPage />} />
             <Route path="profile" element={<LabProfile />} />
           </Route>
-          <Route path="/pharmacy" element={<ProtectedRoute allowedRoles={["pharmacist"]}><PharmacistLayout /></ProtectedRoute>}>
+          <Route path="/pharmacy" element={<ProtectedRoute allowedRoles={["pharmacist"]} anyPermission={["workspace.pharmacy"]}><PharmacistLayout /></ProtectedRoute>}>
             <Route index element={<IncomingPage />} />
             <Route path="orders" element={<OrdersPage />} />
             <Route path="stock" element={<StockPage />} />
@@ -198,7 +200,7 @@ const App = () => (
             <Route path="settings" element={<PharmacySettingsPage />} />
             <Route path="profile" element={<PharmacyProfile />} />
           </Route>
-          <Route path="/warehouse" element={<ProtectedRoute allowedRoles={["warehouse_staff"]}><WarehouseLayout /></ProtectedRoute>}>
+          <Route path="/warehouse" element={<ProtectedRoute allowedRoles={["warehouse_staff"]} anyPermission={["workspace.warehouse"]}><WarehouseLayout /></ProtectedRoute>}>
             <Route index element={<WarehouseIncomingPage />} />
             <Route path="stock" element={<WarehouseStockPage />} />
             <Route path="expenses" element={<WarehouseExpensesPage />} />
@@ -206,14 +208,14 @@ const App = () => (
             <Route path="settings" element={<WarehouseSettingsPage />} />
             <Route path="profile" element={<WarehouseProfile />} />
           </Route>
-          <Route path="/inventory" element={<ProtectedRoute allowedRoles={["inventory_manager"]}><InventoryLayout /></ProtectedRoute>}>
+          <Route path="/inventory" element={<ProtectedRoute allowedRoles={["inventory_manager"]} anyPermission={["workspace.inventory"]}><InventoryLayout /></ProtectedRoute>}>
             <Route index element={<EquipmentPage />} />
             <Route path="profile" element={<InventoryProfile />} />
           </Route>
           <Route
             path="/reports"
             element={
-              <ProtectedRoute allowedRoles={["admin", "senior_manager", "cashier", "finance", "hr", "physician", "outpatient_registrar", "inpatient_registrar", "inpatient_nurse", "head_nurse", "lab_physician", "blood_draw_nurse", "pharmacist", "warehouse_staff", "inventory_manager"]}>
+              <ProtectedRoute allowedRoles={["admin", "senior_manager", "cashier", "finance", "hr", "physician", "outpatient_registrar", "inpatient_registrar", "inpatient_nurse", "head_nurse", "lab_physician", "blood_draw_nurse", "pharmacist", "warehouse_staff", "inventory_manager"]} anyPermission={["reports.view_daily", "finance.view_patient_debts"]}>
                 <ReportsPage />
               </ProtectedRoute>
             }
@@ -221,7 +223,7 @@ const App = () => (
           <Route
             path="/reports/quality"
             element={
-              <ProtectedRoute allowedRoles={["admin", "senior_manager", "finance"]}>
+              <ProtectedRoute allowedRoles={["admin", "senior_manager", "finance"]} anyPermission={["reports.view_daily"]}>
                 <QualityReportsPage />
               </ProtectedRoute>
             }
@@ -229,7 +231,7 @@ const App = () => (
           <Route
             path="/reports/debts"
             element={
-              <ProtectedRoute allowedRoles={["admin", "senior_manager", "finance"]}>
+              <ProtectedRoute allowedRoles={["admin", "senior_manager", "finance"]} anyPermission={["finance.view_patient_debts"]}>
                 <DebtsPage />
               </ProtectedRoute>
             }

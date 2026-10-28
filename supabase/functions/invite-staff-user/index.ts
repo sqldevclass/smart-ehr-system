@@ -127,7 +127,9 @@ Deno.serve(async (req) => {
     const { data: validRoles } = await supabaseAdmin
       .from("roles")
       .select("code")
-      .in("code", role_codes);
+      .in("code", role_codes)
+      .eq("is_active", true)
+      .or(`hospital_id.is.null,hospital_id.eq.${callerProfile.hospital_id}`);
 
     const validCodes = (validRoles || []).map((r: any) => r.code);
     const invalidCodes = role_codes.filter((c: string) => !validCodes.includes(c));
