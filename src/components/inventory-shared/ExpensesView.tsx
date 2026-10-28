@@ -57,7 +57,7 @@ export default function ExpensesView({ warehouseTypeCode, title }: Props) {
         .from("write_off_types")
         .select("id, code, name_ru, name_en")
         .order("code");
-      if (error) throw error;
+      if (error) { toast.error(error.message); throw error; }
       return data || [];
     },
   });
@@ -65,7 +65,7 @@ export default function ExpensesView({ warehouseTypeCode, title }: Props) {
   const selectedType = types.find((t: any) => t.id === typeId) as any;
 
   const { data: employees = [] } = useQuery({
-    queryKey: ["profiles", user?.hospitalId],
+    queryKey: ["profiles", user?.hospitalId, "writeoff-employees"],
     enabled: !!user?.hospitalId && selectedType?.code === "employee",
     queryFn: async () => {
       const { data, error } = await supabase
@@ -73,13 +73,13 @@ export default function ExpensesView({ warehouseTypeCode, title }: Props) {
         .select("id, full_name")
         .eq("hospital_id", user?.hospitalId ?? "")
         .order("full_name");
-      if (error) throw error;
+      if (error) { toast.error(error.message); throw error; }
       return data || [];
     },
   });
 
   const { data: suppliers = [] } = useQuery({
-    queryKey: ["suppliers", user?.hospitalId],
+    queryKey: ["suppliers", user?.hospitalId, "active"],
     enabled: !!user?.hospitalId && selectedType?.code === "return_supplier",
     queryFn: async () => {
       const { data, error } = await supabase
@@ -88,7 +88,7 @@ export default function ExpensesView({ warehouseTypeCode, title }: Props) {
         .eq("is_active", true)
         .eq("hospital_id", user?.hospitalId ?? "")
         .order("name");
-      if (error) throw error;
+      if (error) { toast.error(error.message); throw error; }
       return data || [];
     },
   });
@@ -101,7 +101,7 @@ export default function ExpensesView({ warehouseTypeCode, title }: Props) {
         .select("id, quantity_units, series_number, expiry_date, product_id, drug_formulary_id, products(name), drug_formulary(trade_name)")
         .eq("warehouse_id", warehouse?.id ?? "").gt("quantity_units", 0)
         .order("expiry_date", { ascending: true, nullsFirst: false });
-      if (error) throw error;
+      if (error) { toast.error(error.message); throw error; }
       return data || [];
     },
   });
@@ -118,7 +118,7 @@ export default function ExpensesView({ warehouseTypeCode, title }: Props) {
         .eq("warehouse_id", warehouse?.id ?? "")
         .order("written_off_at", { ascending: false })
         .limit(50);
-      if (error) throw error;
+      if (error) { toast.error(error.message); throw error; }
       return data || [];
     },
   });
@@ -166,6 +166,7 @@ export default function ExpensesView({ warehouseTypeCode, title }: Props) {
       qc.invalidateQueries({ queryKey: ["stock", warehouse?.id] });
       qc.invalidateQueries({ queryKey: ["writeoff-batches", warehouse?.id] });
       qc.invalidateQueries({ queryKey: ["my-batches", warehouse?.id] });
+      qc.invalidateQueries({ queryKey: ["nurse-inv-stock", warehouse?.id] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -277,6 +278,7 @@ export default function ExpensesView({ warehouseTypeCode, title }: Props) {
                     </Select>
                     <Input
                       type="number"
+                      step="any"
                       placeholder="Кол-во"
                       value={item.quantityUnits}
                       onChange={(e) => {

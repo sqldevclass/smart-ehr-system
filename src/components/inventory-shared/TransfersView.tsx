@@ -40,7 +40,7 @@ export default function TransfersView({ warehouseTypeCode, title }: Props) {
     queryFn: async () => {
       const { data, error } = await supabase.from("warehouses").select("id, name, warehouse_types(code)")
         .eq("hospital_id", user?.hospitalId ?? "").eq("is_active", true).neq("id", warehouse?.id ?? "").order("name");
-      if (error) throw error;
+      if (error) { toast.error(error.message); throw error; }
       return data || [];
     },
   });
@@ -50,7 +50,7 @@ export default function TransfersView({ warehouseTypeCode, title }: Props) {
       const { data, error } = await supabase.from("inventory_batches")
         .select("id, series_number, expiry_date, quantity_units, products(name), drug_formulary(trade_name)")
         .eq("warehouse_id", warehouse?.id ?? "").gt("quantity_units", 0).order("expiry_date", { ascending: true, nullsFirst: false });
-      if (error) throw error;
+      if (error) { toast.error(error.message); throw error; }
       return data || [];
     },
   });
@@ -65,7 +65,7 @@ export default function TransfersView({ warehouseTypeCode, title }: Props) {
         accepted_by_profile:profiles!transfer_records_accepted_by_fkey(full_name),
         transfer_record_items(id, quantity_units, products(name), drug_formulary(trade_name), inventory_batches(series_number, expiry_date))
       `).or(`from_warehouse_id.eq.${warehouse?.id},to_warehouse_id.eq.${warehouse?.id}`).order("sent_at", { ascending: false }).limit(100);
-      if (error) throw error;
+      if (error) { toast.error(error.message); throw error; }
       return data || [];
     },
   });

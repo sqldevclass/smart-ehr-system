@@ -36,7 +36,7 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const { data: products = [] } = useQuery({
-    queryKey: ["products", user?.hospitalId],
+    queryKey: ["products", user?.hospitalId, "incoming-active"],
     enabled: !!user?.hospitalId,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -45,13 +45,13 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
         .eq("hospital_id", user?.hospitalId ?? "")
         .eq("is_active", true)
         .order("name");
-      if (error) throw error;
+      if (error) { toast.error(error.message); throw error; }
       return data || [];
     },
   });
 
   const { data: suppliers = [] } = useQuery({
-    queryKey: ["suppliers", user?.hospitalId],
+    queryKey: ["suppliers", user?.hospitalId, "active"],
     enabled: !!user?.hospitalId,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -60,7 +60,7 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
         .eq("hospital_id", user?.hospitalId ?? "")
         .eq("is_active", true)
         .order("name");
-      if (error) throw error;
+      if (error) { toast.error(error.message); throw error; }
       return data || [];
     },
   });
@@ -71,11 +71,11 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("drug_formulary")
-        .select("id, trade_name, inn, release_form_id, packaging_id, manufacturer_id")
+        .select("id, trade_name, inn")
         .eq("hospital_id", user?.hospitalId ?? "")
         .eq("is_active", true)
         .order("trade_name");
-      if (error) throw error;
+      if (error) { toast.error(error.message); throw error; }
       return data || [];
     },
   });
@@ -92,7 +92,7 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
         .eq("warehouse_id", warehouse?.id ?? "")
         .order("received_at", { ascending: false })
         .limit(20);
-      if (error) throw error;
+      if (error) { toast.error(error.message); throw error; }
       return data || [];
     },
   });
@@ -142,6 +142,9 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
       setSupplierId("");
       qc.invalidateQueries({ queryKey: ["incoming-recent", warehouse?.id] });
       qc.invalidateQueries({ queryKey: ["stock", warehouse?.id] });
+      qc.invalidateQueries({ queryKey: ["my-batches", warehouse?.id] });
+      qc.invalidateQueries({ queryKey: ["writeoff-batches", warehouse?.id] });
+      qc.invalidateQueries({ queryKey: ["nurse-inv-stock", warehouse?.id] });
     },
     onError: (e: Error) => toast.error(e.message),
   });

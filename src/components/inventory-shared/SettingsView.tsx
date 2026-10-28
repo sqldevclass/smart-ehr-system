@@ -123,7 +123,7 @@ function ТоварыSection() {
     queryKey: ["product_types"],
     queryFn: async () => {
       const { data, error } = await supabase.from("product_types").select("id, name_ru").order("sort_order");
-      if (error) throw error;
+      if (error) { toast.error(error.message); throw error; }
       return data || [];
     },
   });
@@ -137,7 +137,7 @@ function ТоварыSection() {
         .select("id, name_ru, abbreviation")
         .or(`hospital_id.is.null,hospital_id.eq.${user?.hospitalId ?? ""}`)
         .order("sort_order");
-      if (error) throw error;
+      if (error) { toast.error(error.message); throw error; }
       return data || [];
     },
   });
@@ -151,7 +151,7 @@ function ТоварыSection() {
         .select("id, name_ru")
         .or(`hospital_id.is.null,hospital_id.eq.${user?.hospitalId ?? ""}`)
         .order("sort_order");
-      if (error) throw error;
+      if (error) { toast.error(error.message); throw error; }
       return data || [];
     },
   });
@@ -165,7 +165,7 @@ function ТоварыSection() {
         .select("id, name_ru")
         .or(`hospital_id.is.null,hospital_id.eq.${user?.hospitalId ?? ""}`)
         .order("sort_order");
-      if (error) throw error;
+      if (error) { toast.error(error.message); throw error; }
       return data || [];
     },
   });
@@ -179,7 +179,7 @@ function ТоварыSection() {
         .select("id, name")
         .eq("hospital_id", user?.hospitalId ?? "")
         .order("name");
-      if (error) throw error;
+      if (error) { toast.error(error.message); throw error; }
       return data || [];
     },
   });
@@ -199,7 +199,7 @@ function ТоварыSection() {
       if (typeFilter !== "all") q = q.eq("product_type_id", typeFilter);
       if (activeOnly) q = q.eq("is_active", true);
       const { data, error } = await q;
-      if (error) throw error;
+      if (error) { toast.error(error.message); throw error; }
       return data || [];
     },
   });
@@ -493,7 +493,7 @@ function ПоставщикиSection() {
         .select("id, name, contact, phone, email, address, is_active")
         .eq("hospital_id", user?.hospitalId ?? "")
         .order("name");
-      if (error) throw error;
+      if (error) { toast.error(error.message); throw error; }
       return data || [];
     },
   });
@@ -576,7 +576,7 @@ function ПоставщикиSection() {
             <DialogFooter>
               <Button variant="outline" onClick={() => setOpen(false)}>Отмена</Button>
               <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || !form.name.trim()}>
-                Save
+                Сохранить
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -640,7 +640,7 @@ function ПроизводителиSection() {
         .select("id, name, country, is_active")
         .eq("hospital_id", user?.hospitalId ?? "")
         .order("name");
-      if (error) throw error;
+      if (error) { toast.error(error.message); throw error; }
       return data || [];
     },
   });
@@ -702,7 +702,7 @@ function ПроизводителиSection() {
             <DialogFooter>
               <Button variant="outline" onClick={() => setOpen(false)}>Отмена</Button>
               <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || !form.name.trim()}>
-                Save
+                Сохранить
               </Button>
             </DialogFooter>
           </DialogContent>

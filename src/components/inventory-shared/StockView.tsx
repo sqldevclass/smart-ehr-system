@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,7 +33,7 @@ export default function StockView({ warehouseTypeCode, title }: Props) {
         .eq("warehouse_id", warehouse?.id ?? "")
         .gt("quantity_units", 0)
         .order("expiry_date", { ascending: true, nullsFirst: false });
-      if (error) throw error;
+      if (error) { toast.error(error.message); throw error; }
       return data || [];
     },
   });

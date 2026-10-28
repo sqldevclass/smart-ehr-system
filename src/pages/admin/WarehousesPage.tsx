@@ -45,7 +45,7 @@ export default function WarehousesPage() {
         .from("warehouse_types")
         .select("id, name_ru, code")
         .order("sort_order");
-      if (error) throw error;
+      if (error) { toast.error(error.message); throw error; }
       return data || [];
     },
   });
@@ -59,7 +59,7 @@ export default function WarehousesPage() {
         .select("id, name")
         .eq("hospital_id", user?.hospitalId ?? "")
         .order("name");
-      if (error) throw error;
+      if (error) { toast.error(error.message); throw error; }
       return data || [];
     },
   });
@@ -75,7 +75,7 @@ export default function WarehousesPage() {
         )
         .eq("hospital_id", user?.hospitalId ?? "")
         .order("name");
-      if (error) throw error;
+      if (error) { toast.error(error.message); throw error; }
       return data || [];
     },
   });

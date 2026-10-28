@@ -104,8 +104,9 @@ export default function NurseInventoryModal({
         .select("id, name")
         .eq("hospital_id", hospitalId)
         .eq("department_id", departmentId)
+        .eq("is_active", true)
         .maybeSingle();
-      if (error) throw error;
+      if (error) { toast.error(error.message); throw error; }
       return data;
     },
   });
@@ -133,7 +134,7 @@ export default function NurseInventoryModal({
         .eq("hospital_id", hospitalId)
         .eq("dispense_status", "in_progress")
         .eq("hospitalizations.department_id", departmentId);
-      if (error) throw error;
+      if (error) { toast.error(error.message); throw error; }
       return data || [];
     },
   });
@@ -161,7 +162,7 @@ export default function NurseInventoryModal({
         .eq("to_warehouse_id", deptWarehouse?.id ?? "")
         .eq("status", "pending_acceptance")
         .order("sent_at", { ascending: false });
-      if (error) throw error;
+      if (error) { toast.error(error.message); throw error; }
       return data || [];
     },
   });
@@ -180,7 +181,7 @@ export default function NurseInventoryModal({
         .eq("hospital_id", hospitalId)
         .eq("is_active", true)
         .neq("id", deptWarehouse?.id ?? "");
-      if (error) throw error;
+      if (error) { toast.error(error.message); throw error; }
       return (data || []).filter((w: any) =>
         w.warehouse_types?.code === "department"
       );
@@ -206,7 +207,7 @@ export default function NurseInventoryModal({
         .eq("warehouse_id", deptWarehouse?.id ?? "")
         .eq("hospital_id", hospitalId)
         .gt("quantity_units", 0);
-      if (error) throw error;
+      if (error) { toast.error(error.message); throw error; }
       return data || [];
     },
   });
@@ -220,7 +221,7 @@ export default function NurseInventoryModal({
         .eq("hospital_id", hospitalId)
         .eq("department_id", departmentId)
         .is("discharged_at", null);
-      if (error) throw error;
+      if (error) { toast.error(error.message); throw error; }
       return data || [];
     },
   });
@@ -349,6 +350,8 @@ export default function NurseInventoryModal({
       if (error) throw error;
       qc.invalidateQueries({ queryKey: ["stock", txWarehouseId] });
       qc.invalidateQueries({ queryKey: ["transfers", txWarehouseId] });
+      qc.invalidateQueries({ queryKey: ["nurse-inv-transfers", txWarehouseId] });
+      qc.invalidateQueries({ queryKey: ["nurse-inv-stock", txWarehouseId] });
       toast.success("Перемещение отправлено");
       setTxBatchId(""); setTxWarehouseId(""); setTxQty("");
       refreshInventory();
