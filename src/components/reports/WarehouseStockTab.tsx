@@ -135,7 +135,7 @@ function StatusBadges({ item }: { item: WarehouseStockItem }) {
     <div className="flex flex-wrap gap-1">
       {isExpired(item) && <Badge variant="destructive">Просрочено</Badge>}
       {isExpiring(item) && <Badge variant="outline" className="border-transparent bg-orange-500/15">Истекает</Badge>}
-      {item.is_low && <Badge variant="secondary" className="bg-warning/15">Мало</Badge>}
+      {item.is_low && <Badge variant="secondary" className="bg-amber-500/15">Мало</Badge>}
     </div>
   );
 }
@@ -199,7 +199,7 @@ function WarehouseCard({ warehouse, items, totalCost }: { warehouse: WarehouseSt
       <div className="flex flex-wrap gap-2">
         {s.expiredCount > 0 && <Badge variant="destructive">Просрочено: {s.expiredCount}</Badge>}
         {s.expiringCount > 0 && <Badge variant="outline" className="border-transparent bg-orange-500/15">Истекает: {s.expiringCount}</Badge>}
-        {s.lowCount > 0 && <Badge variant="secondary" className="bg-warning/15">Мало: {s.lowCount}</Badge>}
+        {s.lowCount > 0 && <Badge variant="secondary" className="bg-amber-500/15">Мало: {s.lowCount}</Badge>}
         {!s.expiredCount && !s.expiringCount && !s.lowCount && <span className="text-sm text-muted-foreground">Без замечаний</span>}
       </div>
       {items.length === 0 ? <p className="text-sm text-muted-foreground">Нет остатков</p> : (
