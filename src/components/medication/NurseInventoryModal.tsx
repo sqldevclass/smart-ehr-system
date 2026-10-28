@@ -16,6 +16,8 @@ import SearchInput from "@/components/shared/SearchInput";
 import HighlightMatch from "@/components/shared/HighlightMatch";
 import { matchesSearch } from "@/lib/search";
 import { matchesPatientSearch, PATIENT_SEARCH_PLACEHOLDER } from "@/lib/patientSearch";
+import { PeriodFilter, matchesRange, rangeBounds, type PeriodState } from "@/components/shared/PeriodFilter";
+import { usePeriodFilter } from "@/hooks/usePeriodFilter";
 import NurseTransfersPanel, { filterNurseTransfers, useNurseIncomingTransfers } from "./NurseTransfersPanel";
 
 interface Props {
@@ -27,14 +29,16 @@ interface Props {
 type Filters = Record<string, string>;
 
 function FilterBar({
-  filters, onChange, fields,
+  filters, onChange, fields, period, onPeriodChange,
 }: {
   filters: Filters;
   onChange: (k: string, v: string) => void;
   fields: string[];
+  period?: PeriodState;
+  onPeriodChange?: (s: PeriodState) => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       {fields.includes("drug") && (
         <SearchInput
           placeholder="Препарат или МНН"
@@ -53,21 +57,8 @@ function FilterBar({
           inputClassName="h-8 text-sm"
         />
       )}
-      {fields.includes("presDate") && (
-        <Input
-          type="date"
-          value={filters.presDate ?? ""}
-          onChange={(e) => onChange("presDate", e.target.value)}
-          className="w-40 h-8 text-sm"
-        />
-      )}
-      {fields.includes("transferDate") && (
-        <Input
-          type="date"
-          value={filters.transferDate ?? ""}
-          onChange={(e) => onChange("transferDate", e.target.value)}
-          className="w-40 h-8 text-sm"
-        />
+      {fields.includes("period") && period && onPeriodChange && (
+        <PeriodFilter clearable value={period} onChange={onPeriodChange} />
       )}
     </div>
   );
@@ -81,6 +72,7 @@ export default function NurseInventoryModal({
   const [busy, setBusy] = useState<Set<string>>(new Set());
   const [busyAll, setBusyAll] = useState(false);
   const [filters, setFilters] = useState<Filters>({});
+  const [period, setPeriod] = usePeriodFilter(false);
   const [activeTab, setActiveTab] = useState("prescriptions");
   const setFilter = (k: string, v: string) =>
     setFilters((prev) => ({ ...prev, [k]: v }));
@@ -203,15 +195,82 @@ export default function NurseInventoryModal({
     },
   });
 
+  // Write-off history (Списание tab)
+  const woBounds = rangeBounds(period);
+  const { data: woRecords = [], isLoading: woRecLoading, error: woRecError } = useQuery({
+    queryKey: ["writeoffs", deptWarehouse?.id, "nurse-records", woBounds.from ?? null, woBounds.to ?? null],
+    enabled: !!deptWarehouse?.id,
+    queryFn: async () => {
+      let q = supabase
+        .from("write_off_records")
+        .select("id, written_off_at, notes, write_off_types(name_ru), profiles!write_off_records_written_off_by_fkey(full_name), write_off_record_items(id, quantity_units, products(name), drug_formulary(trade_name))")
+        .eq("warehouse_id", deptWarehouse?.id ?? "");
+      if (woBounds.from) q = q.gte("written_off_at", woBounds.from);
+      if (woBounds.to) q = q.lte("written_off_at", woBounds.to);
+      const { data, error } = await q.order("written_off_at", { ascending: false }).limit(500);
+      if (error) { toast.error(error.message); throw error; }
+      return data || [];
+    },
+  });
+  const { data: woPatient = [], isLoading: woPatLoading, error: woPatError } = useQuery({
+    queryKey: ["writeoffs", deptWarehouse?.id, "nurse-patient", woBounds.from ?? null, woBounds.to ?? null],
+    enabled: !!deptWarehouse?.id,
+    queryFn: async () => {
+      let q = supabase
+        .from("inventory_transactions")
+        .select("id, performed_at, quantity_units, reference_id, products(name), drug_formulary(trade_name), profiles(full_name)")
+        .eq("warehouse_id", deptWarehouse?.id ?? "")
+        .eq("source_type", "consumable");
+      if (woBounds.from) q = q.gte("performed_at", woBounds.from);
+      if (woBounds.to) q = q.lte("performed_at", woBounds.to);
+      const { data, error } = await q.order("performed_at", { ascending: false }).limit(500);
+      if (error) { toast.error(error.message); throw error; }
+      const rows = data || [];
+      const ids = [...new Set(rows.map((r: any) => r.reference_id).filter(Boolean))];
+      const patients = new Map<string, string>();
+      if (ids.length) {
+        const { data: hosps, error: hErr } = await supabase
+          .from("hospitalizations")
+          .select("id, patients(first_name, last_name, patient_number)")
+          .in("id", ids);
+        if (hErr) { toast.error(hErr.message); throw hErr; }
+        for (const h of (hosps || []) as any[]) {
+          const p = h.patients;
+          if (p) patients.set(h.id, `${p.last_name ?? ""} ${p.first_name ?? ""} · ${p.patient_number ?? ""}`.trim());
+        }
+      }
+      return rows.map((r: any) => ({ ...r, patient_label: patients.get(r.reference_id) ?? null }));
+    },
+  });
+  const writeoffsLoading = woRecLoading || woPatLoading;
+  const writeoffsError = woRecError || woPatError;
+  const writeoffRows = useMemo(() => {
+    const rows: { key: string; at: string | null; type: string; by: string | null; notes: string | null; items: { name: string; qty: number }[] }[] = [];
+    for (const w of woRecords as any[]) {
+      rows.push({
+        key: `r-${w.id}`, at: w.written_off_at, type: w.write_off_types?.name_ru || "—",
+        by: w.profiles?.full_name ?? null, notes: w.notes,
+        items: (w.write_off_record_items || []).map((i: any) => ({ name: i.drug_formulary?.trade_name || i.products?.name || "—", qty: Number(i.quantity_units) })),
+      });
+    }
+    for (const t of woPatient as any[]) {
+      rows.push({
+        key: `t-${t.id}`, at: t.performed_at, type: "Пациенту",
+        by: t.profiles?.full_name ?? null, notes: t.patient_label,
+        items: [{ name: t.drug_formulary?.trade_name || t.products?.name || "—", qty: Math.abs(Number(t.quantity_units)) }],
+      });
+    }
+    return rows.sort((a, b) => (b.at ?? "").localeCompare(a.at ?? ""));
+  }, [woRecords, woPatient]);
+
   // Filtered data
   const filteredPres = useMemo(() => (pendingSlots as any[]).filter((s) => {
     const drug = s.drug_prescriptions?.drug_formulary;
-    const date = s.drug_prescriptions?.created_at?.slice(0, 10) ?? "";
     if (!matchesSearch([drug?.trade_name, drug?.inn], filters.drug ?? "")) return false;
     if (!matchesPatientSearch(s.hospitalizations?.patients, filters.patient ?? "")) return false;
-    if (filters.presDate && date !== filters.presDate) return false;
+    if (!matchesRange(s.drug_prescriptions?.created_at, period)) return false;
     return true;
-  }), [pendingSlots, filters]);
+  }), [pendingSlots, filters, period]);
 
   const filteredTrans = useMemo(() => filterNurseTransfers(transfers, filters)
     .filter((transfer: any) => transfer.status === "pending_acceptance"), [transfers, filters]);
@@ -350,7 +409,9 @@ export default function NurseInventoryModal({
               <FilterBar
                 filters={filters}
                 onChange={setFilter}
-                fields={["drug", "patient", "presDate"]}
+                fields={["drug", "patient", "period"]}
+                period={period}
+                onPeriodChange={setPeriod}
               />
               {presLoading ? (
                 <div className="flex items-center justify-center h-32">
@@ -415,17 +476,20 @@ export default function NurseInventoryModal({
 
             {/* TAB 2 */}
             <TabsContent value="transfers" className="flex-1 min-h-0 overflow-y-auto mt-2 space-y-3">
-              <FilterBar
+              <NurseTransfersPanel
+                hospitalId={hospitalId}
+                deptWarehouse={deptWarehouse}
+                stock={deptStock}
+                allWarehouses={allWarehouses}
                 filters={filters}
-                onChange={setFilter}
-                fields={["drug", "transferDate"]}
+                period={period}
+                toolbarLeft={<FilterBar filters={filters} onChange={setFilter} fields={["drug", "period"]} period={period} onPeriodChange={setPeriod} />}
               />
-
-              <NurseTransfersPanel hospitalId={hospitalId} deptWarehouse={deptWarehouse} stock={deptStock} allWarehouses={allWarehouses} filters={filters} />
             </TabsContent>
 
             {/* TAB 3 */}
             <TabsContent value="writeoff" className="flex-1 min-h-0 overflow-y-auto mt-2 space-y-3">
+              <FilterBar filters={{}} onChange={setFilter} fields={["period"]} period={period} onPeriodChange={setPeriod} />
               <div className="grid grid-cols-[140px_1fr_90px_1fr_auto] gap-2 items-end">
                 <div>
                   <Label className="text-xs">Поиск</Label>
@@ -500,6 +564,43 @@ export default function NurseInventoryModal({
                           <td className={td}>{b.expiry_date || "—"}</td>
                           <td className={td}>{b.quantity_units}</td>
                           <td className={td}>{b.selling_price ?? "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-2">Списано</h3>
+                {writeoffsError && <p role="alert" className="text-destructive text-sm mb-2">{(writeoffsError as Error).message}</p>}
+                <div className="border rounded-lg overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className={th}>Дата</th>
+                        <th className={th}>Тип</th>
+                        <th className={th}>Списал</th>
+                        <th className={th}>Примечание</th>
+                        <th className={th}>Позиции</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {writeoffsLoading ? (
+                        <tr><td colSpan={5} className="p-6 text-center"><Loader2 className="h-5 w-5 animate-spin inline text-muted-foreground" /></td></tr>
+                      ) : writeoffRows.length === 0 ? (
+                        <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">Нет списаний</td></tr>
+                      ) : writeoffRows.map((w) => (
+                        <tr key={w.key} className="border-t align-top">
+                          <td className={td}>{w.at ? format(new Date(w.at), "dd.MM.yyyy HH:mm") : "—"}</td>
+                          <td className={td}>{w.type}</td>
+                          <td className={td}>{w.by || "—"}</td>
+                          <td className={td}>{w.notes || "—"}</td>
+                          <td className={td}>
+                            {w.items.length === 0 ? "—" : w.items.map((it, idx) => (
+                              <div key={idx}>{it.name} — {it.qty} ед.</div>
+                            ))}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
