@@ -6,6 +6,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { useMyWarehouse } from "./useMyWarehouse";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { fmtMoney } from "@/components/reports/reportTotals";
+import { ScreenHeader } from "./ScreenHeader";
+import { TableTotalsFooter } from "./TableTotalsFooter";
 import { addDays, parseISO } from "date-fns";
 
 interface Props {
@@ -70,20 +73,16 @@ export default function StockView({ warehouseTypeCode, title }: Props) {
     return <p className="text-sm text-destructive">Склад не настроен</p>;
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="font-heading text-xl font-bold text-foreground">{title}</h2>
-        <p className="text-sm text-muted-foreground">{warehouse.name}</p>
-      </div>
-
-      {stockError && <p role="alert" className="text-sm text-destructive">{stockError.message}</p>}
-      <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
+    <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)} className="space-y-4">
+      <ScreenHeader title={title} subtitle={warehouse.name} right={
         <TabsList>
           <TabsTrigger value="all">Все</TabsTrigger>
           <TabsTrigger value="expiring">Истекает срок</TabsTrigger>
           <TabsTrigger value="low">Низкий остаток</TabsTrigger>
         </TabsList>
-      </Tabs>
+      } />
+
+      {stockError && <p role="alert" className="text-sm text-destructive">{stockError.message}</p>}
 
       <div className="rounded-lg border bg-card overflow-x-auto">
         <table className="w-full text-sm">
@@ -94,6 +93,7 @@ export default function StockView({ warehouseTypeCode, title }: Props) {
               <th className="p-3">Годен до</th>
               <th className="p-3">Количество</th>
               <th className="p-3">Цена</th>
+              <th className="p-3">Сумма</th>
             </tr>
           </thead>
           <tbody>
@@ -111,18 +111,27 @@ export default function StockView({ warehouseTypeCode, title }: Props) {
                 <td className="p-3">{r.expiry_date || "—"}</td>
                 <td className="p-3">{r.quantity_units}</td>
                 <td className="p-3">{r.selling_price ?? "—"}</td>
+                <td className="p-3">{r.selling_price == null ? "—" : fmtMoney(r.quantity_units * r.selling_price)}</td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={5} className="p-6 text-center text-muted-foreground">
+                <td colSpan={6} className="p-6 text-center text-muted-foreground">
                   Нет позиций
                 </td>
               </tr>
             )}
           </tbody>
+          {filtered.length > 0 && (
+            <TableTotalsFooter cells={[
+              {},
+              { colSpan: 3, content: `Партий: ${filtered.length} · Наименований: ${new Set(filtered.map((r: any) => r.product_id ?? r.drug_formulary_id)).size}` },
+              {},
+              { content: fmtMoney(filtered.reduce((sum: number, r: any) => sum + (r.selling_price == null ? 0 : Number(r.quantity_units) * Number(r.selling_price)), 0)) },
+            ]} />
+          )}
         </table>
       </div>
-    </div>
+    </Tabs>
   );
 }

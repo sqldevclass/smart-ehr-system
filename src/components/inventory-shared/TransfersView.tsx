@@ -8,14 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Trash2, Plus } from "lucide-react";
 import { TransferTable } from "./TransferTable";
 import { useTransferActions } from "./useTransferActions";
 import { PeriodFilter, rangeBounds } from "@/components/shared/PeriodFilter";
-import { FilterToolbar } from "@/components/shared/FilterToolbar";
+import { ScreenHeader } from "./ScreenHeader";
 import { usePeriodFilter } from "@/hooks/usePeriodFilter";
 
 interface Props { warehouseTypeCode: "central_pharmacy" | "general"; title: string }
@@ -103,12 +103,16 @@ export default function TransfersView({ warehouseTypeCode, title }: Props) {
   });
   const actions = useTransferActions(refresh);
   return <div className="space-y-4">
-    <h2 className="font-heading text-xl font-bold text-foreground">{title}</h2>
+    <Tabs defaultValue="incoming" className="space-y-4">
+    <ScreenHeader title={title} right={<>
+      <TabsList><TabsTrigger value="incoming">Принятые</TabsTrigger><TabsTrigger value="outgoing">Отправленные</TabsTrigger><TabsTrigger value="all">Все перемещения</TabsTrigger></TabsList>
+      <PeriodFilter clearable value={period} onChange={setPeriod} />
+      <Button disabled={!warehouse} onClick={() => setOpen(true)}>Новое перемещение</Button>
+    </>} />
     {warehouseError && <p role="alert" className="text-destructive">{warehouseError.message}</p>}
     {transfersError && <p role="alert" className="text-destructive">{transfersError.message}</p>}
     {!warehouse && !warehouseError && <p className="text-muted-foreground">Склад не настроен</p>}
     <Dialog open={open} onOpenChange={(value) => { setOpen(value); if (!value) reset(); }}>
-      <DialogTrigger asChild><Button disabled={!warehouse}>Новое перемещение</Button></DialogTrigger>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>Новое перемещение</DialogTitle></DialogHeader>
         <div className="space-y-4"><div className="space-y-1.5"><Label>Склад получателя</Label>
           <Select value={destId} onValueChange={setDestId}><SelectTrigger><SelectValue placeholder="Выберите склад" /></SelectTrigger><SelectContent>{destinations.map((d: any) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent></Select>
@@ -122,14 +126,9 @@ export default function TransfersView({ warehouseTypeCode, title }: Props) {
         <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Отмена</Button><Button disabled={sendMutation.isPending} onClick={() => sendMutation.mutate()}>{sendMutation.isPending ? "Отправка…" : "Отправить"}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
-    <Tabs defaultValue="incoming" className="space-y-3">
-      <FilterToolbar
-        left={<PeriodFilter clearable value={period} onChange={setPeriod} />}
-        right={<TabsList><TabsTrigger value="incoming">Принятые</TabsTrigger><TabsTrigger value="outgoing">Отправленные</TabsTrigger><TabsTrigger value="all">Все перемещения</TabsTrigger></TabsList>}
-      />
-      <TabsContent value="outgoing"><TransferTable rows={transfers.filter((t: any) => t.from_warehouse_id === warehouse?.id)} currentWarehouseId={warehouse?.id} actions={actions} /></TabsContent>
-      <TabsContent value="incoming"><TransferTable rows={transfers.filter((t: any) => t.to_warehouse_id === warehouse?.id)} currentWarehouseId={warehouse?.id} actions={actions} /></TabsContent>
-      <TabsContent value="all"><TransferTable rows={transfers} currentWarehouseId={warehouse?.id} actions={actions} /></TabsContent>
+      <TabsContent value="outgoing"><TransferTable rows={transfers.filter((t: any) => t.from_warehouse_id === warehouse?.id)} currentWarehouseId={warehouse?.id} actions={actions} showTotals /></TabsContent>
+      <TabsContent value="incoming"><TransferTable rows={transfers.filter((t: any) => t.to_warehouse_id === warehouse?.id)} currentWarehouseId={warehouse?.id} actions={actions} showTotals /></TabsContent>
+      <TabsContent value="all"><TransferTable rows={transfers} currentWarehouseId={warehouse?.id} actions={actions} showTotals /></TabsContent>
     </Tabs>
     {actions.dialogs}
   </div>;

@@ -1,6 +1,7 @@
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { TransferStatusBadge } from "./transferStatus";
+import { TableTotalsFooter } from "./TableTotalsFooter";
 import type { useTransferActions } from "./useTransferActions";
 
 interface Props {
@@ -8,9 +9,10 @@ interface Props {
   currentWarehouseId?: string;
   actions: Pick<ReturnType<typeof useTransferActions>, "openAction" | "openDetails">;
   compact?: boolean;
+  showTotals?: boolean;
 }
 
-export function TransferTable({ rows, currentWarehouseId, actions, compact = false }: Props) {
+export function TransferTable({ rows, currentWarehouseId, actions, compact = false, showTotals = false }: Props) {
   const cell = compact ? "p-2" : "p-3";
   return <div className="border rounded-lg overflow-x-auto bg-card">
     <table className="w-full text-sm"><thead className="bg-muted/50"><tr className="text-left">
@@ -28,6 +30,6 @@ export function TransferTable({ rows, currentWarehouseId, actions, compact = fal
         {transfer.from_warehouse_id === currentWarehouseId && <Button size="sm" variant="outline" onClick={() => actions.openAction("return", transfer)}>Принять возврат</Button>}
         {transfer.to_warehouse_id === currentWarehouseId && <span className="text-muted-foreground">Ожидает подтверждения возврата</span>}
       </>}</div></td>
-    </tr>)}{rows.length === 0 && <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">Нет перемещений</td></tr>}</tbody></table>
+    </tr>)}{rows.length === 0 && <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">Нет перемещений</td></tr>}</tbody>{showTotals && rows.length > 0 && <TableTotalsFooter cellClassName={cell} cells={[{}, { colSpan: 3, content: `Перемещений: ${rows.length}` }, { content: rows.reduce((n, t) => n + (t.transfer_record_items?.length ?? 0), 0) }, {}, {}, {}]} />}</table>
   </div>;
 }
