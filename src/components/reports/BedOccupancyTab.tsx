@@ -111,7 +111,7 @@ export default function BedOccupancyTab() {
       const { data, error } = await supabase.rpc<
         "get_bed_occupancy",
         { p_hospital_id: string },
-        { Row: BedRow; Result: BedRow[]; RelationName: "get_bed_occupancy"; Relationships: [] }
+        { Row: BedRow; Result: BedRow[]; RelationName: "get_bed_occupancy"; Relationships: null }
       >("get_bed_occupancy", { p_hospital_id: user.hospitalId });
       if (error) throw error;
       return data ?? [];
