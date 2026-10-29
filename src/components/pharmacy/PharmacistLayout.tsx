@@ -8,6 +8,7 @@ import {
   UserCircle,
   LogOut,
   BarChart3,
+  Workflow,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,6 +34,7 @@ const navItems = [
   { title: "Stock", url: "/pharmacy/stock", icon: Boxes },
   { title: "Expenses", url: "/pharmacy/expenses", icon: Trash2 },
   { title: "Transfers", url: "/pharmacy/transfers", icon: ArrowLeftRight },
+  { title: "Товарооборот", url: "/pharmacy/turnover", icon: Workflow },
   { title: "Settings", url: "/pharmacy/settings", icon: Settings },
   { title: "Reports", url: "/reports", icon: BarChart3 },
   { title: "Profile", url: "/pharmacy/profile", icon: UserCircle },

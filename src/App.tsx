@@ -92,6 +92,8 @@ import WarehouseExpensesPage from "./pages/warehouse/WarehouseExpensesPage.tsx";
 import WarehouseTransfersPage from "./pages/warehouse/WarehouseTransfersPage.tsx";
 import WarehouseSettingsPage from "./pages/warehouse/WarehouseSettingsPage.tsx";
 import WarehouseProfile from "./pages/warehouse/WarehouseProfile.tsx";
+import WarehouseTurnoverPage from "./pages/warehouse/WarehouseTurnoverPage.tsx";
+import PharmacyTurnoverPage from "./pages/pharmacy/PharmacyTurnoverPage.tsx";
 import InventoryLayout from "./components/inventory/InventoryLayout.tsx";
 import EquipmentPage from "./pages/inventory/EquipmentPage.tsx";
 import InventoryProfile from "./pages/inventory/InventoryProfile.tsx";
@@ -195,6 +197,7 @@ const App = () => (
             <Route path="stock" element={<StockPage />} />
             <Route path="expenses" element={<ExpensesPage />} />
             <Route path="transfers" element={<TransfersPage />} />
+            <Route path="turnover" element={<PharmacyTurnoverPage />} />
             
             
             <Route path="settings" element={<PharmacySettingsPage />} />
@@ -205,6 +208,7 @@ const App = () => (
             <Route path="stock" element={<WarehouseStockPage />} />
             <Route path="expenses" element={<WarehouseExpensesPage />} />
             <Route path="transfers" element={<WarehouseTransfersPage />} />
+            <Route path="turnover" element={<WarehouseTurnoverPage />} />
             <Route path="settings" element={<WarehouseSettingsPage />} />
             <Route path="profile" element={<WarehouseProfile />} />
           </Route>
