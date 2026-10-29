@@ -1,10 +1,11 @@
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { format } from "date-fns";
+import { successBadgeClass } from "./successBadgeClass";
 
 export const stockOrderStatuses = {
   pending: { label: "Новый", variant: "secondary" },
   in_transit: { label: "Выдан · в пути", variant: "default" },
-  received: { label: "Принят", variant: "outline", className: "border-[hsl(var(--document-completed-foreground))] text-[hsl(var(--document-completed-foreground))]" },
+  received: { label: "Принят", variant: "outline", className: successBadgeClass },
   refused: { label: "Отклонён отделением", variant: "destructive" },
   returned: { label: "Возвращён на склад", variant: "secondary" },
   rejected: { label: "Отклонён", variant: "destructive" },

@@ -28,7 +28,7 @@ export default function StockOrdersView({ warehouseTypeCode, title, embedded }: 
   const qc = useQueryClient();
   const { data: warehouse, isLoading: whLoading } = useMyWarehouse(warehouseTypeCode);
   const [tab, setTab] = useState<"new" | "history">("new");
-  const [newPeriod, setNewPeriod] = usePeriodFilter(false);
+  const [newPeriod, setNewPeriod] = usePeriodFilter(true);
   const [historyPeriod, setHistoryPeriod] = usePeriodFilter(true);
   const period = tab === "new" ? newPeriod : historyPeriod;
   const setPeriod = tab === "new" ? setNewPeriod : setHistoryPeriod;
@@ -119,6 +119,10 @@ export default function StockOrdersView({ warehouseTypeCode, title, embedded }: 
 
   return <div className="space-y-4">
     {embedded ? <FilterToolbar left={controls} /> : <ScreenHeader title={title} right={controls} />}
+    {tab === "new" && (bounds.from || bounds.to) && pendingCount - orders.length > 0 && <div className="text-sm text-muted-foreground">
+      Ещё {pendingCount - orders.length} новых заказов вне выбранного периода{" "}
+      <Button variant="link" className="h-auto p-0" onClick={() => setNewPeriod({ period: "custom" })}>Показать все</Button>
+    </div>}
     {whLoading ? <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
       : !warehouse ? <p className="text-center text-muted-foreground py-6">Склад не настроен</p>
       : <DataTable

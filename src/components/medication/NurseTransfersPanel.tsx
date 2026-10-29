@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -17,6 +18,9 @@ import { matchesRange, type PeriodState } from "@/components/shared/PeriodFilter
 import { FilterToolbar } from "@/components/shared/FilterToolbar";
 import { useTransferActions } from "@/components/inventory-shared/useTransferActions";
 import NurseStockOrdersPanel from "@/components/medication/NurseStockOrdersPanel";
+import { DataTable } from "@/components/reports/data-table/DataTable";
+import { TableCell, TableRow } from "@/components/ui/table";
+import { TransferStatusBadge } from "@/components/inventory-shared/transferStatus";
 
 interface Props {
   hospitalId: string;
@@ -66,6 +70,22 @@ export function filterNurseTransfers(rows: any[], filters: Record<string, string
   });
 }
 
+function transferEventDate(transfer: { status: string; accepted_at?: string | null; sent_at?: string | null }) {
+  return transfer.status === "accepted" ? transfer.accepted_at : transfer.sent_at;
+}
+
+interface IncomingHistoryItem {
+  id: string;
+  date: string | null | undefined;
+  from: string;
+  name: string;
+  qty: number;
+  series: string;
+  expiry: string | null | undefined;
+  status: string;
+  reason: string;
+}
+
 export default function NurseTransfersPanel({ hospitalId, deptWarehouse, stock, allWarehouses, filters, period, toolbarLeft }: Props) {
   const { user, hasPermission } = useAuth();
   const canOrder = hasPermission("warehouse.department_order");
@@ -78,7 +98,33 @@ export default function NurseTransfersPanel({ hospitalId, deptWarehouse, stock, 
   const { data: incoming = [], isLoading: transLoading, error: incomingError } = useNurseIncomingTransfers(hospitalId, deptWarehouse?.id);
   const { data: outgoing = [], isLoading: outgoingLoading, error: outgoingError } = useNurseTransfers(hospitalId, deptWarehouse?.id, "outgoing");
   const pending = filterNurseTransfers(incoming, filters).filter((transfer: any) => transfer.status === "pending_acceptance");
-  const history = filterNurseTransfers(incoming, filters, period).filter((transfer: any) => transfer.status !== "pending_acceptance");
+  const history: IncomingHistoryItem[] = incoming
+    .filter((transfer: any) => transfer.status !== "pending_acceptance" &&
+      (ALWAYS_SHOWN.has(transfer.status) || matchesRange(transferEventDate(transfer), period)))
+    .flatMap((transfer: any) => (transfer.transfer_record_items || [])
+      .filter((item: any) => matchesSearch([item.drug_formulary?.trade_name, item.drug_formulary?.inn, item.products?.name], filters.drug ?? ""))
+      .map((item: any) => ({
+        id: item.id,
+        date: transferEventDate(transfer),
+        from: transfer.from_warehouse?.name || "—",
+        name: item.drug_formulary?.trade_name || item.products?.name || "—",
+        qty: Number(item.quantity_units),
+        series: item.inventory_batches?.series_number || "—",
+        expiry: item.inventory_batches?.expiry_date,
+        status: transfer.status,
+        reason: transfer.reject_reason || "—",
+      })))
+    .sort((a: IncomingHistoryItem, b: IncomingHistoryItem) => (b.date ? new Date(b.date).getTime() : 0) - (a.date ? new Date(a.date).getTime() : 0));
+  const historyColumns: ColumnDef<IncomingHistoryItem>[] = [
+    { id: "date", header: "Дата", accessorFn: (row) => row.date ? format(new Date(row.date), "dd.MM.yyyy HH:mm") : "—", enableColumnFilter: false },
+    { accessorKey: "from", header: "Откуда" },
+    { accessorKey: "name", header: "Препарат / Товар", cell: ({ row }) => <HighlightMatch text={row.original.name} term={filters.drug ?? ""} fallback="—" /> },
+    { accessorKey: "qty", header: "Количество", enableColumnFilter: false },
+    { accessorKey: "series", header: "Серия" },
+    { id: "expiry", header: "Годен до", accessorFn: (row) => row.expiry ? format(new Date(row.expiry), "dd.MM.yyyy") : "—", enableColumnFilter: false },
+    { accessorKey: "status", header: "Статус", cell: ({ row }) => <TransferStatusBadge status={row.original.status} /> },
+    { accessorKey: "reason", header: "Причина" },
+  ];
   const refresh = (ids: string[]) => {
     for (const id of new Set([deptWarehouse?.id, ...ids])) {
       if (!id) continue;
@@ -197,7 +243,14 @@ export default function NurseTransfersPanel({ hospitalId, deptWarehouse, stock, 
                 )}
               </div>
 
-        <section><h3 className="font-semibold mb-2">История</h3><TransferTable rows={history} currentWarehouseId={deptWarehouse?.id} actions={actions} compact /></section>
+        <section><h3 className="font-semibold mb-2">История</h3><DataTable
+          columns={historyColumns}
+          data={history}
+          isLoading={transLoading}
+          getRowId={(row) => row.id}
+          emptyMessage="Нет принятых позиций за период"
+          renderFooter={(table) => <TableRow><TableCell colSpan={table.getVisibleLeafColumns().length} className="font-semibold">Итого позиций: {table.getFilteredRowModel().rows.length}</TableCell></TableRow>}
+        /></section>
       </TabsContent>
       <TabsContent value="outgoing" className="space-y-3">
               <div>
