@@ -5,7 +5,6 @@ import { CheckCircle2, AlertTriangle, ShieldOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { DataTable } from "@/components/reports/data-table/DataTable";
 import { fmtMoney, totalsFooter } from "@/components/reports/reportTotals";
 import { ScreenHeader } from "./ScreenHeader";
@@ -18,10 +17,9 @@ const TYPE_LABELS: Record<string, string> = { central_pharmacy: "Централ�
 
 interface WhereRow { id: string; name: string; type: string; department: string; units: number; value: number }
 
-export default function ItemTurnoverView({ defaultKind }: { defaultKind: TurnoverKind }) {
+export default function ItemTurnoverView({ kind }: { kind: TurnoverKind }) {
   const { user, hasPermission } = useAuth();
   const allowed = hasPermission("warehouse.view_all");
-  const [kind, setKind] = useState<TurnoverKind>(defaultKind);
   const [itemId, setItemId] = useState<string | null>(null);
 
   const q = useQuery({
