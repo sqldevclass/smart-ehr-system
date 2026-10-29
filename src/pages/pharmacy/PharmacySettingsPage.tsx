@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { StaleThresholdSelect, staleToForm, staleFromForm } from "@/components/inventory-shared/StaleThresholdSelect";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -709,6 +710,7 @@ interface DrugForm {
   min_quantity: string;
   shelf_life_days: string;
   expiry_notify_days: string;
+  stale_after_days: string;
   notify_below_min_qty: string;
   is_active: boolean;
   subgroup_id: string | null;
@@ -726,6 +728,7 @@ const emptyDrug: DrugForm = {
   min_quantity: "",
   shelf_life_days: "",
   expiry_notify_days: "30",
+  stale_after_days: "none",
   notify_below_min_qty: "",
   is_active: true,
   subgroup_id: null,
@@ -747,7 +750,7 @@ function FormularySection() {
       const { data } = await supabase
         .from("drug_formulary")
         .select(
-          "id, trade_name, inn, dose, unit_id, is_active, packaging_id, release_form_id, manufacturer_id, min_write_off_qty, min_quantity, shelf_life_days, expiry_notify_days, notify_below_min_qty, subgroup_id, release_forms(name_ru), manufacturers(name), units_of_measurement(id, name_ru), drug_subgroups!subgroup_id(id, name_ru, group_id, drug_groups!group_id(id, name_ru))"
+          "id, trade_name, inn, dose, unit_id, is_active, packaging_id, release_form_id, manufacturer_id, min_write_off_qty, min_quantity, shelf_life_days, expiry_notify_days, stale_after_days, notify_below_min_qty, subgroup_id, release_forms(name_ru), manufacturers(name), units_of_measurement(id, name_ru), drug_subgroups!subgroup_id(id, name_ru, group_id, drug_groups!group_id(id, name_ru))"
         )
         .eq("hospital_id", user!.hospitalId)
         .order("trade_name");
@@ -853,6 +856,7 @@ function FormularySection() {
         min_quantity: numOrNull(form.min_quantity),
         shelf_life_days: intOrNull(form.shelf_life_days),
         expiry_notify_days: intOrNull(form.expiry_notify_days) ?? 30,
+        stale_after_days: staleFromForm(form.stale_after_days),
         notify_below_min_qty: numOrNull(form.notify_below_min_qty),
         is_active: form.is_active,
         subgroup_id: form.subgroup_id || null,
@@ -891,6 +895,7 @@ function FormularySection() {
       min_quantity: d.min_quantity?.toString() ?? "",
       shelf_life_days: d.shelf_life_days?.toString() ?? "",
       expiry_notify_days: d.expiry_notify_days?.toString() ?? "30",
+      stale_after_days: staleToForm(d.stale_after_days),
       notify_below_min_qty: d.notify_below_min_qty?.toString() ?? "",
       is_active: d.is_active,
       subgroup_id: d.subgroup_id ?? null,
@@ -1143,6 +1148,7 @@ function FormularySection() {
                   onChange={(e) => setForm({ ...form, expiry_notify_days: e.target.value })}
                 />
               </div>
+              <StaleThresholdSelect id="drug-stale" value={form.stale_after_days} onChange={(v) => setForm({ ...form, stale_after_days: v })} />
               <div className="space-y-1.5">
                 <Label>Уведомить за минимальное количество</Label>
                 <Input

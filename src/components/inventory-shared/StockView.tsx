@@ -9,14 +9,75 @@ import { cn } from "@/lib/utils";
 import { fmtMoney } from "@/components/reports/reportTotals";
 import { ScreenHeader } from "./ScreenHeader";
 import { TableTotalsFooter } from "./TableTotalsFooter";
-import { addDays, parseISO } from "date-fns";
+import { addDays, parseISO, format } from "date-fns";
+import { Badge } from "@/components/ui/badge";
+import { staleLabel } from "./StaleThresholdSelect";
 
 interface Props {
   warehouseTypeCode: "central_pharmacy" | "general";
   title: string;
 }
 
-type Filter = "all" | "expiring" | "low";
+type Filter = "all" | "expiring" | "low" | "stale";
+
+interface StaleRow {
+  item_kind: string; item_id: string; item_name: string; unit_name: string | null;
+  quantity: number; last_movement_at: string | null; last_movement_type: string | null;
+  days_idle: number; stale_after_days: number | null; sell_value: number;
+}
+
+const movementLabels: Record<string, string> = {
+  transfer_out: "Перемещение",
+  writeoff: "Списание",
+  consumable: "Расход",
+  incoming: "Приход (движения не было)",
+};
+
+function StaleItemsTable({ rows }: { rows: StaleRow[] }) {
+  return (
+    <div className="rounded-lg border bg-card overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead className="bg-muted/50">
+          <tr className="text-left">
+            <th className="p-3">Наименование</th>
+            <th className="p-3">Количество</th>
+            <th className="p-3">Последнее движение</th>
+            <th className="p-3">Тип</th>
+            <th className="p-3">Дней без движения</th>
+            <th className="p-3">Порог</th>
+            <th className="p-3">Сумма</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={`${r.item_kind}-${r.item_id}`} className="border-t">
+              <td className="p-3">
+                {r.item_name || "—"}{" "}
+                <span className="text-xs text-muted-foreground">{r.item_kind === "drug" ? "Препарат" : "Товар"}</span>
+              </td>
+              <td className="p-3">{r.quantity}{r.unit_name ? ` ${r.unit_name}` : ""}</td>
+              <td className="p-3">{r.last_movement_at ? format(new Date(r.last_movement_at), "dd.MM.yyyy") : "—"}</td>
+              <td className="p-3">{(r.last_movement_type && movementLabels[r.last_movement_type]) || r.last_movement_type || "—"}</td>
+              <td className="p-3">{r.days_idle}</td>
+              <td className="p-3">{staleLabel(r.stale_after_days)}</td>
+              <td className="p-3">{fmtMoney(r.sell_value)}</td>
+            </tr>
+          ))}
+          {rows.length === 0 && (
+            <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">Неликвидных позиций нет</td></tr>
+          )}
+        </tbody>
+        {rows.length > 0 && (
+          <TableTotalsFooter cells={[
+            {},
+            { colSpan: 5, content: `Позиций: ${rows.length}` },
+            { content: fmtMoney(rows.reduce((sum, r) => sum + r.sell_value, 0)) },
+          ]} />
+        )}
+      </table>
+    </div>
+  );
+}
 
 export default function StockView({ warehouseTypeCode, title }: Props) {
   const { user } = useAuth();
@@ -38,6 +99,22 @@ export default function StockView({ warehouseTypeCode, title }: Props) {
         .order("expiry_date", { ascending: true, nullsFirst: false });
       if (error) { toast.error(error.message); throw error; }
       return data || [];
+    },
+  });
+
+  const { data: staleRows = [], error: staleError } = useQuery({
+    queryKey: ["stale-items", warehouse?.id],
+    enabled: !!warehouse?.id,
+    queryFn: async (): Promise<StaleRow[]> => {
+      const { data, error } = await supabase.rpc("get_warehouse_stale_items", { p_warehouse_id: warehouse!.id });
+      if (error) { toast.error(error.message); throw error; }
+      return ((data as any[]) || []).map((r) => ({
+        ...r,
+        quantity: Number(r.quantity),
+        days_idle: Number(r.days_idle),
+        stale_after_days: r.stale_after_days == null ? null : Number(r.stale_after_days),
+        sell_value: Number(r.sell_value ?? 0),
+      }));
     },
   });
 
@@ -79,11 +156,18 @@ export default function StockView({ warehouseTypeCode, title }: Props) {
           <TabsTrigger value="all">Все</TabsTrigger>
           <TabsTrigger value="expiring">Истекает срок</TabsTrigger>
           <TabsTrigger value="low">Низкий остаток</TabsTrigger>
+          <TabsTrigger value="stale" className="gap-1.5">
+            Неликвид
+            {staleRows.length > 0 && <Badge variant="secondary" className="h-5 px-1.5 text-xs">{staleRows.length}</Badge>}
+          </TabsTrigger>
         </TabsList>
       } />
 
       {stockError && <p role="alert" className="text-sm text-destructive">{stockError.message}</p>}
 
+      {filter === "stale" && staleError && <p role="alert" className="text-sm text-destructive">{staleError.message}</p>}
+
+      {filter === "stale" ? <StaleItemsTable rows={staleRows} /> : (
       <div className="rounded-lg border bg-card overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
@@ -132,6 +216,7 @@ export default function StockView({ warehouseTypeCode, title }: Props) {
           )}
         </table>
       </div>
+      )}
     </Tabs>
   );
 }
