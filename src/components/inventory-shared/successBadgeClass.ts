@@ -1,0 +1,1 @@
+export const successBadgeClass = "border-[hsl(var(--document-completed-foreground))] text-[hsl(var(--document-completed-foreground))]";
