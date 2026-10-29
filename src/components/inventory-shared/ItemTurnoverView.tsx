@@ -85,13 +85,7 @@ export default function ItemTurnoverView({ defaultKind }: { defaultKind: Turnove
     <div className="space-y-4 min-w-0">
       <ScreenHeader
         title="Товарооборот"
-        right={<>
-          <ToggleGroup type="single" variant="outline" value={kind} onValueChange={(v) => { if (v) { setKind(v as TurnoverKind); setItemId(null); } }}>
-            <ToggleGroupItem value="drug">Препараты</ToggleGroupItem>
-            <ToggleGroupItem value="product">Товары</ToggleGroupItem>
-          </ToggleGroup>
-          <TurnoverItemPicker kind={kind} value={itemId} onChange={setItemId} />
-        </>}
+        right={<TurnoverItemPicker kind={kind} value={itemId} onChange={setItemId} />}
       />
 
       {q.isLoading && <TurnoverDiagramSkeleton />}
