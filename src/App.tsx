@@ -93,6 +93,7 @@ import WarehouseTransfersPage from "./pages/warehouse/WarehouseTransfersPage.tsx
 import WarehouseSettingsPage from "./pages/warehouse/WarehouseSettingsPage.tsx";
 import WarehouseProfile from "./pages/warehouse/WarehouseProfile.tsx";
 import WarehouseTurnoverPage from "./pages/warehouse/WarehouseTurnoverPage.tsx";
+import WarehouseOrdersPage from "./pages/warehouse/WarehouseOrdersPage.tsx";
 import PharmacyTurnoverPage from "./pages/pharmacy/PharmacyTurnoverPage.tsx";
 import InventoryLayout from "./components/inventory/InventoryLayout.tsx";
 import EquipmentPage from "./pages/inventory/EquipmentPage.tsx";
@@ -208,6 +209,7 @@ const App = () => (
             <Route path="stock" element={<WarehouseStockPage />} />
             <Route path="expenses" element={<WarehouseExpensesPage />} />
             <Route path="transfers" element={<WarehouseTransfersPage />} />
+            <Route path="orders" element={<WarehouseOrdersPage />} />
             <Route path="turnover" element={<WarehouseTurnoverPage />} />
             <Route path="settings" element={<WarehouseSettingsPage />} />
             <Route path="profile" element={<WarehouseProfile />} />
