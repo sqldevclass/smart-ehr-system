@@ -25,7 +25,7 @@ interface Props {
   hospitalizationId: string;
   onExtend: (prescriptionId: string, date: Date) => void;
   onCancelDay: (prescriptionId: string, date: Date) => void;
-  onAdministerSlot: (slotId: string, doseGiven: string, notes: string, administeredAt?: string) => void;
+  onAdministerSlot: (slotId: string, doseGiven: string, notes: string, administeredAt?: string) => Promise<boolean | void> | void;
   onSkipSlot: (slotId: string) => void;
 }
 
@@ -112,6 +112,8 @@ export default function PrescriptionGrid({
     isAntibioticProphylaxis: boolean;
     administeredAt: string;
   } | null>(null);
+
+  const [administering, setAdministering] = useState(false);
 
   const { data: reminderMinutes = 10 } = useQuery({
     queryKey: ["medication-reminder-minutes", hospitalId],
@@ -768,18 +770,25 @@ export default function PrescriptionGrid({
             <div className="flex gap-2">
               <Button
                 size="sm"
-                disabled={adminSlot.isAntibioticProphylaxis && !adminSlot.administeredAt}
-                onClick={() => {
-                  if (!adminSlot) return;
-                  onAdministerSlot(
-                    adminSlot.slotId,
-                    adminSlot.doseGiven,
-                    adminSlot.notes,
-                    adminSlot.isAntibioticProphylaxis
-                      ? new Date(adminSlot.administeredAt).toISOString()
-                      : undefined,
-                  );
-                  setAdminSlot(null);
+                disabled={administering || (adminSlot.isAntibioticProphylaxis && !adminSlot.administeredAt)}
+                onClick={async () => {
+                  if (!adminSlot || administering) return;
+                  setAdministering(true);
+                  try {
+                    const result = await onAdministerSlot(
+                      adminSlot.slotId,
+                      adminSlot.doseGiven,
+                      adminSlot.notes,
+                      adminSlot.isAntibioticProphylaxis
+                        ? new Date(adminSlot.administeredAt).toISOString()
+                        : undefined,
+                    );
+                    if (result !== false) setAdminSlot(null);
+                  } catch (error) {
+                    toast.error(error instanceof Error ? error.message : "Не удалось выполнить назначение");
+                  } finally {
+                    setAdministering(false);
+                  }
                 }}
               >
                 Сохранить

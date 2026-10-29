@@ -72,23 +72,31 @@ export default function NursePrescriptions({ hospitalizationId, patientId, hospi
     notes: string,
     administeredAt?: string,
   ) => {
-    if (!user) return;
-    const { error } = await supabase
-      .from("drug_administration_slots")
-      .update({
-        status: "done",
-        administered_at: administeredAt || new Date().toISOString(),
-        administered_by: user.id,
-        dose_given: doseGiven || null,
-        notes: notes || null,
-      })
-      .eq("id", slotId);
+    if (!user) return false;
+    const { error } = await supabase.rpc("administer_drug", {
+      p_slot_id: slotId,
+      p_dose_given: doseGiven || null,
+      p_administered_at: administeredAt || null,
+      p_notes: notes || null,
+    });
     if (error) {
       toast.error(error.message);
-      return;
+      return false;
     }
     toast.success("Выполнено");
-    invalidateSlots();
+    await Promise.all([
+      invalidateSlots(),
+      ...[
+        "nurse-inv-stock",
+        "stock",
+        "my-batches",
+        "writeoff-batches",
+        "stale-items",
+        "all-slots",
+        "nurse-prescriptions",
+      ].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
+    ]);
+    return true;
   };
 
   const handleSkipSlot = async (slotId: string) => {
