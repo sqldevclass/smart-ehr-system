@@ -4,7 +4,7 @@ import { format } from "date-fns";
 export const stockOrderStatuses = {
   pending: { label: "Новый", variant: "secondary" },
   in_transit: { label: "Выдан · в пути", variant: "default" },
-  received: { label: "Принят", variant: "outline", className: "border-status-normal text-status-normal" },
+  received: { label: "Принят", variant: "outline", className: "border-[hsl(var(--document-completed-foreground))] text-[hsl(var(--document-completed-foreground))]" },
   refused: { label: "Отклонён отделением", variant: "destructive" },
   returned: { label: "Возвращён на склад", variant: "secondary" },
   rejected: { label: "Отклонён", variant: "destructive" },
