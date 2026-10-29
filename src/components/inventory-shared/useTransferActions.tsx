@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -19,6 +19,7 @@ const messages: Record<ActionKind, string> = {
 };
 
 export function useTransferActions(refresh: (ids: string[]) => void) {
+  const qc = useQueryClient();
   const [details, setDetails] = useState<any>(null);
   const [action, setAction] = useState<{ kind: ActionKind; transfer: any } | null>(null);
   const [reason, setReason] = useState("");
@@ -38,6 +39,7 @@ export function useTransferActions(refresh: (ids: string[]) => void) {
     onSuccess: (completed) => {
       toast.success(messages[completed.kind]);
       refresh([completed.transfer.from_warehouse_id, completed.transfer.to_warehouse_id]);
+      for (const key of ["nurse-stock-orders", "stock-orders", "stock-orders-pending-count"]) qc.invalidateQueries({ queryKey: [key] });
       setAction(null); setReason("");
     },
     onError: (error: Error) => toast.error(error.message),

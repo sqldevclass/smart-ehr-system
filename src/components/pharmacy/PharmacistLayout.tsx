@@ -15,6 +15,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import RoleSwitcher from "@/components/shared/RoleSwitcher";
+import { PulseDot } from "@/components/shared/PulseDot";
+import { usePendingStockOrderCount } from "@/components/inventory-shared/usePendingStockOrderCount";
 import {
   Sidebar,
   SidebarContent,
@@ -42,6 +44,7 @@ const navItems = [
 
 export default function PharmacistLayout() {
   const { user } = useAuth();
+  const pendingOrderCount = usePendingStockOrderCount("central_pharmacy");
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -70,6 +73,7 @@ export default function PharmacistLayout() {
                         >
                           <item.icon className="mr-2 h-4 w-4" />
                           <span>{item.title}</span>
+                          {item.url === "/pharmacy/orders" && pendingOrderCount > 0 && <PulseDot className="ml-auto" />}
                         </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>

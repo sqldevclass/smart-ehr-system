@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import StockOrdersView from "@/components/inventory-shared/StockOrdersView";
+import { PulseDot } from "@/components/shared/PulseDot";
+import { usePendingStockOrderCount } from "@/components/inventory-shared/usePendingStockOrderCount";
 import PrescriptionGrid from "@/components/medication/PrescriptionGrid";
 import InteractionWarnings, { useInteractionCount } from "@/components/medication/InteractionWarnings";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -607,11 +609,12 @@ function PharmacistPrescriptionListModal({
 
 
 export default function OrdersPage() {
+  const pendingOrderCount = usePendingStockOrderCount("central_pharmacy");
   return (
     <Tabs defaultValue="prescriptions" className="space-y-4">
       <TabsList>
         <TabsTrigger value="prescriptions">Назначения</TabsTrigger>
-        <TabsTrigger value="dept-orders">Запросы отделений</TabsTrigger>
+        <TabsTrigger value="dept-orders" className="gap-2">Запросы отделений{pendingOrderCount > 0 && <PulseDot />}</TabsTrigger>
       </TabsList>
       <TabsContent value="prescriptions"><PrescriptionOrders /></TabsContent>
       <TabsContent value="dept-orders"><StockOrdersView warehouseTypeCode="central_pharmacy" title="Запросы отделений" embedded /></TabsContent>
