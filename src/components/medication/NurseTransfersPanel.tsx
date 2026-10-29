@@ -103,6 +103,7 @@ export default function NurseTransfersPanel({ hospitalId, deptWarehouse, stock, 
     if (ok) toast.success(`Принято: ${ok}`);
     if (err) toast.error(`Ошибок: ${err}`);
     refresh(pending.flatMap((transfer: any) => [transfer.from_warehouse_id, transfer.to_warehouse_id]));
+    if (ok) for (const key of ["nurse-stock-orders", "stock-orders", "stock-orders-pending-count"]) qc.invalidateQueries({ queryKey: [key] });
   };
   const sendTransfer = async () => {
     if (!user || !deptWarehouse || !txBatchId || !txWarehouseId || !txQty) return;
