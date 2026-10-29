@@ -69,8 +69,8 @@ export default function ItemTurnoverView({ defaultKind }: { defaultKind: Turnove
     const diff = data.received.units - right;
     const ok = Math.abs(diff) < 0.001;
     banner = (
-      <div className={`rounded-md border px-3 py-2 ${ok ? "border-success/40 bg-success/10" : "border-destructive/40 bg-destructive/10"}`}>
-        <div className={`flex items-center gap-2 text-sm font-medium ${ok ? "text-success" : "text-destructive"}`}>
+      <div className={`rounded-md border px-3 py-2 ${ok ? "border-green-600/40 bg-green-600/10" : "border-destructive/40 bg-destructive/10"}`}>
+        <div className={`flex items-center gap-2 text-sm font-medium ${ok ? "text-green-700" : "text-destructive"}`}>
           {ok ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
           {ok ? "Баланс сходится" : `Расхождение: ${fmtUnits(diff)}`}
         </div>

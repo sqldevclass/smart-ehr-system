@@ -51,7 +51,7 @@ export function TurnoverMovements({ kind, itemId, unit }: { kind: TurnoverKind; 
     { id: "department", header: "Отделение", accessorFn: (r) => r.department_name ?? "—" },
     { id: "qty", header: "Количество", accessorFn: (r) => r.quantity, cell: ({ row }) => {
       const v = row.original.quantity;
-      return <span className={v >= 0 ? "text-success font-medium" : "text-destructive font-medium"}>{v > 0 ? "+" : ""}{fmtUnits(v)} {unit}</span>;
+      return <span className={v >= 0 ? "text-green-700 font-medium" : "text-destructive font-medium"}>{v > 0 ? "+" : ""}{fmtUnits(v)} {unit}</span>;
     } },
     { id: "series", header: "Серия", accessorFn: (r) => r.series_number ?? "—" },
     { id: "by", header: "Кто", accessorFn: (r) => r.performed_by_name ?? "—" },
