@@ -1,5 +1,5 @@
 import ItemTurnoverView from "@/components/inventory-shared/ItemTurnoverView";
 
 export default function PharmacyTurnoverPage() {
-  return <ItemTurnoverView defaultKind="drug" />;
+  return <ItemTurnoverView kind="drug" />;
 }
