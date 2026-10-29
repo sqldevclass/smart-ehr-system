@@ -70,6 +70,7 @@ export default function TransfersView({ warehouseTypeCode, title }: Props) {
   const refresh = (ids: string[]) => {
     for (const id of new Set(ids)) {
       qc.invalidateQueries({ queryKey: ["stock", id] });
+      qc.invalidateQueries({ queryKey: ["stale-items", id] });
       qc.invalidateQueries({ queryKey: ["transfers", id] });
       qc.invalidateQueries({ queryKey: ["my-batches", id] });
       qc.invalidateQueries({ queryKey: ["writeoff-batches", id] });

@@ -172,6 +172,7 @@ export default function ExpensesView({ warehouseTypeCode, title }: Props) {
       reset();
       qc.invalidateQueries({ queryKey: ["writeoffs", warehouse?.id] });
       qc.invalidateQueries({ queryKey: ["stock", warehouse?.id] });
+      qc.invalidateQueries({ queryKey: ["stale-items", warehouse?.id] });
       qc.invalidateQueries({ queryKey: ["writeoff-batches", warehouse?.id] });
       qc.invalidateQueries({ queryKey: ["my-batches", warehouse?.id] });
       qc.invalidateQueries({ queryKey: ["nurse-inv-stock", warehouse?.id] });

@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScreenHeader } from "./ScreenHeader";
 import { TableTotalsFooter } from "./TableTotalsFooter";
+import { StaleThresholdSelect, staleToForm, staleFromForm, staleLabel } from "./StaleThresholdSelect";
 import {
   Select,
   SelectContent,
@@ -94,6 +95,7 @@ interface Product {
   units_per_package: string;
   min_stock_quantity: string;
   expiry_notify_days: string;
+  stale_after_days: string;
   is_active: boolean;
 }
 
@@ -109,6 +111,7 @@ const emptyProduct: Product = {
   units_per_package: "1",
   min_stock_quantity: "0",
   expiry_notify_days: "30",
+  stale_after_days: "none",
   is_active: true,
 };
 
@@ -194,7 +197,7 @@ function ТоварыSection() {
       let q = supabase
         .from("products")
         .select(
-          "id, name, product_type_id, unit_id, release_form_id, packaging_type_id, manufacturer_id, barcode, inn, units_per_package, min_stock_quantity, expiry_notify_days, is_active, product_types(name_ru), units_of_measurement(name_ru), release_forms(name_ru), packaging_types(name_ru), manufacturers(name)"
+          "id, name, product_type_id, unit_id, release_form_id, packaging_type_id, manufacturer_id, barcode, inn, units_per_package, min_stock_quantity, expiry_notify_days, stale_after_days, is_active, product_types(name_ru), units_of_measurement(name_ru), release_forms(name_ru), packaging_types(name_ru), manufacturers(name)"
         )
         .eq("hospital_id", user?.hospitalId ?? "")
         .order("name");
@@ -228,6 +231,7 @@ function ТоварыSection() {
         units_per_package: Number(form.units_per_package),
         min_stock_quantity: Number(form.min_stock_quantity),
         expiry_notify_days: Number(form.expiry_notify_days),
+        stale_after_days: staleFromForm(form.stale_after_days),
         is_active: form.is_active,
       };
       if (form.id) {
@@ -268,6 +272,7 @@ function ТоварыSection() {
       units_per_package: String(p.units_per_package ?? 1),
       min_stock_quantity: String(p.min_stock_quantity ?? 0),
       expiry_notify_days: String(p.expiry_notify_days ?? 30),
+      stale_after_days: staleToForm(p.stale_after_days),
       is_active: p.is_active,
     });
     setOpen(true);
@@ -323,6 +328,7 @@ function ТоварыSection() {
               <th className="p-3">Единиц в упаковке</th>
               <th className="p-3">Мин. остаток</th>
               <th className="p-3">Предупреждать за (дней)</th>
+              <th className="p-3">Неликвид через</th>
               <th className="p-3">Штрихкод</th>
               <th className="p-3">Активен</th>
               <th className="p-3 w-12"></th>
@@ -341,6 +347,7 @@ function ТоварыSection() {
                 <td className="p-3">{p.units_per_package}</td>
                 <td className="p-3">{p.min_stock_quantity}</td>
                 <td className="p-3">{p.expiry_notify_days}</td>
+                <td className="p-3">{staleLabel(p.stale_after_days)}</td>
                 <td className="p-3">{p.barcode || "—"}</td>
                 <td className="p-3">
                   <Badge variant={p.is_active ? "default" : "secondary"}>
@@ -355,10 +362,10 @@ function ТоварыSection() {
               </tr>
             ))}
             {products.length === 0 && (
-              <tr><td colSpan={13} className="p-6 text-center text-muted-foreground">Нет товаров</td></tr>
+              <tr><td colSpan={14} className="p-6 text-center text-muted-foreground">Нет товаров</td></tr>
             )}
           </tbody>
-          {products.length > 0 && <TableTotalsFooter label="Итого" cells={[{}, { colSpan: 10, content: `Записей: ${products.length}` }, { content: `Активных: ${products.filter((x: any) => x.is_active).length}` }, {}]} />}
+          {products.length > 0 && <TableTotalsFooter label="Итого" cells={[{}, { colSpan: 11, content: `Записей: ${products.length}` }, { content: `Активных: ${products.filter((x: any) => x.is_active).length}` }, {}]} />}
         </table>
       </div>
 
@@ -463,6 +470,7 @@ function ТоварыSection() {
                 <Input type="number" min={min} step={step} value={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.value })} />
               </div>
             ))}
+            <StaleThresholdSelect id="prod-stale" value={form.stale_after_days} onChange={(v) => setForm({ ...form, stale_after_days: v })} />
             <div className="flex items-center gap-2">
               <Switch
                 id="prod-active"

@@ -150,6 +150,7 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
       setSupplierId("");
       qc.invalidateQueries({ queryKey: ["incoming-recent", warehouse?.id] });
       qc.invalidateQueries({ queryKey: ["stock", warehouse?.id] });
+      qc.invalidateQueries({ queryKey: ["stale-items", warehouse?.id] });
       qc.invalidateQueries({ queryKey: ["my-batches", warehouse?.id] });
       qc.invalidateQueries({ queryKey: ["writeoff-batches", warehouse?.id] });
       qc.invalidateQueries({ queryKey: ["nurse-inv-stock", warehouse?.id] });

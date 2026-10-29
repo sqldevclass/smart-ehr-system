@@ -289,7 +289,7 @@ export default function NurseInventoryModal({
     refetchPres(); refetchStock();
     qc.invalidateQueries({ queryKey: ["nurse-inv-transfers", deptWarehouse?.id] });
     if (!deptWarehouse) return;
-    for (const key of ["stock", "transfers", "my-batches", "writeoff-batches"]) qc.invalidateQueries({ queryKey: [key, deptWarehouse.id] });
+    for (const key of ["stock", "stale-items", "transfers", "my-batches", "writeoff-batches"]) qc.invalidateQueries({ queryKey: [key, deptWarehouse.id] });
     for (const key of ["nurse-prescriptions", "nurse-admin-slots", "all-slots"]) qc.invalidateQueries({ queryKey: [key] });
   };
 
