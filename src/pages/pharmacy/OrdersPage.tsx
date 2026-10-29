@@ -10,6 +10,8 @@ import { Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import StockOrdersView from "@/components/inventory-shared/StockOrdersView";
 import PrescriptionGrid from "@/components/medication/PrescriptionGrid";
 import InteractionWarnings, { useInteractionCount } from "@/components/medication/InteractionWarnings";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -36,7 +38,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
-export default function OrdersPage() {
+function PrescriptionOrders() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [selectedDeptId, setSelectedDeptId] = useState<string | null>(null);
@@ -603,3 +605,16 @@ function PharmacistPrescriptionListModal({
   );
 }
 
+
+export default function OrdersPage() {
+  return (
+    <Tabs defaultValue="prescriptions" className="space-y-4">
+      <TabsList>
+        <TabsTrigger value="prescriptions">Назначения</TabsTrigger>
+        <TabsTrigger value="dept-orders">Запросы отделений</TabsTrigger>
+      </TabsList>
+      <TabsContent value="prescriptions"><PrescriptionOrders /></TabsContent>
+      <TabsContent value="dept-orders"><StockOrdersView warehouseTypeCode="central_pharmacy" title="Запросы отделений" embedded /></TabsContent>
+    </Tabs>
+  );
+}

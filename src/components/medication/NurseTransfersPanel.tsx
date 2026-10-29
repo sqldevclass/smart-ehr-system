@@ -16,6 +16,7 @@ import { TransferTable } from "@/components/inventory-shared/TransferTable";
 import { matchesRange, type PeriodState } from "@/components/shared/PeriodFilter";
 import { FilterToolbar } from "@/components/shared/FilterToolbar";
 import { useTransferActions } from "@/components/inventory-shared/useTransferActions";
+import NurseStockOrdersPanel from "@/components/medication/NurseStockOrdersPanel";
 
 interface Props {
   hospitalId: string;
@@ -66,7 +67,8 @@ export function filterNurseTransfers(rows: any[], filters: Record<string, string
 }
 
 export default function NurseTransfersPanel({ hospitalId, deptWarehouse, stock, allWarehouses, filters, period, toolbarLeft }: Props) {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const canOrder = hasPermission("warehouse.department_order");
   const qc = useQueryClient();
   const [busyAll, setBusyAll] = useState(false);
   const [txBatchId, setTxBatchId] = useState("");
@@ -127,7 +129,7 @@ export default function NurseTransfersPanel({ hospitalId, deptWarehouse, stock, 
     <Tabs defaultValue="incoming" className="space-y-3">
       <FilterToolbar
         left={toolbarLeft}
-        right={<TabsList><TabsTrigger value="incoming">Принятые</TabsTrigger><TabsTrigger value="outgoing">Отправленные</TabsTrigger></TabsList>}
+        right={<TabsList><TabsTrigger value="incoming">Принятые</TabsTrigger><TabsTrigger value="outgoing">Отправленные</TabsTrigger>{canOrder && <TabsTrigger value="orders">Заказы</TabsTrigger>}</TabsList>}
       />
       <TabsContent value="incoming" className="space-y-3">
         {incomingError && <p role="alert" className="text-destructive">{incomingError.message}</p>}
@@ -240,6 +242,7 @@ export default function NurseTransfersPanel({ hospitalId, deptWarehouse, stock, 
           {outgoingLoading ? <div className="flex items-center justify-center h-32"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div> : <TransferTable rows={filterNurseTransfers(outgoing, filters, period)} currentWarehouseId={deptWarehouse?.id} actions={actions} compact />}
         </section>
       </TabsContent>
+      {canOrder && <TabsContent value="orders" className="space-y-3"><NurseStockOrdersPanel deptWarehouse={deptWarehouse} hospitalId={hospitalId} /></TabsContent>}
     </Tabs>
     {actions.dialogs}
   </>;
