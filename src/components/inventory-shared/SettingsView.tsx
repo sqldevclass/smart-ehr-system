@@ -68,7 +68,6 @@ export default function SettingsView({ title }: { title: string }) {
             <TabsTrigger value="suppliers">Поставщики</TabsTrigger>
             <TabsTrigger value="manufacturers">Производители</TabsTrigger>
             <TabsTrigger value="release_forms">Форма выпуска</TabsTrigger>
-            <TabsTrigger value="packaging">Упаковка</TabsTrigger>
             <TabsTrigger value="units">Единицы измерения</TabsTrigger>
             <TabsTrigger value="product_types">Вид товара</TabsTrigger>
           </TabsList>
@@ -84,9 +83,6 @@ export default function SettingsView({ title }: { title: string }) {
         </TabsContent>
         <TabsContent value="release_forms">
           <LookupSection table="release_forms" label="Форма выпуска" scope="warehouse" />
-        </TabsContent>
-        <TabsContent value="packaging">
-          <LookupSection table="packaging_types" label="Упаковка" showCode scope="warehouse" />
         </TabsContent>
         <TabsContent value="units">
           <LookupSection table="units_of_measurement" label="Единица измерения" hasAbbr scope="warehouse" />
@@ -105,11 +101,8 @@ interface Product {
   product_type_id: string;
   unit_id: string;
   release_form_id?: string | null;
-  packaging_type_id?: string | null;
   manufacturer_id?: string | null;
   barcode?: string | null;
-  inn: string;
-  units_per_package: string;
   min_stock_quantity: string;
   expiry_notify_days: string;
   stale_after_days: string;
@@ -121,11 +114,8 @@ const emptyProduct: Product = {
   product_type_id: "",
   unit_id: "",
   release_form_id: null,
-  packaging_type_id: null,
   manufacturer_id: null,
   barcode: "",
-  inn: "",
-  units_per_package: "1",
   min_stock_quantity: "0",
   expiry_notify_days: "30",
   stale_after_days: "none",
@@ -187,21 +177,6 @@ function ТоварыSection() {
     },
   });
 
-  const { data: packagings = [] } = useQuery({
-    queryKey: ["packaging_types", "pick", user?.hospitalId, "warehouse"],
-    enabled: !!user?.hospitalId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("packaging_types")
-        .select("id, name_ru")
-        .in("scope", ["warehouse", "shared"])
-        .or(`hospital_id.is.null,hospital_id.eq.${user?.hospitalId ?? ""}`)
-        .order("sort_order");
-      if (error) { toast.error(error.message); throw error; }
-      return data || [];
-    },
-  });
-
   const { data: manufacturers = [] } = useQuery({
     queryKey: ["manufacturers-list", user?.hospitalId, "warehouse"],
     enabled: !!user?.hospitalId,
@@ -224,7 +199,7 @@ function ТоварыSection() {
       let q = supabase
         .from("products")
         .select(
-          "id, name, product_type_id, unit_id, release_form_id, packaging_type_id, manufacturer_id, barcode, inn, units_per_package, min_stock_quantity, expiry_notify_days, stale_after_days, is_active, product_types(name_ru), units_of_measurement(name_ru), release_forms(name_ru), packaging_types(name_ru), manufacturers(name)"
+          "id, name, product_type_id, unit_id, release_form_id, manufacturer_id, barcode, min_stock_quantity, expiry_notify_days, stale_after_days, is_active, product_types(name_ru), units_of_measurement(name_ru), release_forms(name_ru), manufacturers(name)"
         )
         .eq("hospital_id", user?.hospitalId ?? "")
         .order("name");
@@ -242,8 +217,6 @@ function ТоварыSection() {
       if (!user) throw new Error("Не выполнен вход");
       if (!form.name.trim()) throw new Error("Укажите название товара");
       if (!form.product_type_id || !form.unit_id || !form.release_form_id) throw new Error("Выберите тип товара, единицу измерения и форму выпуска");
-      const units = Number(form.units_per_package);
-      if (!form.units_per_package.trim() || !Number.isInteger(units) || units <= 0) throw new Error("Единиц в упаковке: укажите целое число больше нуля");
       if (!form.min_stock_quantity.trim() || !Number.isFinite(Number(form.min_stock_quantity)) || Number(form.min_stock_quantity) < 0) throw new Error("Мин. остаток должен быть неотрицательным числом");
       if (!form.expiry_notify_days.trim() || !Number.isFinite(Number(form.expiry_notify_days)) || Number(form.expiry_notify_days) < 0) throw new Error("Срок предупреждения должен быть неотрицательным числом");
       const payload = {
@@ -251,11 +224,8 @@ function ТоварыSection() {
         product_type_id: form.product_type_id,
         unit_id: form.unit_id,
         release_form_id: form.release_form_id || null,
-        packaging_type_id: form.packaging_type_id || null,
         manufacturer_id: form.manufacturer_id || null,
         barcode: form.barcode || null,
-        inn: form.inn.trim() || null,
-        units_per_package: Number(form.units_per_package),
         min_stock_quantity: Number(form.min_stock_quantity),
         expiry_notify_days: Number(form.expiry_notify_days),
         stale_after_days: staleFromForm(form.stale_after_days),
@@ -277,7 +247,13 @@ function ТоварыSection() {
       setForm(emptyProduct);
       qc.invalidateQueries({ queryKey: ["products", user?.hospitalId] });
     },
-    onError: (e: Error & { code?: string }) => toast.error(e.code === "23505" ? "Товар с таким названием и формой выпуска уже существует" : e.message),
+    onError: (e: Error & { code?: string }) => toast.error(
+      e.message.includes("products_hospital_barcode_uq")
+        ? "Товар с таким штрихкодом уже существует"
+        : e.code === "23505"
+          ? "Товар с таким названием и формой выпуска уже существует"
+          : e.message
+    ),
   });
 
   const openAdd = () => {
@@ -292,11 +268,8 @@ function ТоварыSection() {
       product_type_id: p.product_type_id,
       unit_id: p.unit_id,
       release_form_id: p.release_form_id,
-      packaging_type_id: p.packaging_type_id,
       manufacturer_id: p.manufacturer_id,
       barcode: p.barcode || "",
-      inn: p.inn || "",
-      units_per_package: String(p.units_per_package ?? 1),
       min_stock_quantity: String(p.min_stock_quantity ?? 0),
       expiry_notify_days: String(p.expiry_notify_days ?? 30),
       stale_after_days: staleToForm(p.stale_after_days),
@@ -315,7 +288,7 @@ function ТоварыSection() {
           <div className="space-y-1.5">
             <Label>Поиск</Label>
             <SearchInput
-              placeholder="Название, МНН или штрихкод"
+              placeholder="Название или штрихкод"
               value={search}
               onChange={setSearch}
               className="w-64"
@@ -347,16 +320,13 @@ function ТоварыSection() {
             <tr className="text-left">
               <th className="p-3">Название</th>
               <th className="p-3">Тип товара</th>
-              <th className="p-3">Единица измерения</th>
               <th className="p-3">Форма выпуска</th>
+              <th className="p-3">Единица измерения</th>
               <th className="p-3">Производитель</th>
-              <th className="p-3">МНН</th>
-              <th className="p-3">Упаковка</th>
-              <th className="p-3">Единиц в упаковке</th>
+              <th className="p-3">Штрихкод</th>
               <th className="p-3">Мин. остаток</th>
               <th className="p-3">Предупреждать за (дней)</th>
               <th className="p-3">Неликвид через</th>
-              <th className="p-3">Штрихкод</th>
               <th className="p-3">Активен</th>
               <th className="p-3 w-12"></th>
             </tr>
@@ -366,16 +336,13 @@ function ТоварыSection() {
               <tr key={p.id} className="border-t">
                 <td className="p-3"><HighlightMatch text={p.name} term={debouncedSearch} /></td>
                 <td className="p-3">{p.product_types?.name_ru || "—"}</td>
-                <td className="p-3">{p.units_of_measurement?.name_ru || "—"}</td>
                 <td className="p-3">{p.release_forms?.name_ru || "—"}</td>
+                <td className="p-3">{p.units_of_measurement?.name_ru || "—"}</td>
                 <td className="p-3">{p.manufacturers?.name || "—"}</td>
-                <td className="p-3">{p.inn || "—"}</td>
-                <td className="p-3">{p.packaging_types?.name_ru || "—"}</td>
-                <td className="p-3">{p.units_per_package}</td>
+                <td className="p-3">{p.barcode || "—"}</td>
                 <td className="p-3">{p.min_stock_quantity}</td>
                 <td className="p-3">{p.expiry_notify_days}</td>
                 <td className="p-3">{staleLabel(p.stale_after_days)}</td>
-                <td className="p-3">{p.barcode || "—"}</td>
                 <td className="p-3">
                   <Badge variant={p.is_active ? "default" : "secondary"}>
                     {p.is_active ? "Активен" : "Неактивен"}
@@ -389,10 +356,10 @@ function ТоварыSection() {
               </tr>
             ))}
             {products.length === 0 && (
-              <tr><td colSpan={14} className="p-6 text-center text-muted-foreground">Нет товаров</td></tr>
+              <tr><td colSpan={11} className="p-6 text-center text-muted-foreground">Нет товаров</td></tr>
             )}
           </tbody>
-          {products.length > 0 && <TableTotalsFooter label="Итого" cells={[{}, { colSpan: 11, content: `Записей: ${products.length}` }, { content: `Активных: ${products.filter((x: any) => x.is_active).length}` }, {}]} />}
+          {products.length > 0 && <TableTotalsFooter label="Итого" cells={[{}, { colSpan: 8, content: `Записей: ${products.length}` }, { content: `Активных: ${products.filter((x: any) => x.is_active).length}` }, {}]} />}
         </table>
       </div>
 
@@ -421,25 +388,13 @@ function ТоварыSection() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Единица измерения *</Label>
-              <Select value={form.unit_id} onValueChange={(v) => setForm({ ...form, unit_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Выберите единицу" /></SelectTrigger>
-                <SelectContent>
-                  {units.map((u: any) => (
-                    <SelectItem key={u.id} value={u.id}>{u.name_ru}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
               <Label>Форма выпуска *</Label>
               <Select
-                value={form.release_form_id || "none"}
-                onValueChange={(v) => setForm({ ...form, release_form_id: v === "none" ? null : v })}
+                value={form.release_form_id || ""}
+                onValueChange={(v) => setForm({ ...form, release_form_id: v })}
               >
-                <SelectTrigger><SelectValue placeholder="Необязательно" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Выберите форму выпуска" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">—</SelectItem>
                   {releaseForms.map((r: any) => (
                     <SelectItem key={r.id} value={r.id}>{r.name_ru}</SelectItem>
                   ))}
@@ -447,16 +402,12 @@ function ТоварыSection() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Упаковка</Label>
-              <Select
-                value={form.packaging_type_id || "none"}
-                onValueChange={(v) => setForm({ ...form, packaging_type_id: v === "none" ? null : v })}
-              >
-                <SelectTrigger><SelectValue placeholder="Необязательно" /></SelectTrigger>
+              <Label>Единица измерения *</Label>
+              <Select value={form.unit_id} onValueChange={(v) => setForm({ ...form, unit_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Выберите единицу" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">—</SelectItem>
-                  {packagings.map((p: any) => (
-                    <SelectItem key={p.id} value={p.id}>{p.name_ru}</SelectItem>
+                  {units.map((u: any) => (
+                    <SelectItem key={u.id} value={u.id}>{u.name_ru}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -483,12 +434,7 @@ function ТоварыSection() {
                 onChange={(e) => setForm({ ...form, barcode: e.target.value })}
               />
             </div>
-            <div className="space-y-1.5">
-              <Label>МНН</Label>
-              <Input value={form.inn} onChange={(e) => setForm({ ...form, inn: e.target.value })} />
-            </div>
             {([
-              ["units_per_package", "Единиц в упаковке", 1, 1],
               ["min_stock_quantity", "Мин. остаток", 0, "any"],
               ["expiry_notify_days", "Предупреждать о сроке за (дней)", 0, "any"],
             ] as const).map(([key, label, min, step]) => (
