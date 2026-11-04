@@ -97,8 +97,6 @@ export function TurnoverDiagram({ data, kind, warehouseId }: { data: Lifecycle; 
   const woTypes = data.write_off_types.filter((t) => t.code !== "return_supplier");
   const written = sumBuckets(woTypes);
   const ret = data.write_off_types.find((t) => t.code === "return_supplier") ?? { units: 0, value: 0, items: 0 };
-  const lbl = (u: number, v?: number) => itemMode ? `${fmtUnits(u)} ${unit}` : v !== undefined ? fmtMoney(v) : fmtUnits(u);
-  const common = { itemMode, unit };
 
   return (
     <div className="space-y-3">

@@ -17,16 +17,17 @@ const TYPE_LABELS: Record<string, string> = { central_pharmacy: "Централ�
 
 interface WhereRow { id: string; name: string; type: string; department: string; units: number; value: number }
 
-export default function ItemTurnoverView({ kind }: { kind: TurnoverKind }) {
+export default function ItemTurnoverView({ kind: initialKind, warehouseId }: { kind: TurnoverKind; warehouseId?: string }) {
   const { user, hasPermission } = useAuth();
-  const allowed = hasPermission("warehouse.view_all");
+  const allowed = warehouseId ? true : hasPermission("warehouse.view_all");
+  const [kind, setKind] = useState<TurnoverKind>(initialKind);
   const [itemId, setItemId] = useState<string | null>(null);
 
   const q = useQuery({
-    queryKey: ["item-lifecycle", kind, itemId, user?.hospitalId],
+    queryKey: ["item-lifecycle", kind, itemId, user?.hospitalId, warehouseId ?? null],
     enabled: allowed,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_item_lifecycle", { p_kind: kind, p_item_id: itemId });
+      const { data, error } = await supabase.rpc("get_item_lifecycle", { p_kind: kind, p_item_id: itemId, p_warehouse_id: warehouseId ?? null });
       if (error) throw error;
       return normalizeLifecycle(data);
     },
