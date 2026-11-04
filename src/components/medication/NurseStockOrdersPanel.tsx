@@ -176,23 +176,25 @@ function SourceTab({ source, deptWarehouseId, cart, setCart, readOnly = false }:
   if (!source) return <p className="text-center text-muted-foreground py-6">Склад не настроен</p>;
 
   return <div className="space-y-4">
-    <Input placeholder="Поиск препарата / товара" value={search} onChange={(e) => setSearch(e.target.value)} />
-    {isLoading ? <div className="flex justify-center py-6"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-      : !search.trim() ? <p className="text-sm text-muted-foreground">Начните вводить название</p>
-      : <DataTable columns={resultColumns} data={results} getRowId={(r) => r.item_id} emptyMessage="Ничего не найдено" />}
-    <div className="space-y-2">
-      <h3 className="font-semibold">Корзина</h3>
-      <DataTable columns={cartColumns} data={cart} getRowId={(r) => r.item_id} emptyMessage="Корзина пуста"
-        renderFooter={(table) => <TableRow><TableCell colSpan={table.getVisibleLeafColumns().length} className="font-semibold">Итого позиций: {cart.length}</TableCell></TableRow>} />
-      <div className="flex justify-end">
-        <Button onClick={order} disabled={!cart.length || ordering}>{ordering && <Loader2 className="h-4 w-4 animate-spin mr-1" />}Заказать</Button>
+    {!readOnly && <>
+      <Input placeholder="Поиск препарата / товара" value={search} onChange={(e) => setSearch(e.target.value)} />
+      {isLoading ? <div className="flex justify-center py-6"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+        : !search.trim() ? <p className="text-sm text-muted-foreground">Начните вводить название</p>
+        : <DataTable columns={resultColumns} data={results} getRowId={(r) => r.item_id} emptyMessage="Ничего не найдено" />}
+      <div className="space-y-2">
+        <h3 className="font-semibold">Корзина</h3>
+        <DataTable columns={cartColumns} data={cart} getRowId={(r) => r.item_id} emptyMessage="Корзина пуста"
+          renderFooter={(table) => <TableRow><TableCell colSpan={table.getVisibleLeafColumns().length} className="font-semibold">Итого позиций: {cart.length}</TableCell></TableRow>} />
+        <div className="flex justify-end">
+          <Button onClick={order} disabled={!cart.length || ordering}>{ordering && <Loader2 className="h-4 w-4 animate-spin mr-1" />}Заказать</Button>
+        </div>
       </div>
-    </div>
-    <MyStockOrders sourceId={source.id} deptWarehouseId={deptWarehouseId} />
+    </>}
+    <MyStockOrders sourceId={source.id} deptWarehouseId={deptWarehouseId} readOnly={readOnly} />
   </div>;
 }
 
-export default function NurseStockOrdersPanel({ deptWarehouse }: Props) {
+export default function NurseStockOrdersPanel({ deptWarehouse, readOnly = false }: Props) {
   const { data: general } = useMyWarehouse("general");
   const { data: pharmacy } = useMyWarehouse("central_pharmacy");
   const [carts, setCarts] = useState<Record<SourceKey, CartItem[]>>({ general: [], central_pharmacy: [] });
@@ -203,10 +205,10 @@ export default function NurseStockOrdersPanel({ deptWarehouse }: Props) {
     <Tabs defaultValue="general" className="space-y-3">
       <TabsList><TabsTrigger value="general">Склад</TabsTrigger><TabsTrigger value="central_pharmacy">Аптека</TabsTrigger></TabsList>
       <TabsContent value="general">
-        <SourceTab source={general} deptWarehouseId={deptWarehouse.id} cart={carts.general} setCart={(c) => setCarts((p) => ({ ...p, general: c }))} />
+        <SourceTab source={general} deptWarehouseId={deptWarehouse.id} cart={carts.general} setCart={(c) => setCarts((p) => ({ ...p, general: c }))} readOnly={readOnly} />
       </TabsContent>
       <TabsContent value="central_pharmacy">
-        <SourceTab source={pharmacy} deptWarehouseId={deptWarehouse.id} cart={carts.central_pharmacy} setCart={(c) => setCarts((p) => ({ ...p, central_pharmacy: c }))} />
+        <SourceTab source={pharmacy} deptWarehouseId={deptWarehouse.id} cart={carts.central_pharmacy} setCart={(c) => setCarts((p) => ({ ...p, central_pharmacy: c }))} readOnly={readOnly} />
       </TabsContent>
     </Tabs>
 
