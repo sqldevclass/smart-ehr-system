@@ -19,11 +19,14 @@ import { matchesPatientSearch, PATIENT_SEARCH_PLACEHOLDER } from "@/lib/patientS
 import { PeriodFilter, matchesRange, rangeBounds, type PeriodState } from "@/components/shared/PeriodFilter";
 import { usePeriodFilter } from "@/hooks/usePeriodFilter";
 import NurseTransfersPanel, { filterNurseTransfers, useNurseIncomingTransfers } from "./NurseTransfersPanel";
+import ItemTurnoverView from "@/components/inventory-shared/ItemTurnoverView";
+import { Badge } from "@/components/ui/badge";
 
 interface Props {
   departmentId: string;
   hospitalId: string;
   onClose: () => void;
+  readOnly?: boolean;
 }
 
 type Filters = Record<string, string>;
@@ -65,7 +68,7 @@ function FilterBar({
 }
 
 export default function NurseInventoryModal({
-  departmentId, hospitalId, onClose,
+  departmentId, hospitalId, onClose, readOnly = false,
 }: Props) {
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -386,7 +389,10 @@ export default function NurseInventoryModal({
         <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full min-h-0 flex flex-col">
           <div className="flex flex-wrap shrink-0 items-center gap-4 px-4 py-2.5 border-b">
             <div className="shrink-0">
-              <div className="text-lg font-semibold">Приход / Списание</div>
+              <div className="flex items-center gap-2 text-lg font-semibold">
+                Приход / Списание
+                {readOnly && <Badge variant="secondary" className="font-normal">Только просмотр</Badge>}
+              </div>
               <div className="text-sm text-muted-foreground">Склад: {deptWarehouse?.name || "—"} · Отделение: {department?.name || "—"}</div>
             </div>
             <TabsList className="mx-auto">
@@ -398,6 +404,7 @@ export default function NurseInventoryModal({
               </TabsTrigger>
               <TabsTrigger value="writeoff">Списание</TabsTrigger>
               <TabsTrigger value="stock">Склад отделения</TabsTrigger>
+              <TabsTrigger value="turnover">Товарооборот</TabsTrigger>
             </TabsList>
             <button
               onClick={onClose}
