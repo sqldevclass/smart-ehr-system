@@ -439,12 +439,14 @@ export default function NurseInventoryModal({
                 </div>
               ) : (
                 <>
-                  <div className="flex justify-end mb-2">
-                    <Button onClick={acceptAllPrescriptions} disabled={busyAll} className="gap-2">
-                      {busyAll && <Loader2 className="h-4 w-4 animate-spin" />}
-                      Принять все ({filteredPres.length})
-                    </Button>
-                  </div>
+                  {!readOnly && (
+                    <div className="flex justify-end mb-2">
+                      <Button onClick={acceptAllPrescriptions} disabled={busyAll} className="gap-2">
+                        {busyAll && <Loader2 className="h-4 w-4 animate-spin" />}
+                        Принять все ({filteredPres.length})
+                      </Button>
+                    </div>
+                  )}
                   <div className="border rounded-lg overflow-x-auto">
                     <table className="w-full">
                       <thead className="bg-muted/50">
@@ -457,7 +459,7 @@ export default function NurseInventoryModal({
                           <th className={th}>Время</th>
                           <th className={th}>Доза</th>
                           <th className={th}>Путь</th>
-                          <th className={th}></th>
+                          {!readOnly && <th className={th}></th>}
                         </tr>
                       </thead>
                       <tbody>
@@ -475,11 +477,13 @@ export default function NurseInventoryModal({
                               <td className={td}>{s.scheduled_at ? format(new Date(s.scheduled_at), "dd.MM HH:mm") : "—"}</td>
                               <td className={td}>{pres?.dose} {pres?.dose_unit}</td>
                               <td className={td}>{pres?.route || "—"}</td>
-                              <td className={td}>
-                                <Button size="sm" onClick={() => acceptSlot(s.id)} disabled={busy.has(s.id) || busyAll}>
-                                  {busy.has(s.id) ? <Loader2 className="h-4 w-4 animate-spin" /> : "Принять"}
-                                </Button>
-                              </td>
+                              {!readOnly && (
+                                <td className={td}>
+                                  <Button size="sm" onClick={() => acceptSlot(s.id)} disabled={busy.has(s.id) || busyAll}>
+                                    {busy.has(s.id) ? <Loader2 className="h-4 w-4 animate-spin" /> : "Принять"}
+                                  </Button>
+                                </td>
+                              )}
                             </tr>
                           );
                         })}
@@ -499,6 +503,7 @@ export default function NurseInventoryModal({
                 allWarehouses={allWarehouses}
                 filters={filters}
                 period={period}
+                readOnly={readOnly}
                 toolbarLeft={<FilterBar filters={filters} onChange={setFilter} fields={["drug", "period"]} period={period} onPeriodChange={setPeriod} />}
               />
             </TabsContent>
@@ -506,6 +511,7 @@ export default function NurseInventoryModal({
             {/* TAB 3 */}
             <TabsContent value="writeoff" className="flex-1 min-h-0 overflow-y-auto mt-2 space-y-3">
               <FilterBar filters={{}} onChange={setFilter} fields={["period"]} period={period} onPeriodChange={setPeriod} />
+              {!readOnly && (
               <div className="grid grid-cols-[140px_1fr_90px_1fr_auto] gap-2 items-end">
                 <div>
                   <Label className="text-xs">Поиск</Label>
@@ -556,6 +562,7 @@ export default function NurseInventoryModal({
                   {woSending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Списать"}
                 </Button>
               </div>
+              )}
 
               <div>
                 <h3 className="font-semibold mb-2">Доступный запас</h3>
