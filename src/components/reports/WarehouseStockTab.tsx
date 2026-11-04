@@ -239,6 +239,7 @@ export default function WarehouseStockTab() {
   const [warehouseId, setWarehouseId] = useState("all");
   const [status, setStatus] = useState("all");
   const [search, setSearch] = useState("");
+  const [viewDepartmentId, setViewDepartmentId] = useState<string | null>(null);
   const { data, isLoading, isFetching, error, refetch, dataUpdatedAt } = useQuery({
     queryKey: ["warehouse-stock-report", user?.hospitalId],
     enabled: !!user?.hospitalId,
@@ -246,6 +247,15 @@ export default function WarehouseStockTab() {
       const { data, error } = await supabase.rpc("get_warehouse_stock_report");
       if (error) throw error;
       return parseReport(data as unknown);
+    },
+  });
+  const { data: deptByWarehouse = {} } = useQuery({
+    queryKey: ["warehouse-departments", user?.hospitalId],
+    enabled: !!user?.hospitalId,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("warehouses").select("id, department_id").eq("hospital_id", user!.hospitalId);
+      if (error) throw error;
+      return Object.fromEntries((data ?? []).map((w) => [w.id, w.department_id as string | null]));
     },
   });
 
@@ -309,12 +319,30 @@ export default function WarehouseStockTab() {
               <section key={code} className="space-y-3">
                 <h2 className="border-b pb-3 font-semibold">{list[0].type_name || SECTION_TITLES[code]}</h2>
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                  {list.map((w) => <WarehouseCard key={w.warehouse_id} warehouse={w} items={view.byWarehouse.get(w.warehouse_id) ?? []} totalCost={totals.cost} />)}
+                  {list.map((w) => (
+                    <WarehouseCard
+                      key={w.warehouse_id}
+                      warehouse={w}
+                      items={view.byWarehouse.get(w.warehouse_id) ?? []}
+                      totalCost={totals.cost}
+                      onOpenDepartment={w.type_code === "department" && deptByWarehouse[w.warehouse_id]
+                        ? () => setViewDepartmentId(deptByWarehouse[w.warehouse_id]!)
+                        : undefined}
+                    />
+                  ))}
                 </div>
               </section>
             );
           })}
         </div>}
+      {viewDepartmentId && user?.hospitalId && (
+        <NurseInventoryModal
+          departmentId={viewDepartmentId}
+          hospitalId={user.hospitalId}
+          readOnly
+          onClose={() => setViewDepartmentId(null)}
+        />
+      )}
     </div>
   );
 }
