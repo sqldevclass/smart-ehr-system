@@ -15,7 +15,7 @@ export function TurnoverItemPicker({ kind, value, onChange, warehouseId }: Props
   const [open, setOpen] = useState(false);
   const { data: items = [] } = useQuery({
     queryKey: ["turnover-items", kind, user?.hospitalId, warehouseId ?? null],
-    enabled: !!user?.hospitalId && (!warehouseId || !!warehouseId),
+    enabled: !!user?.hospitalId,
     queryFn: async () => {
       if (warehouseId) {
         const { data, error } = await supabase.rpc("list_warehouse_turnover_items", { p_warehouse_id: warehouseId, p_kind: kind });
