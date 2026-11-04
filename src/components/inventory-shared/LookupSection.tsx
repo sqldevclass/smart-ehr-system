@@ -16,15 +16,13 @@ export function LookupSection({
   label,
   hasAbbr,
   showCode,
-  hasHospitalId = true,
   scope,
 }: {
   table: "units_of_measurement" | "release_forms" | "packaging_types" | "product_types";
   label: string;
   hasAbbr?: boolean;
   showCode?: boolean;
-  hasHospitalId?: boolean;
-  scope?: "pharmacy" | "warehouse";
+  scope: "pharmacy" | "warehouse";
 }) {
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -36,26 +34,23 @@ export function LookupSection({
     hospital_id?: string | null;
   }>({ name_ru: "", abbreviation: "" });
 
-  const queryKey = [table, user?.hospitalId, scope];
-  const baseCols = ["id", "name_ru", "sort_order"];
+  const queryKey = [table, "list", user?.hospitalId, scope];
+  const baseCols = ["id", "name_ru", "sort_order", "hospital_id"];
   if (hasAbbr) baseCols.push("abbreviation");
   if (showCode) baseCols.push("code");
-  if (hasHospitalId) baseCols.push("hospital_id");
   const selectCols = baseCols.join(", ");
 
   const { data: items = [] } = useQuery({
     queryKey,
     enabled: !!user?.hospitalId,
     queryFn: async () => {
-      let q = supabase
+      const q = supabase
         .from(table)
         .select(selectCols)
+        .or(`hospital_id.is.null,hospital_id.eq.${user?.hospitalId ?? ""}`)
+        .in("scope", [scope, "shared"])
         .order("sort_order")
         .order("name_ru");
-      if (hasHospitalId) {
-        q = q.or(`hospital_id.is.null,hospital_id.eq.${user?.hospitalId ?? ""}`);
-      }
-      if (scope) q = q.in("scope", [scope, "shared"]);
       const { data, error } = await q;
       if (error) throw error;
       return (data || []) as any[];
@@ -76,9 +71,9 @@ export function LookupSection({
           ...payload,
           code,
           name_en: form.name_ru,
+          hospital_id: user.hospitalId,
+          scope,
         };
-        if (hasHospitalId) insertPayload.hospital_id = user.hospitalId;
-        if (scope) insertPayload.scope = scope;
         const { error } = await supabase.from(table).insert(insertPayload);
         if (error) throw error;
       }
@@ -87,7 +82,7 @@ export function LookupSection({
       toast.success("Saved");
       setOpen(false);
       setForm({ name_ru: "", abbreviation: "" });
-      qc.invalidateQueries({ queryKey });
+      qc.invalidateQueries({ queryKey: [table] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -99,7 +94,7 @@ export function LookupSection({
     },
     onSuccess: () => {
       toast.success("Deleted");
-      qc.invalidateQueries({ queryKey });
+      qc.invalidateQueries({ queryKey: [table] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -157,7 +152,7 @@ export function LookupSection({
           </thead>
           <tbody>
             {items.map((r: any) => {
-              const isPlatform = !hasHospitalId || r.hospital_id == null;
+              const isPlatform = r.hospital_id == null;
               return (
                 <tr key={r.id} className="border-t">
                   <td className="p-3">{r.name_ru}</td>

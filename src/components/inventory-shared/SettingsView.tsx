@@ -69,6 +69,8 @@ export default function SettingsView({ title }: { title: string }) {
             <TabsTrigger value="manufacturers">Производители</TabsTrigger>
             <TabsTrigger value="release_forms">Форма выпуска</TabsTrigger>
             <TabsTrigger value="packaging">Упаковка</TabsTrigger>
+            <TabsTrigger value="units">Единицы измерения</TabsTrigger>
+            <TabsTrigger value="product_types">Вид товара</TabsTrigger>
           </TabsList>
         } />
         <TabsContent value="products">
@@ -81,10 +83,16 @@ export default function SettingsView({ title }: { title: string }) {
           <ПроизводителиSection />
         </TabsContent>
         <TabsContent value="release_forms">
-          <LookupSection table="release_forms" label="Форма выпуска" hasHospitalId scope="warehouse" />
+          <LookupSection table="release_forms" label="Форма выпуска" scope="warehouse" />
         </TabsContent>
         <TabsContent value="packaging">
-          <LookupSection table="packaging_types" label="Упаковка" showCode hasHospitalId scope="warehouse" />
+          <LookupSection table="packaging_types" label="Упаковка" showCode scope="warehouse" />
+        </TabsContent>
+        <TabsContent value="units">
+          <LookupSection table="units_of_measurement" label="Единица измерения" hasAbbr scope="warehouse" />
+        </TabsContent>
+        <TabsContent value="product_types">
+          <LookupSection table="product_types" label="Вид товара" scope="warehouse" />
         </TabsContent>
       </Tabs>
     </div>
@@ -135,21 +143,28 @@ function ТоварыSection() {
   const [activeOnly, setActiveOnly] = useState(true);
 
   const { data: productTypes = [] } = useQuery({
-    queryKey: ["product_types"],
+    queryKey: ["product_types", "pick", user?.hospitalId, "warehouse"],
+    enabled: !!user?.hospitalId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("product_types").select("id, name_ru").order("sort_order");
+      const { data, error } = await supabase
+        .from("product_types")
+        .select("id, name_ru")
+        .in("scope", ["warehouse", "shared"])
+        .or(`hospital_id.is.null,hospital_id.eq.${user?.hospitalId ?? ""}`)
+        .order("sort_order");
       if (error) { toast.error(error.message); throw error; }
       return data || [];
     },
   });
 
   const { data: units = [] } = useQuery({
-    queryKey: ["units_of_measurement", user?.hospitalId],
+    queryKey: ["units_of_measurement", "pick", user?.hospitalId, "warehouse"],
     enabled: !!user?.hospitalId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("units_of_measurement")
         .select("id, name_ru, abbreviation")
+        .in("scope", ["warehouse", "shared"])
         .or(`hospital_id.is.null,hospital_id.eq.${user?.hospitalId ?? ""}`)
         .order("sort_order");
       if (error) { toast.error(error.message); throw error; }
@@ -158,7 +173,7 @@ function ТоварыSection() {
   });
 
   const { data: releaseForms = [] } = useQuery({
-    queryKey: ["release_forms", user?.hospitalId, "warehouse"],
+    queryKey: ["release_forms", "pick", user?.hospitalId, "warehouse"],
     enabled: !!user?.hospitalId,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -173,7 +188,7 @@ function ТоварыSection() {
   });
 
   const { data: packagings = [] } = useQuery({
-    queryKey: ["packaging_types", user?.hospitalId, "warehouse"],
+    queryKey: ["packaging_types", "pick", user?.hospitalId, "warehouse"],
     enabled: !!user?.hospitalId,
     queryFn: async () => {
       const { data, error } = await supabase

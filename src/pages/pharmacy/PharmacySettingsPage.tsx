@@ -57,17 +57,17 @@ export default function PharmacySettingsPage() {
             table="units_of_measurement"
             label="Единица измерения"
             hasAbbr
-            hasHospitalId={false}
+            scope="pharmacy"
           />
         </TabsContent>
         <TabsContent value="release_forms">
-          <LookupSection table="release_forms" label="Форма выпуска" hasHospitalId scope="pharmacy" />
+          <LookupSection table="release_forms" label="Форма выпуска" scope="pharmacy" />
         </TabsContent>
         <TabsContent value="packaging">
-          <LookupSection table="packaging_types" label="Упаковка" showCode hasHospitalId scope="pharmacy" />
+          <LookupSection table="packaging_types" label="Упаковка" showCode scope="pharmacy" />
         </TabsContent>
         <TabsContent value="product_types">
-          <LookupSection table="product_types" label="Вид товара" hasHospitalId />
+          <LookupSection table="product_types" label="Вид товара" scope="pharmacy" />
         </TabsContent>
         <TabsContent value="drug_groups"><DrugGroupsSection /></TabsContent>
         
@@ -593,7 +593,7 @@ function FormularySection() {
   });
 
   const { data: packagings = [] } = useQuery({
-    queryKey: ["packaging_types-pick", user?.hospitalId, "pharmacy"],
+    queryKey: ["packaging_types", "pick", user?.hospitalId, "pharmacy"],
     enabled: !!user?.hospitalId,
     queryFn: async () => {
       const { data } = await supabase
@@ -607,7 +607,7 @@ function FormularySection() {
   });
 
   const { data: releaseForms = [] } = useQuery({
-    queryKey: ["release_forms-pick", user?.hospitalId, "pharmacy"],
+    queryKey: ["release_forms", "pick", user?.hospitalId, "pharmacy"],
     enabled: !!user?.hospitalId,
     queryFn: async () => {
       const { data } = await supabase
@@ -635,12 +635,13 @@ function FormularySection() {
   });
 
   const { data: units = [] } = useQuery({
-    queryKey: ["units_of_measurement", user?.hospitalId],
+    queryKey: ["units_of_measurement", "pick", user?.hospitalId, "pharmacy"],
     enabled: !!user?.hospitalId,
     queryFn: async () => {
       const { data } = await supabase
         .from("units_of_measurement")
         .select("id, name_ru, abbreviation")
+        .in("scope", ["pharmacy", "shared"])
         .or(`hospital_id.is.null,hospital_id.eq.${user!.hospitalId}`)
         .order("sort_order")
         .order("name_ru");
