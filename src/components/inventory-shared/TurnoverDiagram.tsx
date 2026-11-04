@@ -46,10 +46,49 @@ export function TurnoverDiagramSkeleton() {
   );
 }
 
-export function TurnoverDiagram({ data, kind }: { data: Lifecycle; kind: TurnoverKind }) {
+export function TurnoverDiagram({ data, kind, warehouseId }: { data: Lifecycle; kind: TurnoverKind; warehouseId?: string }) {
   const [deptOpen, setDeptOpen] = useState(false);
   const itemMode = !!data.item_id;
   const unit = data.unit_name ?? "";
+  const lbl = (u: number, v?: number) => itemMode ? `${fmtUnits(u)} ${unit}` : v !== undefined ? fmtMoney(v) : fmtUnits(u);
+  const common = { itemMode, unit };
+
+  if (warehouseId) {
+    const stock = sumBuckets(data.warehouses);
+    const woTypes = data.write_off_types.filter((t) => t.code !== "return_supplier");
+    const written = sumBuckets(woTypes);
+    return (
+      <div className="space-y-3">
+        <div className="flex flex-col md:flex-row md:items-stretch">
+          <Node icon={Truck} title="Получено" bucket={data.received} cumulative {...common} />
+          <Arrow label={lbl(data.received.units, data.received.value)} />
+          <Node icon={Warehouse} title="Остаток на складе" bucket={stock} stock {...common} />
+          <Arrow />
+          <div className="w-full md:w-auto md:flex-1 min-w-0 flex flex-col gap-2">
+            <Node icon={UserRound} title="Введено пациентам" bucket={data.patient} cumulative {...common} />
+            <Node icon={Trash2} title="Списано" bucket={written} cumulative {...common}>
+              {woTypes.length > 0 && (
+                <ul className="mt-2 space-y-0.5 text-xs text-muted-foreground">
+                  {woTypes.map((t) => (
+                    <li key={t.code} className="flex justify-between gap-2">
+                      <span className="truncate">{t.name}</span>
+                      <span className="whitespace-nowrap">{itemMode ? `${fmtUnits(t.units)} ${unit}` : `${t.items} поз.`}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Node>
+            <Node icon={Building2} title="Отправлено на другие склады" bucket={data.sent_out} cumulative {...common} />
+          </div>
+        </div>
+        <div className="flex flex-col md:flex-row gap-3">
+          <Node icon={Clock} title="В пути (отправлено, ждёт приёма)" bucket={data.in_transit} stock {...common} />
+          <Node icon={Truck} title="Ожидает вашего приёма" bucket={data.pending_in} stock {...common} />
+        </div>
+      </div>
+    );
+  }
+
   const primary = primaryStockType(kind);
   const main = sumBuckets(data.warehouses.filter((w) => w.type_code === primary));
   const deptList = data.warehouses.filter((w) => w.type_code === "department");
