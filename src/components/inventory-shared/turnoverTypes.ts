@@ -8,6 +8,7 @@ export interface LifecycleWriteOffType extends Bucket { code: string; name: stri
 export interface Lifecycle {
   generated_at: string; kind: TurnoverKind; item_id: string | null; item_name: string | null; unit_name: string | null;
   received: Bucket; patient: Bucket; written_off: Bucket; in_transit: Bucket;
+  sent_out: Bucket; pending_in: Bucket;
   warehouses: LifecycleWarehouse[]; write_off_types: LifecycleWriteOffType[];
   edges: { to_departments: { units: number; value: number }; returns_to_stock: { units: number; value: number } };
 }
@@ -23,6 +24,7 @@ export function normalizeLifecycle(raw: any): Lifecycle {
     item_name: raw?.item_name ?? null, unit_name: raw?.unit_name ?? null,
     received: bucket(raw?.received), patient: bucket(raw?.patient),
     written_off: bucket(raw?.written_off), in_transit: bucket(raw?.in_transit),
+    sent_out: bucket(raw?.sent_out), pending_in: bucket(raw?.pending_in),
     warehouses: (raw?.warehouses ?? []).map((w: any) => ({ ...w, ...bucket(w) })),
     write_off_types: (raw?.write_off_types ?? []).map((w: any) => ({ ...w, ...bucket(w) })),
     edges: {
