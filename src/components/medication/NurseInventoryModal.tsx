@@ -674,6 +674,17 @@ export default function NurseInventoryModal({
                 </div>
               )}
             </TabsContent>
+
+            {/* TAB 5 */}
+            <TabsContent value="turnover" className="flex-1 min-h-0 overflow-y-auto mt-2">
+              {!deptWarehouse ? (
+                <div className="text-center text-muted-foreground py-12">
+                  Склад отделения не настроен
+                </div>
+              ) : (
+                <ItemTurnoverView kind="drug" warehouseId={deptWarehouse.id} />
+              )}
+            </TabsContent>
           </div>
         </Tabs>
       </div>
