@@ -5,6 +5,7 @@ import { CheckCircle2, AlertTriangle, ShieldOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { DataTable } from "@/components/reports/data-table/DataTable";
 import { fmtMoney, totalsFooter } from "@/components/reports/reportTotals";
 import { ScreenHeader } from "./ScreenHeader";
@@ -64,7 +65,9 @@ export default function ItemTurnoverView({ kind: initialKind, warehouseId }: { k
   let banner = null;
   if (data) {
     const stock = sumBuckets(data.warehouses).units;
-    const right = stock + data.in_transit.units + data.patient.units + data.written_off.units;
+    const right = warehouseId
+      ? stock + data.patient.units + data.written_off.units + data.sent_out.units
+      : stock + data.in_transit.units + data.patient.units + data.written_off.units;
     const diff = data.received.units - right;
     const ok = Math.abs(diff) < 0.001;
     banner = (
@@ -74,7 +77,9 @@ export default function ItemTurnoverView({ kind: initialKind, warehouseId }: { k
           {ok ? "Баланс сходится" : `Расхождение: ${fmtUnits(diff)}`}
         </div>
         <p className="text-xs text-muted-foreground">
-          получено {fmtUnits(data.received.units)} {ok ? "=" : "≠"} на складах {fmtUnits(stock)} + в пути {fmtUnits(data.in_transit.units)} + пациентам {fmtUnits(data.patient.units)} + списано {fmtUnits(data.written_off.units)}
+          {warehouseId
+            ? `получено ${fmtUnits(data.received.units)} ${ok ? "=" : "≠"} остаток ${fmtUnits(stock)} + пациентам ${fmtUnits(data.patient.units)} + списано ${fmtUnits(data.written_off.units)} + отправлено ${fmtUnits(data.sent_out.units)}`
+            : `получено ${fmtUnits(data.received.units)} ${ok ? "=" : "≠"} на складах ${fmtUnits(stock)} + в пути ${fmtUnits(data.in_transit.units)} + пациентам ${fmtUnits(data.patient.units)} + списано ${fmtUnits(data.written_off.units)}`}
         </p>
       </div>
     );
@@ -84,7 +89,15 @@ export default function ItemTurnoverView({ kind: initialKind, warehouseId }: { k
     <div className="space-y-4 min-w-0">
       <ScreenHeader
         title="Товарооборот"
-        right={<TurnoverItemPicker kind={kind} value={itemId} onChange={setItemId} />}
+        right={<>
+          {warehouseId && (
+            <ToggleGroup type="single" value={kind} onValueChange={(v) => { if (v) { setKind(v as TurnoverKind); setItemId(null); } }}>
+              <ToggleGroupItem value="drug">Препараты</ToggleGroupItem>
+              <ToggleGroupItem value="product">Товары</ToggleGroupItem>
+            </ToggleGroup>
+          )}
+          <TurnoverItemPicker kind={kind} value={itemId} onChange={setItemId} warehouseId={warehouseId} />
+        </>}
       />
 
       {q.isLoading && <TurnoverDiagramSkeleton />}
@@ -96,7 +109,7 @@ export default function ItemTurnoverView({ kind: initialKind, warehouseId }: { k
       )}
       {data && <>
         {banner}
-        <TurnoverDiagram data={data} kind={kind} />
+        <TurnoverDiagram data={data} kind={kind} warehouseId={warehouseId} />
         {itemId && <>
           <div className="space-y-3">
             <h3 className="font-heading text-lg font-semibold text-foreground">Где сейчас</h3>
@@ -110,7 +123,7 @@ export default function ItemTurnoverView({ kind: initialKind, warehouseId }: { k
               }) : undefined}
             />
           </div>
-          <TurnoverMovements kind={kind} itemId={itemId} unit={unit} />
+          <TurnoverMovements kind={kind} itemId={itemId} unit={unit} warehouseId={warehouseId} />
         </>}
       </>}
     </div>
