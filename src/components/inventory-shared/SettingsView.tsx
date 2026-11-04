@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScreenHeader } from "./ScreenHeader";
+import { LookupSection } from "./LookupSection";
 import { TableTotalsFooter } from "./TableTotalsFooter";
 import { StaleThresholdSelect, staleToForm, staleFromForm, staleLabel } from "./StaleThresholdSelect";
 import {
@@ -66,6 +67,8 @@ export default function SettingsView({ title }: { title: string }) {
             <TabsTrigger value="products">Товары</TabsTrigger>
             <TabsTrigger value="suppliers">Поставщики</TabsTrigger>
             <TabsTrigger value="manufacturers">Производители</TabsTrigger>
+            <TabsTrigger value="release_forms">Форма выпуска</TabsTrigger>
+            <TabsTrigger value="packaging">Упаковка</TabsTrigger>
           </TabsList>
         } />
         <TabsContent value="products">
@@ -76,6 +79,12 @@ export default function SettingsView({ title }: { title: string }) {
         </TabsContent>
         <TabsContent value="manufacturers">
           <ПроизводителиSection />
+        </TabsContent>
+        <TabsContent value="release_forms">
+          <LookupSection table="release_forms" label="Форма выпуска" hasHospitalId scope="warehouse" />
+        </TabsContent>
+        <TabsContent value="packaging">
+          <LookupSection table="packaging_types" label="Упаковка" showCode hasHospitalId scope="warehouse" />
         </TabsContent>
       </Tabs>
     </div>
@@ -149,12 +158,13 @@ function ТоварыSection() {
   });
 
   const { data: releaseForms = [] } = useQuery({
-    queryKey: ["release_forms", user?.hospitalId],
+    queryKey: ["release_forms", user?.hospitalId, "warehouse"],
     enabled: !!user?.hospitalId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("release_forms")
         .select("id, name_ru")
+        .in("scope", ["warehouse", "shared"])
         .or(`hospital_id.is.null,hospital_id.eq.${user?.hospitalId ?? ""}`)
         .order("sort_order");
       if (error) { toast.error(error.message); throw error; }
@@ -163,12 +173,13 @@ function ТоварыSection() {
   });
 
   const { data: packagings = [] } = useQuery({
-    queryKey: ["packaging_types", user?.hospitalId],
+    queryKey: ["packaging_types", user?.hospitalId, "warehouse"],
     enabled: !!user?.hospitalId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("packaging_types")
         .select("id, name_ru")
+        .in("scope", ["warehouse", "shared"])
         .or(`hospital_id.is.null,hospital_id.eq.${user?.hospitalId ?? ""}`)
         .order("sort_order");
       if (error) { toast.error(error.message); throw error; }
@@ -177,12 +188,13 @@ function ТоварыSection() {
   });
 
   const { data: manufacturers = [] } = useQuery({
-    queryKey: ["manufacturers-list", user?.hospitalId],
+    queryKey: ["manufacturers-list", user?.hospitalId, "warehouse"],
     enabled: !!user?.hospitalId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("manufacturers")
         .select("id, name")
+        .eq("scope", "warehouse")
         .eq("hospital_id", user?.hospitalId ?? "")
         .order("name");
       if (error) { toast.error(error.message); throw error; }
@@ -497,12 +509,13 @@ function ПоставщикиSection() {
   const [form, setForm] = useState<Supplier>({ name: "", is_active: true });
 
   const { data: items = [] } = useQuery({
-    queryKey: ["suppliers", user?.hospitalId],
+    queryKey: ["suppliers", user?.hospitalId, "warehouse"],
     enabled: !!user?.hospitalId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("suppliers")
         .select("id, name, contact, phone, email, address, is_active")
+        .eq("scope", "warehouse")
         .eq("hospital_id", user?.hospitalId ?? "")
         .order("name");
       if (error) { toast.error(error.message); throw error; }
@@ -529,6 +542,7 @@ function ПоставщикиSection() {
       } else {
         const { error } = await supabase.from("suppliers").insert({
           hospital_id: user.hospitalId,
+          scope: "warehouse",
           name: form.name,
           contact: form.contact || null,
           phone: form.phone || null,
@@ -645,12 +659,13 @@ function ПроизводителиSection() {
   const [form, setForm] = useState<Manufacturer>({ name: "", is_active: true });
 
   const { data: items = [] } = useQuery({
-    queryKey: ["manufacturers", user?.hospitalId],
+    queryKey: ["manufacturers", user?.hospitalId, "warehouse"],
     enabled: !!user?.hospitalId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("manufacturers")
         .select("id, name, country, is_active")
+        .eq("scope", "warehouse")
         .eq("hospital_id", user?.hospitalId ?? "")
         .order("name");
       if (error) { toast.error(error.message); throw error; }
@@ -670,6 +685,7 @@ function ПроизводителиSection() {
       } else {
         const { error } = await supabase.from("manufacturers").insert({
           hospital_id: user.hospitalId,
+          scope: "warehouse",
           name: form.name,
           country: form.country || null,
           is_active: form.is_active,

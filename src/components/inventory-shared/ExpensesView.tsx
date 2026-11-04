@@ -84,12 +84,13 @@ export default function ExpensesView({ warehouseTypeCode, title }: Props) {
   });
 
   const { data: suppliers = [] } = useQuery({
-    queryKey: ["suppliers", user?.hospitalId, "active"],
+    queryKey: ["suppliers", user?.hospitalId, "active", warehouseTypeCode === "central_pharmacy" ? "pharmacy" : "warehouse"],
     enabled: !!user?.hospitalId && selectedType?.code === "return_supplier",
     queryFn: async () => {
       const { data, error } = await supabase
         .from("suppliers")
         .select("id, name")
+        .eq("scope", warehouseTypeCode === "central_pharmacy" ? "pharmacy" : "warehouse")
         .eq("is_active", true)
         .eq("hospital_id", user?.hospitalId ?? "")
         .order("name");

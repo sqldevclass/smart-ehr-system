@@ -56,12 +56,13 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
   });
 
   const { data: suppliers = [] } = useQuery({
-    queryKey: ["suppliers", user?.hospitalId, "active"],
+    queryKey: ["suppliers", user?.hospitalId, "active", warehouseTypeCode === "central_pharmacy" ? "pharmacy" : "warehouse"],
     enabled: !!user?.hospitalId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("suppliers")
         .select("id, name")
+        .eq("scope", warehouseTypeCode === "central_pharmacy" ? "pharmacy" : "warehouse")
         .eq("hospital_id", user?.hospitalId ?? "")
         .eq("is_active", true)
         .order("name");

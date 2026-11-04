@@ -94,12 +94,13 @@ export default function EquipmentPage() {
   });
 
   const { data: manufacturers = [] } = useQuery({
-    queryKey: ["manufacturers", user?.hospitalId],
+    queryKey: ["manufacturers", user?.hospitalId, "warehouse"],
     enabled: !!user?.hospitalId,
     queryFn: async () => {
       const { data } = await supabase
         .from("manufacturers")
         .select("id, name")
+        .eq("scope", "warehouse")
         .eq("hospital_id", user!.hospitalId)
         .order("name");
       return data || [];
