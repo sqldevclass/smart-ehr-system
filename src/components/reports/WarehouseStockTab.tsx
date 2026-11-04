@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { RefreshCw } from "lucide-react";
+import { ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -9,8 +9,8 @@ import { MetricTile, SummaryCard } from "@/components/shared/PeriodFilter";
 import SearchInput from "@/components/shared/SearchInput";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { FilterSelect } from "@/components/reports/FilterSelect";
+import NurseInventoryModal from "@/components/medication/NurseInventoryModal";
 import { DataTable } from "@/components/reports/data-table/DataTable";
 import { fmtMoney, totalsFooter } from "@/components/reports/reportTotals";
 import { cn } from "@/lib/utils";
@@ -161,21 +161,30 @@ const columns: ColumnDef<WarehouseStockItem, any>[] = [
   { id: "status", header: "Статус", cell: ({ row }) => <StatusBadges item={row.original} /> },
 ];
 
-function WarehouseCard({ warehouse, items, totalCost }: { warehouse: WarehouseStockWarehouse; items: WarehouseStockItem[]; totalCost: number }) {
+function WarehouseCard({ warehouse, items, totalCost, onOpenDepartment }: { warehouse: WarehouseStockWarehouse; items: WarehouseStockItem[]; totalCost: number; onOpenDepartment?: () => void }) {
   const [open, setOpen] = useState(false);
   const s = summarize([warehouse], items);
   const share = totalCost > 0 ? Math.round(s.cost / totalCost * 100) : 0;
   const positions = new Set(items.map((i) => `${i.item_kind}:${i.item_id}`)).size;
+  const expandable = !onOpenDepartment;
+  const activate = () => { if (onOpenDepartment) onOpenDepartment(); else setOpen((o) => !o); };
   return (
-    <div className="min-w-0 rounded-lg border bg-card p-4 space-y-4">
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={activate}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(); } }}
+      className="min-w-0 cursor-pointer rounded-lg border bg-card p-4 space-y-4 transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 space-y-1">
           <h3 className="font-medium break-words">{warehouse.warehouse_name}</h3>
           {warehouse.department_name && <p className="text-sm text-muted-foreground">{warehouse.department_name}</p>}
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {warehouse.type_name && <Badge variant="outline">{warehouse.type_name}</Badge>}
           {!warehouse.is_active && <Badge variant="secondary">Неактивен</Badge>}
+          {expandable && items.length > 0 && (open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />)}
         </div>
       </div>
       <div className="space-y-2">
@@ -202,28 +211,23 @@ function WarehouseCard({ warehouse, items, totalCost }: { warehouse: WarehouseSt
         {s.lowCount > 0 && <Badge variant="secondary" className="bg-amber-500/15">Мало: {s.lowCount}</Badge>}
         {!s.expiredCount && !s.expiringCount && !s.lowCount && <span className="text-sm text-muted-foreground">Без замечаний</span>}
       </div>
-      {items.length === 0 ? <p className="text-sm text-muted-foreground">Нет остатков</p> : (
-        <Collapsible open={open} onOpenChange={setOpen}>
-          <CollapsibleTrigger asChild>
-            <Button variant="outline" size="sm">{open ? "Скрыть позиции" : "Показать позиции"}</Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="mt-3">
-            <DataTable
-              columns={columns}
-              data={items}
-              emptyMessage="Нет остатков"
-              getRowId={(row) => `${row.item_kind}:${row.item_id}`}
-              renderFooter={(table) => {
-                const rows = table.getFilteredRowModel().rows.map((r) => r.original);
-                return totalsFooter(table, "Итого", {
-                  name: `Позиций: ${rows.length}`,
-                  cost_value: fmtMoney(sum(rows, (r) => r.cost_value)),
-                  sell_value: fmtMoney(sum(rows, (r) => r.sell_value)),
-                });
-              }}
-            />
-          </CollapsibleContent>
-        </Collapsible>
+      {items.length === 0 ? <p className="text-sm text-muted-foreground">Нет остатков</p> : expandable && open && (
+        <div className="mt-3" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+          <DataTable
+            columns={columns}
+            data={items}
+            emptyMessage="Нет остатков"
+            getRowId={(row) => `${row.item_kind}:${row.item_id}`}
+            renderFooter={(table) => {
+              const rows = table.getFilteredRowModel().rows.map((r) => r.original);
+              return totalsFooter(table, "Итого", {
+                name: `Позиций: ${rows.length}`,
+                cost_value: fmtMoney(sum(rows, (r) => r.cost_value)),
+                sell_value: fmtMoney(sum(rows, (r) => r.sell_value)),
+              });
+            }}
+          />
+        </div>
       )}
     </div>
   );
