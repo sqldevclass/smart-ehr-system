@@ -518,6 +518,7 @@ interface DrugForm {
   expiry_notify_days: string;
   stale_after_days: string;
   notify_below_min_qty: string;
+  markup_percent: string;
   is_active: boolean;
   subgroup_id: string | null;
 }
@@ -536,6 +537,7 @@ const emptyDrug: DrugForm = {
   expiry_notify_days: "30",
   stale_after_days: "none",
   notify_below_min_qty: "",
+  markup_percent: "0",
   is_active: true,
   subgroup_id: null,
 };
@@ -556,7 +558,7 @@ function FormularySection() {
       const { data } = await supabase
         .from("drug_formulary")
         .select(
-          "id, trade_name, inn, dose, unit_id, is_active, packaging_id, release_form_id, manufacturer_id, min_write_off_qty, min_quantity, shelf_life_days, expiry_notify_days, stale_after_days, notify_below_min_qty, subgroup_id, release_forms(name_ru), manufacturers(name), units_of_measurement(id, name_ru), drug_subgroups!subgroup_id(id, name_ru, group_id, drug_groups!group_id(id, name_ru))"
+          "id, trade_name, inn, dose, unit_id, is_active, packaging_id, release_form_id, manufacturer_id, min_write_off_qty, min_quantity, shelf_life_days, expiry_notify_days, stale_after_days, notify_below_min_qty, markup_percent, subgroup_id, release_forms(name_ru), manufacturers(name), units_of_measurement(id, name_ru), drug_subgroups!subgroup_id(id, name_ru, group_id, drug_groups!group_id(id, name_ru))"
         )
         .eq("hospital_id", user!.hospitalId)
         .order("trade_name");
@@ -654,6 +656,7 @@ function FormularySection() {
       if (!user) throw new Error("Not authenticated");
       const numOrNull = (v: string) => (v.trim() === "" ? null : Number(v));
       const intOrNull = (v: string) => (v.trim() === "" ? null : parseInt(v, 10));
+      if (!form.markup_percent.trim() || !Number.isFinite(Number(form.markup_percent)) || Number(form.markup_percent) < 0 || Number(form.markup_percent) > 999.99) throw new Error("Наценка должна быть от 0 до 999.99");
       const payload: any = {
         trade_name: form.trade_name,
         inn: form.inn,
@@ -668,6 +671,7 @@ function FormularySection() {
         expiry_notify_days: intOrNull(form.expiry_notify_days) ?? 30,
         stale_after_days: staleFromForm(form.stale_after_days),
         notify_below_min_qty: numOrNull(form.notify_below_min_qty),
+        markup_percent: Number(form.markup_percent),
         is_active: form.is_active,
         subgroup_id: form.subgroup_id || null,
       };
@@ -707,6 +711,7 @@ function FormularySection() {
       expiry_notify_days: d.expiry_notify_days?.toString() ?? "30",
       stale_after_days: staleToForm(d.stale_after_days),
       notify_below_min_qty: d.notify_below_min_qty?.toString() ?? "",
+      markup_percent: String(d.markup_percent ?? 0),
       is_active: d.is_active,
       subgroup_id: d.subgroup_id ?? null,
     });
@@ -772,7 +777,7 @@ function FormularySection() {
               <th className="p-3">Торговое название</th><th className="p-3">МНН</th>
               <th className="p-3">Подгруппа</th>
               <th className="p-3">Форма выпуска</th><th className="p-3">Производитель</th>
-              <th className="p-3">Доза</th><th className="p-3">Активен</th><th className="p-3 w-12"></th>
+              <th className="p-3">Доза</th><th className="p-3">Наценка, %</th><th className="p-3">Активен</th><th className="p-3 w-12"></th>
             </tr>
           </thead>
           <tbody>
@@ -784,6 +789,7 @@ function FormularySection() {
                 <td className="p-3">{d.release_forms?.name_ru || "—"}</td>
                 <td className="p-3">{d.manufacturers?.name || "—"}</td>
                 <td className="p-3">{d.dose || "—"}</td>
+                <td className="p-3">{d.markup_percent ?? 0}</td>
                 <td className="p-3">
                   <Badge variant={d.is_active ? "default" : "secondary"}>
                     {d.is_active ? "Активен" : "Неактивен"}
@@ -797,7 +803,7 @@ function FormularySection() {
               </tr>
             ))}
             {filteredDrugs.length === 0 && (
-              <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">No drugs.</td></tr>
+              <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">No drugs.</td></tr>
             )}
           </tbody>
         </table>
@@ -949,6 +955,10 @@ function FormularySection() {
                     {units.find((u: any) => u.id === form.unit_id)?.name_ru ?? ""}
                   </span>
                 </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="drug-markup">Наценка, %</Label>
+                <Input id="drug-markup" type="number" min={0} max={999.99} step={0.01} value={form.markup_percent} onChange={(e) => setForm({ ...form, markup_percent: e.target.value })} />
               </div>
               <div className="space-y-1.5">
                 <Label>Уведомить о сроке за (дней)</Label>

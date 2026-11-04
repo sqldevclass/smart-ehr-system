@@ -103,6 +103,7 @@ interface Product {
   release_form_id?: string | null;
   manufacturer_id?: string | null;
   barcode?: string | null;
+  markup_percent: string;
   min_stock_quantity: string;
   expiry_notify_days: string;
   stale_after_days: string;
@@ -116,6 +117,7 @@ const emptyProduct: Product = {
   release_form_id: null,
   manufacturer_id: null,
   barcode: "",
+  markup_percent: "0",
   min_stock_quantity: "0",
   expiry_notify_days: "30",
   stale_after_days: "none",
@@ -199,7 +201,7 @@ function ТоварыSection() {
       let q = supabase
         .from("products")
         .select(
-          "id, name, product_type_id, unit_id, release_form_id, manufacturer_id, barcode, min_stock_quantity, expiry_notify_days, stale_after_days, is_active, product_types(name_ru), units_of_measurement(name_ru), release_forms(name_ru), manufacturers(name)"
+          "id, name, product_type_id, unit_id, release_form_id, manufacturer_id, barcode, markup_percent, min_stock_quantity, expiry_notify_days, stale_after_days, is_active, product_types(name_ru), units_of_measurement(name_ru), release_forms(name_ru), manufacturers(name)"
         )
         .eq("hospital_id", user?.hospitalId ?? "")
         .order("name");
@@ -219,6 +221,7 @@ function ТоварыSection() {
       if (!form.product_type_id || !form.unit_id || !form.release_form_id) throw new Error("Выберите тип товара, единицу измерения и форму выпуска");
       if (!form.min_stock_quantity.trim() || !Number.isFinite(Number(form.min_stock_quantity)) || Number(form.min_stock_quantity) < 0) throw new Error("Мин. остаток должен быть неотрицательным числом");
       if (!form.expiry_notify_days.trim() || !Number.isFinite(Number(form.expiry_notify_days)) || Number(form.expiry_notify_days) < 0) throw new Error("Срок предупреждения должен быть неотрицательным числом");
+      if (!form.markup_percent.trim() || !Number.isFinite(Number(form.markup_percent)) || Number(form.markup_percent) < 0 || Number(form.markup_percent) > 999.99) throw new Error("Наценка должна быть от 0 до 999.99");
       const payload = {
         name: form.name.trim(),
         product_type_id: form.product_type_id,
@@ -226,6 +229,7 @@ function ТоварыSection() {
         release_form_id: form.release_form_id || null,
         manufacturer_id: form.manufacturer_id || null,
         barcode: form.barcode || null,
+        markup_percent: Number(form.markup_percent),
         min_stock_quantity: Number(form.min_stock_quantity),
         expiry_notify_days: Number(form.expiry_notify_days),
         stale_after_days: staleFromForm(form.stale_after_days),
@@ -270,6 +274,7 @@ function ТоварыSection() {
       release_form_id: p.release_form_id,
       manufacturer_id: p.manufacturer_id,
       barcode: p.barcode || "",
+      markup_percent: String(p.markup_percent ?? 0),
       min_stock_quantity: String(p.min_stock_quantity ?? 0),
       expiry_notify_days: String(p.expiry_notify_days ?? 30),
       stale_after_days: staleToForm(p.stale_after_days),
@@ -324,6 +329,7 @@ function ТоварыSection() {
               <th className="p-3">Единица измерения</th>
               <th className="p-3">Производитель</th>
               <th className="p-3">Штрихкод</th>
+              <th className="p-3">Наценка, %</th>
               <th className="p-3">Мин. остаток</th>
               <th className="p-3">Предупреждать за (дней)</th>
               <th className="p-3">Неликвид через</th>
@@ -340,6 +346,7 @@ function ТоварыSection() {
                 <td className="p-3">{p.units_of_measurement?.name_ru || "—"}</td>
                 <td className="p-3">{p.manufacturers?.name || "—"}</td>
                 <td className="p-3">{p.barcode || "—"}</td>
+                <td className="p-3">{p.markup_percent ?? 0}</td>
                 <td className="p-3">{p.min_stock_quantity}</td>
                 <td className="p-3">{p.expiry_notify_days}</td>
                 <td className="p-3">{staleLabel(p.stale_after_days)}</td>
@@ -356,10 +363,10 @@ function ТоварыSection() {
               </tr>
             ))}
             {products.length === 0 && (
-              <tr><td colSpan={11} className="p-6 text-center text-muted-foreground">Нет товаров</td></tr>
+              <tr><td colSpan={12} className="p-6 text-center text-muted-foreground">Нет товаров</td></tr>
             )}
           </tbody>
-          {products.length > 0 && <TableTotalsFooter label="Итого" cells={[{}, { colSpan: 8, content: `Записей: ${products.length}` }, { content: `Активных: ${products.filter((x: any) => x.is_active).length}` }, {}]} />}
+          {products.length > 0 && <TableTotalsFooter label="Итого" cells={[{}, { colSpan: 9, content: `Записей: ${products.length}` }, { content: `Активных: ${products.filter((x: any) => x.is_active).length}` }, {}]} />}
         </table>
       </div>
 
@@ -433,6 +440,10 @@ function ТоварыSection() {
                 value={form.barcode || ""}
                 onChange={(e) => setForm({ ...form, barcode: e.target.value })}
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="prod-markup">Наценка, %</Label>
+              <Input id="prod-markup" type="number" min={0} max={999.99} step={0.01} value={form.markup_percent} onChange={(e) => setForm({ ...form, markup_percent: e.target.value })} />
             </div>
             {([
               ["min_stock_quantity", "Мин. остаток", 0, "any"],

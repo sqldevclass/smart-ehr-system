@@ -9,6 +9,7 @@ import { usePeriodFilter } from "@/hooks/usePeriodFilter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -34,7 +35,7 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
   const [expiry, setExpiry] = useState("");
   const [qtyUnits, setQtyUnits] = useState("");
   const [purchasePrice, setPurchasePrice] = useState("");
-  const [markup, setMarkup] = useState("0");
+  const [vatIncluded, setVatIncluded] = useState(false);
   const [supplierId, setSupplierId] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [period, setPeriod] = usePeriodFilter(true);
@@ -46,7 +47,7 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("id, name")
+        .select("id, name, markup_percent")
         .eq("hospital_id", user?.hospitalId ?? "")
         .eq("is_active", true)
         .order("name");
@@ -72,12 +73,12 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
   });
 
   const { data: drugFormulary = [] } = useQuery({
-    queryKey: ["drug-formulary-active", user?.hospitalId],
+    queryKey: ["drug_formulary", user?.hospitalId, "incoming-active"],
     enabled: !!user?.hospitalId && warehouseTypeCode === "central_pharmacy",
     queryFn: async () => {
       const { data, error } = await supabase
         .from("drug_formulary")
-        .select("id, trade_name, inn")
+        .select("id, trade_name, inn, markup_percent")
         .eq("hospital_id", user?.hospitalId ?? "")
         .eq("is_active", true)
         .order("trade_name");
@@ -93,7 +94,7 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
       let q = supabase
         .from("inventory_batches")
         .select(
-          "id, received_at, series_number, expiry_date, quantity_units, purchase_price, selling_price, products(name), drug_formulary(trade_name), suppliers(name)"
+          "id, received_at, series_number, expiry_date, quantity_units, purchase_price, selling_price, vat_included, products(name), drug_formulary(trade_name), suppliers(name)"
         )
         .eq("warehouse_id", warehouse?.id ?? "");
       if (bounds.from) q = q.gte("received_at", bounds.from);
@@ -106,10 +107,14 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
     },
   });
 
+  const selectedItem = warehouseTypeCode === "central_pharmacy"
+    ? drugFormulary.find((d: any) => d.id === productId)
+    : products.find((p: any) => p.id === productId);
+  const markup = Number(selectedItem?.markup_percent ?? 0);
+
   const sellingPrice = useMemo(() => {
     const p = parseFloat(purchasePrice) || 0;
-    const m = parseFloat(markup) || 0;
-    return (p * (1 + m / 100)).toFixed(2);
+    return (p * (1 + markup / 100)).toFixed(2);
   }, [purchasePrice, markup]);
 
   const mutation = useMutation({
@@ -120,7 +125,6 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
       if (!productId) validation.productId = "Выберите позицию";
       if (!qtyUnits.trim() || !Number.isFinite(Number(qtyUnits)) || Number(qtyUnits) <= 0) validation.qtyUnits = "Количество должно быть больше нуля";
       if (!purchasePrice.trim() || !Number.isFinite(Number(purchasePrice)) || Number(purchasePrice) <= 0) validation.purchasePrice = "Цена должна быть больше нуля";
-      if (!markup.trim() || !Number.isFinite(Number(markup)) || Number(markup) < 0) validation.markup = "Наценка должна быть неотрицательной";
       if (isPharmacy && !expiry) validation.expiry = "Укажите срок годности препарата";
       if (expiry && (Number.isNaN(new Date(expiry).getTime()) || expiry < format(new Date(), "yyyy-MM-dd"))) validation.expiry = "Срок годности не должен быть в прошлом";
       setFieldErrors(validation);
@@ -134,7 +138,7 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
         p_expiry_date: expiry || null,
         p_quantity_units: Number(qtyUnits),
         p_purchase_price: Number(purchasePrice),
-        p_markup_percent: Number(markup),
+        p_vat_included: vatIncluded,
       });
       if (error) throw error;
     },
@@ -147,7 +151,7 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
       
       setQtyUnits("");
       setPurchasePrice("");
-      setMarkup("0");
+      setVatIncluded(false);
       setSupplierId("");
       qc.invalidateQueries({ queryKey: ["incoming-recent", warehouse?.id] });
       qc.invalidateQueries({ queryKey: ["stock", warehouse?.id] });
@@ -239,17 +243,18 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
         </div>
         <div className="space-y-1.5">
           <Label>Наценка, %</Label>
-          <Input
-            type="number"
-            step="0.01"
-            value={markup}
-            onChange={(e) => setMarkup(e.target.value)}
-          />
-          {fieldErrors.markup && <p role="alert" className="text-sm text-destructive">{fieldErrors.markup}</p>}
+          <Input value={selectedItem ? String(markup) : "—"} readOnly className="bg-muted" />
         </div>
         <div className="space-y-1.5">
           <Label>Цена продажи</Label>
           <Input value={sellingPrice} readOnly className="bg-muted" />
+        </div>
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2">
+            <Switch id="incoming-vat" checked={vatIncluded} onCheckedChange={setVatIncluded} />
+            <Label htmlFor="incoming-vat" className="cursor-pointer">С НДС</Label>
+          </div>
+          <p className="text-sm text-muted-foreground">Закупочная цена включает НДС</p>
         </div>
         <div className="space-y-1.5">
           <Label>Поставщик</Label>
@@ -290,6 +295,7 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
                 
                 <th className="p-3">Количество</th>
                 <th className="p-3">Закупочная цена</th>
+                <th className="p-3">НДС</th>
                 <th className="p-3">Цена продажи</th>
                 <th className="p-3">Поставщик</th>
               </tr>
@@ -306,13 +312,14 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
                   
                   <td className="p-3">{r.quantity_units}</td>
                   <td className="p-3">{r.purchase_price ?? "—"}</td>
+                  <td className="p-3">{r.vat_included ? "Да" : "Нет"}</td>
                   <td className="p-3">{r.selling_price ?? "—"}</td>
                   <td className="p-3">{r.suppliers?.name || "—"}</td>
                 </tr>
               ))}
               {recent.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="p-6 text-center text-muted-foreground">
+                  <td colSpan={9} className="p-6 text-center text-muted-foreground">
                     Нет поступлений
                   </td>
                 </tr>
