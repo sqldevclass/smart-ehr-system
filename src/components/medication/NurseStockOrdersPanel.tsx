@@ -21,7 +21,7 @@ type SourceKey = "general" | "central_pharmacy";
 interface OrderableItem { item_kind: "drug" | "product"; item_id: string; name: string; inn: string | null; dose: string | null; unit_name: string | null; available: number; nearest_expiry: string | null }
 interface CartItem { item_kind: "drug" | "product"; item_id: string; name: string; unit_name: string | null; quantity: number; available: number }
 
-interface Props { deptWarehouse: { id: string; name: string } | null | undefined; hospitalId: string }
+interface Props { deptWarehouse: { id: string; name: string } | null | undefined; hospitalId: string; readOnly?: boolean }
 
 function validQty(qty: number, available: number) {
   if (!Number.isFinite(qty) || qty <= 0 || qty > available) {
@@ -53,7 +53,7 @@ function OrderQtyInput({ initial, max, onCommit, onDraftChange }: {
     onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} />;
 }
 
-function MyStockOrders({ sourceId, deptWarehouseId }: { sourceId: string; deptWarehouseId: string }) {
+function MyStockOrders({ sourceId, deptWarehouseId, readOnly = false }: { sourceId: string; deptWarehouseId: string; readOnly?: boolean }) {
   const qc = useQueryClient();
   const [cancelling, setCancelling] = useState<string | null>(null);
   const { data: orders = [], isLoading } = useQuery({
@@ -82,20 +82,21 @@ function MyStockOrders({ sourceId, deptWarehouseId }: { sourceId: string; deptWa
     { id: "quantity", header: "Количество", enableColumnFilter: false, accessorFn: (r) => Number(r.quantity_units) },
     { id: "status", header: "Статус", accessorFn: effectiveStatus, cell: ({ row }) => <StockOrderStatusBadge status={effectiveStatus(row.original)} /> },
     { id: "reason", header: "Причина", enableColumnFilter: false, accessorFn: (r) => r.status === "rejected" ? r.reject_reason || "—" : "—" },
-    { id: "actions", header: "", enableColumnFilter: false, enableHiding: false, cell: ({ row }) => row.original.status === "pending"
-      ? <Button size="sm" variant="outline" disabled={cancelling === row.original.id} onClick={() => cancel(row.original.id)}>{cancelling === row.original.id && <Loader2 className="h-4 w-4 animate-spin mr-1" />}Отменить</Button> : null },
+    ...(readOnly ? [] : [{ id: "actions", header: "", enableColumnFilter: false, enableHiding: false, cell: ({ row }) => row.original.status === "pending"
+      ? <Button size="sm" variant="outline" disabled={cancelling === row.original.id} onClick={() => cancel(row.original.id)}>{cancelling === row.original.id && <Loader2 className="h-4 w-4 animate-spin mr-1" />}Отменить</Button> : null } as ColumnDef<StockOrderLine>]),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [cancelling]);
+  ], [cancelling, readOnly]);
   return <div className="space-y-2"><h3 className="font-semibold">Мои заказы</h3>
     <DataTable columns={columns} data={orders} isLoading={isLoading} getRowId={(r) => r.id} emptyMessage="Заказов пока нет" />
   </div>;
 }
 
-function SourceTab({ source, deptWarehouseId, cart, setCart }: {
+function SourceTab({ source, deptWarehouseId, cart, setCart, readOnly = false }: {
   source: { id: string; name: string } | null | undefined;
   deptWarehouseId: string;
   cart: CartItem[];
   setCart: (c: CartItem[]) => void;
+  readOnly?: boolean;
 }) {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
