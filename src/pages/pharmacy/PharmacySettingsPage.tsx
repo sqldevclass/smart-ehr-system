@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { LookupSection } from "@/components/inventory-shared/LookupSection";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { StaleThresholdSelect, staleToForm, staleFromForm } from "@/components/inventory-shared/StaleThresholdSelect";
 import { supabase } from "@/integrations/supabase/client";
@@ -60,10 +61,10 @@ export default function PharmacySettingsPage() {
           />
         </TabsContent>
         <TabsContent value="release_forms">
-          <LookupSection table="release_forms" label="Форма выпуска" hasHospitalId />
+          <LookupSection table="release_forms" label="Форма выпуска" hasHospitalId scope="pharmacy" />
         </TabsContent>
         <TabsContent value="packaging">
-          <LookupSection table="packaging_types" label="Упаковка" showCode hasHospitalId />
+          <LookupSection table="packaging_types" label="Упаковка" showCode hasHospitalId scope="pharmacy" />
         </TabsContent>
         <TabsContent value="product_types">
           <LookupSection table="product_types" label="Вид товара" hasHospitalId />
@@ -93,12 +94,13 @@ function SuppliersSection() {
   const [form, setForm] = useState<Supplier>({ name: "" });
 
   const { data: items = [] } = useQuery({
-    queryKey: ["suppliers", user?.hospitalId],
+    queryKey: ["suppliers", user?.hospitalId, "pharmacy"],
     enabled: !!user?.hospitalId,
     queryFn: async () => {
       const { data } = await supabase
         .from("suppliers")
         .select("id, name, contact, phone, email, address, is_active")
+        .eq("scope", "pharmacy")
         .eq("hospital_id", user!.hospitalId)
         .order("name");
       return data || [];
@@ -121,7 +123,7 @@ function SuppliersSection() {
       } else {
         const { error } = await supabase
           .from("suppliers")
-          .insert({ hospital_id: user.hospitalId, ...payload });
+          .insert({ hospital_id: user.hospitalId, ...payload, scope: "pharmacy" });
         if (error) throw error;
       }
     },
@@ -198,12 +200,13 @@ function ManufacturersSection() {
   const [form, setForm] = useState<{ id?: string; name: string; country?: string | null }>({ name: "" });
 
   const { data: items = [] } = useQuery({
-    queryKey: ["manufacturers", user?.hospitalId],
+    queryKey: ["manufacturers", user?.hospitalId, "pharmacy"],
     enabled: !!user?.hospitalId,
     queryFn: async () => {
       const { data } = await supabase
         .from("manufacturers")
         .select("id, name, country, is_active")
+        .eq("scope", "pharmacy")
         .eq("hospital_id", user!.hospitalId)
         .order("name");
       return data || [];
@@ -222,6 +225,7 @@ function ManufacturersSection() {
       } else {
         const { error } = await supabase.from("manufacturers").insert({
           hospital_id: user.hospitalId,
+          scope: "pharmacy",
           name: form.name,
           country: form.country || null,
         });
@@ -280,204 +284,6 @@ function ManufacturersSection() {
             ))}
             {items.length === 0 && (
               <tr><td colSpan={3} className="p-6 text-center text-muted-foreground">No manufacturers.</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-/* ───────────────────── Lookup (units / release_forms / packaging / product_types) ───────────────────── */
-function LookupSection({
-  table,
-  label,
-  hasAbbr,
-  showCode,
-  hasHospitalId = true,
-}: {
-  table: "units_of_measurement" | "release_forms" | "packaging_types" | "product_types";
-  label: string;
-  hasAbbr?: boolean;
-  showCode?: boolean;
-  hasHospitalId?: boolean;
-}) {
-  const { user } = useAuth();
-  const qc = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<{
-    id?: string;
-    name_ru: string;
-    abbreviation?: string | null;
-    hospital_id?: string | null;
-  }>({ name_ru: "", abbreviation: "" });
-
-  const queryKey = [table, user?.hospitalId];
-  const baseCols = ["id", "name_ru", "sort_order"];
-  if (hasAbbr) baseCols.push("abbreviation");
-  if (showCode) baseCols.push("code");
-  if (hasHospitalId) baseCols.push("hospital_id");
-  const selectCols = baseCols.join(", ");
-
-  const { data: items = [] } = useQuery({
-    queryKey,
-    enabled: !!user?.hospitalId,
-    queryFn: async () => {
-      let q = supabase
-        .from(table)
-        .select(selectCols)
-        .order("sort_order")
-        .order("name_ru");
-      if (hasHospitalId) {
-        q = q.or(`hospital_id.is.null,hospital_id.eq.${user!.hospitalId}`);
-      }
-      const { data, error } = await q;
-      if (error) throw error;
-      return (data || []) as any[];
-    },
-  });
-
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      if (!user) throw new Error("Not authenticated");
-      const payload: any = { name_ru: form.name_ru };
-      if (hasAbbr) payload.abbreviation = form.abbreviation || null;
-      if (form.id) {
-        const { error } = await supabase.from(table).update(payload).eq("id", form.id);
-        if (error) throw error;
-      } else {
-        const code = user.hospitalId.slice(0, 8) + "_" + Date.now();
-        const insertPayload: any = {
-          ...payload,
-          code,
-          name_en: form.name_ru,
-        };
-        if (hasHospitalId) insertPayload.hospital_id = user.hospitalId;
-        const { error } = await supabase.from(table).insert(insertPayload);
-        if (error) throw error;
-      }
-    },
-    onSuccess: () => {
-      toast.success("Saved");
-      setOpen(false);
-      setForm({ name_ru: "", abbreviation: "" });
-      qc.invalidateQueries({ queryKey });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from(table).delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Deleted");
-      qc.invalidateQueries({ queryKey });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const colCount = 3 + (hasAbbr ? 1 : 0) + (showCode ? 1 : 0);
-
-  return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <Dialog
-          open={open}
-          onOpenChange={(o) => { setOpen(o); if (!o) setForm({ name_ru: "", abbreviation: "" }); }}
-        >
-          <DialogTrigger asChild>
-            <Button onClick={() => setForm({ name_ru: "", abbreviation: "" })}>Add {label}</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{form.id ? "Edit" : "Add"} {label}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <Label>Название</Label>
-                <Input value={form.name_ru} onChange={(e) => setForm({ ...form, name_ru: e.target.value })} />
-              </div>
-              {hasAbbr && (
-                <div className="space-y-1.5">
-                  <Label>Сокращенно</Label>
-                  <Input
-                    value={form.abbreviation || ""}
-                    onChange={(e) => setForm({ ...form, abbreviation: e.target.value })}
-                  />
-                </div>
-              )}
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || !form.name_ru.trim()}>
-                Save
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-      <div className="rounded-lg border bg-card overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/50">
-            <tr className="text-left">
-              <th className="p-3">Название</th>
-              {hasAbbr && <th className="p-3">Сокращенно</th>}
-              {showCode && <th className="p-3">Код</th>}
-              <th className="p-3">Source</th>
-              <th className="p-3 w-24"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((r: any) => {
-              const isPlatform = !hasHospitalId || r.hospital_id == null;
-              return (
-                <tr key={r.id} className="border-t">
-                  <td className="p-3">{r.name_ru}</td>
-                  {hasAbbr && <td className="p-3">{r.abbreviation || "—"}</td>}
-                  {showCode && <td className="p-3">{r.code || "—"}</td>}
-                  <td className="p-3">
-                    {isPlatform ? <Badge variant="secondary">Platform</Badge> : <Badge>Hospital</Badge>}
-                  </td>
-                  <td className="p-3">
-                    {!isPlatform && (
-                      <div className="flex gap-1">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => {
-                            setForm({
-                              id: r.id,
-                              name_ru: r.name_ru,
-                              abbreviation: r.abbreviation ?? "",
-                            });
-                            setOpen(true);
-                          }}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => {
-                            if (confirm("Delete this row?")) deleteMutation.mutate(r.id);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-            {items.length === 0 && (
-              <tr>
-                <td colSpan={colCount} className="p-6 text-center text-muted-foreground">
-                  No rows.
-                </td>
-              </tr>
             )}
           </tbody>
         </table>
@@ -787,12 +593,13 @@ function FormularySection() {
   });
 
   const { data: packagings = [] } = useQuery({
-    queryKey: ["packaging_types-pick", user?.hospitalId],
+    queryKey: ["packaging_types-pick", user?.hospitalId, "pharmacy"],
     enabled: !!user?.hospitalId,
     queryFn: async () => {
       const { data } = await supabase
         .from("packaging_types")
         .select("id, name_ru")
+        .in("scope", ["pharmacy", "shared"])
         .or(`hospital_id.is.null,hospital_id.eq.${user!.hospitalId}`)
         .order("sort_order");
       return data || [];
@@ -800,12 +607,13 @@ function FormularySection() {
   });
 
   const { data: releaseForms = [] } = useQuery({
-    queryKey: ["release_forms-pick", user?.hospitalId],
+    queryKey: ["release_forms-pick", user?.hospitalId, "pharmacy"],
     enabled: !!user?.hospitalId,
     queryFn: async () => {
       const { data } = await supabase
         .from("release_forms")
         .select("id, name_ru")
+        .in("scope", ["pharmacy", "shared"])
         .or(`hospital_id.is.null,hospital_id.eq.${user!.hospitalId}`)
         .order("sort_order");
       return data || [];
@@ -813,12 +621,13 @@ function FormularySection() {
   });
 
   const { data: manufacturers = [] } = useQuery({
-    queryKey: ["manufacturers-pick", user?.hospitalId],
+    queryKey: ["manufacturers-pick", user?.hospitalId, "pharmacy"],
     enabled: !!user?.hospitalId,
     queryFn: async () => {
       const { data } = await supabase
         .from("manufacturers")
         .select("id, name")
+        .eq("scope", "pharmacy")
         .eq("hospital_id", user!.hospitalId)
         .order("name");
       return data || [];
