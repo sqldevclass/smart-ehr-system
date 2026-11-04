@@ -20,19 +20,20 @@ interface Movement {
   quantity: number; series_number: string | null; performed_by_name: string | null; detail: string | null;
 }
 
-export function TurnoverMovements({ kind, itemId, unit }: { kind: TurnoverKind; itemId: string; unit: string }) {
+export function TurnoverMovements({ kind, itemId, unit, warehouseId }: { kind: TurnoverKind; itemId: string; unit: string; warehouseId?: string }) {
   const [period, setPeriod] = usePeriodFilter(false);
   const bounds = rangeBounds(period);
   const [offset, setOffset] = useState(0);
   const [rows, setRows] = useState<Movement[]>([]);
 
-  useEffect(() => { setOffset(0); setRows([]); }, [kind, itemId, bounds.from, bounds.to]);
+  useEffect(() => { setOffset(0); setRows([]); }, [kind, itemId, warehouseId, bounds.from, bounds.to]);
 
   const q = useQuery({
-    queryKey: ["item-movements", kind, itemId, bounds.from ?? null, bounds.to ?? null, offset],
+    queryKey: ["item-movements", kind, itemId, warehouseId ?? null, bounds.from ?? null, bounds.to ?? null, offset],
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_item_movements", {
         p_kind: kind, p_item_id: itemId, p_from: bounds.from ?? null, p_to: bounds.to ?? null, p_limit: PAGE, p_offset: offset,
+        p_warehouse_id: warehouseId ?? null,
       });
       if (error) throw error;
       return ((data ?? []) as any[]).map((r) => ({ ...r, quantity: Number(r.quantity ?? 0) })) as Movement[];

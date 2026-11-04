@@ -8,15 +8,20 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import type { TurnoverKind } from "./turnoverTypes";
 
-interface Props { kind: TurnoverKind; value: string | null; onChange: (id: string | null) => void }
+interface Props { kind: TurnoverKind; value: string | null; onChange: (id: string | null) => void; warehouseId?: string }
 
-export function TurnoverItemPicker({ kind, value, onChange }: Props) {
+export function TurnoverItemPicker({ kind, value, onChange, warehouseId }: Props) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const { data: items = [] } = useQuery({
-    queryKey: ["turnover-items", kind, user?.hospitalId],
+    queryKey: ["turnover-items", kind, user?.hospitalId, warehouseId ?? null],
     enabled: !!user?.hospitalId,
     queryFn: async () => {
+      if (warehouseId) {
+        const { data, error } = await supabase.rpc("list_warehouse_turnover_items", { p_warehouse_id: warehouseId, p_kind: kind });
+        if (error) throw error;
+        return ((data ?? []) as any[]).map((r) => ({ id: String(r.item_id), name: String(r.name) })).sort((a, b) => a.name.localeCompare(b.name, "ru"));
+      }
       const q = kind === "drug"
         ? supabase.from("drug_formulary").select("id, name:trade_name").eq("hospital_id", user!.hospitalId).eq("is_active", true).order("trade_name")
         : supabase.from("products").select("id, name").eq("hospital_id", user!.hospitalId).eq("is_active", true).order("name");

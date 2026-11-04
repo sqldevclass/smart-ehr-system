@@ -30,6 +30,7 @@ interface Props {
   filters: Record<string, string>;
   period: PeriodState;
   toolbarLeft: ReactNode;
+  readOnly?: boolean;
 }
 
 function useNurseTransfers(hospitalId: string, warehouseId: string | undefined, direction: "incoming" | "outgoing") {
@@ -86,7 +87,7 @@ interface IncomingHistoryItem {
   reason: string;
 }
 
-export default function NurseTransfersPanel({ hospitalId, deptWarehouse, stock, allWarehouses, filters, period, toolbarLeft }: Props) {
+export default function NurseTransfersPanel({ hospitalId, deptWarehouse, stock, allWarehouses, filters, period, toolbarLeft, readOnly = false }: Props) {
   const { user, hasPermission } = useAuth();
   const canOrder = hasPermission("warehouse.department_order");
   const qc = useQueryClient();
@@ -196,12 +197,14 @@ export default function NurseTransfersPanel({ hospitalId, deptWarehouse, stock, 
                   </div>
                 ) : (
                   <>
-                    <div className="flex justify-end mb-2">
-                      <Button onClick={acceptAllTransfers} disabled={busyAll} className="gap-2">
-                        {busyAll && <Loader2 className="h-4 w-4 animate-spin" />}
-                        Принять все ({pending.length})
-                      </Button>
-                    </div>
+                    {!readOnly && (
+                      <div className="flex justify-end mb-2">
+                        <Button onClick={acceptAllTransfers} disabled={busyAll} className="gap-2">
+                          {busyAll && <Loader2 className="h-4 w-4 animate-spin" />}
+                          Принять все ({pending.length})
+                        </Button>
+                      </div>
+                    )}
                     <div className="border rounded-lg overflow-x-auto">
                       <table className="w-full">
                         <thead className="bg-muted/50">
@@ -210,7 +213,7 @@ export default function NurseTransfersPanel({ hospitalId, deptWarehouse, stock, 
                             <th className={th}>Дата</th>
                             <th className={th}>Препараты / Товары</th>
                             <th className={th}>Кол-во</th>
-                            <th className={th}></th>
+                            {!readOnly && <th className={th}></th>}
                           </tr>
                         </thead>
                         <tbody>
@@ -228,12 +231,14 @@ export default function NurseTransfersPanel({ hospitalId, deptWarehouse, stock, 
                                   <div key={i.id}>{i.quantity_units}</div>
                                 ))}
                               </td>
-                              <td className={td}>
-                                <Button size="sm" onClick={() => actions.openAction("accept", t)} disabled={busyAll}>
-                                  Принять
-                                </Button>
-                                <Button size="sm" variant="outline" className="ml-2" disabled={busyAll} onClick={() => actions.openAction("reject", t)}>Отклонить</Button>
-                              </td>
+                              {!readOnly && (
+                                <td className={td}>
+                                  <Button size="sm" onClick={() => actions.openAction("accept", t)} disabled={busyAll}>
+                                    Принять
+                                  </Button>
+                                  <Button size="sm" variant="outline" className="ml-2" disabled={busyAll} onClick={() => actions.openAction("reject", t)}>Отклонить</Button>
+                                </td>
+                              )}
                             </tr>
                           ))}
                         </tbody>
@@ -253,6 +258,7 @@ export default function NurseTransfersPanel({ hospitalId, deptWarehouse, stock, 
         /></section>
       </TabsContent>
       <TabsContent value="outgoing" className="space-y-3">
+              {!readOnly && (
               <div>
                 <h3 className="font-semibold mb-2">Отправить в другой склад</h3>
                 <div className="grid grid-cols-[1fr_1fr_120px_auto] gap-2 items-end">
@@ -291,12 +297,13 @@ export default function NurseTransfersPanel({ hospitalId, deptWarehouse, stock, 
                   </Button>
                 </div>
               </div>
+              )}
         <section><h3 className="font-semibold mb-2">Отправленные перемещения</h3>
           {outgoingError && <p role="alert" className="text-destructive">{outgoingError.message}</p>}
-          {outgoingLoading ? <div className="flex items-center justify-center h-32"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div> : <TransferTable rows={filterNurseTransfers(outgoing, filters, period)} currentWarehouseId={deptWarehouse?.id} actions={actions} compact />}
+          {outgoingLoading ? <div className="flex items-center justify-center h-32"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div> : <TransferTable rows={filterNurseTransfers(outgoing, filters, period)} currentWarehouseId={deptWarehouse?.id} actions={actions} compact readOnly={readOnly} />}
         </section>
       </TabsContent>
-      {canOrder && <TabsContent value="orders" className="space-y-3"><NurseStockOrdersPanel deptWarehouse={deptWarehouse} hospitalId={hospitalId} /></TabsContent>}
+      {canOrder && <TabsContent value="orders" className="space-y-3"><NurseStockOrdersPanel deptWarehouse={deptWarehouse} hospitalId={hospitalId} readOnly={readOnly} /></TabsContent>}
     </Tabs>
     {actions.dialogs}
   </>;
