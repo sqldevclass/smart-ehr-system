@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -18,12 +18,10 @@ import AdminOverview from "./pages/admin/AdminOverview.tsx";
 import UserManagement from "./pages/admin/UserManagement.tsx";
 import AdminPlaceholder from "./pages/admin/AdminPlaceholder.tsx";
 import AdminProfile from "./pages/admin/AdminProfile.tsx";
-import DepartmentsPage from "./pages/admin/DepartmentsPage.tsx";
+import ClinicStructurePage from "./pages/admin/ClinicStructurePage.tsx";
 import PhysiciansPage from "./pages/admin/PhysiciansPage.tsx";
-import RoomsPage from "./pages/admin/RoomsPage.tsx";
 import ServicesPage from "./pages/admin/ServicesPage.tsx";
 import PhysicianPrivilegesPage from "./pages/admin/PhysicianPrivilegesPage.tsx";
-import WarehousesPage from "./pages/admin/WarehousesPage.tsx";
 import PosTerminalsPage from "./pages/admin/PosTerminalsPage.tsx";
 import KassasPage from "./pages/admin/KassasPage.tsx";
 import RolesPage from "./pages/admin/RolesPage.tsx";
@@ -130,11 +128,12 @@ const App = () => (
             <Route index element={<AdminOverview />} />
             <Route path="users" element={<UserManagement />} />
             <Route path="roles" element={<RolesPage />} />
-            <Route path="departments" element={<DepartmentsPage />} />
+            <Route path="clinic-structure" element={<ClinicStructurePage />} />
+            <Route path="departments" element={<Navigate replace to="/admin/clinic-structure?tab=departments" />} />
             <Route path="services" element={<ServicesPage />} />
             <Route path="physicians" element={<PhysiciansPage />} />
-            <Route path="rooms" element={<RoomsPage />} />
-            <Route path="warehouses" element={<WarehousesPage />} />
+            <Route path="rooms" element={<Navigate replace to="/admin/clinic-structure?tab=rooms" />} />
+            <Route path="warehouses" element={<Navigate replace to="/admin/clinic-structure?tab=warehouses" />} />
             <Route path="pos-terminals" element={<PosTerminalsPage />} />
             <Route path="kassas" element={<KassasPage />} />
             <Route path="physician-privileges" element={<PhysicianPrivilegesPage />} />
