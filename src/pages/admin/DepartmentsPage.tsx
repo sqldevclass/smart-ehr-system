@@ -1,21 +1,17 @@
-import { BlockFloorSelect } from "@/components/admin/clinic-structure/BlockFloorSelect";
+import { DepartmentEditForm } from "@/components/admin/clinic-structure/DepartmentEditForm";
 import { useClinicStructure } from "@/components/admin/clinic-structure/useClinicStructure";
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { Switch } from "@/components/ui/switch";
 import { Plus, Edit } from "lucide-react";
-import { toast } from "sonner";
 
 interface Department {
   id: string;
@@ -26,16 +22,10 @@ interface Department {
 }
 
 export default function DepartmentsPage() {
-  const { user, hasPermission } = useAuth();
+  const { user } = useAuth();
   const { formatFloor } = useClinicStructure();
-  const [floorId, setFloorId] = useState<string | null>(null);
-  const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Department | null>(null);
-  const [name, setName] = useState("");
-  const [code, setCode] = useState("");
-  const [isActive, setIsActive] = useState(true);
-  const [saving, setSaving] = useState(false);
 
   const { data: departments = [], isLoading } = useQuery({
     queryKey: ["departments", user?.hospitalId],
@@ -54,61 +44,12 @@ export default function DepartmentsPage() {
 
   const openCreate = () => {
     setEditing(null);
-    setName("");
-    setCode("");
-    setFloorId(null);
-    setIsActive(true);
     setDialogOpen(true);
   };
 
   const openEdit = (d: Department) => {
     setEditing(d);
-    setName(d.name);
-    setCode(d.code || "");
-    setFloorId(d.floor_id);
-    setIsActive(d.is_active);
     setDialogOpen(true);
-  };
-
-  const handleSave = async () => {
-    if (!name.trim()) {
-      toast.error("Name is required.");
-      return;
-    }
-    if (!user) return;
-    setSaving(true);
-    try {
-      if (editing) {
-        const { error } = await supabase
-          .from("departments")
-          .update({
-            name: name.trim(),
-            code: code.trim() || null,
-            is_active: isActive,
-            floor_id: floorId,
-          })
-          .eq("id", editing.id);
-        if (error) throw error;
-        toast.success("Department updated.");
-      } else {
-        const { error } = await supabase.from("departments").insert({
-          name: name.trim(),
-          code: code.trim() || null,
-          hospital_id: user.hospitalId,
-          floor_id: floorId,
-        });
-        if (error) throw error;
-        toast.success("Department created.");
-      }
-      setDialogOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["departments"] });
-      queryClient.invalidateQueries({ queryKey: ["departments-active"] });
-      queryClient.invalidateQueries({ queryKey: ["clinic-structure"] });
-    } catch (err: any) {
-      toast.error(err.message || "Failed to save.");
-    } finally {
-      setSaving(false);
-    }
   };
 
   return (
@@ -164,32 +105,12 @@ export default function DepartmentsPage() {
           <DialogHeader>
             <DialogTitle>{editing ? "Edit Department" : "Add Department"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>Name *</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Cardiology" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Code</Label>
-              <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="e.g. CARD" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Основной этаж</Label>
-              <BlockFloorSelect value={floorId} onChange={setFloorId} disabled={saving || !hasPermission("system.manage_settings")} />
-            </div>
-            {editing && (
-              <div className="flex items-center justify-between">
-                <Label>Active</Label>
-                <Switch checked={isActive} onCheckedChange={setIsActive} />
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? "Saving…" : "Save"}
-            </Button>
-          </DialogFooter>
+          <DepartmentEditForm
+            key={editing?.id ?? "new"}
+            department={editing}
+            onSaved={() => setDialogOpen(false)}
+            onCancel={() => setDialogOpen(false)}
+          />
         </DialogContent>
       </Dialog>
     </div>

@@ -1,25 +1,15 @@
-import { BlockFloorSelect } from "@/components/admin/clinic-structure/BlockFloorSelect";
+import { WarehouseEditForm } from "@/components/admin/clinic-structure/WarehouseEditForm";
+import { StructureWarehouse } from "@/components/admin/clinic-structure/useClinicStructureData";
 import { useClinicStructure } from "@/components/admin/clinic-structure/useClinicStructure";
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -27,46 +17,10 @@ import { toast } from "sonner";
 import { Pencil } from "lucide-react";
 
 export default function WarehousesPage() {
-  const { user, hasPermission } = useAuth();
+  const { user } = useAuth();
   const { formatFloor } = useClinicStructure();
-  const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [movementHint, setMovementHint] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState<{
-    id?: string;
-    name: string;
-    warehouse_type_id: string;
-    department_id: string | null;
-    is_active: boolean;
-    floor_id: string | null;
-  }>({ name: "", warehouse_type_id: "", department_id: null, is_active: true, floor_id: null });
-
-  const { data: types = [] } = useQuery({
-    queryKey: ["warehouse_types"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("warehouse_types")
-        .select("id, name_ru, code")
-        .order("sort_order");
-      if (error) { toast.error(error.message); throw error; }
-      return data || [];
-    },
-  });
-
-  const { data: departments = [] } = useQuery({
-    queryKey: ["departments-for-wh", user?.hospitalId],
-    enabled: !!user?.hospitalId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("departments")
-        .select("id, name")
-        .eq("hospital_id", user?.hospitalId ?? "")
-        .order("name");
-      if (error) { toast.error(error.message); throw error; }
-      return data || [];
-    },
-  });
+  const [editing, setEditing] = useState<StructureWarehouse | null>(null);
 
   const { data: warehouses = [] } = useQuery({
     queryKey: ["warehouses", user?.hospitalId],
@@ -80,41 +34,9 @@ export default function WarehousesPage() {
         .eq("hospital_id", user?.hospitalId ?? "")
         .order("name");
       if (error) { toast.error(error.message); throw error; }
-      return data || [];
+      return (data || []) as unknown as StructureWarehouse[];
     },
   });
-
-  const isDepartment = types.find((t: any) => t.id === form.warehouse_type_id)?.code === "department";
-  const availableDepartments = departments.filter((d: any) => !warehouses.some((w: any) => w.department_id === d.id && w.id !== form.id));
-  const save = async () => {
-    if (!user) return;
-    if (!form.name.trim() || !form.warehouse_type_id) { toast.error("Укажите название и тип склада"); return; }
-    if (isDepartment && !form.department_id) { toast.error("Выберите отделение"); return; }
-    const payload = {
-      floor_id: form.floor_id,
-      name: form.name.trim(), warehouse_type_id: form.warehouse_type_id,
-      department_id: isDepartment ? form.department_id : null, is_active: form.is_active,
-    };
-    setSaving(true);
-    try {
-      const { error } = form.id
-        ? await supabase.from("warehouses").update(payload).eq("id", form.id)
-        : await supabase.from("warehouses").insert({ ...payload, hospital_id: user.hospitalId });
-      if (error) {
-        if (/movement|движен|cannot.*(type|department)|нельзя.*(тип|отделен)/i.test(error.message)) setMovementHint(true);
-        throw error;
-      }
-      toast.success("Сохранено");
-      setOpen(false);
-      setForm({ name: "", warehouse_type_id: "", department_id: null, is_active: true, floor_id: null });
-      qc.invalidateQueries({ queryKey: ["warehouses"] });
-      qc.invalidateQueries({ queryKey: ["clinic-structure"] });
-      qc.invalidateQueries({ queryKey: ["my-warehouse", user.hospitalId] });
-      qc.invalidateQueries({ queryKey: ["transfer-destinations", user.hospitalId] });
-      qc.invalidateQueries({ queryKey: ["all-dept-warehouses", user.hospitalId] });
-      qc.invalidateQueries({ queryKey: ["dept-warehouse"] });
-    } catch (e: any) { toast.error(e.message); } finally { setSaving(false); }
-  };
 
   return (
     <div className="space-y-4">
@@ -122,8 +44,7 @@ export default function WarehousesPage() {
         <h2 className="font-heading text-xl font-bold text-foreground">Склады</h2>
         <Button
           onClick={() => {
-            setForm({ name: "", warehouse_type_id: "", department_id: null, is_active: true, floor_id: null });
-            setMovementHint(false);
+            setEditing(null);
             setOpen(true);
           }}
         >
@@ -144,7 +65,7 @@ export default function WarehousesPage() {
             </tr>
           </thead>
           <tbody>
-            {warehouses.map((w: any) => (
+            {warehouses.map((w) => (
               <tr key={w.id} className="border-t">
                 <td className="p-3">{w.name}</td>
                 <td className="p-3">{w.warehouse_types?.name_ru || "—"}</td>
@@ -160,16 +81,8 @@ export default function WarehousesPage() {
                     size="icon"
                     variant="ghost"
                     onClick={() => {
-                      setForm({
-                        id: w.id,
-                        name: w.name,
-                        warehouse_type_id: w.warehouse_type_id,
-                        department_id: w.department_id,
-                        is_active: w.is_active,
-                        floor_id: w.floor_id,
-                      });
-                      setMovementHint(false);
-            setOpen(true);
+                      setEditing(w);
+                      setOpen(true);
                     }}
                   >
                     <Pencil className="h-4 w-4" />
@@ -191,83 +104,14 @@ export default function WarehousesPage() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{form.id ? "Редактировать склад" : "Добавить склад"}</DialogTitle>
+            <DialogTitle>{editing ? "Редактировать склад" : "Добавить склад"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label>Название *</Label>
-              <Input
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Тип склада *</Label>
-              <Select
-                value={form.warehouse_type_id}
-                disabled={!!form.id}
-                onValueChange={(v) => setForm({ ...form, warehouse_type_id: v, department_id: types.find((t: any) => t.id === v)?.code === "department" ? form.department_id : null })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Выберите тип" />
-                </SelectTrigger>
-                <SelectContent>
-                  {types.map((t: any) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.name_ru}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {isDepartment && <div className="space-y-1.5">
-              <Label>Отделение *</Label>
-              <Select
-                disabled={!!form.id}
-                value={form.department_id || ""}
-                onValueChange={(v) =>
-                  setForm({ ...form, department_id: v === "none" ? null : v })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Выберите отделение" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableDepartments.map((d: any) => (
-                    <SelectItem key={d.id} value={d.id}>
-                      {d.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>}
-            <div className="space-y-1.5">
-              <Label>Блок / Этаж</Label>
-              <BlockFloorSelect value={form.floor_id} onChange={floor_id => setForm({ ...form, floor_id })} disabled={saving || !hasPermission("system.manage_settings")} />
-            </div>
-            {movementHint && <p className="text-sm text-muted-foreground">Нельзя менять после первых движений</p>}
-            <div className="flex items-center gap-2">
-              <Switch
-                id="wh-active"
-                checked={form.is_active}
-                onCheckedChange={(v) => setForm({ ...form, is_active: v })}
-              />
-              <Label htmlFor="wh-active" className="cursor-pointer">
-                Активен
-              </Label>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>
-              Отмена
-            </Button>
-            <Button
-              onClick={save}
-              disabled={saving || !form.name.trim() || !form.warehouse_type_id || (isDepartment && !form.department_id)}
-            >
-              Сохранить
-            </Button>
-          </DialogFooter>
+          <WarehouseEditForm
+            key={editing?.id ?? "new"}
+            warehouse={editing}
+            onSaved={() => setOpen(false)}
+            onCancel={() => setOpen(false)}
+          />
         </DialogContent>
       </Dialog>
     </div>

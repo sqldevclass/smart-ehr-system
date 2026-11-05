@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { Building2, ChevronRight, MoreHorizontal, Plus, Warehouse } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,9 +15,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { toast } from "sonner";
 import { BlockFloorSelect } from "./BlockFloorSelect";
 import { ClinicBlock, ClinicFloor, effectiveRoomFloorId, floorLabel, useClinicStructure } from "./useClinicStructure";
+import { StructureRoom, useClinicStructureData } from "./useClinicStructureData";
+import { useStructureActions } from "./useStructureActions";
 
 interface Item { id: string; name: string; floor_id: string | null; is_active: boolean }
-interface Room extends Item { department_id: string | null; capacity: number; room_types: { name: string } | null }
 type Entity = "departments" | "rooms" | "warehouses";
 type Action = { type: "create" } | { type: "rename" | "toggle" | "floor-add"; block: ClinicBlock } | { type: "floor-label" | "floor-delete"; floor: ClinicFloor };
 
@@ -33,9 +33,9 @@ function TreeBranch({ title, children, expanded }: { title: React.ReactNode; chi
 }
 
 export function ClinicStructureTree() {
-  const { user, hasPermission } = useAuth();
-  const canWrite = hasPermission("system.manage_settings");
-  const qc = useQueryClient();
+  const { user } = useAuth();
+  const actions = useStructureActions();
+  const { canWrite, busy } = actions;
   const [, setParams] = useSearchParams();
   const structure = useClinicStructure();
   const [showInactive, setShowInactive] = useState(false);
@@ -43,43 +43,16 @@ export function ClinicStructureTree() {
   const [name, setName] = useState("");
   const [number, setNumber] = useState("1");
   const [basements, setBasements] = useState("0");
-  const [busy, setBusy] = useState(false);
   const [bulk, setBulk] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkFloor, setBulkFloor] = useState<string | null>(null);
-  const departmentsQuery = useQuery({
-    queryKey: ["departments", user?.hospitalId], enabled: !!user,
-    queryFn: async () => {
-      const { data, error } = await supabase.from("departments").select("id, name, code, is_active, floor_id").eq("hospital_id", user?.hospitalId ?? "").order("name");
-      if (error) throw error;
-      return (data ?? []) as Item[];
-    },
-  });
-  const roomsQuery = useQuery({
-    queryKey: ["rooms", user?.hospitalId], enabled: !!user,
-    queryFn: async () => {
-      const { data, error } = await supabase.from("rooms").select("id, name, room_type_id, capacity, is_active, department_id, floor_id, room_types(name, is_office_room)").eq("hospital_id", user?.hospitalId ?? "").order("name");
-      if (error) throw error;
-      return (data ?? []) as unknown as Room[];
-    },
-  });
-  const warehousesQuery = useQuery({
-    queryKey: ["warehouses", user?.hospitalId], enabled: !!user,
-    queryFn: async () => {
-      const { data, error } = await supabase.from("warehouses").select("id, name, is_active, warehouse_type_id, department_id, floor_id, warehouse_types(name_ru), departments(name)").eq("hospital_id", user?.hospitalId ?? "").order("name");
-      if (error) throw error;
-      return (data ?? []) as Item[];
-    },
-  });
+  const { departmentsQuery, roomsQuery, warehousesQuery } = useClinicStructureData();
   const allDepartments = departmentsQuery.data ?? [];
   const allRooms = roomsQuery.data ?? [];
   const departments = allDepartments.filter(d => showInactive || d.is_active);
   const rooms = allRooms.filter(r => showInactive || (r.is_active && (!r.department_id || allDepartments.find(d => d.id === r.department_id)?.is_active !== false)));
   const warehouses = (warehousesQuery.data ?? []).filter(w => showInactive || w.is_active);
   const blocks = structure.blocks.filter(b => showInactive || b.is_active);
-  const refresh = () => {
-    for (const key of ["clinic-structure", "departments", "departments-active", "departments-for-wh", "rooms", "warehouses"]) qc.invalidateQueries({ queryKey: [key] });
-  };
   const openAction = (next: Action) => {
     setAction(next);
     setName(next.type === "rename" ? next.block.name : next.type === "floor-label" ? next.floor.label ?? "" : "");
@@ -89,47 +62,34 @@ export function ClinicStructureTree() {
     setBasements("0");
   };
   const saveAction = async () => {
-    if (!action || !canWrite || !user) return;
-    const n = Number(number);
-    const b = Number(basements);
-    if ((action.type === "create" || action.type === "rename") && !name.trim()) return toast.error("Укажите название блока");
-    if ((action.type === "create" || action.type === "floor-add") && (!number.trim() || !Number.isInteger(n) || (action.type === "create" && (n < 0 || n > 100)) || (action.type === "floor-add" && (n < -10 || n > 200)))) return toast.error(action.type === "create" ? "Количество этажей: целое число от 0 до 100" : "Номер этажа: целое число от -10 до 200");
-    if (action.type === "create" && (!basements.trim() || !Number.isInteger(b) || b < 0 || b > 10)) return toast.error("Подвальных этажей: целое число от 0 до 10");
-    if (action.type === "create" && n + b < 1) return toast.error("Укажите хотя бы один этаж или подвал");
-    setBusy(true);
-    try {
-      let result;
-      switch (action.type) {
-        case "create": result = await supabase.rpc("create_clinic_block", { p_name: name.trim(), p_floors: n, p_basements: b }); break;
-        case "rename": result = await supabase.from("clinic_blocks").update({ name: name.trim() }).eq("id", action.block.id).eq("hospital_id", user.hospitalId); break;
-        case "toggle": result = await supabase.from("clinic_blocks").update({ is_active: !action.block.is_active }).eq("id", action.block.id).eq("hospital_id", user.hospitalId); break;
-        case "floor-add": result = await supabase.from("clinic_floors").insert({ hospital_id: user.hospitalId, block_id: action.block.id, number: n, label: name.trim() || null }); break;
-        case "floor-label": result = await supabase.from("clinic_floors").update({ label: name.trim() || null }).eq("id", action.floor.id).eq("hospital_id", user.hospitalId); break;
-        case "floor-delete": result = await supabase.from("clinic_floors").delete().eq("id", action.floor.id).eq("hospital_id", user.hospitalId); break;
-      }
-      if (result.error) throw result.error;
-      toast.success("Сохранено"); refresh(); setAction(null);
-    } catch (err: unknown) {
-      toast.error(err && typeof err === "object" && "message" in err ? String(err.message) : "Не удалось сохранить");
-    } finally { setBusy(false); }
+    if (!action || !canWrite) return;
+    let ok = false;
+    switch (action.type) {
+      case "create": ok = await actions.createBlock(name, Number(number), Number(basements)); break;
+      case "rename": ok = await actions.renameBlock(action.block, name); break;
+      case "toggle": ok = await actions.toggleBlock(action.block); break;
+      case "floor-add": ok = await actions.addFloor(action.block, Number(number), name); break;
+      case "floor-label": ok = await actions.setFloorLabel(action.floor, name); break;
+      case "floor-delete": ok = await actions.deleteFloor(action.floor); break;
+    }
+    if (ok) setAction(null);
   };
   const assign = async (entity: Entity, ids: string[], floorId: string | null) => {
     if (!canWrite || !user || !ids.length) return;
-    setBusy(true);
     try {
       const { error } = await supabase.from(entity).update({ floor_id: floorId }).in("id", ids).eq("hospital_id", user.hospitalId);
       if (error) throw error;
-      toast.success("Этаж назначен"); refresh();
+      toast.success("Этаж назначен"); actions.refresh();
       if (entity === "rooms") { setSelected(new Set()); setBulkFloor(null); }
     } catch (err: unknown) {
       toast.error(err && typeof err === "object" && "message" in err ? String(err.message) : "Не удалось назначить этаж");
-    } finally { setBusy(false); }
+    }
   };
   const go = (tab: Entity) => setParams({ tab });
   const itemLink = (item: Item, entity: Entity, detail?: string) => <Button variant="ghost" className={`h-auto max-w-full justify-start whitespace-normal px-2 py-1 text-left ${!item.is_active ? "text-muted-foreground opacity-60" : ""}`} onClick={() => go(entity)}>
     <span>{item.name}{detail && <span className="ml-2 text-xs text-muted-foreground">{detail}</span>}{!item.is_active && <Badge variant="secondary" className="ml-2">Неактивен</Badge>}</span>
   </Button>;
-  const roomLink = (r: Room) => itemLink(r, "rooms", [r.room_types?.name, r.capacity > 0 ? `${r.capacity} коек` : null].filter(Boolean).join(" · "));
+  const roomLink = (r: StructureRoom) => itemLink(r, "rooms", [r.room_types?.name, r.capacity > 0 ? `${r.capacity} коек` : null].filter(Boolean).join(" · "));
   const floorDepartments = (id: string) => departments.filter(d => d.floor_id === id || rooms.some(r => effectiveRoomFloorId(r, allDepartments) === id && r.department_id === d.id));
   const counts = (floorIds: string[]) => {
     const depts = new Set(floorIds.flatMap(id => floorDepartments(id).map(d => d.id)));
