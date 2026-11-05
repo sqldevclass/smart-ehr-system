@@ -20,6 +20,8 @@ import { PeriodFilter, matchesRange, rangeBounds, type PeriodState } from "@/com
 import { usePeriodFilter } from "@/hooks/usePeriodFilter";
 import NurseTransfersPanel, { filterNurseTransfers, useNurseIncomingTransfers } from "./NurseTransfersPanel";
 import ItemTurnoverView from "@/components/inventory-shared/ItemTurnoverView";
+import { useWarehouseUnits } from "@/components/inventory-shared/useWarehouseUnits";
+import { UnitPicker } from "@/components/inventory-shared/UnitPicker";
 import { Badge } from "@/components/ui/badge";
 
 interface Props {
@@ -83,6 +85,7 @@ export default function NurseInventoryModal({
   // Write-off form state
   const [woBatchId, setWoBatchId] = useState("");
   const [woQty, setWoQty] = useState("");
+  const [woEquipmentIds, setWoEquipmentIds] = useState<string[]>([]);
   const [woPatientHospId, setWoPatientHospId] = useState("");
   const [woSending, setWoSending] = useState(false);
 
@@ -100,6 +103,9 @@ export default function NurseInventoryModal({
       return data;
     },
   });
+
+  const { byBatch, isPending: unitsLoading, error: unitsError } = useWarehouseUnits(deptWarehouse?.id);
+  const woUnits = byBatch.get(woBatchId);
 
   const {
     data: pendingSlots = [],
@@ -292,7 +298,8 @@ export default function NurseInventoryModal({
     refetchPres(); refetchStock();
     qc.invalidateQueries({ queryKey: ["nurse-inv-transfers", deptWarehouse?.id] });
     if (!deptWarehouse) return;
-    for (const key of ["stock", "stale-items", "transfers", "my-batches", "writeoff-batches"]) qc.invalidateQueries({ queryKey: [key, deptWarehouse.id] });
+    for (const key of ["stock", "stale-items", "transfers", "my-batches", "writeoff-batches", "warehouse-units"]) qc.invalidateQueries({ queryKey: [key, deptWarehouse.id] });
+    qc.invalidateQueries({ queryKey: ["equipment"] });
     for (const key of ["nurse-prescriptions", "nurse-admin-slots", "all-slots"]) qc.invalidateQueries({ queryKey: [key] });
   };
 
@@ -337,13 +344,22 @@ export default function NurseInventoryModal({
   };
 
   const writeOff = async () => {
-    if (!user || !deptWarehouse || !woBatchId || !woQty) return;
+    if (!user || !deptWarehouse || !woBatchId) return;
     setWoSending(true);
     try {
       const batch = (deptStock as any[]).find((b) => b.id === woBatchId);
+      if (unitsLoading) throw new Error("Дождитесь загрузки единиц инвентаря");
+      if (unitsError) throw unitsError;
       const qty = Number(woQty);
-      if (!batch || !Number.isFinite(qty) || qty <= 0) throw new Error("Укажите количество больше нуля");
-      if (qty > Number(batch.quantity_units)) throw new Error("Количество превышает доступный остаток партии");
+      if (!batch) throw new Error("Выберите партию");
+      if (woUnits?.length) {
+        if (woPatientHospId) throw new Error("Инвентарь нельзя списать на пациента");
+        if (!woEquipmentIds.length) throw new Error("Выберите единицы инвентаря");
+        if (woEquipmentIds.some((id) => !woUnits.some((unit) => unit.equipment_id === id))) throw new Error("Выбранная единица инвентаря недоступна");
+      } else {
+        if (!Number.isFinite(qty) || qty <= 0) throw new Error("Укажите количество больше нуля");
+        if (qty > Number(batch.quantity_units)) throw new Error("Количество превышает доступный остаток партии");
+      }
       if (woPatientHospId) {
         const { error } = await supabase.rpc("writeoff_to_patient", {
           p_batch_id: woBatchId, p_quantity_units: qty, p_hospitalization_id: woPatientHospId, p_notes: null,
@@ -353,16 +369,16 @@ export default function NurseInventoryModal({
         const { data: woType, error: typeError } = await supabase.from("write_off_types").select("id").eq("code", "act").maybeSingle();
         if (typeError) throw typeError;
         if (!woType) throw new Error("Тип списания «По акту» (act) не найден");
-        const { error } = await supabase.rpc("perform_writeoff", {
+        const { error } = await supabase.rpc("perform_writeoff" as any, {
           p_warehouse_id: deptWarehouse.id, p_write_off_type_id: woType.id,
           p_employee_id: null, p_supplier_id: null, p_notes: null,
-          p_items: [{ batch_id: woBatchId, quantity_units: qty }],
-        });
+          p_items: [woUnits?.length ? { batch_id: woBatchId, equipment_ids: woEquipmentIds } : { batch_id: woBatchId, quantity_units: qty }],
+        } as any);
         if (error) throw error;
       }
       qc.invalidateQueries({ queryKey: ["writeoffs", deptWarehouse.id] });
       toast.success("Списано");
-      setWoBatchId(""); setWoQty(""); setWoPatientHospId("");
+      setWoBatchId(""); setWoQty(""); setWoPatientHospId(""); setWoEquipmentIds([]);
       refreshInventory();
     } catch (e: any) {
       toast.error(e.message);
@@ -524,10 +540,10 @@ export default function NurseInventoryModal({
                 </div>
                 <div>
                   <Label className="text-xs">Препарат / Товар</Label>
-                  <Select value={woBatchId} onValueChange={setWoBatchId}>
+                  <Select value={woBatchId} onValueChange={(id) => { setWoBatchId(id); setWoEquipmentIds([]); }}>
                     <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Выберите" /></SelectTrigger>
                     <SelectContent>
-                      {filteredStock.map((b: any) => (
+                      {filteredStock.filter((b: any) => !woPatientHospId || (!unitsLoading && !unitsError && !byBatch.has(b.id))).map((b: any) => (
                         <SelectItem key={b.id} value={b.id}>
                           {b.drug_formulary?.trade_name || b.products?.name || "—"} — серия {b.series_number || "—"}, годен до {b.expiry_date || "—"}, доступно {b.quantity_units} ед.
                         </SelectItem>
@@ -535,7 +551,7 @@ export default function NurseInventoryModal({
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
+                {!woUnits?.length && <div>
                   <Label className="text-xs">Кол-во</Label>
                   <Input
                     type="number"
@@ -543,10 +559,10 @@ export default function NurseInventoryModal({
                     onChange={(e) => setWoQty(e.target.value)}
                     className="h-8 text-sm"
                   />
-                </div>
+                </div>}
                 <div>
                   <Label className="text-xs">Пациент (необязательно)</Label>
-                  <Select value={woPatientHospId || "none"} onValueChange={(v) => setWoPatientHospId(v === "none" ? "" : v)}>
+                  <Select value={woPatientHospId || "none"} onValueChange={(v) => { const id = v === "none" ? "" : v; setWoPatientHospId(id); if (id && byBatch.has(woBatchId)) { setWoBatchId(""); setWoEquipmentIds([]); setWoQty(""); } }}>
                     <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Без пациента" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Без пациента</SelectItem>
@@ -558,9 +574,11 @@ export default function NurseInventoryModal({
                     </SelectContent>
                   </Select>
                 </div>
-                <Button size="sm" className="h-8" onClick={writeOff} disabled={woSending || !woBatchId || !woQty}>
+                <Button size="sm" className="h-8" onClick={writeOff} disabled={woSending || unitsLoading || !!unitsError || !woBatchId || (!woUnits?.length && !woQty)}>
                   {woSending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Списать"}
                 </Button>
+                {!!woUnits?.length && !woPatientHospId && <div className="col-span-full"><UnitPicker mode="writeoff" units={woUnits} selectedIds={woEquipmentIds} onChange={setWoEquipmentIds} /></div>}
+                {unitsError && <p role="alert" className="col-span-full text-destructive">{unitsError.message}</p>}
               </div>
               )}
 
