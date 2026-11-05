@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { ClinicBlock, ClinicFloor, effectiveRoomFloorId, floorLabel, isInheritedFloor, useClinicStructure } from "../useClinicStructure";
+import { ClinicBlock, ClinicFloor, effectiveRoomFloorId, departmentsOnFloor, computeStructureCounts, floorLabel, isInheritedFloor, useClinicStructure } from "../useClinicStructure";
+import { StructureCounts } from "../StructureCounts";
 import { StructureDepartment, StructureRoom, StructureWarehouse, useClinicStructureData } from "../useClinicStructureData";
 import { useStructureActions } from "../useStructureActions";
 import { DepartmentEditForm } from "../DepartmentEditForm";
@@ -85,27 +86,18 @@ export function StructureDetailsPanel({ selection, onSelect, onClose }: Props) {
 
   const statusBadge = (active: boolean) => active ? <Badge>Активен</Badge> : <Badge variant="secondary">Неактивен</Badge>;
 
-  const floorDepartments = (floorId: string) =>
-    departments.filter(d => d.floor_id === floorId || rooms.some(r => effectiveRoomFloorId(r, departments) === floorId && r.department_id === d.id));
+  const floorDepartments = (floorId: string) => departmentsOnFloor(floorId, departments, rooms);
+  const { perFloor, perBlock } = computeStructureCounts({ blocks: structure.blocks, floorsByBlock: structure.floorsByBlock, departments, rooms });
 
   const title = block?.name ?? (floor ? floorLabel(floor) : undefined) ?? department?.name ?? room?.name ?? warehouse?.name ?? "";
 
   const renderView = () => {
     if (block) {
-      const floors = structure.floorsByBlock.get(block.id) ?? [];
-      const floorIds = floors.map(f => f.id);
-      const deptIds = new Set(floorIds.flatMap(id => floorDepartments(id).map(d => d.id)));
-      const roomCount = rooms.filter(r => {
-        const fid = effectiveRoomFloorId(r, departments);
-        return fid !== null && floorIds.includes(fid);
-      }).length;
       return (
         <div className="space-y-3">
           <Row label="Название">{block.name}</Row>
           <Row label="Статус">{statusBadge(block.is_active)}</Row>
-          <Row label="Этажей">{floors.length}</Row>
-          <Row label="Отделений">{deptIds.size}</Row>
-          <Row label="Палат">{roomCount}</Row>
+          <Row label="Итого"><StructureCounts counts={perBlock.get(block.id)} showFloors className="text-sm" /></Row>
         </div>
       );
     }
@@ -118,6 +110,7 @@ export function StructureDetailsPanel({ selection, onSelect, onClose }: Props) {
         <div className="space-y-3">
           <Row label="Блок">{floorBlock?.name ?? "—"}</Row>
           <Row label="Этаж">{floorLabel(floor)}{floor.label ? <span className="ml-2 text-muted-foreground">(номер {floor.number})</span> : null}</Row>
+          <Row label="Итого"><StructureCounts counts={perFloor.get(floor.id)} className="text-sm" /></Row>
           <Row label="Отделения"><LinkList items={depts.map(d => ({ id: d.id, label: d.name }))} onPick={id => onSelect({ kind: "department", id })} /></Row>
           <Row label="Палаты"><LinkList items={floorRooms.map(r => ({ id: r.id, label: r.name }))} onPick={id => onSelect({ kind: "room", id })} /></Row>
           <Row label="Склады"><LinkList items={floorWhs.map(w => ({ id: w.id, label: w.name }))} onPick={id => onSelect({ kind: "warehouse", id })} /></Row>
