@@ -20,7 +20,7 @@ export function useStructureActions() {
     }
   };
 
-  const run = async (fn: () => Promise<{ error: unknown | null }>): Promise<boolean> => {
+  const run = async (fn: () => PromiseLike<{ error: unknown | null }>): Promise<boolean> => {
     if (!canWrite || !user) return false;
     setBusy(true);
     try {
