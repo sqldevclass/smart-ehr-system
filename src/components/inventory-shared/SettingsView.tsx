@@ -140,7 +140,7 @@ function ТоварыSection() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("product_types")
-        .select("id, name_ru")
+        .select("id, name_ru, code")
         .in("scope", ["warehouse", "shared"])
         .or(`hospital_id.is.null,hospital_id.eq.${user?.hospitalId ?? ""}`)
         .order("sort_order");
