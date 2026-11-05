@@ -10,6 +10,7 @@ import {
   BarChart3,
   Workflow,
   ClipboardList,
+  Wrench,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,13 +39,15 @@ const navItems = [
   { title: "Transfers", url: "/warehouse/transfers", icon: ArrowLeftRight },
   { title: "Заказы", url: "/warehouse/orders", icon: ClipboardList },
   { title: "Товарооборот", url: "/warehouse/turnover", icon: Workflow },
+  { title: "Инвентаризация", url: "/warehouse/inventory", icon: Wrench, inventory: true },
   { title: "Settings", url: "/warehouse/settings", icon: Settings },
   { title: "Reports", url: "/reports", icon: BarChart3 },
   { title: "Profile", url: "/warehouse/profile", icon: UserCircle },
 ];
 
 export default function WarehouseLayout() {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const canInventory = hasPermission("inventory.view") || hasPermission("inventory.manage");
   const pendingOrderCount = usePendingStockOrderCount("general");
   const navigate = useNavigate();
 
@@ -63,7 +66,7 @@ export default function WarehouseLayout() {
               <SidebarGroupLabel>Warehouse</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {navItems.map((item) => (
+                  {navItems.filter((item) => !(item as { inventory?: boolean }).inventory || canInventory).map((item) => (
                     <SidebarMenuItem key={item.title}>
                       <SidebarMenuButton asChild>
                         <NavLink

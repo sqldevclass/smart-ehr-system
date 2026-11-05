@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/sidebar";
 
 const navItems = [
-  { title: "Equipment", url: "/inventory", icon: Wrench, end: true },
+  { title: "Инвентаризация", url: "/inventory", icon: Wrench, end: true },
   { title: "Reports", url: "/reports", icon: BarChart3 },
   { title: "Profile", url: "/inventory/profile", icon: UserCircle },
 ];
