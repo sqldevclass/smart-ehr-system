@@ -25,7 +25,11 @@ import { cn } from "@/lib/utils";
 import { ChevronDown, ChevronRight, Pencil, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { addDays, parseISO, format } from "date-fns";
+import { format } from "date-fns";
+import { noticeState } from "@/lib/equipmentDates";
+import { NoticeChips } from "@/components/inventory-shared/NoticeChips";
+import { NoticeDateCell } from "@/components/inventory-shared/NoticeDateCell";
+import { TableTotalsFooter } from "@/components/inventory-shared/TableTotalsFooter";
 
 interface EquipmentForm {
   id: string;
@@ -40,6 +44,10 @@ interface EquipmentForm {
   next_service_date: string;
   service_interval_days: string;
   notes: string;
+  end_of_life_date: string;
+  service_notice_days: number;
+  warranty_notice_days: number;
+  end_of_life_notice_days: number;
 }
 
 interface ServiceForm {
@@ -50,7 +58,13 @@ interface ServiceForm {
   next_service_date: string;
 }
 
-type Filter = "pending" | "ready" | "all" | "writtenoff";
+type Filter = "pending" | "ready" | "service" | "warranty" | "eol" | "all" | "writtenoff";
+
+const isActiveUnit = (e: any) => e.is_active && !e.written_off_at;
+const soonService = (e: any) => isActiveUnit(e) && noticeState(e.next_service_date, e.service_notice_days ?? 30) !== null;
+const soonWarranty = (e: any) => isActiveUnit(e) && noticeState(e.warranty_expiry_date, e.warranty_notice_days ?? 90) !== null;
+const soonEol = (e: any) => isActiveUnit(e) && noticeState(e.end_of_life_date, e.end_of_life_notice_days ?? 90) !== null;
+const priceFmt = (v: number | null | undefined) => v == null ? "—" : Number(v).toLocaleString("ru-RU", { maximumFractionDigits: 2 });
 
 function locationLabel(e: any) {
   if (e.written_off_at) return `Списано ${format(new Date(e.written_off_at), "dd.MM.yyyy")}`;
@@ -85,7 +99,7 @@ export default function EquipmentPage() {
       const { data, error } = await supabase
         .from("equipment")
         .select(
-          "id, name, model, serial_number, purchase_date, purchase_price, warranty_expiry_date, next_service_date, service_interval_days, notes, is_active, info_status, manufacturer_id, warehouse_id, transit_transfer_id, written_off_at, manufacturers(name), warehouses(name, departments(name))"
+          "id, name, model, serial_number, purchase_date, purchase_price, warranty_expiry_date, next_service_date, service_interval_days, notes, end_of_life_date, service_notice_days, warranty_notice_days, end_of_life_notice_days, is_active, info_status, manufacturer_id, warehouse_id, transit_transfer_id, written_off_at, manufacturers(name), warehouses(name, departments(name))"
         )
         .eq("hospital_id", user!.hospitalId)
         .order("next_service_date", { ascending: true, nullsFirst: false });
@@ -115,9 +129,19 @@ export default function EquipmentPage() {
   }, [filter, isFetched, pendingCount]);
 
   const activeFilter: Filter = filter ?? "all";
-  const rows = (equipment as any[]).filter((e) =>
-    activeFilter === "all" ? true : activeFilter === "writtenoff" ? !!e.written_off_at : e.is_active && e.info_status === activeFilter
+  const all = equipment as any[];
+  const serviceCount = all.filter(soonService).length;
+  const warrantyCount = all.filter(soonWarranty).length;
+  const eolCount = all.filter(soonEol).length;
+  const rows = all.filter((e) =>
+    activeFilter === "all" ? true
+      : activeFilter === "writtenoff" ? !!e.written_off_at
+      : activeFilter === "service" ? soonService(e)
+      : activeFilter === "warranty" ? soonWarranty(e)
+      : activeFilter === "eol" ? soonEol(e)
+      : e.is_active && e.info_status === activeFilter
   );
+  const priceTotal = rows.reduce((s, e) => s + (Number(e.purchase_price) || 0), 0);
 
   const interval = Number(form?.service_interval_days);
   const formValid =
@@ -139,6 +163,10 @@ export default function EquipmentPage() {
         p_next_service_date: form.next_service_date,
         p_service_interval_days: interval,
         p_notes: form.notes.trim() || null,
+        p_end_of_life_date: form.end_of_life_date || null,
+        p_service_notice_days: form.service_notice_days,
+        p_warranty_notice_days: form.warranty_notice_days,
+        p_end_of_life_notice_days: form.end_of_life_notice_days,
       } as any);
       if (error) throw error;
     },
@@ -147,11 +175,10 @@ export default function EquipmentPage() {
       setForm(null);
       qc.invalidateQueries({ queryKey: ["equipment"] });
       qc.invalidateQueries({ queryKey: ["warehouse-units"] });
+      qc.invalidateQueries({ queryKey: ["nurse-inv-units"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
-
-  const today = new Date();
 
   const openForm = (e: any) => {
     setForm({
@@ -167,6 +194,10 @@ export default function EquipmentPage() {
       next_service_date: e.next_service_date || "",
       service_interval_days: e.service_interval_days?.toString() || "",
       notes: e.notes || "",
+      end_of_life_date: e.end_of_life_date || "",
+      service_notice_days: e.service_notice_days ?? 30,
+      warranty_notice_days: e.warranty_notice_days ?? 90,
+      end_of_life_notice_days: e.end_of_life_notice_days ?? 90,
     });
   };
 
@@ -178,6 +209,9 @@ export default function EquipmentPage() {
           <TabsList>
             <TabsTrigger value="pending">Ожидают информации ({pendingCount})</TabsTrigger>
             <TabsTrigger value="ready">Готово к работе</TabsTrigger>
+            <TabsTrigger value="service">Скоро ТО ({serviceCount})</TabsTrigger>
+            <TabsTrigger value="warranty">Скоро окончание гарантии ({warrantyCount})</TabsTrigger>
+            <TabsTrigger value="eol">Скоро окончание срока службы ({eolCount})</TabsTrigger>
             <TabsTrigger value="all">Все</TabsTrigger>
             <TabsTrigger value="writtenoff">Списано</TabsTrigger>
           </TabsList>
@@ -216,14 +250,21 @@ export default function EquipmentPage() {
               <div className="space-y-1.5">
                 <Label>Окончание гарантии *</Label>
                 <Input type="date" value={form.warranty_expiry_date} onChange={(e) => setForm({ ...form, warranty_expiry_date: e.target.value })} />
+                <NoticeChips value={form.warranty_notice_days} onChange={(d) => setForm({ ...form, warranty_notice_days: d })} />
               </div>
               <div className="space-y-1.5">
                 <Label>Дата следующего обслуживания *</Label>
                 <Input type="date" value={form.next_service_date} onChange={(e) => setForm({ ...form, next_service_date: e.target.value })} />
+                <NoticeChips value={form.service_notice_days} onChange={(d) => setForm({ ...form, service_notice_days: d })} />
               </div>
               <div className="space-y-1.5">
                 <Label>Интервал обслуживания (дней) *</Label>
                 <Input type="number" min={1} max={3650} step={1} value={form.service_interval_days} onChange={(e) => setForm({ ...form, service_interval_days: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Срок службы до (ликвидация)</Label>
+                <Input type="date" value={form.end_of_life_date} onChange={(e) => setForm({ ...form, end_of_life_date: e.target.value })} />
+                <NoticeChips value={form.end_of_life_notice_days} onChange={(d) => setForm({ ...form, end_of_life_notice_days: d })} />
               </div>
               <div className="space-y-1.5 col-span-2">
                 <Label>Заметки</Label>
@@ -251,20 +292,23 @@ export default function EquipmentPage() {
               <th className="p-3">Местонахождение</th>
               <th className="p-3">Производитель</th>
               <th className="p-3">Дата закупки</th>
+              <th className="p-3 text-right">Цена</th>
               <th className="p-3">След. обслуживание</th>
+              <th className="p-3">Гарантия до</th>
+              <th className="p-3">Срок службы до</th>
               <th className="p-3">Статус</th>
               <th className="p-3 w-40"></th>
             </tr>
           </thead>
           <tbody>
             {rows.map((e: any) => {
-              const due = e.next_service_date && parseISO(e.next_service_date) <= addDays(today, 30);
+              const due = noticeState(e.next_service_date, e.service_notice_days ?? 30);
               const writtenOff = !!e.written_off_at;
               const ready = e.info_status === "ready" && !writtenOff;
               const isOpen = expanded === e.id;
               return (
                 <Fragment key={e.id}>
-                  <tr className={cn("border-t", due && "bg-orange-500/15", !e.is_active && "opacity-50")}>
+                  <tr className={cn("border-t", due === "soon" && "bg-orange-500/15", due === "overdue" && "bg-destructive/10", !e.is_active && "opacity-50")}>
                     <td className="p-3">
                       {ready && canManage && (
                         <Button size="icon" variant="ghost" onClick={() => setExpanded(isOpen ? null : e.id)}>
@@ -278,7 +322,10 @@ export default function EquipmentPage() {
                     <td className="p-3">{locationLabel(e)}</td>
                     <td className="p-3">{e.manufacturers?.name || "—"}</td>
                     <td className="p-3">{e.purchase_date || "—"}</td>
-                    <td className="p-3">{e.next_service_date || "—"}</td>
+                    <td className="p-3 text-right">{priceFmt(e.purchase_price)}</td>
+                    <td className="p-3"><NoticeDateCell date={e.next_service_date} noticeDays={e.service_notice_days ?? 30} /></td>
+                    <td className="p-3"><NoticeDateCell date={e.warranty_expiry_date} noticeDays={e.warranty_notice_days ?? 90} overdueLabel="истёк" /></td>
+                    <td className="p-3"><NoticeDateCell date={e.end_of_life_date} noticeDays={e.end_of_life_notice_days ?? 90} overdueLabel="истёк" /></td>
                     <td className="p-3">
                       {writtenOff ? <Badge variant="secondary">Списано</Badge> : ready ? <Badge variant="outline">Готово</Badge> : <Badge variant="secondary">Ожидает информации</Badge>}
                     </td>
@@ -298,7 +345,7 @@ export default function EquipmentPage() {
                   </tr>
                   {isOpen && ready && canManage && (
                     <tr className="border-t bg-muted/20">
-                      <td colSpan={10} className="p-4">
+                      <td colSpan={13} className="p-4">
                         <ServiceHistory
                           equipmentId={e.id}
                           onAddOpen={() => {
@@ -319,9 +366,17 @@ export default function EquipmentPage() {
               );
             })}
             {rows.length === 0 && (
-              <tr><td colSpan={10} className="p-6 text-center text-muted-foreground">Нет оборудования.</td></tr>
+              <tr><td colSpan={13} className="p-6 text-center text-muted-foreground">Нет оборудования.</td></tr>
             )}
           </tbody>
+          <TableTotalsFooter
+            label={`Итого: ${rows.length} ед.`}
+            cells={[
+              { colSpan: 7 },
+              { content: priceFmt(priceTotal), align: "right" },
+              { colSpan: 5 },
+            ]}
+          />
         </table>
       </div>
 
