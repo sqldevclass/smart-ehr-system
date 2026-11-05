@@ -82,7 +82,8 @@ export function ClinicStructureTree() {
   const openAction = (next: Action) => {
     setAction(next);
     setName(next.type === "rename" ? next.block.name : next.type === "floor-label" ? next.floor.label ?? "" : "");
-    setNumber(next.type === "floor-add" ? String(Math.max(0, ...(structure.floorsByBlock.get(next.block.id) ?? []).map(f => f.number)) + 1) : "1");
+    const floorNumbers = next.type === "floor-add" ? (structure.floorsByBlock.get(next.block.id) ?? []).map(f => f.number) : [];
+    setNumber(floorNumbers.length ? String(Math.max(...floorNumbers) + 1) : "1");
   };
   const saveAction = async () => {
     if (!action || !canWrite || !user) return;

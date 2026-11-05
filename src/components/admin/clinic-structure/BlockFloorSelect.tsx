@@ -15,7 +15,7 @@ export function BlockFloorSelect({ value, onChange, disabled }: Props) {
       <Select value={blockId ?? "none"} disabled={disabled || isLoading || !!error} onValueChange={id => {
         const block = id === "none" ? null : id;
         setSelection({ value: null, block });
-        onChange(null);
+        if (value !== null) onChange(null);
       }}>
         <SelectTrigger aria-label="Блок"><SelectValue placeholder="Блок" /></SelectTrigger>
         <SelectContent>
