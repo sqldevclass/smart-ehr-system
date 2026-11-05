@@ -93,7 +93,6 @@ export function StructureDetailsPanel({ selection, onSelect, onClose }: Props) {
 
   const renderView = () => {
     if (block) {
-      const floors = structure.floorsByBlock.get(block.id) ?? [];
       return (
         <div className="space-y-3">
           <Row label="Название">{block.name}</Row>

@@ -12,7 +12,7 @@ interface Props { counts?: FloorCounts | BlockCounts; showFloors?: boolean; clas
 
 export function StructureCounts({ counts, showFloors, className }: Props) {
   const c = counts ?? { departments: 0, rooms: 0, beds: 0 };
-  const floors = "floors" in c ? c.floors : 0;
+  const floors = "floors" in c ? (c as BlockCounts).floors : 0;
   const parts = [
     ...(showFloors ? [`${floors} ${pluralRu(floors, "этаж", "этажа", "этажей")}`] : []),
     `${c.departments} ${pluralRu(c.departments, "отделение", "отделения", "отделений")}`,
