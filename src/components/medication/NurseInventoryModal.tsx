@@ -23,6 +23,8 @@ import ItemTurnoverView from "@/components/inventory-shared/ItemTurnoverView";
 import { useWarehouseUnits } from "@/components/inventory-shared/useWarehouseUnits";
 import { UnitPicker } from "@/components/inventory-shared/UnitPicker";
 import { Badge } from "@/components/ui/badge";
+import { NoticeDateCell } from "@/components/inventory-shared/NoticeDateCell";
+import { TableTotalsFooter } from "@/components/inventory-shared/TableTotalsFooter";
 
 interface Props {
   departmentId: string;
@@ -105,6 +107,15 @@ export default function NurseInventoryModal({
   });
 
   const { byBatch, isPending: unitsLoading, error: unitsError } = useWarehouseUnits(deptWarehouse?.id);
+  const { data: invUnits = [], isPending: invUnitsLoading } = useQuery({
+    queryKey: ["nurse-inv-units", deptWarehouse?.id],
+    enabled: !!deptWarehouse?.id,
+    queryFn: async (): Promise<any[]> => {
+      const { data, error } = await supabase.rpc("list_department_inventory" as any, { p_warehouse_id: deptWarehouse!.id } as any);
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
   const woUnits = byBatch.get(woBatchId);
 
   const {
@@ -298,7 +309,7 @@ export default function NurseInventoryModal({
     refetchPres(); refetchStock();
     qc.invalidateQueries({ queryKey: ["nurse-inv-transfers", deptWarehouse?.id] });
     if (!deptWarehouse) return;
-    for (const key of ["stock", "stale-items", "transfers", "my-batches", "writeoff-batches", "warehouse-units"]) qc.invalidateQueries({ queryKey: [key, deptWarehouse.id] });
+    for (const key of ["stock", "stale-items", "transfers", "my-batches", "writeoff-batches", "warehouse-units", "nurse-inv-units"]) qc.invalidateQueries({ queryKey: [key, deptWarehouse.id] });
     qc.invalidateQueries({ queryKey: ["equipment"] });
     for (const key of ["nurse-prescriptions", "nurse-admin-slots", "all-slots"]) qc.invalidateQueries({ queryKey: [key] });
   };
@@ -420,6 +431,7 @@ export default function NurseInventoryModal({
               </TabsTrigger>
               <TabsTrigger value="writeoff">Списание</TabsTrigger>
               <TabsTrigger value="stock">Склад отделения</TabsTrigger>
+              <TabsTrigger value="inventory">Инвентаризация</TabsTrigger>
               <TabsTrigger value="turnover">Товарооборот</TabsTrigger>
             </TabsList>
             <button
@@ -675,9 +687,9 @@ export default function NurseInventoryModal({
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredStock.length === 0 ? (
+                      {filteredStock.filter((b: any) => !byBatch.has(b.id)).length === 0 ? (
                         <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">Склад пуст</td></tr>
-                      ) : filteredStock.map((b: any) => (
+                      ) : filteredStock.filter((b: any) => !byBatch.has(b.id)).map((b: any) => (
                         <tr key={b.id} className="border-t">
                           <td className={td}><HighlightMatch text={b.drug_formulary?.trade_name || b.products?.name} term={filters.drug ?? ""} fallback="—" /></td>
                           <td className={td}><HighlightMatch text={b.drug_formulary?.inn} term={filters.drug ?? ""} fallback="—" /></td>
@@ -688,6 +700,46 @@ export default function NurseInventoryModal({
                         </tr>
                       ))}
                     </tbody>
+                  </table>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="inventory" className="flex-1 min-h-0 overflow-y-auto mt-2">
+              {!deptWarehouse ? (
+                <div className="text-center text-muted-foreground py-12">Склад отделения не настроен</div>
+              ) : invUnitsLoading ? (
+                <div className="flex items-center justify-center h-32"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+              ) : (
+                <div className="border rounded-lg overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className={th}>Название</th>
+                        <th className={th}>Модель</th>
+                        <th className={th}>Серийный номер</th>
+                        <th className={th}>Статус</th>
+                        <th className={th}>След. ТО</th>
+                        <th className={th}>Гарантия до</th>
+                        <th className={th}>Срок службы до</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {invUnits.length === 0 ? (
+                        <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">Нет инвентаря на складе отделения</td></tr>
+                      ) : invUnits.map((u: any) => (
+                        <tr key={u.equipment_id} className="border-t">
+                          <td className={td}>{u.name || "—"}</td>
+                          <td className={td}>{u.model || "—"}</td>
+                          <td className={td}>{u.serial_number || "—"}</td>
+                          <td className={td}>{u.info_status === "ready" ? <Badge variant="outline">Готово</Badge> : <Badge variant="secondary">Ожидает информации</Badge>}</td>
+                          <td className={td}><NoticeDateCell date={u.next_service_date} noticeDays={u.service_notice_days ?? 30} /></td>
+                          <td className={td}><NoticeDateCell date={u.warranty_expiry_date} noticeDays={u.warranty_notice_days ?? 90} overdueLabel="истёк" /></td>
+                          <td className={td}><NoticeDateCell date={u.end_of_life_date} noticeDays={u.end_of_life_notice_days ?? 90} overdueLabel="истёк" /></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <TableTotalsFooter label={`Итого: ${invUnits.length} ед.`} cells={[{ colSpan: 7 }]} />
                   </table>
                 </div>
               )}

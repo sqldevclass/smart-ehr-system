@@ -134,7 +134,7 @@ export default function NurseTransfersPanel({ hospitalId, deptWarehouse, stock, 
   const refresh = (ids: string[]) => {
     for (const id of new Set([deptWarehouse?.id, ...ids])) {
       if (!id) continue;
-      for (const key of ["nurse-inv-transfers", "nurse-inv-stock", "stock", "transfers", "my-batches", "writeoff-batches", "warehouse-units"]) {
+      for (const key of ["nurse-inv-transfers", "nurse-inv-stock", "stock", "transfers", "my-batches", "writeoff-batches", "warehouse-units", "nurse-inv-units"]) {
         qc.invalidateQueries({ queryKey: [key, id] });
       }
     }
