@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { toast } from "sonner";
 import { BlockFloorSelect } from "./BlockFloorSelect";
 import { ClinicBlock, ClinicFloor, effectiveRoomFloorId, departmentsOnFloor, computeStructureCounts, floorLabel, useClinicStructure } from "./useClinicStructure";
+import { StructureCounts } from "./StructureCounts";
 import { StructureRoom, useClinicStructureData } from "./useClinicStructureData";
 import { useStructureActions } from "./useStructureActions";
 

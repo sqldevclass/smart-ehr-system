@@ -5,7 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { ClinicBlock, ClinicFloor, effectiveRoomFloorId, floorLabel, useClinicStructure } from "../useClinicStructure";
+import { ClinicBlock, ClinicFloor, effectiveRoomFloorId, departmentsOnFloor, computeStructureCounts, floorLabel, useClinicStructure } from "../useClinicStructure";
+import { StructureCounts } from "../StructureCounts";
 import { StructureDepartment, StructureRoom, StructureWarehouse, useClinicStructureData } from "../useClinicStructureData";
 import { useStructureActions } from "../useStructureActions";
 import { StructureDetailsPanel, StructureSelection } from "./StructureDetailsPanel";
@@ -54,8 +55,8 @@ export function VisualStructure() {
   const isSelected = (kind: StructureSelection["kind"], id: string) => selection?.kind === kind && selection.id === id;
   const select = (kind: StructureSelection["kind"], id: string) => setSelection({ kind, id });
 
-  const floorDepartments = (floorId: string): StructureDepartment[] =>
-    departments.filter(d => d.floor_id === floorId || rooms.some(r => effectiveRoomFloorId(r, allDepartments) === floorId && r.department_id === d.id));
+  const floorDepartments = (floorId: string): StructureDepartment[] => departmentsOnFloor(floorId, departments, rooms, allDepartments);
+  const { perFloor, perBlock } = computeStructureCounts({ blocks: structure.blocks, floorsByBlock: structure.floorsByBlock, departments, rooms, allDepartments });
   const deptRoomsOnFloor = (floorId: string, deptId: string): StructureRoom[] =>
     rooms.filter(r => effectiveRoomFloorId(r, allDepartments) === floorId && r.department_id === deptId);
   const orphanRoomsOnFloor = (floorId: string): StructureRoom[] =>
@@ -88,7 +89,7 @@ export function VisualStructure() {
           onClick={() => select("floor", floor.id)}
           className={`flex w-24 shrink-0 items-center rounded-bl px-2 py-2 text-left text-xs font-medium text-muted-foreground hover:bg-muted/60 ${focusRing} ${isSelected("floor", floor.id) ? selectedRing : ""}`}
         >
-          {floorLabel(floor)}
+          <span className="flex flex-col gap-0.5"><span>{floorLabel(floor)}</span><StructureCounts counts={perFloor.get(floor.id)} className="text-[10px] leading-tight" /></span>
         </button>
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 py-2 pr-2">
           {empty && <span className="text-xs text-muted-foreground">Пусто</span>}
@@ -145,7 +146,7 @@ export function VisualStructure() {
         >
           <Building2 className="h-4 w-4 shrink-0" />
           <span className="min-w-0 flex-1 truncate">{block.name}{!block.is_active ? " (неактивен)" : ""}</span>
-          <span className="text-xs font-normal text-muted-foreground">{floors.length} этажей</span>
+          <StructureCounts counts={perBlock.get(block.id)} showFloors />
         </button>
         <div>
           {floors.map((floor, i) => (
