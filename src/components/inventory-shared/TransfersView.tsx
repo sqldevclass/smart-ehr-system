@@ -77,6 +77,7 @@ export default function TransfersView({ warehouseTypeCode, title }: Props) {
       qc.invalidateQueries({ queryKey: ["transfers", id] });
       qc.invalidateQueries({ queryKey: ["my-batches", id] });
       qc.invalidateQueries({ queryKey: ["warehouse-units", id] });
+      qc.invalidateQueries({ queryKey: ["nurse-inv-units", id] });
       qc.invalidateQueries({ queryKey: ["writeoff-batches", id] });
       qc.invalidateQueries({ queryKey: ["nurse-inv-stock", id] });
       qc.invalidateQueries({ queryKey: ["nurse-inv-transfers", id] });
