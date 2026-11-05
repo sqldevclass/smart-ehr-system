@@ -1,3 +1,5 @@
+import { BlockFloorSelect } from "@/components/admin/clinic-structure/BlockFloorSelect";
+import { useClinicStructure } from "@/components/admin/clinic-structure/useClinicStructure";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,7 +27,8 @@ import { toast } from "sonner";
 import { Pencil } from "lucide-react";
 
 export default function WarehousesPage() {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const { formatFloor } = useClinicStructure();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [movementHint, setMovementHint] = useState(false);
@@ -36,7 +39,8 @@ export default function WarehousesPage() {
     warehouse_type_id: string;
     department_id: string | null;
     is_active: boolean;
-  }>({ name: "", warehouse_type_id: "", department_id: null, is_active: true });
+    floor_id: string | null;
+  }>({ name: "", warehouse_type_id: "", department_id: null, is_active: true, floor_id: null });
 
   const { data: types = [] } = useQuery({
     queryKey: ["warehouse_types"],
@@ -71,7 +75,7 @@ export default function WarehousesPage() {
       const { data, error } = await supabase
         .from("warehouses")
         .select(
-          "id, name, is_active, warehouse_type_id, department_id, warehouse_types(name_ru), departments(name)"
+          "id, name, is_active, warehouse_type_id, department_id, floor_id, warehouse_types(name_ru), departments(name)"
         )
         .eq("hospital_id", user?.hospitalId ?? "")
         .order("name");
@@ -87,6 +91,7 @@ export default function WarehousesPage() {
     if (!form.name.trim() || !form.warehouse_type_id) { toast.error("Укажите название и тип склада"); return; }
     if (isDepartment && !form.department_id) { toast.error("Выберите отделение"); return; }
     const payload = {
+      floor_id: form.floor_id,
       name: form.name.trim(), warehouse_type_id: form.warehouse_type_id,
       department_id: isDepartment ? form.department_id : null, is_active: form.is_active,
     };
@@ -101,8 +106,9 @@ export default function WarehousesPage() {
       }
       toast.success("Сохранено");
       setOpen(false);
-      setForm({ name: "", warehouse_type_id: "", department_id: null, is_active: true });
-      qc.invalidateQueries({ queryKey: ["warehouses", user.hospitalId] });
+      setForm({ name: "", warehouse_type_id: "", department_id: null, is_active: true, floor_id: null });
+      qc.invalidateQueries({ queryKey: ["warehouses"] });
+      qc.invalidateQueries({ queryKey: ["clinic-structure"] });
       qc.invalidateQueries({ queryKey: ["my-warehouse", user.hospitalId] });
       qc.invalidateQueries({ queryKey: ["transfer-destinations", user.hospitalId] });
       qc.invalidateQueries({ queryKey: ["all-dept-warehouses", user.hospitalId] });
@@ -116,7 +122,7 @@ export default function WarehousesPage() {
         <h2 className="font-heading text-xl font-bold text-foreground">Склады</h2>
         <Button
           onClick={() => {
-            setForm({ name: "", warehouse_type_id: "", department_id: null, is_active: true });
+            setForm({ name: "", warehouse_type_id: "", department_id: null, is_active: true, floor_id: null });
             setMovementHint(false);
             setOpen(true);
           }}
@@ -132,6 +138,7 @@ export default function WarehousesPage() {
               <th className="p-3">Название</th>
               <th className="p-3">Тип</th>
               <th className="p-3">Отделение</th>
+              <th className="p-3">Блок / Этаж</th>
               <th className="p-3">Активен</th>
               <th className="p-3 w-12"></th>
             </tr>
@@ -142,6 +149,7 @@ export default function WarehousesPage() {
                 <td className="p-3">{w.name}</td>
                 <td className="p-3">{w.warehouse_types?.name_ru || "—"}</td>
                 <td className="p-3">{w.departments?.name || "—"}</td>
+                <td className="p-3">{formatFloor(w.floor_id)}</td>
                 <td className="p-3">
                   <Badge variant={w.is_active ? "default" : "secondary"}>
                     {w.is_active ? "Да" : "Нет"}
@@ -158,6 +166,7 @@ export default function WarehousesPage() {
                         warehouse_type_id: w.warehouse_type_id,
                         department_id: w.department_id,
                         is_active: w.is_active,
+                        floor_id: w.floor_id,
                       });
                       setMovementHint(false);
             setOpen(true);
@@ -170,7 +179,7 @@ export default function WarehousesPage() {
             ))}
             {warehouses.length === 0 && (
               <tr>
-                <td colSpan={5} className="p-6 text-center text-muted-foreground">
+                <td colSpan={6} className="p-6 text-center text-muted-foreground">
                   Нет складов
                 </td>
               </tr>
@@ -232,6 +241,10 @@ export default function WarehousesPage() {
                 </SelectContent>
               </Select>
             </div>}
+            <div className="space-y-1.5">
+              <Label>Блок / Этаж</Label>
+              <BlockFloorSelect value={form.floor_id} onChange={floor_id => setForm({ ...form, floor_id })} disabled={saving || !hasPermission("system.manage_settings")} />
+            </div>
             {movementHint && <p className="text-sm text-muted-foreground">Нельзя менять после первых движений</p>}
             <div className="flex items-center gap-2">
               <Switch

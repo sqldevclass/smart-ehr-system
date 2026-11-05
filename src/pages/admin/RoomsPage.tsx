@@ -1,3 +1,5 @@
+import { BlockFloorSelect } from "@/components/admin/clinic-structure/BlockFloorSelect";
+import { useClinicStructure } from "@/components/admin/clinic-structure/useClinicStructure";
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,6 +24,7 @@ import { toast } from "sonner";
 interface Department {
   id: string;
   name: string;
+  floor_id: string | null;
 }
 
 interface RoomType {
@@ -43,11 +46,15 @@ interface Room {
   capacity: number;
   is_active: boolean;
   department_id: string | null;
+  floor_id: string | null;
   room_types?: { name: string; is_office_room?: boolean } | null;
 }
 
 export default function RoomsPage() {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const { formatFloor } = useClinicStructure();
+  const [addFloorId, setAddFloorId] = useState<string | null>(null);
+  const [editingFloorId, setEditingFloorId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const [manageOpen, setManageOpen] = useState(false);
@@ -71,7 +78,7 @@ export default function RoomsPage() {
       if (!user) return [];
       const { data, error } = await supabase
         .from("departments")
-        .select("id, name")
+        .select("id, name, floor_id")
         .eq("hospital_id", user.hospitalId)
         .eq("is_active", true)
         .order("name");
@@ -118,7 +125,7 @@ export default function RoomsPage() {
       if (!user) return [];
       const { data, error } = await supabase
         .from("rooms")
-        .select("id, name, room_type_id, capacity, is_active, department_id, room_types(name, is_office_room)")
+        .select("id, name, room_type_id, capacity, is_active, department_id, floor_id, room_types(name, is_office_room)")
         .eq("hospital_id", user.hospitalId)
         .order("name");
       if (error) throw error;
@@ -177,6 +184,7 @@ export default function RoomsPage() {
 
   const refreshRooms = () => {
     queryClient.invalidateQueries({ queryKey: ["rooms"] });
+    queryClient.invalidateQueries({ queryKey: ["clinic-structure"] });
     queryClient.invalidateQueries({ queryKey: ["office-room-services"] });
   };
 
@@ -204,6 +212,7 @@ export default function RoomsPage() {
         name: addName.trim(),
         room_type_id: addTypeId,
         capacity: addIsOffice ? 0 : addBeds,
+        floor_id: addFloorId,
       }).select("id").single();
       if (error) throw error;
       if (addIsOffice && addServiceIds.size > 0 && inserted?.id) {
@@ -217,6 +226,7 @@ export default function RoomsPage() {
       }
       toast.success("Room created.");
       setAddName("");
+      setAddFloorId(null);
       setAddBeds(1);
       setAddServiceIds(new Set());
       refreshRooms();
@@ -258,6 +268,7 @@ export default function RoomsPage() {
             <TableHead>Name</TableHead>
             <TableHead>Type</TableHead>
             <TableHead className="w-40">Number of Beds</TableHead>
+            <TableHead>Блок / Этаж</TableHead>
             <TableHead>Status</TableHead>
           </TableRow>
         </TableHeader>
@@ -316,6 +327,16 @@ export default function RoomsPage() {
                 </div>
               </TableCell>
               <TableCell>
+                {editingFloorId === r.id ? (
+                  <div className="min-w-64 space-y-1">
+                    <BlockFloorSelect value={r.floor_id} onChange={floor_id => updateRoom(r.id, { floor_id })} disabled={!hasPermission("system.manage_settings")} />
+                    <Button variant="ghost" size="sm" onClick={() => setEditingFloorId(null)}>Готово</Button>
+                  </div>
+                ) : (
+                  <Button variant="ghost" className="h-auto whitespace-normal text-left" disabled={!hasPermission("system.manage_settings")} onClick={() => setEditingFloorId(r.id)}>{formatFloor(r.floor_id)}</Button>
+                )}
+              </TableCell>
+              <TableCell>
                 <Switch
                   checked={r.is_active}
                   onCheckedChange={(v) => updateRoom(r.id, { is_active: v })}
@@ -336,6 +357,7 @@ export default function RoomsPage() {
             <TableHead>Name</TableHead>
             <TableHead>Type</TableHead>
             <TableHead>Services</TableHead>
+            <TableHead>Блок / Этаж</TableHead>
             <TableHead>Status</TableHead>
           </TableRow>
         </TableHeader>
@@ -384,6 +406,16 @@ export default function RoomsPage() {
                   </div>
                 </TableCell>
                 <TableCell>
+                {editingFloorId === r.id ? (
+                  <div className="min-w-64 space-y-1">
+                    <BlockFloorSelect value={r.floor_id} onChange={floor_id => updateRoom(r.id, { floor_id })} disabled={!hasPermission("system.manage_settings")} />
+                    <Button variant="ghost" size="sm" onClick={() => setEditingFloorId(null)}>Готово</Button>
+                  </div>
+                ) : (
+                  <Button variant="ghost" className="h-auto whitespace-normal text-left" disabled={!hasPermission("system.manage_settings")} onClick={() => setEditingFloorId(r.id)}>{formatFloor(r.floor_id)}</Button>
+                )}
+              </TableCell>
+              <TableCell>
                   <Switch
                     checked={r.is_active}
                     onCheckedChange={(v) => updateRoom(r.id, { is_active: v })}
@@ -479,6 +511,10 @@ export default function RoomsPage() {
                 </Button>
               </div>
 
+              <div className="space-y-1">
+                <Label className="text-xs">Блок / Этаж</Label>
+                <BlockFloorSelect value={addFloorId} onChange={setAddFloorId} disabled={adding || !hasPermission("system.manage_settings")} />
+              </div>
               {!addIsOffice ? (
                 <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-2 items-end">
                   <div className="space-y-1">
@@ -495,7 +531,7 @@ export default function RoomsPage() {
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Department</Label>
-                    <Select value={addDeptId} onValueChange={setAddDeptId}>
+                    <Select value={addDeptId} onValueChange={id => { setAddDeptId(id); const floor = departments.find(d => d.id === id)?.floor_id; if (floor) setAddFloorId(floor); }}>
                       <SelectTrigger className="h-9"><SelectValue placeholder="Select" /></SelectTrigger>
                       <SelectContent>
                         {departments.map((d) => (
@@ -567,6 +603,8 @@ function BulkCreateDialog({
   hospitalId?: string;
 }) {
   const queryClient = useQueryClient();
+  const { hasPermission } = useAuth();
+  const [floorId, setFloorId] = useState<string | null>(null);
   const [deptId, setDeptId] = useState("");
   const [typeId, setTypeId] = useState("");
   const [beds, setBeds] = useState(1);
@@ -603,12 +641,15 @@ function BulkCreateDialog({
         room_type_id: typeId,
         name,
         capacity: beds,
+        floor_id: floorId,
       }));
       const { error } = await supabase.from("rooms").insert(rows);
       if (error) throw error;
       toast.success(`Created ${rows.length} rooms.`);
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      queryClient.invalidateQueries({ queryKey: ["clinic-structure"] });
       onOpenChange(false);
+      setFloorId(null);
       setDeptId(""); setTypeId(""); setBeds(1); setCount(5);
     } catch (err: any) {
       toast.error(err.message || "Failed.");
@@ -626,7 +667,7 @@ function BulkCreateDialog({
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label>Department *</Label>
-            <Select value={deptId} onValueChange={setDeptId}>
+            <Select value={deptId} onValueChange={id => { setDeptId(id); const floor = departments.find(d => d.id === id)?.floor_id; if (floor) setFloorId(floor); }}>
               <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
               <SelectContent>
                 {departments.map((d) => (
@@ -634,6 +675,10 @@ function BulkCreateDialog({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Блок / Этаж</Label>
+            <BlockFloorSelect value={floorId} onChange={setFloorId} disabled={busy || !hasPermission("system.manage_settings")} />
           </div>
           <div className="space-y-1.5">
             <Label>Room Type *</Label>
