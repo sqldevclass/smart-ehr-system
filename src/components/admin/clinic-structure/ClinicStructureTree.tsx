@@ -42,6 +42,7 @@ export function ClinicStructureTree() {
   const [action, setAction] = useState<Action | null>(null);
   const [name, setName] = useState("");
   const [number, setNumber] = useState("1");
+  const [basements, setBasements] = useState("0");
   const [busy, setBusy] = useState(false);
   const [bulk, setBulk] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -83,18 +84,23 @@ export function ClinicStructureTree() {
     setAction(next);
     setName(next.type === "rename" ? next.block.name : next.type === "floor-label" ? next.floor.label ?? "" : "");
     const floorNumbers = next.type === "floor-add" ? (structure.floorsByBlock.get(next.block.id) ?? []).map(f => f.number) : [];
-    setNumber(floorNumbers.length ? String(Math.max(...floorNumbers) + 1) : "1");
+    const positive = floorNumbers.filter(n => n > 0);
+    setNumber(positive.length ? String(Math.max(...positive) + 1) : "1");
+    setBasements("0");
   };
   const saveAction = async () => {
     if (!action || !canWrite || !user) return;
     const n = Number(number);
+    const b = Number(basements);
     if ((action.type === "create" || action.type === "rename") && !name.trim()) return toast.error("Укажите название блока");
-    if ((action.type === "create" || action.type === "floor-add") && (!number.trim() || !Number.isInteger(n) || (action.type === "create" && (n < 1 || n > 100)))) return toast.error(action.type === "create" ? "Количество этажей: целое число от 1 до 100" : "Укажите целый номер этажа");
+    if ((action.type === "create" || action.type === "floor-add") && (!number.trim() || !Number.isInteger(n) || (action.type === "create" && (n < 0 || n > 100)) || (action.type === "floor-add" && (n < -10 || n > 200)))) return toast.error(action.type === "create" ? "Количество этажей: целое число от 0 до 100" : "Номер этажа: целое число от -10 до 200");
+    if (action.type === "create" && (!basements.trim() || !Number.isInteger(b) || b < 0 || b > 10)) return toast.error("Подвальных этажей: целое число от 0 до 10");
+    if (action.type === "create" && n + b < 1) return toast.error("Укажите хотя бы один этаж или подвал");
     setBusy(true);
     try {
       let result;
       switch (action.type) {
-        case "create": result = await supabase.rpc("create_clinic_block", { p_name: name.trim(), p_floors: n }); break;
+        case "create": result = await supabase.rpc("create_clinic_block", { p_name: name.trim(), p_floors: n, p_basements: b }); break;
         case "rename": result = await supabase.from("clinic_blocks").update({ name: name.trim() }).eq("id", action.block.id).eq("hospital_id", user.hospitalId); break;
         case "toggle": result = await supabase.from("clinic_blocks").update({ is_active: !action.block.is_active }).eq("id", action.block.id).eq("hospital_id", user.hospitalId); break;
         case "floor-add": result = await supabase.from("clinic_floors").insert({ hospital_id: user.hospitalId, block_id: action.block.id, number: n, label: name.trim() || null }); break;
@@ -124,7 +130,7 @@ export function ClinicStructureTree() {
     <span>{item.name}{detail && <span className="ml-2 text-xs text-muted-foreground">{detail}</span>}{!item.is_active && <Badge variant="secondary" className="ml-2">Неактивен</Badge>}</span>
   </Button>;
   const roomLink = (r: Room) => itemLink(r, "rooms", [r.room_types?.name, r.capacity > 0 ? `${r.capacity} коек` : null].filter(Boolean).join(" · "));
-  const floorDepartments = (id: string) => departments.filter(d => rooms.some(r => r.floor_id === id && r.department_id === d.id) || (!allRooms.some(r => r.department_id === d.id) && d.floor_id === id));
+  const floorDepartments = (id: string) => departments.filter(d => d.floor_id === id || rooms.some(r => r.floor_id === id && r.department_id === d.id));
   const counts = (floorIds: string[]) => {
     const depts = new Set(floorIds.flatMap(id => floorDepartments(id).map(d => d.id)));
     return `${depts.size} отделений · ${rooms.filter(r => r.floor_id && floorIds.includes(r.floor_id)).length} палат`;
@@ -157,7 +163,8 @@ export function ClinicStructureTree() {
     </>}
     <Dialog open={!!action} onOpenChange={open => { if (!open && !busy) setAction(null); }}><DialogContent><DialogHeader><DialogTitle>{title}</DialogTitle></DialogHeader>
       {(action?.type === "create" || action?.type === "rename" || action?.type === "floor-label" || action?.type === "floor-add") && <div className="space-y-1.5"><Label htmlFor="structure-name">{action.type === "create" || action.type === "rename" ? "Название блока" : "Название этажа (необязательно)"}</Label><Input id="structure-name" value={name} onChange={e => setName(e.target.value)} disabled={busy} /></div>}
-      {(action?.type === "create" || action?.type === "floor-add") && <div className="space-y-1.5"><Label htmlFor="structure-number">{action.type === "create" ? "Количество этажей" : "Номер этажа"}</Label><Input id="structure-number" type="number" step={1} min={action.type === "create" ? 1 : undefined} max={action.type === "create" ? 100 : undefined} value={number} onChange={e => setNumber(e.target.value)} disabled={busy} /></div>}
+      {(action?.type === "create" || action?.type === "floor-add") && <div className="space-y-1.5"><Label htmlFor="structure-number">{action.type === "create" ? "Количество этажей" : "Номер этажа"}</Label><Input id="structure-number" type="number" step={1} min={action.type === "create" ? 0 : -10} max={action.type === "create" ? 100 : 200} value={number} onChange={e => setNumber(e.target.value)} disabled={busy} />{action.type === "floor-add" && <p className="text-xs text-muted-foreground">Для подвала укажите отрицательное число, например -1</p>}</div>}
+      {action?.type === "create" && <div className="space-y-1.5"><Label htmlFor="structure-basements">Подвальных этажей</Label><Input id="structure-basements" type="number" step={1} min={0} max={10} value={basements} onChange={e => setBasements(e.target.value)} disabled={busy} /></div>}
       {action?.type === "floor-delete" && <p className="text-sm">Удалить этаж «{floorLabel(action.floor)}»? Используемый этаж удалить нельзя.</p>}
       {action?.type === "toggle" && <p className="text-sm">{action.block.is_active ? "Деактивировать" : "Активировать"} блок «{action.block.name}»?</p>}
       <DialogFooter><Button variant="outline" disabled={busy} onClick={() => setAction(null)}>Отмена</Button><Button variant={action?.type === "floor-delete" ? "destructive" : "default"} disabled={busy || !canWrite} onClick={saveAction}>{busy ? "Сохранение…" : action?.type === "floor-delete" ? "Удалить" : "Сохранить"}</Button></DialogFooter>
