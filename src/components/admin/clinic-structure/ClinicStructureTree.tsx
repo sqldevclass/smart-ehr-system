@@ -15,7 +15,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { BlockFloorSelect } from "./BlockFloorSelect";
-import { ClinicBlock, ClinicFloor, floorLabel, useClinicStructure } from "./useClinicStructure";
+import { ClinicBlock, ClinicFloor, effectiveRoomFloorId, floorLabel, useClinicStructure } from "./useClinicStructure";
 
 interface Item { id: string; name: string; floor_id: string | null; is_active: boolean }
 interface Room extends Item { department_id: string | null; capacity: number; room_types: { name: string } | null }
@@ -130,14 +130,17 @@ export function ClinicStructureTree() {
     <span>{item.name}{detail && <span className="ml-2 text-xs text-muted-foreground">{detail}</span>}{!item.is_active && <Badge variant="secondary" className="ml-2">Неактивен</Badge>}</span>
   </Button>;
   const roomLink = (r: Room) => itemLink(r, "rooms", [r.room_types?.name, r.capacity > 0 ? `${r.capacity} коек` : null].filter(Boolean).join(" · "));
-  const floorDepartments = (id: string) => departments.filter(d => d.floor_id === id || rooms.some(r => r.floor_id === id && r.department_id === d.id));
+  const floorDepartments = (id: string) => departments.filter(d => d.floor_id === id || rooms.some(r => effectiveRoomFloorId(r, allDepartments) === id && r.department_id === d.id));
   const counts = (floorIds: string[]) => {
     const depts = new Set(floorIds.flatMap(id => floorDepartments(id).map(d => d.id)));
-    return `${depts.size} отделений · ${rooms.filter(r => r.floor_id && floorIds.includes(r.floor_id)).length} палат`;
+    return `${depts.size} отделений · ${rooms.filter(r => {
+      const floorId = effectiveRoomFloorId(r, allDepartments);
+      return floorId !== null && floorIds.includes(floorId);
+    }).length} палат`;
   };
   const unassigned: { entity: Entity; title: string; items: Item[] }[] = [
     { entity: "departments", title: "Отделения", items: departments.filter(d => !d.floor_id) },
-    { entity: "rooms", title: "Палаты", items: rooms.filter(r => !r.floor_id) },
+    { entity: "rooms", title: "Палаты", items: rooms.filter(r => effectiveRoomFloorId(r, allDepartments) === null) },
     { entity: "warehouses", title: "Склады", items: warehouses.filter(w => !w.floor_id) },
   ];
   const error = structure.error || departmentsQuery.error || roomsQuery.error || warehousesQuery.error;
@@ -153,8 +156,8 @@ export function ClinicStructureTree() {
         const floors = structure.floorsByBlock.get(block.id) ?? [];
         return <div key={block.id} className={!block.is_active ? "text-muted-foreground opacity-60" : ""}><TreeBranch expanded={index === 0} title={<div className="flex flex-wrap items-center gap-2"><Building2 className="h-4 w-4" /><span className="font-semibold">{block.name}</span><span className="text-xs text-muted-foreground">{floors.length} этажей · {counts(floors.map(f => f.id))}</span>{!block.is_active && <Badge variant="secondary">Неактивен</Badge>}<DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="ghost" className="ml-auto h-8 w-8" disabled={!canWrite || busy} aria-label={`Действия блока ${block.name}`}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent><DropdownMenuItem onSelect={() => openAction({ type: "rename", block })}>Переименовать</DropdownMenuItem><DropdownMenuItem onSelect={() => openAction({ type: "toggle", block })}>{block.is_active ? "Деактивировать" : "Активировать"}</DropdownMenuItem><DropdownMenuItem onSelect={() => openAction({ type: "floor-add", block })}>Добавить этаж</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>}>
           {floors.map(floor => <TreeBranch key={floor.id} expanded={index === 0} title={<div className="flex flex-wrap items-center gap-2"><span className="font-medium">{floorLabel(floor)}</span><span className="text-xs text-muted-foreground">{counts([floor.id])}</span><DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="ghost" className="ml-auto h-8 w-8" disabled={!canWrite || busy} aria-label={`Действия этажа ${floorLabel(floor)}`}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent><DropdownMenuItem onSelect={() => openAction({ type: "floor-label", floor })}>Изменить название этажа</DropdownMenuItem><DropdownMenuItem onSelect={() => openAction({ type: "floor-delete", floor })}>Удалить этаж</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>}>
-            {floorDepartments(floor.id).map(d => <TreeBranch key={d.id} expanded={index === 0} title={itemLink(d, "departments")}><div className="flex flex-col items-start pb-2">{rooms.filter(r => r.floor_id === floor.id && r.department_id === d.id).map(r => <div key={r.id}>{roomLink(r)}</div>)}</div></TreeBranch>)}
-            {rooms.filter(r => r.floor_id === floor.id && (!r.department_id || !allDepartments.some(d => d.id === r.department_id))).map(r => <div key={r.id}>{roomLink(r)}</div>)}
+            {floorDepartments(floor.id).map(d => <TreeBranch key={d.id} expanded={index === 0} title={itemLink(d, "departments")}><div className="flex flex-col items-start pb-2">{rooms.filter(r => effectiveRoomFloorId(r, allDepartments) === floor.id && r.department_id === d.id).map(r => <div key={r.id}>{roomLink(r)}</div>)}</div></TreeBranch>)}
+            {rooms.filter(r => effectiveRoomFloorId(r, allDepartments) === floor.id && (!r.department_id || !allDepartments.some(d => d.id === r.department_id))).map(r => <div key={r.id}>{roomLink(r)}</div>)}
             {warehouses.some(w => w.floor_id === floor.id) && <div className="space-y-1 py-2"><h3 className="flex items-center gap-2 text-xs font-semibold text-muted-foreground"><Warehouse className="h-3 w-3" />Склады</h3>{warehouses.filter(w => w.floor_id === floor.id).map(w => <div key={w.id}>{itemLink(w, "warehouses")}</div>)}</div>}
           </TreeBranch>)}
         </TreeBranch></div>;

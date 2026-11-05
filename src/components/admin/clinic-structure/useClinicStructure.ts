@@ -5,6 +5,17 @@ import { useAuth } from "@/hooks/useAuth";
 
 export interface ClinicBlock { id: string; name: string; is_active: boolean }
 export interface ClinicFloor { id: string; block_id: string; number: number; label: string | null }
+type RoomFloor = { floor_id: string | null; department_id: string | null };
+type DepartmentFloor = { id: string; floor_id: string | null };
+
+export function effectiveRoomFloorId(room: RoomFloor, departments: DepartmentFloor[]): string | null {
+  return room.floor_id ?? departments.find(d => d.id === room.department_id)?.floor_id ?? null;
+}
+
+export function isInheritedFloor(room: RoomFloor, departments: DepartmentFloor[]): boolean {
+  return room.floor_id === null && effectiveRoomFloorId(room, departments) !== null;
+}
+
 export const floorLabel = (floor: ClinicFloor) => {
   if (floor.label) return floor.label;
   if (floor.number > 0) return `${floor.number} этаж`;

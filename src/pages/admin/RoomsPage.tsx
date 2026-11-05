@@ -1,5 +1,5 @@
 import { BlockFloorSelect } from "@/components/admin/clinic-structure/BlockFloorSelect";
-import { useClinicStructure } from "@/components/admin/clinic-structure/useClinicStructure";
+import { effectiveRoomFloorId, isInheritedFloor, useClinicStructure } from "@/components/admin/clinic-structure/useClinicStructure";
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -330,10 +331,11 @@ export default function RoomsPage() {
                 {editingFloorId === r.id ? (
                   <div className="min-w-64 space-y-1">
                     <BlockFloorSelect value={r.floor_id} onChange={floor_id => updateRoom(r.id, { floor_id })} disabled={!hasPermission("system.manage_settings")} />
+                    <p className="text-xs text-muted-foreground">Пусто — этаж берётся из отделения</p>
                     <Button variant="ghost" size="sm" onClick={() => setEditingFloorId(null)}>Готово</Button>
                   </div>
                 ) : (
-                  <Button variant="ghost" className="h-auto whitespace-normal text-left" disabled={!hasPermission("system.manage_settings")} onClick={() => setEditingFloorId(r.id)}>{formatFloor(r.floor_id)}</Button>
+                  <Button variant="ghost" className="h-auto flex-wrap whitespace-normal text-left" disabled={!hasPermission("system.manage_settings")} onClick={() => setEditingFloorId(r.id)}>{formatFloor(effectiveRoomFloorId(r, departments))}{isInheritedFloor(r, departments) && <Badge variant="secondary" className="ml-2 text-xs font-normal text-muted-foreground">от отделения</Badge>}</Button>
                 )}
               </TableCell>
               <TableCell>
@@ -409,10 +411,11 @@ export default function RoomsPage() {
                 {editingFloorId === r.id ? (
                   <div className="min-w-64 space-y-1">
                     <BlockFloorSelect value={r.floor_id} onChange={floor_id => updateRoom(r.id, { floor_id })} disabled={!hasPermission("system.manage_settings")} />
+                    <p className="text-xs text-muted-foreground">Пусто — этаж берётся из отделения</p>
                     <Button variant="ghost" size="sm" onClick={() => setEditingFloorId(null)}>Готово</Button>
                   </div>
                 ) : (
-                  <Button variant="ghost" className="h-auto whitespace-normal text-left" disabled={!hasPermission("system.manage_settings")} onClick={() => setEditingFloorId(r.id)}>{formatFloor(r.floor_id)}</Button>
+                  <Button variant="ghost" className="h-auto flex-wrap whitespace-normal text-left" disabled={!hasPermission("system.manage_settings")} onClick={() => setEditingFloorId(r.id)}>{formatFloor(effectiveRoomFloorId(r, departments))}{isInheritedFloor(r, departments) && <Badge variant="secondary" className="ml-2 text-xs font-normal text-muted-foreground">от отделения</Badge>}</Button>
                 )}
               </TableCell>
               <TableCell>
@@ -512,7 +515,7 @@ export default function RoomsPage() {
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs">Блок / Этаж</Label>
+                <Label className="text-xs">Этаж (необязательно, по умолчанию из отделения)</Label>
                 <BlockFloorSelect value={addFloorId} onChange={setAddFloorId} disabled={adding || !hasPermission("system.manage_settings")} />
               </div>
               {!addIsOffice ? (
@@ -531,7 +534,7 @@ export default function RoomsPage() {
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Department</Label>
-                    <Select value={addDeptId} onValueChange={id => { setAddDeptId(id); const floor = departments.find(d => d.id === id)?.floor_id; if (floor) setAddFloorId(floor); }}>
+                    <Select value={addDeptId} onValueChange={setAddDeptId}>
                       <SelectTrigger className="h-9"><SelectValue placeholder="Select" /></SelectTrigger>
                       <SelectContent>
                         {departments.map((d) => (
@@ -667,7 +670,7 @@ function BulkCreateDialog({
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label>Department *</Label>
-            <Select value={deptId} onValueChange={id => { setDeptId(id); const floor = departments.find(d => d.id === id)?.floor_id; if (floor) setFloorId(floor); }}>
+            <Select value={deptId} onValueChange={setDeptId}>
               <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
               <SelectContent>
                 {departments.map((d) => (
@@ -677,7 +680,7 @@ function BulkCreateDialog({
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>Блок / Этаж</Label>
+            <Label>Этаж (необязательно, по умолчанию из отделения)</Label>
             <BlockFloorSelect value={floorId} onChange={setFloorId} disabled={busy || !hasPermission("system.manage_settings")} />
           </div>
           <div className="space-y-1.5">
