@@ -20,6 +20,7 @@ const navItems = [
   { title: "POS-терминалы", url: "/admin/pos-terminals", icon: CreditCard },
   { title: "Касса", url: "/admin/kassas", icon: Wallet },
   { title: "Physician Privileges", url: "/admin/physician-privileges", icon: ShieldCheck },
+  { title: "Инвентаризация", url: "/inventory", icon: Wrench },
   { title: "Audit Log", url: "/admin/audit", icon: FileText },
   { title: "Reports", url: "/reports", icon: BarChart3 },
   { title: "Quality Reports", url: "/reports/quality", icon: Activity },

@@ -173,6 +173,7 @@ const App = () => (
             <Route path="buckets" element={<BucketsPage />} />
             <Route path="discounts" element={<DiscountsPage />} />
             <Route path="referral-rates" element={<ReferralRatesPage />} />
+            <Route path="inventory" element={<EquipmentPage />} />
             <Route path="profile" element={<FinanceProfile />} />
           </Route>
           <Route path="/inpatient" element={<ProtectedRoute allowedRoles={["inpatient_registrar"]} anyPermission={["workspace.inpatient"]}><InpatientLayout /></ProtectedRoute>}>
@@ -210,6 +211,7 @@ const App = () => (
             <Route path="transfers" element={<WarehouseTransfersPage />} />
             <Route path="orders" element={<WarehouseOrdersPage />} />
             <Route path="turnover" element={<WarehouseTurnoverPage />} />
+            <Route path="inventory" element={<EquipmentPage />} />
             <Route path="settings" element={<WarehouseSettingsPage />} />
             <Route path="profile" element={<WarehouseProfile />} />
           </Route>
