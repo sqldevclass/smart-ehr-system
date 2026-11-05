@@ -124,7 +124,7 @@ export function ClinicStructureTree() {
     <span>{item.name}{detail && <span className="ml-2 text-xs text-muted-foreground">{detail}</span>}{!item.is_active && <Badge variant="secondary" className="ml-2">Неактивен</Badge>}</span>
   </Button>;
   const roomLink = (r: Room) => itemLink(r, "rooms", [r.room_types?.name, r.capacity > 0 ? `${r.capacity} коек` : null].filter(Boolean).join(" · "));
-  const floorDepartments = (id: string) => departments.filter(d => rooms.some(r => r.floor_id === id && r.department_id === d.id) || (!allRooms.some(r => r.department_id === d.id) && d.floor_id === id));
+  const floorDepartments = (id: string) => departments.filter(d => d.floor_id === id || rooms.some(r => r.floor_id === id && r.department_id === d.id));
   const counts = (floorIds: string[]) => {
     const depts = new Set(floorIds.flatMap(id => floorDepartments(id).map(d => d.id)));
     return `${depts.size} отделений · ${rooms.filter(r => r.floor_id && floorIds.includes(r.floor_id)).length} палат`;

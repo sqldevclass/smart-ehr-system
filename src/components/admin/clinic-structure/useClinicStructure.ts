@@ -5,7 +5,13 @@ import { useAuth } from "@/hooks/useAuth";
 
 export interface ClinicBlock { id: string; name: string; is_active: boolean }
 export interface ClinicFloor { id: string; block_id: string; number: number; label: string | null }
-export const floorLabel = (floor: ClinicFloor) => floor.label || `${floor.number} этаж`;
+export const floorLabel = (floor: ClinicFloor) => {
+  if (floor.label) return floor.label;
+  if (floor.number > 0) return `${floor.number} этаж`;
+  if (floor.number === 0) return "Цокольный";
+  if (floor.number === -1) return "Подвал";
+  return `Подвал ${Math.abs(floor.number)}`;
+};
 
 export function useClinicStructure() {
   const { user } = useAuth();
