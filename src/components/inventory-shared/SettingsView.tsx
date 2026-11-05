@@ -201,7 +201,7 @@ function ТоварыSection() {
       let q = supabase
         .from("products")
         .select(
-          "id, name, product_type_id, unit_id, release_form_id, manufacturer_id, barcode, markup_percent, min_stock_quantity, expiry_notify_days, stale_after_days, is_active, product_types(name_ru), units_of_measurement(name_ru), release_forms(name_ru), manufacturers(name)"
+          "id, name, product_type_id, unit_id, release_form_id, manufacturer_id, barcode, markup_percent, min_stock_quantity, expiry_notify_days, stale_after_days, is_active, product_types(name_ru, code), units_of_measurement(name_ru), release_forms(name_ru), manufacturers(name)"
         )
         .eq("hospital_id", user?.hospitalId ?? "")
         .order("name");
@@ -219,9 +219,10 @@ function ТоварыSection() {
       if (!user) throw new Error("Не выполнен вход");
       if (!form.name.trim()) throw new Error("Укажите название товара");
       if (!form.product_type_id || !form.unit_id || !form.release_form_id) throw new Error("Выберите тип товара, единицу измерения и форму выпуска");
-      if (!form.min_stock_quantity.trim() || !Number.isFinite(Number(form.min_stock_quantity)) || Number(form.min_stock_quantity) < 0) throw new Error("Мин. остаток должен быть неотрицательным числом");
-      if (!form.expiry_notify_days.trim() || !Number.isFinite(Number(form.expiry_notify_days)) || Number(form.expiry_notify_days) < 0) throw new Error("Срок предупреждения должен быть неотрицательным числом");
-      if (!form.markup_percent.trim() || !Number.isFinite(Number(form.markup_percent)) || Number(form.markup_percent) < 0 || Number(form.markup_percent) > 999.99) throw new Error("Наценка должна быть от 0 до 999.99");
+      const isInv = (productTypes as any[]).find((t) => t.id === form.product_type_id)?.code === "inventory";
+      if (!isInv && (!form.min_stock_quantity.trim() || !Number.isFinite(Number(form.min_stock_quantity)) || Number(form.min_stock_quantity) < 0)) throw new Error("Мин. остаток должен быть неотрицательным числом");
+      if (!isInv && (!form.expiry_notify_days.trim() || !Number.isFinite(Number(form.expiry_notify_days)) || Number(form.expiry_notify_days) < 0)) throw new Error("Срок предупреждения должен быть неотрицательным числом");
+      if (!isInv && (!form.markup_percent.trim() || !Number.isFinite(Number(form.markup_percent)) || Number(form.markup_percent) < 0 || Number(form.markup_percent) > 999.99)) throw new Error("Наценка должна быть от 0 до 999.99");
       const payload = {
         name: form.name.trim(),
         product_type_id: form.product_type_id,
@@ -229,10 +230,10 @@ function ТоварыSection() {
         release_form_id: form.release_form_id || null,
         manufacturer_id: form.manufacturer_id || null,
         barcode: form.barcode || null,
-        markup_percent: Number(form.markup_percent),
-        min_stock_quantity: Number(form.min_stock_quantity),
-        expiry_notify_days: Number(form.expiry_notify_days),
-        stale_after_days: staleFromForm(form.stale_after_days),
+        markup_percent: isInv ? 0 : Number(form.markup_percent),
+        min_stock_quantity: isInv ? null : Number(form.min_stock_quantity),
+        expiry_notify_days: isInv ? null : Number(form.expiry_notify_days),
+        stale_after_days: isInv ? null : staleFromForm(form.stale_after_days),
         is_active: form.is_active,
       };
       if (form.id) {
@@ -346,10 +347,10 @@ function ТоварыSection() {
                 <td className="p-3">{p.units_of_measurement?.name_ru || "—"}</td>
                 <td className="p-3">{p.manufacturers?.name || "—"}</td>
                 <td className="p-3">{p.barcode || "—"}</td>
-                <td className="p-3">{p.markup_percent ?? 0}</td>
-                <td className="p-3">{p.min_stock_quantity}</td>
-                <td className="p-3">{p.expiry_notify_days}</td>
-                <td className="p-3">{staleLabel(p.stale_after_days)}</td>
+                <td className="p-3">{p.product_types?.code === "inventory" ? "—" : p.markup_percent ?? 0}</td>
+                <td className="p-3">{p.product_types?.code === "inventory" ? "—" : p.min_stock_quantity}</td>
+                <td className="p-3">{p.product_types?.code === "inventory" ? "—" : p.expiry_notify_days}</td>
+                <td className="p-3">{p.product_types?.code === "inventory" ? "—" : staleLabel(p.stale_after_days)}</td>
                 <td className="p-3">
                   <Badge variant={p.is_active ? "default" : "secondary"}>
                     {p.is_active ? "Активен" : "Неактивен"}
@@ -441,6 +442,7 @@ function ТоварыSection() {
                 onChange={(e) => setForm({ ...form, barcode: e.target.value })}
               />
             </div>
+            {(productTypes as any[]).find((t) => t.id === form.product_type_id)?.code !== "inventory" && (<>
             <div className="space-y-1.5">
               <Label htmlFor="prod-markup">Наценка, %</Label>
               <Input id="prod-markup" type="number" min={0} max={999.99} step={0.01} value={form.markup_percent} onChange={(e) => setForm({ ...form, markup_percent: e.target.value })} />
@@ -455,6 +457,7 @@ function ТоварыSection() {
               </div>
             ))}
             <StaleThresholdSelect id="prod-stale" value={form.stale_after_days} onChange={(v) => setForm({ ...form, stale_after_days: v })} />
+            </>)}
             <div className="flex items-center gap-2">
               <Switch
                 id="prod-active"

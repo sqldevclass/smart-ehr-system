@@ -47,7 +47,7 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("id, name, markup_percent")
+        .select("id, name, markup_percent, product_types(code)")
         .eq("hospital_id", user?.hospitalId ?? "")
         .eq("is_active", true)
         .order("name");
@@ -110,6 +110,7 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
   const selectedItem = warehouseTypeCode === "central_pharmacy"
     ? drugFormulary.find((d: any) => d.id === productId)
     : products.find((p: any) => p.id === productId);
+  const isInventoryItem = warehouseTypeCode !== "central_pharmacy" && (selectedItem as any)?.product_types?.code === "inventory";
   const markup = Number(selectedItem?.markup_percent ?? 0);
 
   const sellingPrice = useMemo(() => {
@@ -124,6 +125,7 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
       const validation: Record<string, string> = {};
       if (!productId) validation.productId = "Выберите позицию";
       if (!qtyUnits.trim() || !Number.isFinite(Number(qtyUnits)) || Number(qtyUnits) <= 0) validation.qtyUnits = "Количество должно быть больше нуля";
+      else if (isInventoryItem && !Number.isInteger(Number(qtyUnits))) validation.qtyUnits = "Для инвентаря количество должно быть целым числом";
       if (!purchasePrice.trim() || !Number.isFinite(Number(purchasePrice)) || Number(purchasePrice) <= 0) validation.purchasePrice = "Цена должна быть больше нуля";
       if (isPharmacy && !expiry) validation.expiry = "Укажите срок годности препарата";
       if (expiry && (Number.isNaN(new Date(expiry).getTime()) || expiry < format(new Date(), "yyyy-MM-dd"))) validation.expiry = "Срок годности не должен быть в прошлом";
@@ -225,10 +227,12 @@ export default function IncomingView({ warehouseTypeCode, title }: Props) {
           <Label>Количество единиц</Label>
           <Input
             type="number"
-            step="0.01"
+            step={isInventoryItem ? "1" : "0.01"}
+            min={isInventoryItem ? 1 : undefined}
             value={qtyUnits}
             onChange={(e) => setQtyUnits(e.target.value)}
           />
+          {isInventoryItem && <p className="text-xs text-muted-foreground">Для каждой единицы будет создана карточка в разделе Инвентаризация</p>}
           {fieldErrors.qtyUnits && <p role="alert" className="text-sm text-destructive">{fieldErrors.qtyUnits}</p>}
         </div>
         <div className="space-y-1.5">
