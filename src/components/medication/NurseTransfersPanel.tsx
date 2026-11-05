@@ -20,6 +20,8 @@ import { useTransferActions } from "@/components/inventory-shared/useTransferAct
 import NurseStockOrdersPanel from "@/components/medication/NurseStockOrdersPanel";
 import { DataTable } from "@/components/reports/data-table/DataTable";
 import { TableCell, TableRow } from "@/components/ui/table";
+import { useWarehouseUnits } from "@/components/inventory-shared/useWarehouseUnits";
+import { UnitPicker } from "@/components/inventory-shared/UnitPicker";
 import { TransferStatusBadge } from "@/components/inventory-shared/transferStatus";
 
 interface Props {
@@ -95,6 +97,9 @@ export default function NurseTransfersPanel({ hospitalId, deptWarehouse, stock, 
   const [txBatchId, setTxBatchId] = useState("");
   const [txWarehouseId, setTxWarehouseId] = useState("");
   const [txQty, setTxQty] = useState("");
+  const [txEquipmentIds, setTxEquipmentIds] = useState<string[]>([]);
+  const { byBatch, isPending: unitsLoading, error: unitsError } = useWarehouseUnits(deptWarehouse?.id);
+  const txUnits = byBatch.get(txBatchId);
   const [txSending, setTxSending] = useState(false);
   const { data: incoming = [], isLoading: transLoading, error: incomingError } = useNurseIncomingTransfers(hospitalId, deptWarehouse?.id);
   const { data: outgoing = [], isLoading: outgoingLoading, error: outgoingError } = useNurseTransfers(hospitalId, deptWarehouse?.id, "outgoing");
@@ -129,10 +134,11 @@ export default function NurseTransfersPanel({ hospitalId, deptWarehouse, stock, 
   const refresh = (ids: string[]) => {
     for (const id of new Set([deptWarehouse?.id, ...ids])) {
       if (!id) continue;
-      for (const key of ["nurse-inv-transfers", "nurse-inv-stock", "stock", "transfers", "my-batches", "writeoff-batches"]) {
+      for (const key of ["nurse-inv-transfers", "nurse-inv-stock", "stock", "transfers", "my-batches", "writeoff-batches", "warehouse-units"]) {
         qc.invalidateQueries({ queryKey: [key, id] });
       }
     }
+    qc.invalidateQueries({ queryKey: ["equipment"] });
   };
   const actions = useTransferActions(refresh);
   const acceptAllTransfers = async () => {
@@ -153,21 +159,29 @@ export default function NurseTransfersPanel({ hospitalId, deptWarehouse, stock, 
     if (ok) for (const key of ["nurse-stock-orders", "stock-orders", "stock-orders-pending-count"]) qc.invalidateQueries({ queryKey: [key] });
   };
   const sendTransfer = async () => {
-    if (!user || !deptWarehouse || !txBatchId || !txWarehouseId || !txQty) return;
+    if (!user || !deptWarehouse || !txBatchId || !txWarehouseId) return;
     setTxSending(true);
     try {
       const batch = stock.find((row) => row.id === txBatchId);
+      if (unitsLoading) throw new Error("Дождитесь загрузки единиц инвентаря");
+      if (unitsError) throw unitsError;
       const qty = Number(txQty);
-      if (!batch || !Number.isFinite(qty) || qty <= 0) throw new Error("Укажите количество больше нуля");
-      if (qty > Number(batch.quantity_units)) throw new Error("Количество превышает доступный остаток партии");
-      const { error } = await supabase.rpc("send_transfer", {
+      if (!batch) throw new Error("Выберите партию");
+      if (txUnits?.length) {
+        if (!txEquipmentIds.length) throw new Error("Выберите единицы инвентаря");
+        if (txEquipmentIds.some((id) => !txUnits.some((unit) => unit.equipment_id === id && unit.info_status === "ready"))) throw new Error("Выбранная единица инвентаря недоступна");
+      } else {
+        if (!Number.isFinite(qty) || qty <= 0) throw new Error("Укажите количество больше нуля");
+        if (qty > Number(batch.quantity_units)) throw new Error("Количество превышает доступный остаток партии");
+      }
+      const { error } = await supabase.rpc("send_transfer" as any, {
         p_from_warehouse_id: deptWarehouse.id, p_to_warehouse_id: txWarehouseId,
-        p_notes: null, p_items: [{ batch_id: txBatchId, quantity_units: qty }],
-      });
+        p_notes: null, p_items: [txUnits?.length ? { batch_id: txBatchId, equipment_ids: txEquipmentIds } : { batch_id: txBatchId, quantity_units: qty }],
+      } as any);
       if (error) throw error;
       toast.success("Перемещение отправлено");
       refresh([deptWarehouse.id, txWarehouseId]);
-      setTxBatchId(""); setTxWarehouseId(""); setTxQty("");
+      setTxBatchId(""); setTxWarehouseId(""); setTxQty(""); setTxEquipmentIds([]);
     } catch (error: any) { toast.error(error.message); }
     finally { setTxSending(false); }
   };
@@ -264,7 +278,7 @@ export default function NurseTransfersPanel({ hospitalId, deptWarehouse, stock, 
                 <div className="grid grid-cols-[1fr_1fr_120px_auto] gap-2 items-end">
                   <div>
                     <Label className="text-xs">Препарат / Товар</Label>
-                    <Select value={txBatchId} onValueChange={setTxBatchId}>
+                    <Select value={txBatchId} onValueChange={(id) => { setTxBatchId(id); setTxEquipmentIds([]); }}>
                       <SelectTrigger><SelectValue placeholder="Выберите" /></SelectTrigger>
                       <SelectContent>
                         {stock.map((b) => (
@@ -288,13 +302,15 @@ export default function NurseTransfersPanel({ hospitalId, deptWarehouse, stock, 
                       </SelectContent>
                     </Select>
                   </div>
-                  <div>
+                  {!txUnits?.length && <div>
                     <Label className="text-xs">Количество</Label>
                     <Input type="number" value={txQty} onChange={(e) => setTxQty(e.target.value)} />
-                  </div>
-                  <Button onClick={sendTransfer} disabled={txSending || !txBatchId || !txWarehouseId || !txQty}>
+                  </div>}
+                  <Button onClick={sendTransfer} disabled={txSending || unitsLoading || !!unitsError || !txBatchId || !txWarehouseId || (!txUnits?.length && !txQty)}>
                     {txSending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Отправить"}
                   </Button>
+                  {!!txUnits?.length && <div className="col-span-full"><UnitPicker mode="transfer" units={txUnits} selectedIds={txEquipmentIds} onChange={setTxEquipmentIds} /></div>}
+                  {unitsError && <p role="alert" className="col-span-full text-destructive">{unitsError.message}</p>}
                 </div>
               </div>
               )}
