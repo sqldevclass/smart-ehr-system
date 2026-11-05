@@ -1,3 +1,5 @@
+import { BlockFloorSelect } from "@/components/admin/clinic-structure/BlockFloorSelect";
+import { useClinicStructure } from "@/components/admin/clinic-structure/useClinicStructure";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,11 +21,14 @@ interface Department {
   id: string;
   name: string;
   code: string | null;
+  floor_id: string | null;
   is_active: boolean;
 }
 
 export default function DepartmentsPage() {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const { formatFloor } = useClinicStructure();
+  const [floorId, setFloorId] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Department | null>(null);
@@ -38,7 +43,7 @@ export default function DepartmentsPage() {
       if (!user) return [];
       const { data, error } = await supabase
         .from("departments")
-        .select("id, name, code, is_active")
+        .select("id, name, code, is_active, floor_id")
         .eq("hospital_id", user.hospitalId)
         .order("name");
       if (error) throw error;
@@ -51,6 +56,7 @@ export default function DepartmentsPage() {
     setEditing(null);
     setName("");
     setCode("");
+    setFloorId(null);
     setIsActive(true);
     setDialogOpen(true);
   };
@@ -59,6 +65,7 @@ export default function DepartmentsPage() {
     setEditing(d);
     setName(d.name);
     setCode(d.code || "");
+    setFloorId(d.floor_id);
     setIsActive(d.is_active);
     setDialogOpen(true);
   };
@@ -78,6 +85,7 @@ export default function DepartmentsPage() {
             name: name.trim(),
             code: code.trim() || null,
             is_active: isActive,
+            floor_id: floorId,
           })
           .eq("id", editing.id);
         if (error) throw error;
@@ -87,12 +95,15 @@ export default function DepartmentsPage() {
           name: name.trim(),
           code: code.trim() || null,
           hospital_id: user.hospitalId,
+          floor_id: floorId,
         });
         if (error) throw error;
         toast.success("Department created.");
       }
       setDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["departments"] });
+      queryClient.invalidateQueries({ queryKey: ["departments-active"] });
+      queryClient.invalidateQueries({ queryKey: ["clinic-structure"] });
     } catch (err: any) {
       toast.error(err.message || "Failed to save.");
     } finally {
@@ -120,6 +131,7 @@ export default function DepartmentsPage() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Code</TableHead>
+                <TableHead>Блок / Этаж</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-20"></TableHead>
               </TableRow>
@@ -129,6 +141,7 @@ export default function DepartmentsPage() {
                 <TableRow key={d.id}>
                   <TableCell className="font-medium">{d.name}</TableCell>
                   <TableCell>{d.code || "—"}</TableCell>
+                  <TableCell>{formatFloor(d.floor_id)}</TableCell>
                   <TableCell>
                     <span className={`rounded px-2 py-0.5 text-xs font-medium ${d.is_active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
                       {d.is_active ? "Active" : "Inactive"}
@@ -159,6 +172,10 @@ export default function DepartmentsPage() {
             <div className="space-y-1.5">
               <Label>Code</Label>
               <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="e.g. CARD" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Основной этаж</Label>
+              <BlockFloorSelect value={floorId} onChange={setFloorId} disabled={saving || !hasPermission("system.manage_settings")} />
             </div>
             {editing && (
               <div className="flex items-center justify-between">

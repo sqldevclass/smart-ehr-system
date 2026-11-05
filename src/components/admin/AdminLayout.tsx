@@ -1,5 +1,5 @@
 import { Outlet, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, Building2, Wrench, Stethoscope, FileText, UserCircle, LogOut, DoorOpen, ShieldCheck, Warehouse, BarChart3, Activity, HandCoins, CreditCard, Wallet, KeyRound } from "lucide-react";
+import { LayoutDashboard, Users, Building2, Wrench, Stethoscope, FileText, UserCircle, LogOut, ShieldCheck, BarChart3, Activity, HandCoins, CreditCard, Wallet, KeyRound } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -14,11 +14,9 @@ const navItems = [
   { title: "Overview", url: "/admin", icon: LayoutDashboard },
   { title: "User Management", url: "/admin/users", icon: Users },
   { title: "Роли", url: "/admin/roles", icon: KeyRound },
-  { title: "Departments", url: "/admin/departments", icon: Building2 },
+  { title: "Структура клиники", url: "/admin/clinic-structure", icon: Building2 },
   { title: "Services", url: "/admin/services", icon: Wrench },
   { title: "Physicians", url: "/admin/physicians", icon: Stethoscope },
-  { title: "Rooms", url: "/admin/rooms", icon: DoorOpen },
-  { title: "Склады", url: "/admin/warehouses", icon: Warehouse },
   { title: "POS-терминалы", url: "/admin/pos-terminals", icon: CreditCard },
   { title: "Касса", url: "/admin/kassas", icon: Wallet },
   { title: "Physician Privileges", url: "/admin/physician-privileges", icon: ShieldCheck },
