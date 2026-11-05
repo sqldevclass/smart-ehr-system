@@ -59,3 +59,38 @@ export function useClinicStructure() {
   };
   return { ...query, blocks, floors, floorsByBlock, getFloor, formatFloor };
 }
+type CountRoom = RoomFloor & { capacity?: number | null };
+export interface FloorCounts { departments: number; rooms: number; beds: number }
+export interface BlockCounts extends FloorCounts { floors: number }
+
+/** Departments shown/counted on a floor: own floor or at least one room effectively on that floor. */
+export function departmentsOnFloor<D extends DepartmentFloor>(floorId: string, departments: D[], rooms: RoomFloor[], allDepartments: DepartmentFloor[] = departments): D[] {
+  return departments.filter(d => d.floor_id === floorId || rooms.some(r => r.department_id === d.id && effectiveRoomFloorId(r, allDepartments) === floorId));
+}
+
+export function computeStructureCounts({ blocks, floorsByBlock, departments, rooms, allDepartments = departments }: {
+  blocks: { id: string }[];
+  floorsByBlock: Map<string, ClinicFloor[]>;
+  departments: DepartmentFloor[];
+  rooms: CountRoom[];
+  allDepartments?: DepartmentFloor[];
+}) {
+  const perFloor = new Map<string, FloorCounts>();
+  const perBlock = new Map<string, BlockCounts>();
+  for (const block of blocks) {
+    const floors = floorsByBlock.get(block.id) ?? [];
+    const blockDepts = new Set<string>();
+    const total: BlockCounts = { floors: floors.length, departments: 0, rooms: 0, beds: 0 };
+    for (const floor of floors) {
+      const floorRooms = rooms.filter(r => effectiveRoomFloorId(r, allDepartments) === floor.id);
+      const depts = departmentsOnFloor(floor.id, departments, floorRooms, allDepartments);
+      depts.forEach(d => blockDepts.add(d.id));
+      const c: FloorCounts = { departments: depts.length, rooms: floorRooms.length, beds: floorRooms.reduce((s, r) => s + (r.capacity ?? 0), 0) };
+      perFloor.set(floor.id, c);
+      total.rooms += c.rooms; total.beds += c.beds;
+    }
+    total.departments = blockDepts.size;
+    perBlock.set(block.id, total);
+  }
+  return { perFloor, perBlock };
+}
