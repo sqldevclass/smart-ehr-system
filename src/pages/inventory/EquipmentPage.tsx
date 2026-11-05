@@ -50,9 +50,11 @@ interface ServiceForm {
   next_service_date: string;
 }
 
-type Filter = "pending" | "ready" | "all";
+type Filter = "pending" | "ready" | "all" | "writtenoff";
 
 function locationLabel(e: any) {
+  if (e.written_off_at) return `Списано ${format(new Date(e.written_off_at), "dd.MM.yyyy")}`;
+  if (e.transit_transfer_id) return "В пути";
   const w = e.warehouses?.name;
   const d = e.warehouses?.departments?.name;
   if (!w) return "—";
@@ -83,7 +85,7 @@ export default function EquipmentPage() {
       const { data, error } = await supabase
         .from("equipment")
         .select(
-          "id, name, model, serial_number, purchase_date, purchase_price, warranty_expiry_date, next_service_date, service_interval_days, notes, is_active, info_status, manufacturer_id, warehouse_id, manufacturers(name), warehouses(name, departments(name))"
+          "id, name, model, serial_number, purchase_date, purchase_price, warranty_expiry_date, next_service_date, service_interval_days, notes, is_active, info_status, manufacturer_id, warehouse_id, transit_transfer_id, written_off_at, manufacturers(name), warehouses(name, departments(name))"
         )
         .eq("hospital_id", user!.hospitalId)
         .order("next_service_date", { ascending: true, nullsFirst: false });
@@ -106,7 +108,7 @@ export default function EquipmentPage() {
     },
   });
 
-  const pendingCount = (equipment as any[]).filter((e) => e.info_status === "pending").length;
+  const pendingCount = (equipment as any[]).filter((e) => e.is_active && e.info_status === "pending").length;
 
   useEffect(() => {
     if (filter === null && isFetched) setFilter(pendingCount > 0 ? "pending" : "all");
@@ -114,7 +116,7 @@ export default function EquipmentPage() {
 
   const activeFilter: Filter = filter ?? "all";
   const rows = (equipment as any[]).filter((e) =>
-    activeFilter === "all" ? true : activeFilter === "pending" ? e.info_status === "pending" : e.info_status === "ready"
+    activeFilter === "all" ? true : activeFilter === "writtenoff" ? !!e.written_off_at : e.is_active && e.info_status === activeFilter
   );
 
   const interval = Number(form?.service_interval_days);
@@ -144,6 +146,7 @@ export default function EquipmentPage() {
       toast.success("Сохранено");
       setForm(null);
       qc.invalidateQueries({ queryKey: ["equipment"] });
+      qc.invalidateQueries({ queryKey: ["warehouse-units"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -176,6 +179,7 @@ export default function EquipmentPage() {
             <TabsTrigger value="pending">Ожидают информации ({pendingCount})</TabsTrigger>
             <TabsTrigger value="ready">Готово к работе</TabsTrigger>
             <TabsTrigger value="all">Все</TabsTrigger>
+            <TabsTrigger value="writtenoff">Списано</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
@@ -255,7 +259,8 @@ export default function EquipmentPage() {
           <tbody>
             {rows.map((e: any) => {
               const due = e.next_service_date && parseISO(e.next_service_date) <= addDays(today, 30);
-              const ready = e.info_status === "ready";
+              const writtenOff = !!e.written_off_at;
+              const ready = e.info_status === "ready" && !writtenOff;
               const isOpen = expanded === e.id;
               return (
                 <Fragment key={e.id}>
@@ -275,10 +280,10 @@ export default function EquipmentPage() {
                     <td className="p-3">{e.purchase_date || "—"}</td>
                     <td className="p-3">{e.next_service_date || "—"}</td>
                     <td className="p-3">
-                      {ready ? <Badge variant="outline">Готово</Badge> : <Badge variant="secondary">Ожидает информации</Badge>}
+                      {writtenOff ? <Badge variant="secondary">Списано</Badge> : ready ? <Badge variant="outline">Готово</Badge> : <Badge variant="secondary">Ожидает информации</Badge>}
                     </td>
                     <td className="p-3">
-                      {canManage && (
+                      {canManage && !writtenOff && (
                         ready ? (
                           <Button size="sm" variant="ghost" onClick={() => openForm(e)}>
                             <Pencil className="mr-1 h-3 w-3" /> Изменить

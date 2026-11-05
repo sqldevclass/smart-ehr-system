@@ -17,17 +17,20 @@ import { useTransferActions } from "./useTransferActions";
 import { PeriodFilter, rangeBounds } from "@/components/shared/PeriodFilter";
 import { ScreenHeader } from "./ScreenHeader";
 import { usePeriodFilter } from "@/hooks/usePeriodFilter";
+import { useWarehouseUnits } from "./useWarehouseUnits";
+import { UnitPicker } from "./UnitPicker";
 
 interface Props { warehouseTypeCode: "central_pharmacy" | "general"; title: string }
-interface LineItem { batchId: string; quantityUnits: string }
+interface LineItem { batchId: string; quantityUnits: string; equipmentIds: string[] }
 export default function TransfersView({ warehouseTypeCode, title }: Props) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const { data: warehouse, error: warehouseError } = useMyWarehouse(warehouseTypeCode);
+  const { byBatch, isPending: unitsLoading, error: unitsError } = useWarehouseUnits(warehouse?.id);
   const [open, setOpen] = useState(false);
   const [destId, setDestId] = useState("");
   const [notes, setNotes] = useState("");
-  const [items, setItems] = useState<LineItem[]>([{ batchId: "", quantityUnits: "" }]);
+  const [items, setItems] = useState<LineItem[]>([{ batchId: "", quantityUnits: "", equipmentIds: [] }]);
   const [period, setPeriod] = usePeriodFilter(true);
   const bounds = rangeBounds(period);
   const { data: destinations = [] } = useQuery({
@@ -73,20 +76,34 @@ export default function TransfersView({ warehouseTypeCode, title }: Props) {
       qc.invalidateQueries({ queryKey: ["stale-items", id] });
       qc.invalidateQueries({ queryKey: ["transfers", id] });
       qc.invalidateQueries({ queryKey: ["my-batches", id] });
+      qc.invalidateQueries({ queryKey: ["warehouse-units", id] });
       qc.invalidateQueries({ queryKey: ["writeoff-batches", id] });
       qc.invalidateQueries({ queryKey: ["nurse-inv-stock", id] });
       qc.invalidateQueries({ queryKey: ["nurse-inv-transfers", id] });
     }
+    qc.invalidateQueries({ queryKey: ["equipment"] });
   };
-  const reset = () => { setDestId(""); setNotes(""); setItems([{ batchId: "", quantityUnits: "" }]); };
+  const reset = () => { setDestId(""); setNotes(""); setItems([{ batchId: "", quantityUnits: "", equipmentIds: [] }]); };
   const sendMutation = useMutation({
     mutationFn: async () => {
       if (!warehouse) throw new Error("Склад не настроен");
       if (!destId) throw new Error("Выберите склад получателя");
       if (!items.length) throw new Error("Добавьте хотя бы одну позицию");
+      if (unitsLoading) throw new Error("Дождитесь загрузки единиц инвентаря");
+      if (unitsError) throw unitsError;
+      const selectedUnits = new Set<string>();
       const totals = new Map<string, number>();
       const cleanItems = items.map((item) => {
         const batch = myBatches.find((b: any) => b.id === item.batchId);
+        const batchUnits = byBatch.get(item.batchId);
+        if (batch && batchUnits?.length) {
+          if (!item.equipmentIds.length) throw new Error("Выберите единицы инвентаря");
+          for (const id of item.equipmentIds) {
+            if (!batchUnits.some((unit) => unit.equipment_id === id && unit.info_status === "ready") || selectedUnits.has(id)) throw new Error("Выбранная единица инвентаря недоступна");
+            selectedUnits.add(id);
+          }
+          return { batch_id: item.batchId, equipment_ids: item.equipmentIds };
+        }
         const qty = Number(item.quantityUnits);
         if (!batch || !item.quantityUnits.trim() || !Number.isFinite(qty) || qty <= 0) throw new Error("Выберите партию и укажите количество больше нуля");
         const total = (totals.get(item.batchId) || 0) + qty;
@@ -94,9 +111,9 @@ export default function TransfersView({ warehouseTypeCode, title }: Props) {
         totals.set(item.batchId, total);
         return { batch_id: item.batchId, quantity_units: qty };
       });
-      const { error } = await supabase.rpc("send_transfer", {
+      const { error } = await supabase.rpc("send_transfer" as any, {
         p_from_warehouse_id: warehouse.id, p_to_warehouse_id: destId, p_notes: notes.trim() || null, p_items: cleanItems,
-      });
+      } as any);
       if (error) throw error;
     },
     onSuccess: () => { toast.success("Перемещение отправлено"); refresh([warehouse?.id ?? "", destId]); setOpen(false); reset(); },
@@ -118,13 +135,15 @@ export default function TransfersView({ warehouseTypeCode, title }: Props) {
         <div className="space-y-4"><div className="space-y-1.5"><Label>Склад получателя</Label>
           <Select value={destId} onValueChange={setDestId}><SelectTrigger><SelectValue placeholder="Выберите склад" /></SelectTrigger><SelectContent>{destinations.map((d: any) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent></Select>
         </div><Label>Примечание</Label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
-        <div className="flex justify-between items-center"><Label>Позиции</Label><Button variant="outline" size="sm" onClick={() => setItems([...items, { batchId: "", quantityUnits: "" }])}><Plus className="h-4 w-4 mr-1" />Добавить строку</Button></div>
+        <div className="flex justify-between items-center"><Label>Позиции</Label><Button variant="outline" size="sm" onClick={() => setItems([...items, { batchId: "", quantityUnits: "", equipmentIds: [] }])}><Plus className="h-4 w-4 mr-1" />Добавить строку</Button></div>
         {items.map((item, idx) => <div key={idx} className="grid grid-cols-[minmax(0,1fr)_100px_40px] gap-2">
-          <Select value={item.batchId} onValueChange={(batchId) => setItems(items.map((row, i) => i === idx ? { ...row, batchId } : row))}><SelectTrigger><SelectValue placeholder="Партия" /></SelectTrigger><SelectContent>{myBatches.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.drug_formulary?.trade_name || b.products?.name || "—"} — серия {b.series_number || "—"}, годен до {b.expiry_date || "—"}, доступно {b.quantity_units} ед.</SelectItem>)}</SelectContent></Select>
-          <Input type="number" step="any" aria-label={`Количество в строке ${idx + 1}`} placeholder="Кол-во" value={item.quantityUnits} onChange={(e) => setItems(items.map((row, i) => i === idx ? { ...row, quantityUnits: e.target.value } : row))} />
+          <Select value={item.batchId} onValueChange={(batchId) => setItems(items.map((row, i) => i === idx ? { ...row, batchId, equipmentIds: [] } : row))}><SelectTrigger><SelectValue placeholder="Партия" /></SelectTrigger><SelectContent>{myBatches.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.drug_formulary?.trade_name || b.products?.name || "—"} — серия {b.series_number || "—"}, годен до {b.expiry_date || "—"}, доступно {b.quantity_units} ед.</SelectItem>)}</SelectContent></Select>
+          {!byBatch.has(item.batchId) && <Input type="number" step="any" aria-label={`Количество в строке ${idx + 1}`} placeholder="Кол-во" value={item.quantityUnits} onChange={(e) => setItems(items.map((row, i) => i === idx ? { ...row, quantityUnits: e.target.value } : row))} />}
           <Button size="icon" variant="ghost" aria-label="Удалить строку" disabled={items.length === 1} onClick={() => setItems(items.filter((_, i) => i !== idx))}><Trash2 className="h-4 w-4" /></Button>
+          {byBatch.has(item.batchId) && <div className="col-span-full"><UnitPicker mode="transfer" units={(byBatch.get(item.batchId) ?? []).filter((unit) => !items.some((row, i) => i !== idx && row.equipmentIds.includes(unit.equipment_id)))} selectedIds={item.equipmentIds} onChange={(equipmentIds) => setItems(items.map((row, i) => i === idx ? { ...row, equipmentIds } : row))} /></div>}
         </div>)}</div>
-        <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Отмена</Button><Button disabled={sendMutation.isPending} onClick={() => sendMutation.mutate()}>{sendMutation.isPending ? "Отправка…" : "Отправить"}</Button></DialogFooter>
+        {unitsError && <p role="alert" className="text-destructive">{unitsError.message}</p>}
+        <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Отмена</Button><Button disabled={sendMutation.isPending || unitsLoading || !!unitsError} onClick={() => sendMutation.mutate()}>{sendMutation.isPending ? "Отправка…" : "Отправить"}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
       <TabsContent value="outgoing"><TransferTable rows={transfers.filter((t: any) => t.from_warehouse_id === warehouse?.id)} currentWarehouseId={warehouse?.id} actions={actions} showTotals /></TabsContent>

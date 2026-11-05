@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -23,6 +23,15 @@ export function useTransferActions(refresh: (ids: string[]) => void) {
   const [details, setDetails] = useState<any>(null);
   const [action, setAction] = useState<{ kind: ActionKind; transfer: any } | null>(null);
   const [reason, setReason] = useState("");
+  const { data: units = [], isLoading: unitsLoading, error: unitsError } = useQuery({
+    queryKey: ["transfer-units", details?.id],
+    enabled: !!details,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_transfer_units" as any, { p_transfer_id: details.id } as any);
+      if (error) throw error;
+      return (data ?? []) as unknown as { equipment_id: string; product_name: string; model: string | null; serial_number: string | null }[];
+    },
+  });
   const mutation = useMutation({
     mutationFn: async () => {
       if (!action) throw new Error("Выберите перемещение");
@@ -49,6 +58,9 @@ export function useTransferActions(refresh: (ids: string[]) => void) {
     <Dialog open={!!details} onOpenChange={(value) => { if (!value) setDetails(null); }}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-auto"><DialogHeader><DialogTitle>Позиции перемещения</DialogTitle></DialogHeader>
         {details && <><TransferStatusBadge status={details.status} />{details.notes && <p>{details.notes}</p>}<table className="w-full text-sm"><thead><tr>{["Наименование", "Серия", "Годен до", "Количество"].map((label) => <th key={label} className="p-2 text-left">{label}</th>)}</tr></thead><tbody>{details.transfer_record_items?.map((item: any) => <tr key={item.id} className="border-t"><td className="p-2">{item.drug_formulary?.trade_name || item.products?.name || "—"}</td><td className="p-2">{item.inventory_batches?.series_number || "—"}</td><td className="p-2">{item.inventory_batches?.expiry_date || "—"}</td><td className="p-2">{item.quantity_units}</td></tr>)}</tbody></table></>}
+        {unitsLoading && <p className="text-muted-foreground">Загрузка единиц…</p>}
+        {unitsError && <p role="alert" className="text-destructive">{unitsError.message}</p>}
+        {units.length > 0 && <section className="space-y-2"><h3 className="font-semibold">Единицы</h3>{units.map((unit) => <p key={unit.equipment_id} className="text-sm break-words">{unit.product_name} · {unit.model || "—"} · С/Н {unit.serial_number || "—"}</p>)}</section>}
       </DialogContent>
     </Dialog>
     <Dialog open={!!action} onOpenChange={(value) => { if (!value && !mutation.isPending) { setAction(null); setReason(""); } }}>
