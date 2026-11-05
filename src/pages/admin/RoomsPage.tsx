@@ -1,5 +1,6 @@
 import { BlockFloorSelect } from "@/components/admin/clinic-structure/BlockFloorSelect";
 import { effectiveRoomFloorId, isInheritedFloor, useClinicStructure } from "@/components/admin/clinic-structure/useClinicStructure";
+import { useUpdateRoom } from "@/components/admin/clinic-structure/useUpdateRoom";
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -238,15 +239,7 @@ export default function RoomsPage() {
     }
   };
 
-  const updateRoom = async (id: string, patch: Partial<Room>) => {
-    try {
-      const { error } = await supabase.from("rooms").update(patch).eq("id", id);
-      if (error) throw error;
-      refreshRooms();
-    } catch (err: any) {
-      toast.error(err.message || "Update failed.");
-    }
-  };
+  const updateRoom = useUpdateRoom();
 
   const handleSaveName = async (r: Room) => {
     const v = editingNameValue.trim();
