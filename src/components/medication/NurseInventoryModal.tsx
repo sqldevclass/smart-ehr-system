@@ -25,6 +25,8 @@ import { UnitPicker } from "@/components/inventory-shared/UnitPicker";
 import { Badge } from "@/components/ui/badge";
 import { NoticeDateCell } from "@/components/inventory-shared/NoticeDateCell";
 import { TableTotalsFooter } from "@/components/inventory-shared/TableTotalsFooter";
+import { KindToggle } from "@/components/inventory-shared/KindToggle";
+import type { TurnoverKind } from "@/components/inventory-shared/turnoverTypes";
 
 interface Props {
   departmentId: string;
@@ -36,19 +38,20 @@ interface Props {
 type Filters = Record<string, string>;
 
 function FilterBar({
-  filters, onChange, fields, period, onPeriodChange,
+  filters, onChange, fields, period, onPeriodChange, drugPlaceholder = "Препарат или МНН",
 }: {
   filters: Filters;
   onChange: (k: string, v: string) => void;
   fields: string[];
   period?: PeriodState;
   onPeriodChange?: (s: PeriodState) => void;
+  drugPlaceholder?: string;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       {fields.includes("drug") && (
         <SearchInput
-          placeholder="Препарат или МНН"
+          placeholder={drugPlaceholder}
           value={filters.drug ?? ""}
           onChange={(v) => onChange("drug", v)}
           className="w-56"
@@ -81,6 +84,7 @@ export default function NurseInventoryModal({
   const [filters, setFilters] = useState<Filters>({});
   const [period, setPeriod] = usePeriodFilter(true);
   const [activeTab, setActiveTab] = useState("prescriptions");
+  const [stockKind, setStockKind] = useState<TurnoverKind>("drug");
   const setFilter = (k: string, v: string) =>
     setFilters((prev) => ({ ...prev, [k]: v }));
 
@@ -304,6 +308,19 @@ export default function NurseInventoryModal({
   const filteredStock = useMemo(() => (deptStock as any[]).filter((b) =>
     matchesSearch([b.drug_formulary?.trade_name, b.drug_formulary?.inn, b.products?.name], filters.drug ?? "")
   ), [deptStock, filters]);
+
+  const stockByKind = useMemo<Record<TurnoverKind, any[]>>(() => {
+    const grouped: Record<TurnoverKind, any[]> = { drug: [], product: [] };
+    for (const batch of deptStock as any[]) {
+      if (byBatch.has(batch.id)) continue;
+      grouped[batch.drug_formulary_id ? "drug" : "product"].push(batch);
+    }
+    return grouped;
+  }, [deptStock, byBatch]);
+
+  const visibleDepartmentStock = useMemo(() => stockByKind[stockKind].filter((batch) =>
+    matchesSearch([batch.drug_formulary?.trade_name, batch.drug_formulary?.inn, batch.products?.name], filters.drug ?? "")
+  ), [stockByKind, stockKind, filters.drug]);
 
   const refreshInventory = () => {
     refetchPres(); refetchStock();
@@ -664,7 +681,19 @@ export default function NurseInventoryModal({
 
             {/* TAB 4 */}
             <TabsContent value="stock" className="flex-1 min-h-0 overflow-y-auto mt-2 space-y-2">
-              <FilterBar filters={filters} onChange={setFilter} fields={["drug"]} />
+              <div className="flex flex-wrap items-center gap-2">
+                <FilterBar
+                  filters={filters}
+                  onChange={setFilter}
+                  fields={["drug"]}
+                  drugPlaceholder={stockKind === "drug" ? "Препарат или МНН" : "Товар"}
+                />
+                <KindToggle
+                  value={stockKind}
+                  onChange={setStockKind}
+                  counts={{ drug: stockByKind.drug.length, product: stockByKind.product.length }}
+                />
+              </div>
               {stockLoading ? (
                 <div className="flex items-center justify-center h-32">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -678,8 +707,8 @@ export default function NurseInventoryModal({
                   <table className="w-full">
                     <thead className="bg-muted/50">
                       <tr>
-                        <th className={th}>Препарат / Товар</th>
-                        <th className={th}>МНН</th>
+                        <th className={th}>{stockKind === "drug" ? "Препарат" : "Товар"}</th>
+                        {stockKind === "drug" && <th className={th}>МНН</th>}
                         <th className={th}>Серия</th>
                         <th className={th}>Годен до</th>
                         <th className={th}>Кол-во</th>
@@ -687,12 +716,18 @@ export default function NurseInventoryModal({
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredStock.filter((b: any) => !byBatch.has(b.id)).length === 0 ? (
-                        <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">Склад пуст</td></tr>
-                      ) : filteredStock.filter((b: any) => !byBatch.has(b.id)).map((b: any) => (
+                      {visibleDepartmentStock.length === 0 ? (
+                        <tr>
+                          <td colSpan={stockKind === "drug" ? 6 : 5} className="p-6 text-center text-muted-foreground">
+                            {stockKind === "drug" ? "Нет препаратов" : "Нет товаров"}
+                          </td>
+                        </tr>
+                      ) : visibleDepartmentStock.map((b: any) => (
                         <tr key={b.id} className="border-t">
                           <td className={td}><HighlightMatch text={b.drug_formulary?.trade_name || b.products?.name} term={filters.drug ?? ""} fallback="—" /></td>
-                          <td className={td}><HighlightMatch text={b.drug_formulary?.inn} term={filters.drug ?? ""} fallback="—" /></td>
+                          {stockKind === "drug" && (
+                            <td className={td}><HighlightMatch text={b.drug_formulary?.inn} term={filters.drug ?? ""} fallback="—" /></td>
+                          )}
                           <td className={td}>{b.series_number || "—"}</td>
                           <td className={td}>{b.expiry_date || "—"}</td>
                           <td className={td}>{b.quantity_units}</td>

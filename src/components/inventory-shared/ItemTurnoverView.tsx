@@ -5,7 +5,7 @@ import { CheckCircle2, AlertTriangle, ShieldOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { KindToggle } from "./KindToggle";
 import { DataTable } from "@/components/reports/data-table/DataTable";
 import { fmtMoney, totalsFooter } from "@/components/reports/reportTotals";
 import { ScreenHeader } from "./ScreenHeader";
@@ -91,10 +91,7 @@ export default function ItemTurnoverView({ kind: initialKind, warehouseId }: { k
         title="Товарооборот"
         right={<>
           {warehouseId && (
-            <ToggleGroup type="single" value={kind} onValueChange={(v) => { if (v) { setKind(v as TurnoverKind); setItemId(null); } }}>
-              <ToggleGroupItem value="drug">Препараты</ToggleGroupItem>
-              <ToggleGroupItem value="product">Товары</ToggleGroupItem>
-            </ToggleGroup>
+            <KindToggle value={kind} onChange={(nextKind) => { setKind(nextKind); setItemId(null); }} />
           )}
           <TurnoverItemPicker kind={kind} value={itemId} onChange={setItemId} warehouseId={warehouseId} />
         </>}
