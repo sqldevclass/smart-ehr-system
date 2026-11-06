@@ -62,6 +62,7 @@ export default function RoomsPage() {
 
   const [manageOpen, setManageOpen] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [servicesRoom, setServicesRoom] = useState<Room | null>(null);
 
   // Add row state
   const [addName, setAddName] = useState("");
@@ -136,6 +137,27 @@ export default function RoomsPage() {
     },
     enabled: !!user,
   });
+
+  const { data: roomServiceLinks = [] } = useQuery({
+    queryKey: ["room-services", "counts", user?.hospitalId],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("room_services")
+        .select("room_id");
+      if (error) throw error;
+      return (data || []) as { room_id: string }[];
+    },
+    enabled: !!user && hasPermission("system.manage_settings"),
+  });
+
+  const roomServiceCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const link of roomServiceLinks) {
+      counts.set(link.room_id, (counts.get(link.room_id) || 0) + 1);
+    }
+    return counts;
+  }, [roomServiceLinks]);
 
   const { data: services = [] } = useQuery({
     queryKey: ["services-active-lite", user?.hospitalId],
@@ -262,6 +284,7 @@ export default function RoomsPage() {
           <TableRow>
             <TableHead>Name</TableHead>
             <TableHead>Type</TableHead>
+            <TableHead>Услуги</TableHead>
             <TableHead className="w-40">Number of Beds</TableHead>
             <TableHead>Блок / Этаж</TableHead>
             <TableHead>Status</TableHead>
@@ -309,6 +332,19 @@ export default function RoomsPage() {
                     ))}
                   </SelectContent>
                 </Select>
+              </TableCell>
+              <TableCell>
+                {hasPermission("system.manage_settings") && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!r.is_active}
+                    title={!r.is_active ? "Палата неактивна" : undefined}
+                    onClick={() => setServicesRoom(r)}
+                  >
+                    Услуги{(roomServiceCounts.get(r.id) || 0) > 0 ? ` (${roomServiceCounts.get(r.id)})` : ""}
+                  </Button>
+                )}
               </TableCell>
               <TableCell>
                 <div className="inline-flex items-center gap-2">
@@ -564,6 +600,15 @@ export default function RoomsPage() {
           </div>
         </div>
       )}
+
+      <Dialog open={!!servicesRoom} onOpenChange={(open) => { if (!open) setServicesRoom(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Услуги палаты · {servicesRoom?.name}</DialogTitle>
+          </DialogHeader>
+          {servicesRoom && <RoomServicesSection roomId={servicesRoom.id} />}
+        </DialogContent>
+      </Dialog>
 
       <ManageRoomTypesDialog
         open={manageOpen}
