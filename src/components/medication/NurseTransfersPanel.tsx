@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,6 +23,7 @@ import { TableCell, TableRow } from "@/components/ui/table";
 import { useWarehouseUnits } from "@/components/inventory-shared/useWarehouseUnits";
 import { UnitPicker } from "@/components/inventory-shared/UnitPicker";
 import { TransferStatusBadge } from "@/components/inventory-shared/transferStatus";
+import { MAIN_WAREHOUSE_CODES } from "@/components/inventory-shared/warehouseCodes";
 
 interface Props {
   hospitalId: string;
@@ -100,6 +101,15 @@ export default function NurseTransfersPanel({ hospitalId, deptWarehouse, stock, 
   const [txEquipmentIds, setTxEquipmentIds] = useState<string[]>([]);
   const { byBatch, isPending: unitsLoading, error: unitsError } = useWarehouseUnits(deptWarehouse?.id);
   const txUnits = byBatch.get(txBatchId);
+  const isInventoryTransfer = !!txUnits?.length;
+  const recipientWarehouses = useMemo(() => isInventoryTransfer
+    ? allWarehouses.filter((warehouse) => MAIN_WAREHOUSE_CODES.has(warehouse.warehouse_types?.code))
+    : allWarehouses, [allWarehouses, isInventoryTransfer]);
+  useEffect(() => {
+    if (txWarehouseId && !recipientWarehouses.some((warehouse) => warehouse.id === txWarehouseId)) {
+      setTxWarehouseId("");
+    }
+  }, [recipientWarehouses, txWarehouseId]);
   const [txSending, setTxSending] = useState(false);
   const { data: incoming = [], isLoading: transLoading, error: incomingError } = useNurseIncomingTransfers(hospitalId, deptWarehouse?.id);
   const { data: outgoing = [], isLoading: outgoingLoading, error: outgoingError } = useNurseTransfers(hospitalId, deptWarehouse?.id, "outgoing");
@@ -294,13 +304,14 @@ export default function NurseTransfersPanel({ hospitalId, deptWarehouse, stock, 
                     <Select value={txWarehouseId} onValueChange={setTxWarehouseId}>
                       <SelectTrigger><SelectValue placeholder="Выберите" /></SelectTrigger>
                       <SelectContent>
-                        {(allWarehouses as any[]).map((w) => (
+                        {recipientWarehouses.map((w) => (
                           <SelectItem key={w.id} value={w.id}>
                             {w.name} {w.departments?.name ? `(${w.departments.name})` : ""}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                    {isInventoryTransfer && <p className="text-xs text-muted-foreground mt-1">Инвентарь можно вернуть только на Центральную аптеку или Общий склад</p>}
                   </div>
                   {!txUnits?.length && <div>
                     <Label className="text-xs">Количество</Label>

@@ -19,6 +19,7 @@ const sb = supabase as any;
 
 type SourceKey = "general" | "central_pharmacy";
 interface OrderableItem { item_kind: "drug" | "product"; item_id: string; name: string; inn: string | null; dose: string | null; unit_name: string | null; available: number; nearest_expiry: string | null }
+interface OtherDepartmentStockItem extends OrderableItem { warehouse_id: string; warehouse_name: string; department_name: string | null }
 interface CartItem { item_kind: "drug" | "product"; item_id: string; name: string; unit_name: string | null; quantity: number; available: number }
 
 interface Props { deptWarehouse: { id: string; name: string } | null | undefined; hospitalId: string; readOnly?: boolean }
@@ -91,11 +92,26 @@ function MyStockOrders({ sourceId, deptWarehouseId, readOnly = false }: { source
   </div>;
 }
 
-function SourceTab({ source, deptWarehouseId, cart, setCart, readOnly = false }: {
+function stockItemColumns<T extends OrderableItem>(search: string): ColumnDef<T>[] {
+  return [
+    { id: "name", header: "Название", enableColumnFilter: false, accessorFn: (r) => r.name, cell: ({ row }) => <HighlightMatch text={row.original.name} term={search} /> },
+    { id: "inn", header: "МНН", enableColumnFilter: false, accessorFn: (r) => r.inn || "—", cell: ({ row }) => <HighlightMatch text={row.original.inn || "—"} term={search} /> },
+    { id: "dose", header: "Доза", enableColumnFilter: false, accessorFn: (r) => r.dose || "—", cell: ({ row }) => <HighlightMatch text={row.original.dose || "—"} term={search} /> },
+    { id: "unit", header: "Ед. изм.", enableColumnFilter: false, accessorFn: (r) => r.unit_name || "—" },
+  ];
+}
+
+function stockExpiryColumn<T extends OrderableItem>(): ColumnDef<T> {
+  return { id: "expiry", header: "Годен до", enableColumnFilter: false, accessorFn: (r) => (r.nearest_expiry ? format(new Date(r.nearest_expiry), "dd.MM.yyyy") : "—") };
+}
+
+function SourceTab({ source, deptWarehouseId, cart, setCart, otherDepartmentStock, otherStockError, readOnly = false }: {
   source: { id: string; name: string } | null | undefined;
   deptWarehouseId: string;
   cart: CartItem[];
   setCart: (c: CartItem[]) => void;
+  otherDepartmentStock: OtherDepartmentStockItem[];
+  otherStockError: Error | null;
   readOnly?: boolean;
 }) {
   const qc = useQueryClient();
@@ -120,6 +136,14 @@ function SourceTab({ source, deptWarehouseId, cart, setCart, readOnly = false }:
 
   const results = useMemo(() => !search.trim() ? [] :
     items.filter((i) => matchesSearch([i.name, i.inn, i.dose], search)).slice(0, 50), [items, search]);
+  const otherResults = useMemo(() => !search.trim() ? [] :
+    otherDepartmentStock.filter((i) => matchesSearch([i.name, i.inn, i.dose], search)), [otherDepartmentStock, search]);
+  const otherColumns = useMemo<ColumnDef<OtherDepartmentStockItem>[]>(() => [
+    ...stockItemColumns<OtherDepartmentStockItem>(search),
+    { id: "department", header: "Отделение", enableColumnFilter: false, accessorFn: (r) => r.department_name || r.warehouse_name || "—" },
+    { id: "available", header: "Доступно", enableColumnFilter: false, accessorFn: (r) => r.available },
+    stockExpiryColumn<OtherDepartmentStockItem>(),
+  ], [search]);
 
   const addToCart = (item: OrderableItem) => {
     const qty = Number((qtys.current[item.item_id] ?? String(item.available)).replace(",", "."));
@@ -145,14 +169,12 @@ function SourceTab({ source, deptWarehouseId, cart, setCart, readOnly = false }:
     qc.invalidateQueries({ queryKey: ["orderable-items", source.id] });
     qc.invalidateQueries({ queryKey: ["stock-orders"] });
     qc.invalidateQueries({ queryKey: ["stock-orders-pending-count"] });
+    qc.invalidateQueries({ queryKey: ["other-dept-stock"] });
   };
 
   const resultColumns = useMemo<ColumnDef<OrderableItem>[]>(() => [
-    { id: "name", header: "Название", enableColumnFilter: false, accessorFn: (r) => r.name, cell: ({ row }) => <HighlightMatch text={row.original.name} term={search} /> },
-    { id: "inn", header: "МНН", enableColumnFilter: false, accessorFn: (r) => r.inn || "—", cell: ({ row }) => <HighlightMatch text={row.original.inn || "—"} term={search} /> },
-    { id: "dose", header: "Доза", enableColumnFilter: false, accessorFn: (r) => r.dose || "—" },
-    { id: "unit", header: "Ед. изм.", enableColumnFilter: false, accessorFn: (r) => r.unit_name || "—" },
-    { id: "expiry", header: "Годен до", enableColumnFilter: false, accessorFn: (r) => (r.nearest_expiry ? format(new Date(r.nearest_expiry), "dd.MM.yyyy") : "—") },
+    ...stockItemColumns<OrderableItem>(search),
+    stockExpiryColumn<OrderableItem>(),
     {
       id: "qty", header: "Количество", enableColumnFilter: false, enableHiding: false,
       cell: ({ row }) => <OrderQtyInput initial={row.original.available} max={row.original.available} onCommit={() => {}}
@@ -181,6 +203,12 @@ function SourceTab({ source, deptWarehouseId, cart, setCart, readOnly = false }:
       {isLoading ? <div className="flex justify-center py-6"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
         : !search.trim() ? <p className="text-sm text-muted-foreground">Начните вводить название</p>
         : <DataTable columns={resultColumns} data={results} getRowId={(r) => r.item_id} emptyMessage="Ничего не найдено" />}
+      {otherStockError && <p role="alert" className="text-sm text-destructive">Не удалось загрузить остатки других отделений: {otherStockError.message}</p>}
+      {otherResults.length > 0 && <section className="space-y-2">
+        <h3 className="font-semibold">В других отделениях</h3>
+        <p className="text-sm text-muted-foreground">Остатки других отделений — только для информации. Заказать можно со склада или аптеки; для перемещения между отделениями обратитесь на склад</p>
+        <DataTable columns={otherColumns} data={otherResults} />
+      </section>}
       <div className="space-y-2">
         <h3 className="font-semibold">Корзина</h3>
         <DataTable columns={cartColumns} data={cart} getRowId={(r) => r.item_id} emptyMessage="Корзина пуста"
@@ -198,6 +226,16 @@ export default function NurseStockOrdersPanel({ deptWarehouse, readOnly = false 
   const { data: general } = useMyWarehouse("general");
   const { data: pharmacy } = useMyWarehouse("central_pharmacy");
   const [carts, setCarts] = useState<Record<SourceKey, CartItem[]>>({ general: [], central_pharmacy: [] });
+  const { data: otherDepartmentStock = [], error: otherStockError } = useQuery<OtherDepartmentStockItem[], Error>({
+    queryKey: ["other-dept-stock", deptWarehouse?.id],
+    enabled: !!deptWarehouse && !readOnly,
+    queryFn: async () => {
+      if (!deptWarehouse) return [];
+      const { data, error } = await sb.rpc("list_other_department_stock", { p_exclude_warehouse_id: deptWarehouse.id });
+      if (error) throw error;
+      return (data || []).map((row: OtherDepartmentStockItem) => ({ ...row, available: Number(row.available) }));
+    },
+  });
 
   if (!deptWarehouse) return <p className="text-center text-muted-foreground py-6">Склад отделения не настроен</p>;
 
@@ -205,10 +243,10 @@ export default function NurseStockOrdersPanel({ deptWarehouse, readOnly = false 
     <Tabs defaultValue="general" className="space-y-3">
       <TabsList><TabsTrigger value="general">Склад</TabsTrigger><TabsTrigger value="central_pharmacy">Аптека</TabsTrigger></TabsList>
       <TabsContent value="general">
-        <SourceTab source={general} deptWarehouseId={deptWarehouse.id} cart={carts.general} setCart={(c) => setCarts((p) => ({ ...p, general: c }))} readOnly={readOnly} />
+        <SourceTab source={general} deptWarehouseId={deptWarehouse.id} cart={carts.general} setCart={(c) => setCarts((p) => ({ ...p, general: c }))} otherDepartmentStock={otherDepartmentStock} otherStockError={otherStockError} readOnly={readOnly} />
       </TabsContent>
       <TabsContent value="central_pharmacy">
-        <SourceTab source={pharmacy} deptWarehouseId={deptWarehouse.id} cart={carts.central_pharmacy} setCart={(c) => setCarts((p) => ({ ...p, central_pharmacy: c }))} readOnly={readOnly} />
+        <SourceTab source={pharmacy} deptWarehouseId={deptWarehouse.id} cart={carts.central_pharmacy} setCart={(c) => setCarts((p) => ({ ...p, central_pharmacy: c }))} otherDepartmentStock={otherDepartmentStock} otherStockError={otherStockError} readOnly={readOnly} />
       </TabsContent>
     </Tabs>
 
