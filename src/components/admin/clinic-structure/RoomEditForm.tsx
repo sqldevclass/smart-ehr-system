@@ -11,7 +11,6 @@ import { toast } from "sonner";
 import { BlockFloorSelect } from "./BlockFloorSelect";
 import { StructureRoom } from "./useClinicStructureData";
 import { useUpdateRoom } from "./useUpdateRoom";
-import { RoomServicesSection } from "./RoomServicesSection";
 
 interface RoomType { id: string; name: string; is_active?: boolean; is_office_room?: boolean }
 interface DepartmentLite { id: string; name: string; is_active?: boolean }
@@ -135,7 +134,6 @@ export function RoomEditForm({ room, onSaved, onCancel }: Props) {
           {saving ? "Сохранение…" : "Сохранить"}
         </Button>
       </div>
-      {room.id && room.capacity > 0 && room.room_types && !room.room_types.is_office_room && !isOffice && beds > 0 && canWrite && <RoomServicesSection roomId={room.id} />}
     </div>
   );
 }

@@ -63,7 +63,7 @@ export function RoomServicesSection({ roomId }: { roomId: string }) {
     onSuccess: async () => {
       setAdding(false);
       setRemoving(null);
-      await queryClient.invalidateQueries({ queryKey: ["room-services", roomId] });
+      await queryClient.invalidateQueries({ queryKey: ["room-services"] });
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -73,7 +73,6 @@ export function RoomServicesSection({ roomId }: { roomId: string }) {
   const error = attached.error ?? services.error;
   return (
     <section className="space-y-3 border-t pt-4">
-      <h3 className="font-semibold">Услуги палаты</h3>
       {loading ? <p className="text-sm text-muted-foreground">Загрузка…</p> : error ? <p role="alert" className="text-sm text-destructive">{error.message}</p> : (
         <>
           {(attached.data ?? []).length === 0 && <p className="text-sm text-muted-foreground">Нет привязанных услуг</p>}

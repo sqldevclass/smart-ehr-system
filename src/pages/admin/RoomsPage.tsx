@@ -1,4 +1,5 @@
 import { BlockFloorSelect } from "@/components/admin/clinic-structure/BlockFloorSelect";
+import { RoomServicesSection } from "@/components/admin/clinic-structure/RoomServicesSection";
 import { effectiveRoomFloorId, isInheritedFloor, useClinicStructure } from "@/components/admin/clinic-structure/useClinicStructure";
 import { useUpdateRoom } from "@/components/admin/clinic-structure/useUpdateRoom";
 import { useState, useMemo } from "react";
