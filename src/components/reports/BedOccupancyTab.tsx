@@ -1,67 +1,21 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { differenceInDays, format } from "date-fns";
+import { format } from "date-fns";
 import { BedDouble, RefreshCw } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { MetricTile, SummaryCard } from "@/components/shared/PeriodFilter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FilterSelect } from "@/components/reports/FilterSelect";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { BedIcon } from "@/components/shared/BedIcon";
+import { useBedOccupancy, type BedRow } from "@/hooks/useBedOccupancy";
 import { cn } from "@/lib/utils";
-
-interface BedRow {
-  department_id: string | null;
-  department_name: string | null;
-  room_id: string;
-  room_name: string | null;
-  room_type_name: string | null;
-  capacity: number;
-  bed_number: string | number;
-  is_occupied: boolean;
-  hospitalization_id: string | null;
-  hospitalization_number: string | number | null;
-  patient_id: string | null;
-  patient_number: string | number | null;
-  last_name: string | null;
-  first_name: string | null;
-  assigned_at: string | null;
-}
 
 const departmentKey = (bed: BedRow) => bed.department_id ?? "no-department";
 const occupancy = (beds: BedRow[]) => {
   const occupied = beds.filter((bed) => bed.is_occupied).length;
   return { occupied, total: beds.length, percent: beds.length ? Math.round(occupied / beds.length * 100) : 0 };
 };
-
-function BedIcon({ bed, now }: { bed: BedRow; now: Date }) {
-  const assigned = bed.assigned_at ? new Date(bed.assigned_at) : null;
-  const days = assigned && !Number.isNaN(assigned.getTime()) ? Math.max(0, differenceInDays(now, assigned)) : null;
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span tabIndex={0} aria-label={`Койка ${bed.bed_number} — ${bed.is_occupied ? "занята" : "свободна"}`}
-          className={cn("flex w-14 flex-col items-center gap-1 rounded-md p-2 outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            bed.is_occupied ? "bg-primary text-primary-foreground" : "border border-muted-foreground/40 text-muted-foreground",
-            bed.is_occupied && days !== null && days > 7 && "ring-2 ring-primary/30 ring-offset-2 ring-offset-card")}>
-          <BedDouble className="h-6 w-6" />
-          <span className="text-xs">{bed.bed_number}</span>
-        </span>
-      </TooltipTrigger>
-      <TooltipContent>
-        {bed.is_occupied ? (
-          <div className="space-y-1">
-            <p className="font-medium">{[bed.last_name, bed.first_name].filter(Boolean).join(" ") || "—"}</p>
-            <p>ID пациента: {bed.patient_number ?? "—"}</p>
-            <p>№ истории: {bed.hospitalization_number ?? "—"}</p>
-            <p>Дней пребывания: {days ?? "—"}</p>
-          </div>
-        ) : `Койка ${bed.bed_number} — свободна`}
-      </TooltipContent>
-    </Tooltip>
-  );
-}
 
 function RoomCard({ beds, allBeds, now }: { beds: BedRow[]; allBeds: BedRow[]; now: Date }) {
   const room = beds[0];
@@ -92,20 +46,7 @@ export default function BedOccupancyTab() {
   const [department, setDepartment] = useState("all");
   const [room, setRoom] = useState("all");
   const [status, setStatus] = useState("all");
-  const { data: beds = [], isLoading, isFetching, error, refetch, dataUpdatedAt } = useQuery({
-    queryKey: ["bed-occupancy", user?.hospitalId],
-    enabled: !!user?.hospitalId,
-    queryFn: async () => {
-      if (!user?.hospitalId) return [];
-      const { data, error } = await supabase.rpc<
-        "get_bed_occupancy",
-        { p_hospital_id: string },
-        { Row: BedRow; Result: BedRow[]; RelationName: "get_bed_occupancy"; Relationships: null }
-      >("get_bed_occupancy", { p_hospital_id: user.hospitalId });
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
+  const { data: beds = [], isLoading, isFetching, error, refetch, dataUpdatedAt } = useBedOccupancy();
   const departments = new Map<string, string>();
   const rooms = new Map<string, string>();
   const allRoomBeds = new Map<string, BedRow[]>();

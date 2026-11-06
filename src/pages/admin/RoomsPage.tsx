@@ -21,8 +21,12 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Minus, Plus, Edit, Settings, Layers } from "lucide-react";
+import { Minus, Plus, Edit, Settings, Layers, LayoutList, LayoutGrid } from "lucide-react";
 import { toast } from "sonner";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { BedIcon } from "@/components/shared/BedIcon";
+import { useBedOccupancy, type BedRow } from "@/hooks/useBedOccupancy";
 
 interface Department {
   id: string;
@@ -59,6 +63,28 @@ export default function RoomsPage() {
   const [addFloorId, setAddFloorId] = useState<string | null>(null);
   const [editingFloorId, setEditingFloorId] = useState<string | null>(null);
   const queryClient = useQueryClient();
+
+  const [viewMode, setViewMode] = useState<"table" | "grid">(() => {
+    try { return localStorage.getItem("rooms-view-mode") === "grid" ? "grid" : "table"; }
+    catch { return "table"; }
+  });
+  const canViewOccupancy = hasPermission("reports.view_bed_occupancy");
+  const bedOccupancy = useBedOccupancy(viewMode === "grid" && canViewOccupancy);
+  const occupancyByRoom = useMemo(() => {
+    const result = new Map<string, Map<string, BedRow>>();
+    if (!canViewOccupancy || bedOccupancy.error) return result;
+    for (const bed of bedOccupancy.data ?? []) {
+      const roomBeds = result.get(bed.room_id) ?? new Map<string, BedRow>();
+      roomBeds.set(String(bed.bed_number), bed);
+      result.set(bed.room_id, roomBeds);
+    }
+    return result;
+  }, [bedOccupancy.data, bedOccupancy.error, canViewOccupancy]);
+  const changeViewMode = (value: string) => {
+    if (value !== "table" && value !== "grid") return;
+    setViewMode(value);
+    try { localStorage.setItem("rooms-view-mode", value); } catch { /* Storage may be unavailable. */ }
+  };
 
   const [manageOpen, setManageOpen] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -226,9 +252,9 @@ export default function RoomsPage() {
 
   const handleAddRoom = async () => {
     if (!user) return;
-    if (!addName.trim()) return toast.error("Name is required.");
-    if (!addTypeId) return toast.error("Room type is required.");
-    if (!addIsOffice && !addDeptId) return toast.error("Department is required.");
+    if (!addName.trim()) return toast.error("Укажите название.");
+    if (!addTypeId) return toast.error("Выберите тип палаты.");
+    if (!addIsOffice && !addDeptId) return toast.error("Выберите отделение.");
     setAdding(true);
     try {
       const { data: inserted, error } = await supabase.from("rooms").insert({
@@ -249,14 +275,14 @@ export default function RoomsPage() {
         const { error: linkErr } = await supabase.from("office_room_services").insert(rows);
         if (linkErr) throw linkErr;
       }
-      toast.success("Room created.");
+      toast.success("Палата создана.");
       setAddName("");
       setAddFloorId(null);
       setAddBeds(1);
       setAddServiceIds(new Set());
       refreshRooms();
     } catch (err: any) {
-      toast.error(err.message || "Failed to add room.");
+      toast.error(err.message || "Не удалось создать палату.");
     } finally {
       setAdding(false);
     }
@@ -277,24 +303,8 @@ export default function RoomsPage() {
     await updateRoom(r.id, { capacity: next });
   };
 
-  const renderTable = (list: Room[]) => (
-    <div className="rounded-lg border bg-card">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>Услуги</TableHead>
-            <TableHead className="w-40">Number of Beds</TableHead>
-            <TableHead>Блок / Этаж</TableHead>
-            <TableHead>Status</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {list.map((r) => (
-            <TableRow key={r.id}>
-              <TableCell className="font-medium">
-                {editingNameId === r.id ? (
+  const RoomNameEditor = (r: Room) => (
+    editingNameId === r.id ? (
                   <Input
                     autoFocus
                     value={editingNameValue}
@@ -307,23 +317,24 @@ export default function RoomsPage() {
                     className="h-8"
                   />
                 ) : (
-                  <button
-                    className="text-left hover:underline"
+                  <Button variant="ghost"
+                    className="h-auto min-w-0 justify-start whitespace-normal break-words px-0 text-left hover:underline"
                     onClick={() => {
                       setEditingNameId(r.id);
                       setEditingNameValue(r.name);
                     }}
                   >
                     {r.name}
-                  </button>
-                )}
-              </TableCell>
-              <TableCell>
-                <Select
+                  </Button>
+                )
+  );
+
+  const RoomTypeSelect = (r: Room) => (
+    <Select
                   value={r.room_type_id || ""}
                   onValueChange={(v) => updateRoom(r.id, { room_type_id: v })}
                 >
-                  <SelectTrigger className="h-8 w-44">
+                  <SelectTrigger aria-label={`Тип палаты ${r.name}`} className="h-8 w-full min-w-0">
                     <SelectValue placeholder="—" />
                   </SelectTrigger>
                   <SelectContent>
@@ -332,9 +343,10 @@ export default function RoomsPage() {
                     ))}
                   </SelectContent>
                 </Select>
-              </TableCell>
-              <TableCell>
-                {hasPermission("system.manage_settings") && (
+  );
+
+  const RoomServicesButton = (r: Room) => (
+    hasPermission("system.manage_settings") && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -344,36 +356,97 @@ export default function RoomsPage() {
                   >
                     Услуги{(roomServiceCounts.get(r.id) || 0) > 0 ? ` (${roomServiceCounts.get(r.id)})` : ""}
                   </Button>
-                )}
-              </TableCell>
-              <TableCell>
-                <div className="inline-flex items-center gap-2">
-                  <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => handleBeds(r, -1)} disabled={r.capacity <= 1}>
+                )
+  );
+
+  const RoomBedsStepper = (r: Room) => (
+    <div className="inline-flex items-center gap-2">
+                  <Button size="icon" variant="outline" className="h-7 w-7" aria-label={`Уменьшить число коек · ${r.name}`} onClick={() => handleBeds(r, -1)} disabled={r.capacity <= 1}>
                     <Minus className="h-3 w-3" />
                   </Button>
                   <span className="w-8 text-center tabular-nums">{r.capacity}</span>
-                  <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => handleBeds(r, 1)} disabled={r.capacity >= 100}>
+                  <Button size="icon" variant="outline" className="h-7 w-7" aria-label={`Увеличить число коек · ${r.name}`} onClick={() => handleBeds(r, 1)} disabled={r.capacity >= 100}>
                     <Plus className="h-3 w-3" />
                   </Button>
                 </div>
-              </TableCell>
-              <TableCell>
-                {editingFloorId === r.id ? (
-                  <div className="min-w-64 space-y-1">
+  );
+
+  const RoomFloorEditor = (r: Room) => (
+    editingFloorId === r.id ? (
+                  <div className="min-w-0 space-y-1">
                     <BlockFloorSelect value={r.floor_id} onChange={floor_id => updateRoom(r.id, { floor_id })} disabled={!hasPermission("system.manage_settings")} />
                     <p className="text-xs text-muted-foreground">Пусто — этаж берётся из отделения</p>
                     <Button variant="ghost" size="sm" onClick={() => setEditingFloorId(null)}>Готово</Button>
                   </div>
                 ) : (
                   <Button variant="ghost" className="h-auto flex-wrap whitespace-normal text-left" disabled={!hasPermission("system.manage_settings")} onClick={() => setEditingFloorId(r.id)}>{formatFloor(effectiveRoomFloorId(r, departments))}{isInheritedFloor(r, departments) && <Badge variant="secondary" className="ml-2 text-xs font-normal text-muted-foreground">от отделения</Badge>}</Button>
-                )}
-              </TableCell>
-              <TableCell>
-                <Switch
+                )
+  );
+
+  const RoomActiveSwitch = (r: Room) => (
+    <Switch
+                  aria-label={`Активность палаты ${r.name}`}
                   checked={r.is_active}
                   onCheckedChange={(v) => updateRoom(r.id, { is_active: v })}
                 />
-              </TableCell>
+  );
+
+  const renderTable = (list: Room[]) => viewMode === "grid" ? (
+    <TooltipProvider>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 [&_[data-radix-popper-content-wrapper]]:pointer-events-none">
+        {list.map((r) => {
+          const beds = occupancyByRoom.get(r.id);
+          const occupied = beds ? Array.from(beds.values()).filter(bed => bed.is_occupied && Number(bed.bed_number) >= 1 && Number(bed.bed_number) <= r.capacity).length : 0;
+          return (
+            <div key={r.id} className={`min-w-0 rounded-lg border bg-card p-4 space-y-4${r.is_active ? "" : " opacity-60"}`}>
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="font-medium">{RoomNameEditor(r)}</div>
+                  {RoomTypeSelect(r)}
+                </div>
+                {RoomActiveSwitch(r)}
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Блок / Этаж</p>
+                {RoomFloorEditor(r)}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {RoomBedsStepper(r)}
+                {beds && <span className="text-sm text-muted-foreground">{occupied}/{r.capacity} занято</span>}
+                {RoomServicesButton(r)}
+              </div>
+              <div className="flex flex-wrap gap-3">
+                {Array.from({ length: r.capacity }, (_, i) => (
+                  <BedIcon key={i + 1} bedNumber={i + 1} bed={beds?.get(String(i + 1))} />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </TooltipProvider>
+  ) : (
+    <div className="rounded-lg border bg-card">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Название</TableHead>
+            <TableHead>Тип</TableHead>
+            <TableHead>Услуги</TableHead>
+            <TableHead className="w-40">Количество коек</TableHead>
+            <TableHead>Блок / Этаж</TableHead>
+            <TableHead>Статус</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {list.map((r) => (
+            <TableRow key={r.id}>
+              <TableCell className="font-medium">{RoomNameEditor(r)}</TableCell>
+              <TableCell className="min-w-44">{RoomTypeSelect(r)}</TableCell>
+              <TableCell>{RoomServicesButton(r)}</TableCell>
+              <TableCell>{RoomBedsStepper(r)}</TableCell>
+              <TableCell>{RoomFloorEditor(r)}</TableCell>
+              <TableCell>{RoomActiveSwitch(r)}</TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -386,11 +459,11 @@ export default function RoomsPage() {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>Services</TableHead>
+            <TableHead>Название</TableHead>
+            <TableHead>Тип</TableHead>
+            <TableHead>Услуги</TableHead>
             <TableHead>Блок / Этаж</TableHead>
-            <TableHead>Status</TableHead>
+            <TableHead>Статус</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -427,7 +500,7 @@ export default function RoomsPage() {
                 <TableCell>
                   <div className="flex flex-wrap gap-1">
                     {svcNames.length === 0 ? (
-                      <span className="text-xs text-muted-foreground">No services</span>
+                      <span className="text-xs text-muted-foreground">Нет услуг</span>
                     ) : (
                       svcNames.map((n, i) => (
                         <span key={i} className="rounded border bg-muted px-2 py-0.5 text-xs">
@@ -464,22 +537,26 @@ export default function RoomsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-foreground">Rooms</h1>
-        <div className="flex gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-semibold text-foreground">Палаты</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <ToggleGroup type="single" value={viewMode} onValueChange={changeViewMode} aria-label="Вид палат">
+            <ToggleGroupItem value="table" aria-label="Таблица" className="gap-2"><LayoutList className="h-4 w-4" />Таблица</ToggleGroupItem>
+            <ToggleGroupItem value="grid" aria-label="Сетка" className="gap-2"><LayoutGrid className="h-4 w-4" />Сетка</ToggleGroupItem>
+          </ToggleGroup>
           <Button variant="outline" onClick={() => setManageOpen(true)} className="gap-2">
-            <Settings className="h-4 w-4" /> Manage Room Types
+            <Settings className="h-4 w-4" /> Типы палат
           </Button>
           <Button variant="outline" onClick={() => setBulkOpen(true)} className="gap-2" disabled={departments.length === 0 || roomTypes.length === 0}>
-            <Layers className="h-4 w-4" /> Bulk Create
+            <Layers className="h-4 w-4" /> Создать несколько
           </Button>
         </div>
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <p className="text-sm text-muted-foreground">Загрузка…</p>
       ) : departments.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Create a department first.</p>
+        <p className="text-sm text-muted-foreground">Сначала создайте отделение.</p>
       ) : (
         <div className="space-y-6">
           {grouped.map(({ department, rooms: deptRooms }) => (
@@ -488,7 +565,7 @@ export default function RoomsPage() {
                 {department.name}
               </h2>
               {deptRooms.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No rooms in this department.</p>
+                <p className="text-sm text-muted-foreground">Нет палат в этом отделении.</p>
               ) : (
                 renderTable(deptRooms)
               )}
@@ -497,7 +574,7 @@ export default function RoomsPage() {
           {orphanRooms.length > 0 && (
             <div className="space-y-2">
               <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                Other
+                Другие
               </h2>
               {renderTable(orphanRooms)}
             </div>
@@ -506,7 +583,7 @@ export default function RoomsPage() {
           {officeRooms.length > 0 && (
             <div className="space-y-2">
               <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                Office Rooms
+                Кабинеты
               </h2>
               {renderOfficeTable(officeRooms)}
             </div>
@@ -515,23 +592,23 @@ export default function RoomsPage() {
           {/* Add Room row */}
           <div className="space-y-2">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-              Add Room
+              Добавить палату
             </h2>
             <div className="rounded-lg border bg-card p-3 space-y-3">
               <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-2 items-end">
                 <div className="space-y-1">
-                  <Label className="text-xs">Name</Label>
+                  <Label className="text-xs">Название</Label>
                   <Input
                     value={addName}
                     onChange={(e) => setAddName(e.target.value)}
-                    placeholder="e.g. Room 101"
+                    placeholder="Например, Палата 101"
                     className="h-9"
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Room Type</Label>
+                  <Label className="text-xs">Тип палаты</Label>
                   <Select value={addTypeId} onValueChange={setAddTypeId}>
-                    <SelectTrigger className="h-9"><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Выберите" /></SelectTrigger>
                     <SelectContent>
                       {roomTypes.map((rt) => (
                         <SelectItem key={rt.id} value={rt.id}>{rt.name}</SelectItem>
@@ -540,7 +617,7 @@ export default function RoomsPage() {
                   </Select>
                 </div>
                 <Button onClick={handleAddRoom} disabled={adding} className="h-9">
-                  {adding ? "Adding…" : "Add"}
+                  {adding ? "Добавление…" : "Добавить"}
                 </Button>
               </div>
 
@@ -551,7 +628,7 @@ export default function RoomsPage() {
               {!addIsOffice ? (
                 <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-2 items-end">
                   <div className="space-y-1">
-                    <Label className="text-xs">Beds</Label>
+                    <Label className="text-xs">Койки</Label>
                     <div className="inline-flex items-center gap-2">
                       <Button size="icon" variant="outline" className="h-9 w-9" onClick={() => setAddBeds((b) => Math.max(1, b - 1))} disabled={addBeds <= 1}>
                         <Minus className="h-3 w-3" />
@@ -563,9 +640,9 @@ export default function RoomsPage() {
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">Department</Label>
+                    <Label className="text-xs">Отделение</Label>
                     <Select value={addDeptId} onValueChange={setAddDeptId}>
-                      <SelectTrigger className="h-9"><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectTrigger className="h-9"><SelectValue placeholder="Выберите" /></SelectTrigger>
                       <SelectContent>
                         {departments.map((d) => (
                           <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
@@ -576,10 +653,10 @@ export default function RoomsPage() {
                 </div>
               ) : (
                 <div className="space-y-1">
-                  <Label className="text-xs">Services</Label>
+                  <Label className="text-xs">Услуги</Label>
                   <div className="max-h-48 overflow-y-auto rounded-md border p-2 space-y-1">
                     {services.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">No active services.</p>
+                      <p className="text-xs text-muted-foreground">Нет активных услуг.</p>
                     ) : services.map((s) => {
                       const id = `addsvc-${s.id}`;
                       return (
@@ -668,7 +745,7 @@ function BulkCreateDialog({
 
   const previewNames = useMemo(() => {
     const n = Math.max(1, Math.min(50, count));
-    return Array.from({ length: n }, (_, i) => `Room ${startNumber + i}`);
+    return Array.from({ length: n }, (_, i) => `Палата ${startNumber + i}`);
   }, [count, startNumber]);
 
   const deptName = departments.find((d) => d.id === deptId)?.name || "";
@@ -687,14 +764,14 @@ function BulkCreateDialog({
       }));
       const { error } = await supabase.from("rooms").insert(rows);
       if (error) throw error;
-      toast.success(`Created ${rows.length} rooms.`);
+      toast.success(`Создано палат: ${rows.length}.`);
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
       queryClient.invalidateQueries({ queryKey: ["clinic-structure"] });
       onOpenChange(false);
       setFloorId(null);
       setDeptId(""); setTypeId(""); setBeds(1); setCount(5);
     } catch (err: any) {
-      toast.error(err.message || "Failed.");
+      toast.error(err.message || "Не удалось выполнить действие.");
     } finally {
       setBusy(false);
     }
@@ -704,13 +781,13 @@ function BulkCreateDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Bulk Create Rooms</DialogTitle>
+          <DialogTitle>Создать несколько палат</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label>Department *</Label>
+            <Label>Отделение *</Label>
             <Select value={deptId} onValueChange={setDeptId}>
-              <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Выберите отделение" /></SelectTrigger>
               <SelectContent>
                 {departments.map((d) => (
                   <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
@@ -723,9 +800,9 @@ function BulkCreateDialog({
             <BlockFloorSelect value={floorId} onChange={setFloorId} disabled={busy || !hasPermission("system.manage_settings")} />
           </div>
           <div className="space-y-1.5">
-            <Label>Room Type *</Label>
+            <Label>Тип палаты *</Label>
             <Select value={typeId} onValueChange={setTypeId}>
-              <SelectTrigger><SelectValue placeholder="Select room type" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Выберите тип палаты" /></SelectTrigger>
               <SelectContent>
                 {roomTypes.map((rt) => (
                   <SelectItem key={rt.id} value={rt.id}>{rt.name}</SelectItem>
@@ -734,7 +811,7 @@ function BulkCreateDialog({
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>Number of Beds per Room</Label>
+            <Label>Количество коек в палате</Label>
             <div className="inline-flex items-center gap-2">
               <Button size="icon" variant="outline" className="h-9 w-9" onClick={() => setBeds((b) => Math.max(1, b - 1))} disabled={beds <= 1}>
                 <Minus className="h-3 w-3" />
@@ -746,7 +823,7 @@ function BulkCreateDialog({
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label>How many rooms to create</Label>
+            <Label>Количество палат</Label>
             <Input
               type="number"
               min={1}
@@ -757,19 +834,19 @@ function BulkCreateDialog({
           </div>
           {deptId && (
             <div className="rounded-md bg-muted/50 p-3 text-sm">
-              <p className="font-medium">Preview</p>
+              <p className="font-medium">Предпросмотр</p>
               <p className="text-muted-foreground">
-                Will create: {previewNames.slice(0, 4).join(", ")}
+                Будут созданы: {previewNames.slice(0, 4).join(", ")}
                 {previewNames.length > 4 ? `, ... ${previewNames[previewNames.length - 1]}` : ""}
-                {" "}in {deptName}
+                {" "}в отделении {deptName}
               </p>
             </div>
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Отмена</Button>
           <Button onClick={handleConfirm} disabled={busy || !deptId || !typeId}>
-            {busy ? "Creating…" : `Create ${previewNames.length}`}
+            {busy ? "Создание…" : `Создать: ${previewNames.length}`}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -808,11 +885,11 @@ function ManageRoomTypesDialog({
         .from("room_types")
         .insert({ hospital_id: hospitalId, name: newName.trim() });
       if (error) throw error;
-      toast.success("Room type added.");
+      toast.success("Тип палаты добавлен.");
       setNewName("");
       refresh();
     } catch (err: any) {
-      toast.error(err.message || "Failed.");
+      toast.error(err.message || "Не удалось выполнить действие.");
     } finally {
       setBusy(false);
     }
@@ -827,11 +904,11 @@ function ManageRoomTypesDialog({
         .update({ name: editingName.trim() })
         .eq("id", id);
       if (error) throw error;
-      toast.success("Updated.");
+      toast.success("Сохранено.");
       setEditingId(null);
       refresh();
     } catch (err: any) {
-      toast.error(err.message || "Failed.");
+      toast.error(err.message || "Не удалось выполнить действие.");
     } finally {
       setBusy(false);
     }
@@ -847,7 +924,7 @@ function ManageRoomTypesDialog({
       if (error) throw error;
       refresh();
     } catch (err: any) {
-      toast.error(err.message || "Failed.");
+      toast.error(err.message || "Не удалось выполнить действие.");
     } finally {
       setBusy(false);
     }
@@ -857,23 +934,23 @@ function ManageRoomTypesDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Manage Room Types</DialogTitle>
+          <DialogTitle>Типы палат</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="flex gap-2">
             <Input
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              placeholder="New room type name"
+              placeholder="Название нового типа палаты"
             />
-            <Button onClick={handleAdd} disabled={busy || !newName.trim()}>Add</Button>
+            <Button onClick={handleAdd} disabled={busy || !newName.trim()}>Добавить</Button>
           </div>
           <div className="rounded-lg border">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead className="w-24">Active</TableHead>
+                  <TableHead>Название</TableHead>
+                  <TableHead className="w-24">Активен</TableHead>
                   <TableHead className="w-24"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -908,10 +985,10 @@ function ManageRoomTypesDialog({
                       {editingId === rt.id ? (
                         <div className="flex gap-1">
                           <Button size="sm" onClick={() => handleSaveName(rt.id)} disabled={busy}>
-                            Save
+                            Сохранить
                           </Button>
                           <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
-                            Cancel
+                            Отмена
                           </Button>
                         </div>
                       ) : (
@@ -934,7 +1011,7 @@ function ManageRoomTypesDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Закрыть</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
