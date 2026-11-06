@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useSyncRoomCharges } from "@/hooks/useSyncRoomCharges";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -76,6 +77,7 @@ function invalidatePatientBilling(queryClient: ReturnType<typeof useQueryClient>
 
 export default function PaymentsPage() {
   const { user } = useAuth();
+  const { ready } = useSyncRoomCharges();
   const [outstanding, setOutstanding] = useState<Visit[]>([]);
   const [paidToday, setPaidToday] = useState<Visit[]>([]);
   const [loading, setLoading] = useState(false);
@@ -91,7 +93,7 @@ export default function PaymentsPage() {
   const bounds = getDateBounds(periodState);
 
   const loadData = useCallback(async () => {
-    if (!user) return;
+    if (!ready || !user) return;
     setLoading(true);
 
     const [outRes, paidRes] = await Promise.all([
@@ -123,10 +125,10 @@ export default function PaymentsPage() {
     setOutstanding((outRes.data ?? []) as any);
     setPaidToday((paidRes.data ?? []) as any);
     setLoading(false);
-  }, [user, bounds.from, bounds.to]);
+  }, [ready, user, bounds.from, bounds.to]);
 
   const loadSummary = useCallback(async () => {
-    if (!user) return;
+    if (!ready || !user) return;
     const t = getTodayBounds();
     const [collectedRes, todayUnpaidRes, todayPaidRes] = await Promise.all([
       supabase.from("payments")
@@ -154,7 +156,7 @@ export default function PaymentsPage() {
       paidCount: todayPaidRes.count || 0,
       unpaidCount: (todayUnpaidRes.data || []).length,
     });
-  }, [user, today]);
+  }, [ready, user, today]);
 
   useEffect(() => {
     loadData();
@@ -166,13 +168,14 @@ export default function PaymentsPage() {
 
   const { data: patientResults = [] } = useQuery({
     queryKey: ["cashier-patient-search", user?.hospitalId, patientSearch],
-    enabled: !!user && hasPatientSearch(patientSearch),
+    enabled: ready && !!user && hasPatientSearch(patientSearch),
     queryFn: async () => {
+      if (!user) return [];
       const { data, error } = await applyPatientSearch(
         supabase
           .from("patients")
           .select("id, patient_number, first_name, last_name, middle_name, date_of_birth, phone")
-          .eq("hospital_id", user!.hospitalId),
+          .eq("hospital_id", user.hospitalId),
         patientSearch
       ).limit(10);
       if (error) throw error;
@@ -206,6 +209,8 @@ export default function PaymentsPage() {
       </TableRow>
     );
   };
+
+  if (!ready) return <p className="text-sm text-muted-foreground">Загрузка…</p>;
 
   return (
     <div className="space-y-6">
@@ -255,6 +260,7 @@ export default function PaymentsPage() {
           </div>
           {selectedPatient && user && (
             <PatientBillingPanel
+              ready={ready}
               patient={selectedPatient}
               hospitalId={user.hospitalId}
               onClose={() => setSelectedPatient(null)}
@@ -502,10 +508,12 @@ function PaymentDialog({
 }
 
 function PatientBillingPanel({
+  ready,
   patient,
   hospitalId,
   onClose,
 }: {
+  ready: boolean;
   patient: any;
   hospitalId: string;
   onClose: () => void;
@@ -516,6 +524,7 @@ function PatientBillingPanel({
 
   const { data: refundInfo, isSuccess: refundInfoOk } = useQuery({
     queryKey: ["patient-refundable-deposit", patient.id],
+    enabled: ready,
     retry: false,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_patient_refundable_deposit" as any, {
@@ -533,6 +542,7 @@ function PatientBillingPanel({
 
   const { data: refunds = [] } = useQuery({
     queryKey: ["patient-deposit-refunds", patient.id],
+    enabled: ready,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("patient_deposit_ledger")
@@ -549,6 +559,7 @@ function PatientBillingPanel({
 
   const { data: balance = 0, refetch: refetchBalance } = useQuery({
     queryKey: ["patient-deposit-balance", patient.id],
+    enabled: ready,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_patient_deposit_balance", {
         p_patient_id: patient.id,
@@ -560,6 +571,7 @@ function PatientBillingPanel({
 
   const { data: latestInvoice, refetch: refetchLatestInvoice } = useQuery({
     queryKey: ["patient-latest-invoice", patient.id, hospitalId],
+    enabled: ready,
     queryFn: async () => {
       const { data: hosp } = await supabase
         .from("hospitalizations")
@@ -587,6 +599,7 @@ function PatientBillingPanel({
 
   const { data: totalOutstanding = 0, refetch: refetchOutstanding } = useQuery({
     queryKey: ["patient-total-outstanding", patient.id],
+    enabled: ready,
     queryFn: async () => {
       const { data: hosps } = await supabase
         .from("hospitalizations")
@@ -661,11 +674,12 @@ function PatientBillingPanel({
         </Button>
       </div>
       <DebtSection
+        ready={ready}
         patient={patient}
         hospitalId={hospitalId}
         onChanged={refetchAll}
       />
-      <HistorySection patient={patient} hospitalId={hospitalId} />
+      <HistorySection ready={ready} patient={patient} hospitalId={hospitalId} />
       <DepositDialog
         open={showDeposit}
         patient={patient}
@@ -687,6 +701,7 @@ function PatientBillingPanel({
       )}
       {latestInvoice && (
         <InvoiceDialog
+          ready={ready}
           open={showInvoice}
           patient={patient}
           hospitalId={hospitalId}
@@ -706,8 +721,8 @@ function PatientBillingPanel({
 }
 
 function DebtSection({
-  patient, hospitalId, onChanged,
-}: { patient: any; hospitalId: string; onChanged: () => void }) {
+  ready, patient, hospitalId, onChanged,
+}: { ready: boolean; patient: any; hospitalId: string; onChanged: () => void }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [cancelingId, setCancelingId] = useState<string | null>(null);
@@ -715,6 +730,7 @@ function DebtSection({
 
   const { data: debts = [], refetch } = useQuery({
     queryKey: ["patient-debt-invoices", patient.id],
+    enabled: ready,
     queryFn: async () => {
       const { data: hosps, error: hErr } = await supabase
         .from("hospitalizations")
@@ -736,7 +752,7 @@ function DebtSection({
 
   const { data: balances = {}, isLoading: balancesLoading, error: balancesError } = useQuery({
     queryKey: ["patient-debt-balances", (debts as any[]).map((d: any) => d.id)],
-    enabled: (debts as any[]).length > 0,
+    enabled: ready && (debts as any[]).length > 0,
     queryFn: async () => {
       const ids = (debts as any[]).map((d: any) => d.id);
       const { data, error } = await supabase.rpc("get_invoices_balance_batch", {
@@ -813,6 +829,7 @@ function DebtSection({
       )}
       {openInvoice && (
         <InvoiceDialog
+          ready={ready}
           open={!!openInvoice}
           patient={patient}
           hospitalId={hospitalId}
@@ -831,12 +848,13 @@ function DebtSection({
   );
 }
 
-function HistorySection({ patient, hospitalId }: { patient: any; hospitalId: string }) {
+function HistorySection({ ready, patient, hospitalId }: { ready: boolean; patient: any; hospitalId: string }) {
   const [expandedHospId, setExpandedHospId] = useState<string | null>(null);
   const [openHistoryInvoice, setOpenHistoryInvoice] = useState<{ id: string; hospitalizationId: string } | null>(null);
 
   const { data: groups = [] } = useQuery({
     queryKey: ["patient-history-groups", patient.id],
+    enabled: ready,
     queryFn: async () => {
       const { data: hosps, error: hErr } = await supabase
         .from("hospitalizations")
@@ -870,7 +888,7 @@ function HistorySection({ patient, hospitalId }: { patient: any; hospitalId: str
 
   const { data: paidAmounts = {} } = useQuery({
     queryKey: ["patient-history-paid-amounts", (groups as any[]).flatMap((g: any) => g.invoices.map((i: any) => i.id))],
-    enabled: (groups as any[]).length > 0,
+    enabled: ready && (groups as any[]).length > 0,
     queryFn: async () => {
       const result: Record<string, number> = {};
       for (const g of groups as any[]) {
@@ -922,6 +940,7 @@ function HistorySection({ patient, hospitalId }: { patient: any; hospitalId: str
       )}
       {openHistoryInvoice && (
         <InvoiceDialog
+          ready={ready}
           open={!!openHistoryInvoice}
           patient={patient}
           hospitalId={hospitalId}
@@ -1076,9 +1095,9 @@ function DepositDialog({
 }
 
 function InvoiceDialog({
-  open, patient, hospitalId, hospitalizationId, invoiceId, mode, onClose, onConfirmed, onPaid,
+  ready, open, patient, hospitalId, hospitalizationId, invoiceId, mode, onClose, onConfirmed, onPaid,
 }: {
-  open: boolean; patient: any; hospitalId: string;
+  ready: boolean; open: boolean; patient: any; hospitalId: string;
   hospitalizationId: string; invoiceId: string;
   mode: "create" | "debt" | "history";
   onClose: () => void;
@@ -1094,7 +1113,7 @@ function InvoiceDialog({
 
   const { data: depositBalance = 0 } = useQuery({
     queryKey: ["invoice-dialog-deposit-balance", patient.id],
-    enabled: open && mode === "debt",
+    enabled: ready && open && mode === "debt",
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_patient_deposit_balance", {
         p_patient_id: patient.id,
@@ -1106,7 +1125,7 @@ function InvoiceDialog({
 
   const { data: hosp } = useQuery({
     queryKey: ["invoice-hosp", hospitalizationId],
-    enabled: open,
+    enabled: ready && open,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("hospitalizations")
@@ -1120,7 +1139,7 @@ function InvoiceDialog({
 
   const { data: invoice } = useQuery({
     queryKey: ["invoice-header", invoiceId],
-    enabled: open,
+    enabled: ready && open,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("invoices")
@@ -1134,7 +1153,7 @@ function InvoiceDialog({
 
   const { data: items = [] } = useQuery({
     queryKey: ["invoice-items", invoiceId],
-    enabled: open,
+    enabled: ready && open,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("invoice_items")
@@ -1147,7 +1166,7 @@ function InvoiceDialog({
 
   const { data: balance } = useQuery({
     queryKey: ["invoice-balance", invoiceId],
-    enabled: open,
+    enabled: ready && open,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_invoice_balance", {
         p_invoice_id: invoiceId,

@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useSyncRoomCharges } from "@/hooks/useSyncRoomCharges";
 import { useDiscounts } from "@/hooks/useDiscounts";
 import SearchInput from "@/components/shared/SearchInput";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,7 @@ const patientName = (invoice: InvoiceRow) => [invoice.hospitalizations?.patients
 
 export default function InvoiceDiscountPanel() {
   const { user } = useAuth();
+  const { ready } = useSyncRoomCharges();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [invoiceId, setInvoiceId] = useState<string | null>(null);
@@ -48,7 +50,7 @@ export default function InvoiceDiscountPanel() {
 
   const { data: invoices = [], isLoading: invoicesLoading, error: invoicesError } = useQuery({
     queryKey: ["finance-discount-invoices", user?.hospitalId],
-    enabled: !!user,
+    enabled: ready && !!user,
     queryFn: async () => {
       if (!user) return [];
       const { data, error } = await supabase.from("invoices")
@@ -63,7 +65,7 @@ export default function InvoiceDiscountPanel() {
   const selectedInvoice = invoices.find((invoice) => invoice.id === invoiceId);
   const { data: items = [], isLoading: itemsLoading, error: itemsError } = useQuery({
     queryKey: ["finance-discount-items", user?.hospitalId, invoiceId],
-    enabled: !!user && !!selectedInvoice,
+    enabled: ready && !!user && !!selectedInvoice,
     queryFn: async () => {
       if (!invoiceId) return [];
       const { data, error } = await supabase.from("invoice_items")
@@ -123,6 +125,8 @@ export default function InvoiceDiscountPanel() {
   const busy = changeDiscount.isPending || confirm.isPending;
   const original = items.reduce((sum, item) => sum + Number(item.original_amount ?? item.amount), 0);
   const payable = items.reduce((sum, item) => sum + Number(item.amount), 0);
+
+  if (!ready) return <p className="text-sm text-muted-foreground">Загрузка…</p>;
 
   return (
     <section className="space-y-4 border-t pt-6">

@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import type { ColumnDef } from "@tanstack/react-table";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useSyncRoomCharges } from "@/hooks/useSyncRoomCharges";
 import { DataTable } from "@/components/reports/data-table/DataTable";
 import { MetricTile, SummaryCard } from "@/components/shared/PeriodFilter";
 import { fmtMoney, totalsFooter } from "./reportTotals";
@@ -36,9 +37,10 @@ interface DiscountRow {
 
 export default function DiscountReportTab({ from, to }: { from: string; to: string }) {
   const { user } = useAuth();
+  const { ready } = useSyncRoomCharges();
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["discount-report", user?.hospitalId, from, to],
-    enabled: !!user?.hospitalId,
+    enabled: ready && !!user?.hospitalId,
     queryFn: async () => {
       if (!user?.hospitalId) return [];
       const { data, error } = await supabase.rpc("get_discount_report" as any, {
@@ -78,6 +80,8 @@ export default function DiscountReportTab({ from, to }: { from: string; to: stri
     { id: "invoice_number", header: "№ счёта", accessorFn: (r) => r.invoice_number ?? "" },
     { id: "invoice_status", header: "Статус счёта", accessorFn: (r) => STATUS_LABELS[r.invoice_status] ?? "" },
   ];
+
+  if (!ready) return <p className="text-sm text-muted-foreground">Загрузка…</p>;
 
   return (
     <div className="mt-4 space-y-4">

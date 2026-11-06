@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useSyncRoomCharges } from "@/hooks/useSyncRoomCharges";
 import { format } from "date-fns";
 import {
   Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow,
@@ -40,6 +41,7 @@ const fmt = (n: number) =>
 
 export default function FinanceRevenueReport({ from, to }: { from: string; to: string }) {
   const { user } = useAuth();
+  const { ready } = useSyncRoomCharges();
   const [groupBy, setGroupBy] = useState<GroupByKey>("service_group");
   const [opIpFilter, setOpIpFilter] = useState<"all" | "inpatient" | "outpatient">("all");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
@@ -80,7 +82,7 @@ export default function FinanceRevenueReport({ from, to }: { from: string; to: s
       if (error) throw error;
       return (data || []) as unknown as RevenueItem[];
     },
-    enabled: !!user,
+    enabled: ready && !!user,
   });
 
   const filtered = items.filter((i) => {
@@ -187,8 +189,8 @@ export default function FinanceRevenueReport({ from, to }: { from: string; to: s
       </div>
 
       <div className="rounded-md border bg-card">
-        {isLoading ? (
-          <p className="p-4 text-sm text-muted-foreground">Loading…</p>
+        {!ready || isLoading ? (
+          <p className="p-4 text-sm text-muted-foreground">Загрузка…</p>
         ) : rows.length === 0 ? (
           <p className="p-4 text-sm text-muted-foreground">No services in this period.</p>
         ) : (
