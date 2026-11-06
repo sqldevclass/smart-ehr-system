@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useSyncRoomCharges } from "@/hooks/useSyncRoomCharges";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/reports/data-table/DataTable";
 
@@ -23,6 +24,7 @@ const fmt = (n: number) =>
 
 export default function TopServicesTab({ from, to }: { from: string; to: string }) {
   const { user } = useAuth();
+  const { ready } = useSyncRoomCharges();
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ["top-services-items", user?.hospitalId, from, to],
@@ -38,7 +40,7 @@ export default function TopServicesTab({ from, to }: { from: string; to: string 
       if (error) throw error;
       return (data || []) as unknown as ServiceItem[];
     },
-    enabled: !!user,
+    enabled: ready && !!user,
   });
 
   const rows = useMemo<Row[]>(() => {
@@ -67,7 +69,7 @@ export default function TopServicesTab({ from, to }: { from: string; to: string 
       <DataTable
         columns={columns}
         data={rows}
-        isLoading={isLoading}
+        isLoading={!ready || isLoading}
         emptyMessage="За этот период завершённых услуг нет."
         viewKey={VIEW_KEY}
         getRowId={(r) => r.name}

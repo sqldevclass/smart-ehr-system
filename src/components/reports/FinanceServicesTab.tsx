@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useSyncRoomCharges } from "@/hooks/useSyncRoomCharges";
 import { format } from "date-fns";
 import type { ColumnDef } from "@tanstack/react-table";
 import { TableCell, TableRow } from "@/components/ui/table";
@@ -64,6 +65,7 @@ interface Props {
 
 export default function FinanceServicesTab({ period, onPeriodChange }: Props) {
   const { user } = useAuth();
+  const { ready } = useSyncRoomCharges();
   const { from, to } = getDateBounds(period);
 
   const { data: items = [], isLoading } = useQuery({
@@ -87,7 +89,7 @@ export default function FinanceServicesTab({ period, onPeriodChange }: Props) {
       if (error) throw error;
       return (data || []) as unknown as ServiceRow[];
     },
-    enabled: !!user,
+    enabled: ready && !!user,
   });
 
   const columns = useMemo<ColumnDef<ServiceRow, any>[]>(() => [
@@ -132,7 +134,7 @@ export default function FinanceServicesTab({ period, onPeriodChange }: Props) {
     <DataTable
       columns={columns}
       data={items}
-      isLoading={isLoading}
+      isLoading={!ready || isLoading}
       emptyMessage="За этот период услуг нет."
       viewKey={VIEW_KEY}
       getRowId={(r) => r.visit_service_id}

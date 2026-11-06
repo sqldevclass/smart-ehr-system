@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import type { ColumnDef } from "@tanstack/react-table";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useSyncRoomCharges } from "@/hooks/useSyncRoomCharges";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { DataTable } from "@/components/reports/data-table/DataTable";
 
@@ -53,12 +54,14 @@ const invoiceStatus = (s: DebtRow["invoice_status"]) =>
 
 export default function DebtTab() {
   const { user } = useAuth();
+  const { ready } = useSyncRoomCharges();
 
   const { data = [], isLoading } = useQuery({
     queryKey: ["patient-debts", user?.hospitalId],
-    enabled: !!user?.hospitalId,
+    enabled: ready && !!user?.hospitalId,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_patient_debts" as any, { p_hospital_id: user!.hospitalId });
+      if (!user?.hospitalId) return [];
+      const { data, error } = await supabase.rpc("get_patient_debts" as any, { p_hospital_id: user.hospitalId });
       if (error) throw error;
       return (data || []) as unknown as DebtRow[];
     },
@@ -87,7 +90,7 @@ export default function DebtTab() {
       <DataTable
         columns={columns}
         data={data}
-        isLoading={isLoading}
+        isLoading={!ready || isLoading}
         emptyMessage="Задолженностей нет"
         getRowId={(r, i) => `${r.debt_type}_${r.invoice_id ?? r.visit_id ?? r.hospitalization_id ?? i}`}
         getRowCanExpand={(r) => (r.services?.length ?? 0) > 0}
