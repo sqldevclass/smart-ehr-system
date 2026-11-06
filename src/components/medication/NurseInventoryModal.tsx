@@ -25,6 +25,8 @@ import { UnitPicker } from "@/components/inventory-shared/UnitPicker";
 import { Badge } from "@/components/ui/badge";
 import { NoticeDateCell } from "@/components/inventory-shared/NoticeDateCell";
 import { TableTotalsFooter } from "@/components/inventory-shared/TableTotalsFooter";
+import { KindToggle } from "@/components/inventory-shared/KindToggle";
+import type { TurnoverKind } from "@/components/inventory-shared/turnoverTypes";
 
 interface Props {
   departmentId: string;
@@ -81,6 +83,7 @@ export default function NurseInventoryModal({
   const [filters, setFilters] = useState<Filters>({});
   const [period, setPeriod] = usePeriodFilter(true);
   const [activeTab, setActiveTab] = useState("prescriptions");
+  const [stockKind, setStockKind] = useState<TurnoverKind>("drug");
   const setFilter = (k: string, v: string) =>
     setFilters((prev) => ({ ...prev, [k]: v }));
 
@@ -304,6 +307,19 @@ export default function NurseInventoryModal({
   const filteredStock = useMemo(() => (deptStock as any[]).filter((b) =>
     matchesSearch([b.drug_formulary?.trade_name, b.drug_formulary?.inn, b.products?.name], filters.drug ?? "")
   ), [deptStock, filters]);
+
+  const stockByKind = useMemo<Record<TurnoverKind, any[]>>(() => {
+    const grouped: Record<TurnoverKind, any[]> = { drug: [], product: [] };
+    for (const batch of deptStock as any[]) {
+      if (byBatch.has(batch.id)) continue;
+      grouped[batch.drug_formulary_id ? "drug" : "product"].push(batch);
+    }
+    return grouped;
+  }, [deptStock, byBatch]);
+
+  const visibleDepartmentStock = useMemo(() => stockByKind[stockKind].filter((batch) =>
+    matchesSearch([batch.drug_formulary?.trade_name, batch.drug_formulary?.inn, batch.products?.name], filters.drug ?? "")
+  ), [stockByKind, stockKind, filters.drug]);
 
   const refreshInventory = () => {
     refetchPres(); refetchStock();
