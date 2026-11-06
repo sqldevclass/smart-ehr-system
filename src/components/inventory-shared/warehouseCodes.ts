@@ -1,0 +1,1 @@
+export const MAIN_WAREHOUSE_CODES: ReadonlySet<string> = new Set(["central_pharmacy", "general"]);
