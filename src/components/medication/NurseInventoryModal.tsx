@@ -157,7 +157,7 @@ export default function NurseInventoryModal({
   });
 
   const { data: allWarehouses = [] } = useQuery({
-    queryKey: ["all-dept-warehouses", hospitalId, deptWarehouse?.id],
+    queryKey: ["transfer-recipient-warehouses", hospitalId, deptWarehouse?.id],
     enabled: !!deptWarehouse?.id,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -171,9 +171,7 @@ export default function NurseInventoryModal({
         .eq("is_active", true)
         .neq("id", deptWarehouse?.id ?? "");
       if (error) { toast.error(error.message); throw error; }
-      return (data || []).filter((w: any) =>
-        w.warehouse_types?.code === "department"
-      );
+      return data || [];
     },
   });
 

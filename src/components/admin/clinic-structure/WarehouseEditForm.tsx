@@ -94,7 +94,7 @@ export function WarehouseEditForm({ warehouse, onSaved, onCancel }: Props) {
       qc.invalidateQueries({ queryKey: ["clinic-structure"] });
       qc.invalidateQueries({ queryKey: ["my-warehouse", user.hospitalId] });
       qc.invalidateQueries({ queryKey: ["transfer-destinations", user.hospitalId] });
-      qc.invalidateQueries({ queryKey: ["all-dept-warehouses", user.hospitalId] });
+      qc.invalidateQueries({ queryKey: ["transfer-recipient-warehouses", user.hospitalId] });
       qc.invalidateQueries({ queryKey: ["dept-warehouse"] });
       onSaved();
     } catch (e: any) {
