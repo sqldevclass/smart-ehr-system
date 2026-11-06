@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { ChevronDown, ChevronRight, Pencil, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, Pencil, Plus, Printer } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
@@ -30,6 +30,9 @@ import { noticeState } from "@/lib/equipmentDates";
 import { NoticeChips } from "@/components/inventory-shared/NoticeChips";
 import { NoticeDateCell } from "@/components/inventory-shared/NoticeDateCell";
 import { TableTotalsFooter } from "@/components/inventory-shared/TableTotalsFooter";
+import { floorLabel, useClinicStructure } from "@/components/admin/clinic-structure/useClinicStructure";
+import { buildEquipmentLabelHtml } from "@/components/inventory-shared/equipmentLabel";
+import { LABEL_SIZES, printLabel } from "@/lib/printLabel";
 
 interface EquipmentForm {
   id: string;
@@ -79,6 +82,7 @@ export default function EquipmentPage() {
   const { user, hasPermission } = useAuth();
   const canManage = hasPermission("inventory.manage");
   const qc = useQueryClient();
+  const { getFloor } = useClinicStructure();
 
   const [form, setForm] = useState<EquipmentForm | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -99,7 +103,7 @@ export default function EquipmentPage() {
       const { data, error } = await supabase
         .from("equipment")
         .select(
-          "id, name, model, serial_number, purchase_date, purchase_price, warranty_expiry_date, next_service_date, service_interval_days, notes, end_of_life_date, service_notice_days, warranty_notice_days, end_of_life_notice_days, is_active, info_status, manufacturer_id, warehouse_id, transit_transfer_id, written_off_at, manufacturers(name), warehouses(name, departments(name))"
+          "id, name, inventory_number, model, serial_number, purchase_date, purchase_price, warranty_expiry_date, next_service_date, service_interval_days, notes, end_of_life_date, service_notice_days, warranty_notice_days, end_of_life_notice_days, is_active, info_status, manufacturer_id, warehouse_id, transit_transfer_id, written_off_at, manufacturers(name), warehouses(name, floor_id, departments(name, floor_id))"
         )
         .eq("hospital_id", user!.hospitalId)
         .order("next_service_date", { ascending: true, nullsFirst: false });
@@ -287,6 +291,7 @@ export default function EquipmentPage() {
             <tr className="text-left">
               <th className="p-3 w-8"></th>
               <th className="p-3">Название</th>
+              <th className="p-3">Инв. №</th>
               <th className="p-3">Модель</th>
               <th className="p-3">Серийный номер</th>
               <th className="p-3">Местонахождение</th>
@@ -317,6 +322,7 @@ export default function EquipmentPage() {
                       )}
                     </td>
                     <td className="p-3">{e.name}</td>
+                    <td className="p-3 font-mono">{e.inventory_number || "—"}</td>
                     <td className="p-3">{e.model || "—"}</td>
                     <td className="p-3">{e.serial_number || "—"}</td>
                     <td className="p-3">{locationLabel(e)}</td>
@@ -330,6 +336,23 @@ export default function EquipmentPage() {
                       {writtenOff ? <Badge variant="secondary">Списано</Badge> : ready ? <Badge variant="outline">Готово</Badge> : <Badge variant="secondary">Ожидает информации</Badge>}
                     </td>
                     <td className="p-3">
+                      {isActiveUnit(e) && (
+                        <Button variant="ghost" size="icon" aria-label="Печать этикетки"
+                          title={e.transit_transfer_id ? "Оборудование в пути" : "Печать этикетки"}
+                          disabled={!!e.transit_transfer_id}
+                          onClick={() => {
+                            const warehouse = e.warehouses;
+                            const floor = getFloor(warehouse?.floor_id ?? warehouse?.departments?.floor_id);
+                            printLabel(buildEquipmentLabelHtml({
+                              name: e.name || "",
+                              floorText: floor ? floorLabel(floor) : "",
+                              locationName: warehouse?.departments?.name || warehouse?.name || "",
+                              inventoryNumber: e.inventory_number || "",
+                            }), LABEL_SIZES.equipment);
+                          }}>
+                          <Printer className="h-4 w-4" />
+                        </Button>
+                      )}
                       {canManage && !writtenOff && (
                         ready ? (
                           <Button size="sm" variant="ghost" onClick={() => openForm(e)}>
@@ -345,7 +368,7 @@ export default function EquipmentPage() {
                   </tr>
                   {isOpen && ready && canManage && (
                     <tr className="border-t bg-muted/20">
-                      <td colSpan={13} className="p-4">
+                      <td colSpan={14} className="p-4">
                         <ServiceHistory
                           equipmentId={e.id}
                           onAddOpen={() => {
@@ -366,13 +389,13 @@ export default function EquipmentPage() {
               );
             })}
             {rows.length === 0 && (
-              <tr><td colSpan={13} className="p-6 text-center text-muted-foreground">Нет оборудования.</td></tr>
+              <tr><td colSpan={14} className="p-6 text-center text-muted-foreground">Нет оборудования.</td></tr>
             )}
           </tbody>
           <TableTotalsFooter
             label={`Итого: ${rows.length} ед.`}
             cells={[
-              { colSpan: 7 },
+              { colSpan: 8 },
               { content: priceFmt(priceTotal), align: "right" },
               { colSpan: 5 },
             ]}

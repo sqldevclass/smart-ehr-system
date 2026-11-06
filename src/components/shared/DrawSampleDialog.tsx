@@ -10,6 +10,10 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { Barcode } from "@/components/shared/Barcode";
+import { renderBarcodeSvg } from "@/lib/barcode";
+import { LABEL_SIZES, printLabel } from "@/lib/printLabel";
+import { escapeHtml } from "@/lib/utils";
 
 interface Props {
   open: boolean;
@@ -134,29 +138,31 @@ export default function DrawSampleDialog({
     }
   };
 
-  const printLabel = () => {
+  const handlePrintLabel = () => {
     if (!savedBarcode || !visitService) return;
-    const w = window.open("", "_blank", "width=400,height=300");
-    if (!w) return;
     const p = visitService.patients;
     const patientName = [p?.last_name, p?.first_name].filter(Boolean).join(" ");
     const testList = groupedServices
       .map((s) => s.services?.name || "")
       .filter(Boolean)
-      .map((n) => `<div>${n}</div>`)
+      .map((n) => `<div>${escapeHtml(n)}</div>`)
       .join("");
-    w.document.write(`
-      <html><head><title>Label ${savedBarcode}</title>
-      <style>body{font-family:sans-serif;text-align:center;padding:20px}.bc{font-size:32px;font-weight:bold;letter-spacing:2px;margin:20px 0;border:2px solid #000;padding:10px;font-family:monospace}.tests{font-size:12px;margin:8px 0}</style>
-      </head><body>
-      <h2>${patientName}</h2>
-      <p>#${p?.patient_number || ""}</p>
+    const barcodeSvg = renderBarcodeSvg(savedBarcode, { displayValue: true });
+    printLabel(`
+      <style>
+        .lab-label { width:100%;height:100%;font-family:sans-serif;text-align:center;padding:3mm;display:flex;flex-direction:column;gap:1mm; }
+        .lab-label h2 { font-size:12pt;line-height:1.1;margin:0;overflow-wrap:anywhere; }
+        .lab-label p { font-size:8pt;margin:0;overflow-wrap:anywhere; }
+        .lab-label .tests { font-size:8pt;line-height:1.1;overflow-wrap:anywhere; }
+        .lab-label .bc { margin-top:auto;font-family:monospace;overflow-wrap:anywhere; }
+        .lab-label .bc svg { width:100%;height:12mm; }
+      </style><div class="lab-label">
+      <h2>${escapeHtml(patientName)}</h2>
+      <p>#${escapeHtml(String(p?.patient_number || ""))}</p>
       <div class="tests">${testList}</div>
-      <div class="bc">${savedBarcode}</div>
-      <p>${format(new Date(), "MMM d, yyyy HH:mm")}</p>
-      <script>window.print();setTimeout(()=>window.close(),500);</script>
-      </body></html>`);
-    w.document.close();
+      <div class="bc">${barcodeSvg ?? escapeHtml(savedBarcode)}</div>
+      <p>${escapeHtml(format(new Date(), "MMM d, yyyy HH:mm"))}</p>
+      </div>`, LABEL_SIZES.labSample);
   };
 
   return (
@@ -191,7 +197,7 @@ export default function DrawSampleDialog({
             {savedBarcode && (
               <div className="rounded border bg-muted p-3 text-center">
                 <p className="text-xs text-muted-foreground">Saved Barcode</p>
-                <p className="font-mono text-lg font-bold">{savedBarcode}</p>
+                <Barcode value={savedBarcode} />
               </div>
             )}
           </div>
@@ -200,7 +206,7 @@ export default function DrawSampleDialog({
           {savedBarcode ? (
             <>
               <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
-              <Button onClick={printLabel}>Print Label</Button>
+              <Button onClick={handlePrintLabel}>Print Label</Button>
             </>
           ) : (
             <>
