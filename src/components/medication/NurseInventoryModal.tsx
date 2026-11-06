@@ -38,19 +38,20 @@ interface Props {
 type Filters = Record<string, string>;
 
 function FilterBar({
-  filters, onChange, fields, period, onPeriodChange,
+  filters, onChange, fields, period, onPeriodChange, drugPlaceholder = "Препарат или МНН",
 }: {
   filters: Filters;
   onChange: (k: string, v: string) => void;
   fields: string[];
   period?: PeriodState;
   onPeriodChange?: (s: PeriodState) => void;
+  drugPlaceholder?: string;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       {fields.includes("drug") && (
         <SearchInput
-          placeholder="Препарат или МНН"
+          placeholder={drugPlaceholder}
           value={filters.drug ?? ""}
           onChange={(v) => onChange("drug", v)}
           className="w-56"
@@ -680,7 +681,19 @@ export default function NurseInventoryModal({
 
             {/* TAB 4 */}
             <TabsContent value="stock" className="flex-1 min-h-0 overflow-y-auto mt-2 space-y-2">
-              <FilterBar filters={filters} onChange={setFilter} fields={["drug"]} />
+              <div className="flex flex-wrap items-center gap-2">
+                <FilterBar
+                  filters={filters}
+                  onChange={setFilter}
+                  fields={["drug"]}
+                  drugPlaceholder={stockKind === "drug" ? "Препарат или МНН" : "Товар"}
+                />
+                <KindToggle
+                  value={stockKind}
+                  onChange={setStockKind}
+                  counts={{ drug: stockByKind.drug.length, product: stockByKind.product.length }}
+                />
+              </div>
               {stockLoading ? (
                 <div className="flex items-center justify-center h-32">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -694,8 +707,8 @@ export default function NurseInventoryModal({
                   <table className="w-full">
                     <thead className="bg-muted/50">
                       <tr>
-                        <th className={th}>Препарат / Товар</th>
-                        <th className={th}>МНН</th>
+                        <th className={th}>{stockKind === "drug" ? "Препарат" : "Товар"}</th>
+                        {stockKind === "drug" && <th className={th}>МНН</th>}
                         <th className={th}>Серия</th>
                         <th className={th}>Годен до</th>
                         <th className={th}>Кол-во</th>
@@ -703,12 +716,18 @@ export default function NurseInventoryModal({
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredStock.filter((b: any) => !byBatch.has(b.id)).length === 0 ? (
-                        <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">Склад пуст</td></tr>
-                      ) : filteredStock.filter((b: any) => !byBatch.has(b.id)).map((b: any) => (
+                      {visibleDepartmentStock.length === 0 ? (
+                        <tr>
+                          <td colSpan={stockKind === "drug" ? 6 : 5} className="p-6 text-center text-muted-foreground">
+                            {stockKind === "drug" ? "Нет препаратов" : "Нет товаров"}
+                          </td>
+                        </tr>
+                      ) : visibleDepartmentStock.map((b: any) => (
                         <tr key={b.id} className="border-t">
                           <td className={td}><HighlightMatch text={b.drug_formulary?.trade_name || b.products?.name} term={filters.drug ?? ""} fallback="—" /></td>
-                          <td className={td}><HighlightMatch text={b.drug_formulary?.inn} term={filters.drug ?? ""} fallback="—" /></td>
+                          {stockKind === "drug" && (
+                            <td className={td}><HighlightMatch text={b.drug_formulary?.inn} term={filters.drug ?? ""} fallback="—" /></td>
+                          )}
                           <td className={td}>{b.series_number || "—"}</td>
                           <td className={td}>{b.expiry_date || "—"}</td>
                           <td className={td}>{b.quantity_units}</td>
